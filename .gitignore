@@ -1,0 +1,38 @@
+# === 原始数据（大文件，不追踪） ===
+*.las
+*.mkv
+*.bin
+data.zip
+__MACOSX/
+extracted/
+
+# === 图像帧（大量文件） ===
+images/
+images_raw/
+undistorted/
+
+# === Python ===
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# === 输出 ===
+outputs/
+*.ply
+!docs/
+
+# === 其他 ===
+*.log
