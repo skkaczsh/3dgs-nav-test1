@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 """合并点云着色：将所有 PLY section 合并后，用多相机多帧图像进行着色。
 
-思路：
-  - PLY 点云已是世界坐标系，直接合并
-  - 对每帧的 3 个相机，计算相机世界位姿 T_world_cam
-  - 将合并点云投影到每帧图像，采样 RGB 颜色
-  - 按深度融合：同一点被多个视角覆盖时，取最近相机的颜色
+核心优化：
+  - 体素空间索引：预构建 3D 体素网格，每帧只处理相机附近体素内的点
+  - 向量化深度融合：无 Python 逐点循环
+  - 批量二进制 PLY 输出
 
 用法：
-    python colorize_merged.py                          # 着色全部帧
-    python colorize_merged.py --max-frames 200         # 只用前 200 帧
+    python colorize_merged.py                          # 全量着色
     python colorize_merged.py --stride 5               # 每隔 5 帧取 1 帧
+    python colorize_merged.py --voxel 10               # 体素大小 10m
     python colorize_merged.py --output merged.ply
 """
 
 import argparse
 import os
 import sys
+import time
+from collections import defaultdict
 from pathlib import Path
 
 import cv2
@@ -41,12 +42,12 @@ def parse_cam_in_ex(path):
         m = re.search(pattern, text)
         if m:
             vals = [float(x) for x in re.findall(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?', m.group(1))]
-            result['Tcl'][i] = np.array(vals).reshape(4, 4)
+            result['Tcl'][i] = np.array(vals, dtype=np.float64).reshape(4, 4)
 
     m = re.search(r'Til:\s*\[([^\]]+)\]', text)
     if m:
         vals = [float(x) for x in re.findall(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?', m.group(1))]
-        result['Til'] = np.array(vals).reshape(4, 4)
+        result['Til'] = np.array(vals, dtype=np.float64).reshape(4, 4)
 
     for i in range(3):
         cam = {}
@@ -96,6 +97,54 @@ def parse_img_pos(path):
 
 
 # ============================================================
+# 体素空间索引
+# ============================================================
+
+class VoxelIndex:
+    """3D 体素空间索引：快速查找相机附近体素内的点。"""
+
+    def __init__(self, points, voxel_size=10.0):
+        self.voxel_size = voxel_size
+        self.points = points
+        self.N = len(points)
+
+        # 计算每个点所属体素
+        self.voxel_coords = np.floor(points[:, :3] / voxel_size).astype(np.int32)
+
+        # 建立体素 → 点索引映射
+        self.voxel_map = defaultdict(list)
+        for i in range(self.N):
+            key = (self.voxel_coords[i, 0], self.voxel_coords[i, 1], self.voxel_coords[i, 2])
+            self.voxel_map[key].append(i)
+
+        # 转为 numpy 数组加速
+        self.voxel_arrays = {}
+        for key, indices in self.voxel_map.items():
+            self.voxel_arrays[key] = np.array(indices, dtype=np.int64)
+
+        print(f"  体素索引: {len(self.voxel_map)} 个体素, "
+              f"平均 {self.N / len(self.voxel_map):.0f} 点/体素")
+
+    def query_nearby(self, center, radius):
+        """查询中心点 radius 范围内的所有点索引。"""
+        r_voxels = int(np.ceil(radius / self.voxel_size))
+        cx, cy, cz = np.floor(center / self.voxel_size).astype(np.int32)
+
+        index_lists = []
+        for dx in range(-r_voxels, r_voxels + 1):
+            for dy in range(-r_voxels, r_voxels + 1):
+                for dz in range(-r_voxels, r_voxels + 1):
+                    key = (cx + dx, cy + dy, cz + dz)
+                    if key in self.voxel_arrays:
+                        index_lists.append(self.voxel_arrays[key])
+
+        if not index_lists:
+            return np.array([], dtype=np.int64)
+
+        return np.concatenate(index_lists)
+
+
+# ============================================================
 # 点云读取
 # ============================================================
 
@@ -108,8 +157,23 @@ def merge_ply_sections(extracted_dir, section_indices=None):
             if fn.startswith('section_') and fn.endswith('.ply')
         ])
 
-    all_points = []
+    # 先计算总点数
+    total = 0
     for idx in section_indices:
+        path = os.path.join(extracted_dir, f'section_{idx:04d}.ply')
+        if not os.path.exists(path):
+            continue
+        with open(path) as f:
+            for line in f:
+                if 'element vertex' in line:
+                    total += int(line.split()[-1])
+                    break
+
+    # 预分配
+    all_points = np.empty((total, 3), dtype=np.float32)
+    offset = 0
+
+    for i, idx in enumerate(section_indices):
         path = os.path.join(extracted_dir, f'section_{idx:04d}.ply')
         if not os.path.exists(path):
             continue
@@ -122,9 +186,16 @@ def merge_ply_sections(extracted_dir, section_indices=None):
                 if in_data:
                     parts = line.strip().split()
                     if len(parts) >= 3:
-                        all_points.append([float(parts[0]), float(parts[1]), float(parts[2])])
+                        all_points[offset, 0] = float(parts[0])
+                        all_points[offset, 1] = float(parts[1])
+                        all_points[offset, 2] = float(parts[2])
+                        offset += 1
 
-    return np.array(all_points, dtype=np.float32)
+        if (i + 1) % 500 == 0:
+            print(f"    已加载 {i+1}/{len(section_indices)} sections, "
+                  f"{offset:,} 点")
+
+    return all_points[:offset]
 
 
 # ============================================================
@@ -132,12 +203,7 @@ def merge_ply_sections(extracted_dir, section_indices=None):
 # ============================================================
 
 def kannala_project_batch(points_cam, cam_params, w, h):
-    """Kannala 鱼眼模型投影，向量化版本。
-
-    返回:
-        pixels: (N, 2) 像素坐标
-        valid: (N,) bool
-    """
+    """Kannala 鱼眼模型投影，向量化版本。"""
     X, Y, Z = points_cam[:, 0], points_cam[:, 1], points_cam[:, 2]
     valid = Z > 0.1
 
@@ -154,9 +220,7 @@ def kannala_project_batch(points_cam, cam_params, w, h):
     k7 = cam_params.get('k7', 0)
 
     t2 = theta * theta
-    theta_p = theta + k2 * t2 * theta + k3 * t2 * t2 * theta
-    theta_p += k4 * t2**3 * theta + k5 * t2**4 * theta
-    theta_p += k6 * t2**5 * theta + k7 * t2**6 * theta
+    theta_p = theta * (1 + k2*t2 + k3*t2*t2 + k4*t2**3 + k5*t2**4 + k6*t2**5 + k7*t2**6)
     rho = theta_p
 
     r_safe = np.where(r > 1e-8, r, 1.0)
@@ -181,39 +245,44 @@ def kannala_project_batch(points_cam, cam_params, w, h):
 # 合并着色
 # ============================================================
 
-def colorize_merged(points_world, extracted_dir, video_paths, cam_data,
-                    img_pos_entries, section_indices, lidar_to_video,
-                    output_path, stride=1, max_frames=None):
-    """对合并点云进行多帧多相机着色。
-
-    变换链（世界坐标→相机坐标）：
-    P_cam = inv(Tcl) @ inv(T_world_lidar) @ P_world
-    其中 T_world_lidar = T_world_body @ Til
-    """
+def colorize_merged(points_world, cam_data, img_pos_entries,
+                    lidar_to_video, video_paths, output_path,
+                    stride=1, max_frames=None, voxel_size=10.0,
+                    search_radius=80.0):
+    """对合并点云进行多帧多相机着色。"""
     N = len(points_world)
     print(f"\n合并点云: {N:,} 点")
+    print(f"体素大小: {voxel_size}m, 搜索半径: {search_radius}m")
 
-    # 预分配颜色和深度缓冲
+    # 构建体素索引
+    print("构建体素空间索引...")
+    t0 = time.time()
+    vidx = VoxelIndex(points_world, voxel_size=voxel_size)
+    print(f"  耗时: {time.time()-t0:.1f}s")
+
+    # 预分配
     colors = np.zeros((N, 3), dtype=np.uint8)
     best_depth = np.full(N, np.inf, dtype=np.float32)
     colored = np.zeros(N, dtype=bool)
 
-    pts_h = np.hstack([points_world, np.ones((N, 1), dtype=np.float32)])  # (N, 4)
-
-    # 确定使用的帧
+    # 帧列表
     frame_indices = sorted(lidar_to_video.keys())[::stride]
     if max_frames:
         frame_indices = frame_indices[:max_frames]
+    n_frames = len(frame_indices)
+    print(f"使用 {n_frames} 帧着色 (stride={stride})")
 
-    print(f"使用 {len(frame_indices)} 帧着色 (stride={stride})")
+    # 视频尺寸 + 持续打开 3 路 VideoCapture
+    print("打开视频文件...")
+    caps = {}
+    for cam_id in range(3):
+        caps[cam_id] = cv2.VideoCapture(str(video_paths[cam_id]))
+    ret, sample = caps[0].read()
+    h_img, w_img = sample.shape[:2]
+    caps[0].set(cv2.CAP_PROP_POS_FRAMES, 0)  # reset
+    print(f"  视频尺寸: {w_img}×{h_img}")
 
-    # 读取第一帧视频获取尺寸
-    cap = cv2.VideoCapture(str(video_paths[0]))
-    ret, sample_frame = cap.read()
-    cap.release()
-    h_img, w_img = sample_frame.shape[:2]
-
-    # 预加载相机参数（只加载一次）
+    # 预编译相机参数
     cam_params_list = []
     for cam_id in range(3):
         cp = cam_data['cameras'][cam_id]
@@ -223,8 +292,15 @@ def colorize_merged(points_world, extracted_dir, video_paths, cam_data,
             'k2': cp.get('k2', 0), 'k3': cp.get('k3', 0),
             'k4': cp.get('k4', 0), 'k5': cp.get('k5', 0),
             'k6': cp.get('k6', 0), 'k7': cp.get('k7', 0),
-            'image_width': w_img, 'image_height': h_img,
         })
+
+    # 预计算 T_lidar_cam
+    T_lidar_cam = {}
+    for cam_id in range(3):
+        T_lidar_cam[cam_id] = np.linalg.inv(cam_data['Tcl'][cam_id])
+
+    t_start = time.time()
+    last_progress = time.time()
 
     # 逐帧着色
     for i, lidar_idx in enumerate(frame_indices):
@@ -233,57 +309,97 @@ def colorize_merged(points_world, extracted_dir, video_paths, cam_data,
 
         entry = img_pos_entries[lidar_idx]
         R = Rotation.from_quat([entry['qx'], entry['qy'], entry['qz'], entry['qw']]).as_matrix()
-        T_world_body = np.eye(4, dtype=np.float32)
+        cam_pos = np.array([entry['tx'], entry['ty'], entry['tz']], dtype=np.float64)
+
+        T_world_body = np.eye(4, dtype=np.float64)
         T_world_body[:3, :3] = R
-        T_world_body[:3, 3] = [entry['tx'], entry['ty'], entry['tz']]
+        T_world_body[:3, 3] = cam_pos
         T_world_lidar = T_world_body @ cam_data['Til']
+        T_lidar_world = np.linalg.inv(T_world_lidar)
 
         video_frame = lidar_to_video[lidar_idx]
 
+        # 体素查询：只获取相机附近的点
+        nearby_indices = vidx.query_nearby(cam_pos, search_radius)
+        if len(nearby_indices) == 0:
+            continue
+
+        # 只投影未着色点（大幅加速）
+        uncolored_mask = ~colored[nearby_indices]
+        n_uncolored_nearby = uncolored_mask.sum()
+
+        if n_uncolored_nearby == 0:
+            # 附近点全部已着色，跳过此帧
+            continue
+
+        proj_indices = nearby_indices[uncolored_mask]
+
+        pts_nearby = points_world[proj_indices]
+        pts_h = np.hstack([pts_nearby, np.ones((len(pts_nearby), 1), dtype=np.float32)])
+
         # 逐相机着色
         for cam_id in range(3):
-            Tcl = cam_data['Tcl'][cam_id]
-            T_lidar_cam = np.linalg.inv(Tcl)
-            T_lidar_world = np.linalg.inv(T_world_lidar)
-            T_cam_world = T_lidar_cam @ T_lidar_world
+            T_cam_world = T_lidar_cam[cam_id] @ T_lidar_world
 
             pts_cam = (T_cam_world @ pts_h.T).T[:, :3]
 
-            # 快速剔除：Z <= 0 的点
-            front_mask = pts_cam[:, 2] > 0.1
-            if not front_mask.any():
+            # 前方点
+            front = pts_cam[:, 2] > 0.1
+            if not front.any():
                 continue
 
-            pixels, valid = kannala_project_batch(pts_cam, cam_params_list[cam_id], w_img, h_img)
-            n_valid = valid.sum()
-            if n_valid == 0:
+            pts_cam_front = pts_cam[front]
+            front_indices = proj_indices[front]
+
+            pixels, valid = kannala_project_batch(
+                pts_cam_front, cam_params_list[cam_id], w_img, h_img)
+            if not valid.any():
                 continue
 
-            # 读取视频帧
-            cap = cv2.VideoCapture(str(video_paths[cam_id]))
-            cap.set(cv2.CAP_PROP_POS_FRAMES, video_frame)
-            ret, frame = cap.read()
-            cap.release()
+            # 读视频帧（保持 cap 打开，seek）
+            caps[cam_id].set(cv2.CAP_PROP_POS_FRAMES, video_frame)
+            ret, frame = caps[cam_id].read()
             if not ret:
                 continue
 
-            # 采样颜色（深度融合）
-            valid_indices = np.where(valid)[0]
-            u_coords = np.clip(np.round(pixels[valid, 0]).astype(np.int32), 0, w_img - 1)
-            v_coords = np.clip(np.round(pixels[valid, 1]).astype(np.int32), 0, h_img - 1)
-            sampled = frame[v_coords, u_coords, ::-1]  # BGR → RGB
+            # 采样颜色 + 向量化深度融合
+            valid_global = front_indices[valid]
+            u = np.clip(np.round(pixels[valid, 0]).astype(np.int32), 0, w_img - 1)
+            v = np.clip(np.round(pixels[valid, 1]).astype(np.int32), 0, h_img - 1)
+            sampled = frame[v, u, ::-1]  # BGR → RGB
+            depths = pts_cam_front[valid, 2]
 
-            depths = pts_cam[valid, 2]
-            for j, idx in enumerate(valid_indices):
-                if depths[j] < best_depth[idx]:
-                    best_depth[idx] = depths[j]
-                    colors[idx] = sampled[j]
-                    colored[idx] = True
+            closer = depths < best_depth[valid_global]
+            update_idx = valid_global[closer]
+            best_depth[update_idx] = depths[closer]
+            colors[update_idx] = sampled[closer]
+            colored[update_idx] = True
 
-        n_colored = colored.sum()
-        if (i + 1) % 50 == 0 or i == len(frame_indices) - 1:
-            print(f"  [{i+1}/{len(frame_indices)}] 帧 {lidar_idx} (视频帧 {video_frame}) "
-                  f"已着色 {n_colored:,} / {N:,} ({n_colored/N*100:.1f}%)")
+        # 进度（每 10 秒或最后一帧输出）
+        now = time.time()
+        if now - last_progress >= 10 or i == n_frames - 1:
+            n_colored = colored.sum()
+            elapsed = now - t_start
+            fps = (i + 1) / elapsed
+            eta = (n_frames - i - 1) / fps if fps > 0 else 0
+            uncolored_count = (~colored).sum()
+            print(f"  [{i+1}/{n_frames}] 帧 {lidar_idx} "
+                  f"着色 {n_colored:,}/{N:,} ({n_colored/N*100:.1f}%) "
+                  f"未着色 {uncolored_count:,} "
+                  f"速度 {fps:.1f} fps ETA {eta/60:.1f}min")
+            last_progress = now
+
+            # 早期终止：99.9% 已着色时退出
+            if n_colored / N > 0.999:
+                print(f"  → 着色率 >99.9%，提前终止")
+                break
+
+    # 释放视频
+    for cap in caps.values():
+        cap.release()
+
+    elapsed = time.time() - t_start
+    print(f"\n着色耗时: {elapsed:.1f}s ({elapsed/60:.1f}min)")
 
     # 输出
     write_colored_ply_binary(output_path, points_world, colors, colored)
@@ -298,22 +414,33 @@ def colorize_merged(points_world, extracted_dir, video_paths, cam_data,
 
 def write_colored_ply_binary(path, points, colors, valid_mask,
                              uncolored_color=(128, 128, 128)):
-    """写入二进制 PLY 文件（速度快，体积小）。"""
+    """写入二进制 PLY 文件。"""
     N = len(points)
     default = np.array(uncolored_color, dtype=np.uint8)
+    out_colors = np.where(valid_mask[:, None], colors, default[None, :])
+
+    header = "ply\nformat binary_little_endian 1.0\n"
+    header += f"element vertex {N}\n"
+    header += "property float x\nproperty float y\nproperty float z\n"
+    header += "property uchar red\nproperty uchar green\nproperty uchar blue\n"
+    header += "end_header\n"
+
+    dtype = np.dtype([('x', 'f4'), ('y', 'f4'), ('z', 'f4'),
+                      ('r', 'u1'), ('g', 'u1'), ('b', 'u1')])
+    buf = np.empty(N, dtype=dtype)
+    buf['x'] = points[:, 0]
+    buf['y'] = points[:, 1]
+    buf['z'] = points[:, 2]
+    buf['r'] = out_colors[:, 0]
+    buf['g'] = out_colors[:, 1]
+    buf['b'] = out_colors[:, 2]
 
     with open(path, 'wb') as f:
-        header = "ply\nformat binary_little_endian 1.0\n"
-        header += f"element vertex {N}\n"
-        header += "property float x\nproperty float y\nproperty float z\n"
-        header += "property uchar red\nproperty uchar green\nproperty uchar blue\n"
-        header += "end_header\n"
         f.write(header.encode())
+        f.write(buf.tobytes())
 
-        out_colors = np.where(valid_mask[:, None], colors, default[None, :])
-        for i in range(N):
-            f.write(points[i].tobytes())  # 12 bytes: 3×float32
-            f.write(out_colors[i].tobytes())  # 3 bytes: 3×uint8
+    size_mb = os.path.getsize(path) / 1024 / 1024
+    print(f"  PLY 文件大小: {size_mb:.1f} MB")
 
 
 # ============================================================
@@ -328,6 +455,10 @@ def main():
                         help='最多使用 N 帧')
     parser.add_argument('--max-sections', type=int, default=None,
                         help='最多合并 N 个 section (默认全部)')
+    parser.add_argument('--voxel', type=float, default=10.0,
+                        help='体素大小 (m)，越小越精确但内存更多 (默认 10)')
+    parser.add_argument('--radius', type=float, default=80.0,
+                        help='搜索半径 (m)，超出此距离的点不考虑 (默认 80)')
     parser.add_argument('--output', type=str, default=None,
                         help='输出 PLY 路径')
     parser.add_argument('--data-dir', type=str,
@@ -358,16 +489,17 @@ def main():
     print(f"  帧数: {len(img_pos_entries)}")
 
     # 构建 LiDAR → 视频映射
-    t0 = img_pos_entries[min(img_pos_entries.keys())]['timestamp']
+    t0_ts = img_pos_entries[min(img_pos_entries.keys())]['timestamp']
     lidar_to_video = {}
     for idx, entry in img_pos_entries.items():
-        video_frame = round((entry['timestamp'] - t0) * 10.0)
+        video_frame = round((entry['timestamp'] - t0_ts) * 10.0)
         if 0 <= video_frame <= 7630:
             lidar_to_video[idx] = video_frame
     print(f"  有视频对应的 LiDAR 帧: {len(lidar_to_video)}")
 
     # 合并点云
     print("合并 PLY sections...")
+    t_merge = time.time()
     section_indices = sorted([
         int(fn.replace('section_', '').replace('.ply', ''))
         for fn in os.listdir(extracted_dir)
@@ -377,7 +509,7 @@ def main():
         section_indices = section_indices[:args.max_sections]
 
     points_world = merge_ply_sections(extracted_dir, section_indices)
-    print(f"  合并完成: {len(points_world):,} 点")
+    print(f"  合并完成: {len(points_world):,} 点 ({time.time()-t_merge:.1f}s)")
     print(f"  X: [{points_world[:,0].min():.1f}, {points_world[:,0].max():.1f}]")
     print(f"  Y: [{points_world[:,1].min():.1f}, {points_world[:,1].max():.1f}]")
     print(f"  Z: [{points_world[:,2].min():.1f}, {points_world[:,2].max():.1f}]")
@@ -385,15 +517,15 @@ def main():
     # 着色
     colorize_merged(
         points_world=points_world,
-        extracted_dir=extracted_dir,
-        video_paths=video_paths,
         cam_data=cam_data,
         img_pos_entries=img_pos_entries,
-        section_indices=section_indices,
         lidar_to_video=lidar_to_video,
+        video_paths=video_paths,
         output_path=output_path,
         stride=args.stride,
         max_frames=args.max_frames,
+        voxel_size=args.voxel,
+        search_radius=args.radius,
     )
 
 
