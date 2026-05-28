@@ -5,6 +5,8 @@
   - PLY section 中的点云是世界坐标系（非本地 LiDAR 坐标系）
   - 需要通过 img_pos.txt 的位姿（位置+四元数）构建世界→相机变换
   - 变换链：P_world → P_body(=P_local) → P_lidar → P_cam → 像素
+  - 视频 7631 帧@10fps 覆盖 763s，LiDAR 数据覆盖 951s
+    LiDAR 帧→视频帧通过时间戳映射，后 1559 帧无视频数据
 
 用法：
     python colorize_single_frame.py --frame 0
@@ -116,8 +118,31 @@ def read_ply_section(path):
     return np.array(points, dtype=np.float64)
 
 
+def build_lidar_to_video_map(img_pos_entries, fps=10.0):
+    """构建 LiDAR 帧号→视频帧号的映射。
+
+    视频以恒定 fps 录制，LiDAR 帧间隔不均匀。
+    通过 img_pos 时间戳计算对应的视频帧号。
+    返回 dict: lidar_frame_idx -> video_frame_idx，仅包含有效帧。
+    """
+    t0 = None
+    for idx in sorted(img_pos_entries.keys()):
+        t0 = img_pos_entries[idx]['timestamp']
+        break
+
+    video_max_frame = 7630  # 7631 帧共 0~7630
+
+    mapping = {}
+    for idx, entry in img_pos_entries.items():
+        video_frame = round((entry['timestamp'] - t0) * fps)
+        if 0 <= video_frame <= video_max_frame:
+            mapping[idx] = video_frame
+
+    return mapping
+
+
 def read_video_frame(video_path, frame_index):
-    """从视频文件读取指定帧，返回 RGB 图像。"""
+    """从视频文件读取指定帧（frame_index 为视频帧号），返回 RGB 图像。"""
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
         print(f"  WARNING: 无法打开视频 {video_path}")
@@ -251,10 +276,21 @@ def colorize_frame(ply_path, video_paths, cam_data, img_pos_entries,
     Til = cam_data['Til']
     T_world_lidar = T_world_body @ Til
 
-    print(f"\n帧 {frame_index} 位姿:")
+    # 3. 计算 LiDAR 帧→视频帧 映射
+    lidar_to_video = build_lidar_to_video_map(img_pos_entries)
+    video_frame = lidar_to_video.get(frame_index)
+    if video_frame is not None:
+        print(f"\n帧 {frame_index} 位姿 (视频帧 {video_frame}):")
+    else:
+        print(f"\n帧 {frame_index} 位姿 (超出视频范围，无法着色):")
     print(f"  IMU 位置: ({entry['tx']:.4f}, {entry['ty']:.4f}, {entry['tz']:.4f})")
     print(f"  四元数: qw={entry['qw']:.6f}, qx={entry['qx']:.6f}, "
           f"qy={entry['qy']:.6f}, qz={entry['qz']:.6f}")
+
+    if video_frame is None:
+        print(f"ERROR: LiDAR 帧 {frame_index} 无对应视频帧（时间超出视频范围）")
+        print(f"  LiDAR 时间跨度: ~951s，视频覆盖: ~763s")
+        return None, None, None
 
     # 3. 齐次坐标
     pts_h = np.hstack([pts_world, np.ones((N, 1))])  # (N, 4)
@@ -287,8 +323,8 @@ def colorize_frame(ply_path, video_paths, cam_data, img_pos_entries,
             print(f"  跳过：无 Tcl 外参")
             continue
 
-        # 读取视频帧
-        image = read_video_frame(video_paths[cam_id], frame_index)
+        # 读取视频帧（使用时间戳映射后的视频帧号）
+        image = read_video_frame(video_paths[cam_id], video_frame)
         if image is None:
             continue
         h_img, w_img = image.shape[:2]
