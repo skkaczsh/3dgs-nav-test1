@@ -35,4 +35,5 @@ outputs/
 !docs/
 
 # === 其他 ===
-*.log
+*.log# Generated outputs
+colorized_frame_*.ply
