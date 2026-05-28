@@ -37,3 +37,14 @@ outputs/
 # === 其他 ===
 *.log# Generated outputs
 colorized_frame_*.ply
+
+# 大文件（标定数据、原始数据）
+calib_online.yaml
+image/img_pos.txt
+image/imu.bin
+image/video_*.mkv
+*.las
+data.zip
+__MACOSX/
+extracted/
+colorized_frame_*.ply
