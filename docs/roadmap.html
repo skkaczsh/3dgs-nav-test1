@@ -216,13 +216,22 @@
 <article id="pipeline-preprocess" class="card" data-type="module">
   <h2>预处理管线</h2>
   <p>将原始采集数据转换为 Nerfstudio 可用的 transforms.json + 图像 + 点云。</p>
-  <span class="status status-pending">待建</span>
+  <span class="status status-active">进行中</span>
 
   <div class="grid-2" style="margin-top:0.5rem;">
+    <article id="task-skymask" class="card" data-type="task" style="margin-bottom:0;">
+      <h3>00 天空 Mask</h3>
+      <p>引入 skymask 模型对图像做天空分割，避免天空颜色干扰点云着色。需准备服务器和模型信息。</p>
+      <span class="status status-blocked">等待服务器</span>
+      <nav class="hyperedges">
+        <a href="#pipeline-semantic">语义分割</a>
+      </nav>
+    </article>
+
     <article id="task-extract-frames" class="card" data-type="task" style="margin-bottom:0;">
       <h3>01 视频帧提取</h3>
-      <p>从 3 路 MKV 提取帧图像，确定 stride。</p>
-      <span class="status status-pending">待做</span>
+      <p>3 路 MKV，10fps，7631 帧，视频覆盖 763s（LiDAR 951s）。后 1559 帧无视频。</p>
+      <span class="status status-done">已验证</span>
       <nav class="hyperedges">
         <a href="#data-raw">原始数据</a>
         <a href="#risk-video-duration">视频时长待确认</a>
@@ -231,8 +240,8 @@
 
     <article id="task-parse-calibration" class="card" data-type="task" style="margin-bottom:0;">
       <h3>02 标定解析</h3>
-      <p>解析 cam_in_ex.txt → calibration.json。</p>
-      <span class="status status-pending">待做</span>
+      <p>cam_in_ex.txt 已解析：3 相机内参(4系数畸变) + Tcl + Til。Convention B 已验证。</p>
+      <span class="status status-done">已完成</span>
       <nav class="hyperedges">
         <a href="#calib-caminex">相机内参</a>
         <a href="#calib-final">固定外参</a>
@@ -241,8 +250,8 @@
 
     <article id="task-undistort" class="card" data-type="task" style="margin-bottom:0;">
       <h3>03 鱼眼去畸变</h3>
-      <p>Kannala 模型去畸变 → 针孔模型图像。需确认是否需要（畸变系数 k2~-0.006 较小）。</p>
-      <span class="status status-pending">待评估</span>
+      <p>OpenCV fisheye 4系数去畸变，已生成 500 帧样本：image/undistort_cam{0,1,2}/。</p>
+      <span class="status status-done">已完成</span>
       <nav class="hyperedges">
         <a href="#decision-undistort-necessity">去畸变必要性决策</a>
       </nav>
@@ -273,8 +282,8 @@
 
     <article id="task-validate-pose" class="card" data-type="task" style="margin-bottom:0;">
       <h3>05 位姿验证</h3>
-      <p>生成相机视锥体 + 轨迹 PLY，可视化验证标定正确性。</p>
-      <span class="status status-pending">待做</span>
+      <p>Convention B (Tcl = LiDAR→Cam) 已验证正确：LiDAR 环在图像中水平对齐。</p>
+      <span class="status status-done">已验证</span>
       <nav class="hyperedges">
         <a href="#task-build-transforms">构建 transforms</a>
       </nav>
@@ -300,7 +309,7 @@
 
 <article id="pipeline-semantic" class="card" data-type="module">
   <h2>语义分割管线</h2>
-  <p>SAM2 图像分割 + VLM 语义标注，生成语义 mask 和语义点云。</p>
+  <p>SAM2 图像分割 + VLM 语义标注 + skymask 天空分割。</p>
   <span class="status status-pending">待建</span>
   <nav class="hyperedges">
     <a href="#pipeline-3dgs">3DGS 训练</a>

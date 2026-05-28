@@ -84,8 +84,8 @@ nodes:
 - id: pipeline-preprocess
   type: module
   title: 预处理管线
-  status: pending
-  summary: 原始数据 → Nerfstudio transforms.json + 图像 + 点云，待建
+  status: active
+  summary: 原始数据 → 着色点云。标定解析✓、去畸变✓、位姿验证✓、着色✓、天空mask待做
   links:
   - task-extract-frames
   - task-parse-calibration
@@ -106,7 +106,7 @@ nodes:
   type: module
   title: 语义分割管线
   status: pending
-  summary: SAM2 + VLM 语义标注，待建
+  summary: SAM2 + VLM 语义标注 + skymask 天空分割，待建
   links:
   - pipeline-3dgs
 - id: knowledge-tf-tree
@@ -165,23 +165,23 @@ nodes:
 - id: task-extract-frames
   type: task
   title: 01 视频帧提取
-  status: pending
-  summary: 从 3 路 MKV 提取帧图像，确定 stride
+  status: done
+  summary: 3路MKV@10fps，7631帧覆盖763s。LiDAR 951s，后1559帧无视频。已验证。
   links:
   - data-raw
   - risk-video-duration
 - id: task-parse-calibration
   type: task
   title: 02 标定解析
-  status: pending
-  summary: 解析 cam_in_ex.txt → calibration.json
+  status: done
+  summary: cam_in_ex.txt 已解析。Convention B (Tcl=LiDAR→Cam) 验证正确。
   links:
   - calib-caminex
 - id: task-undistort
   type: task
   title: 03 鱼眼去畸变
-  status: pending
-  summary: Kannala 模型去畸变，畸变系数较小需评估必要性
+  status: done
+  summary: OpenCV fisheye 4系数去畸变，已生成500帧样本 image/undistort_cam{0,1,2}/
   links:
   - decision-undistort-necessity
 - id: task-build-transforms
@@ -195,8 +195,8 @@ nodes:
 - id: task-validate-pose
   type: task
   title: 05 位姿验证
-  status: pending
-  summary: 生成相机视锥体 + 轨迹 PLY 可视化
+  status: done
+  summary: Convention B 验证正确：LiDAR环在图像中水平对齐。
   links:
   - task-build-transforms
 - id: task-export-pointcloud
@@ -337,9 +337,27 @@ nodes:
   - task-colorization
 - id: task-colorization
   type: task
-  title: 单帧点云着色
+  title: 点云着色
   status: done
-  summary: colorize_single_frame.py 已实现并验证。着色率49%-59%（3路鱼眼深度融合+Kannala畸变投影）。变换链含世界坐标→本地→相机的完整流水线。
+  summary: colorize_v3.py 已实现。Convention B (Tcl=LiDAR→Cam) + OpenCV fisheye投影。着色率100%，远景效果尚可，但受天空干扰。
   links:
   - knowledge-world-coords
   - knowledge-tf-tree
+  - task-skymask
+- id: task-skymask
+  type: task
+  title: 天空 Mask
+  status: blocked
+  summary: 引入 skymask 模型对图像做天空分割，避免天空颜色干扰点云着色。需准备服务器和模型信息。
+  links:
+  - pipeline-semantic
+  - task-colorization
+- id: knowledge-convention-b
+  type: module
+  title: Convention B 验证
+  status: active
+  summary: Tcl 矩阵含义为 LiDAR→Camera（P_cam = Tcl @ P_lidar）。验证方法：LiDAR环在图像中应水平（平行宽度方向）。使用 calib_online_final.yaml 的 Tcl。
+  links:
+  - calib-final
+  - task-validate-pose
+  - task-colorization
