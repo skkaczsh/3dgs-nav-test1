@@ -30,7 +30,6 @@
   h2 { font-size: 1.3rem; margin-bottom: 0.5rem; }
   h3 { font-size: 1.05rem; margin-bottom: 0.3rem; }
   .subtitle { color: var(--text-muted); margin-bottom: 2rem; }
-
   .card {
     background: var(--card-bg);
     border: 1px solid var(--card-border);
@@ -40,7 +39,6 @@
     transition: border-color 0.2s;
   }
   .card:hover { border-color: var(--accent); }
-
   .card[data-type="module"]    { border-left: 3px solid var(--accent); }
   .card[data-type="data"]      { border-left: 3px solid #5bc0eb; }
   .card[data-type="risk"]      { border-left: 3px solid var(--risk); }
@@ -48,7 +46,6 @@
   .card[data-type="debt"]      { border-left: 3px solid var(--debt); }
   .card[data-type="decision"]  { border-left: 3px solid var(--decision); }
   .card[data-type="task"]      { border-left: 3px solid #69db7c; }
-
   .status {
     display: inline-block;
     font-size: 0.75rem;
@@ -62,7 +59,6 @@
   .status-open     { background: #2a1a1a; color: var(--risk); }
   .status-done     { background: #1a2a2a; color: var(--asset); }
   .status-blocked  { background: #2a1a2a; color: var(--decision); }
-
   .hyperedges {
     margin-top: 0.5rem;
     padding-top: 0.5rem;
@@ -76,7 +72,6 @@
     margin-right: 1rem;
   }
   .hyperedges a:hover { text-decoration: underline; }
-
   .section-title {
     font-size: 1.1rem;
     color: var(--accent);
@@ -84,32 +79,36 @@
     padding-bottom: 0.3rem;
     border-bottom: 1px solid var(--card-border);
   }
-
   .grid-2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.8rem;
   }
   @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
-
   .tag { font-size: 0.75rem; color: var(--text-muted); }
   .metric { color: var(--asset); font-weight: 600; }
   .warning { color: var(--risk); font-weight: 600; }
+  .success { color: #69db7c; font-weight: 600; }
 </style>
 </head>
 <body>
 
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ROOT                                                -->
+<!-- ═══════════════════════════════════════════════════ -->
+
 <section id="palace-root" class="card" data-type="module">
   <h1>🗺️ New Route — Memory Palace</h1>
   <p class="subtitle">MANIFOLD Pocket2-Q9000 大范围路线扫描数据 · 3DGS 重建项目</p>
+  <p><span class="success">✓ 全量着色完成</span> — 41,890,502 点着色，599 MB PLY 输出</p>
   <nav class="hyperedges">
     <a href="#data-raw">原始数据</a>
     <a href="#data-calib">标定体系</a>
     <a href="#data-pointcloud">点云数据</a>
     <a href="#pipeline-preprocess">预处理管线</a>
+    <a href="#pipeline-colorize">着色管线</a>
     <a href="#pipeline-3dgs">3DGS 训练</a>
-    <a href="#pipeline-semantic">语义分割</a>
-    <a href="#risk-overview">风险总览</a>
+    <a href="#knowledge-convention">Convention B</a>
     <a href="#task-backlog">任务待办</a>
   </nav>
 </section>
@@ -122,88 +121,68 @@
 
 <article id="data-raw" class="card" data-type="data">
   <h2>原始采集数据</h2>
-  <p>MANIFOLD Pocket2-Q9000 设备采集的大范围路线扫描数据，设备沿路径移动。</p>
+  <p>MANIFOLD Pocket2-Q9000 设备采集的大范围路线扫描数据，半室内半室外场景。</p>
   <table style="margin:0.5rem 0; font-size:0.9rem;">
-    <tr><td>视频</td><td>3 路鱼眼 MKV（cam0/1/2），1600×1296</td></tr>
-    <tr><td>IMU</td><td>imu.bin（~200Hz，文本格式）</td></tr>
+    <tr><td>视频</td><td>3 路鱼眼 MKV（cam0/1/2），1600×1296，10fps，7631 帧</td></tr>
+    <tr><td>IMU</td><td>imu.bin（~200Hz）</td></tr>
     <tr><td>位姿</td><td>img_pos.txt（7,631 行，19 列）</td></tr>
-    <tr><td>在线标定</td><td>calib_online.yaml（每帧 Tcl + body_T_lidar）</td></tr>
+    <tr><td>.lx 源文件</td><td>MANIFOLD_MT20260511-165822.lx（1.64 GB，7,631 sections）</td></tr>
     <tr><td>总磁盘</td><td>~11 GB</td></tr>
   </table>
-  <span class="status status-active">就绪</span>
+  <span class="status status-done">已完成</span>
   <nav class="hyperedges">
     <a href="#data-calib">标定体系</a>
     <a href="#data-pointcloud">点云数据</a>
-    <a href="#debt-data-redundancy">冗余数据</a>
-    <a href="#risk-imgpos-interpretation">img_pos 列含义风险</a>
+    <a href="#knowledge-lx-format">.lx 格式</a>
   </nav>
 </article>
 
 <article id="data-calib" class="card" data-type="data">
   <h2>标定体系</h2>
-  <p>三层标定数据，共同定义坐标系变换树。</p>
 
   <article id="calib-final" class="card" data-type="data" style="margin-top:0.5rem;">
     <h3>calib_online_final.yaml · 固定外参</h3>
-    <p>设备级最终标定：Tcl_0/1/2（相机→LiDAR）+ Til（LiDAR→IMU），4×4 矩阵。</p>
-    <span class="status status-done">已解析</span>
-    <nav class="hyperedges">
-      <a href="#calib-online">在线标定</a>
-      <a href="#calib-caminex">相机内参</a>
-    </nav>
-  </article>
-
-  <article id="calib-online" class="card" data-type="data" style="margin-top:0.5rem;">
-    <h3>calib_online.yaml · 逐帧在线标定</h3>
-    <p>~7631 帧的逐帧标定数据（文件 ~19 万行），每帧含 Tcl_0（单相机在线标定）和 body_T_lidar（LiDAR 全局位姿）。</p>
-    <div class="tag">⚠️ 紧要数据：body_T_lidar 是世界坐标的唯一权威来源</div>
-    <span class="status status-active">就绪</span>
-    <nav class="hyperedges">
-      <a href="#calib-final">固定外参</a>
-      <a href="#risk-imgpos-interpretation">img_pos 风险</a>
-      <a href="#task-pipeline-build">管线建设</a>
-    </nav>
+    <p>Tcl_0/1/2（LiDAR→Camera）+ Til（IMU→LiDAR），4×4 矩阵。</p>
+    <span class="status status-done">已验证</span>
   </article>
 
   <article id="calib-caminex" class="card" data-type="data" style="margin-top:0.5rem;">
-    <h3>cam_in_ex.txt · 相机内参与外参</h3>
-    <p>3 个鱼眼相机 Kannala 畸变模型（k2~k7, p1/p2），内参矩阵元素（A11/A12/A22, u0/v0），分辨率 1600×1296。</p>
+    <h3>cam_in_ex.txt · 相机内参</h3>
+    <p>3 个鱼眼相机 Kannala 畸变模型（k2~k5），内参 A11/A12/A22/u0/v0，分辨率 1600×1296。</p>
+    <p>畸变系数较小（|k4|max≈0.04），FOV 对角线约 145°。</p>
     <span class="status status-done">已解析</span>
-    <nav class="hyperedges">
-      <a href="#calib-final">固定外参</a>
-      <a href="#task-undistort">去畸变</a>
-    </nav>
+  </article>
+
+  <article id="calib-online" class="card" data-type="data" style="margin-top:0.5rem;">
+    <h3>img_pos.txt · 帧位姿</h3>
+    <p>7,631 行 × 19 列。列3-5 为 IMU 位置，列6-9 为四元数 (qw,qx,qy,qz)。</p>
+    <p>视频覆盖 763s（帧 0~6071），后 1559 帧无视频。</p>
+    <span class="status status-done">已验证</span>
   </article>
 
   <nav class="hyperedges">
-    <a href="#data-raw">原始数据</a>
+    <a href="#knowledge-convention">Convention B</a>
     <a href="#knowledge-tf-tree">TF 变换树</a>
   </nav>
 </article>
 
 <article id="data-pointcloud" class="card" data-type="data">
   <h2>点云数据</h2>
-
   <div class="grid-2">
-    <article id="pc-extracted" class="card" data-type="data" style="margin-bottom:0;">
-      <h3>extracted/ · LiDAR section 点云</h3>
-      <p><span class="metric">7,631</span> 个 ASCII PLY 文件，每个含 xyz 三属性点云。点数范围 5,945 ~ 177,318。</p>
-      <p>总大小 ~3.1 GB。来源：MANIFOLD 设备 .lx 格式 Extraction。</p>
+    <article class="card" data-type="data" style="margin-bottom:0;">
+      <h3>extracted/ · 原始 PLY</h3>
+      <p><span class="metric">7,631</span> 个 ASCII PLY，世界坐标系，总计 ~1.1 亿点，~3.1 GB。</p>
       <span class="status status-done">已提取</span>
     </article>
-
-    <article id="pc-las" class="card" data-type="data" style="margin-bottom:0;">
-      <h3>3DGS 输出点云 (.las)</h3>
-      <p>Point Format 2（含 RGB），<span class="metric">1.09 亿</span>点，LAS 格式。</p>
-      <p>来自 3DGS 重建结果（MANIFOLD 平台输出），文件名含任务 ID 和时间戳。</p>
-      <span class="status status-done">已有</span>
+    <article class="card" data-type="data" style="margin-bottom:0;">
+      <h3>colorized_final.ply · 着色点云</h3>
+      <p><span class="metric">41,890,502</span> 点，599 MB，sky mask 过滤后着色率 100%。</p>
+      <span class="status status-done">已完成</span>
     </article>
   </div>
-
   <nav class="hyperedges" style="margin-top:0.8rem;">
-    <a href="#data-raw">原始数据</a>
-    <a href="#task-merge-pointcloud">点云合并</a>
-    <a href="#risk-data-scale">数据规模风险</a>
+    <a href="#pipeline-colorize">着色管线</a>
+    <a href="#knowledge-world-coords">世界坐标系</a>
   </nav>
 </article>
 
@@ -215,84 +194,79 @@
 
 <article id="pipeline-preprocess" class="card" data-type="module">
   <h2>预处理管线</h2>
-  <p>将原始采集数据转换为 Nerfstudio 可用的 transforms.json + 图像 + 点云。</p>
-  <span class="status status-active">进行中</span>
+  <span class="status status-done">已完成</span>
 
   <div class="grid-2" style="margin-top:0.5rem;">
-    <article id="task-skymask" class="card" data-type="task" style="margin-bottom:0;">
-      <h3>00 天空 Mask</h3>
-      <p>引入 skymask 模型对图像做天空分割，避免天空颜色干扰点云着色。需准备服务器和模型信息。</p>
-      <span class="status status-blocked">等待服务器</span>
-      <nav class="hyperedges">
-        <a href="#pipeline-semantic">语义分割</a>
-      </nav>
-    </article>
-
-    <article id="task-extract-frames" class="card" data-type="task" style="margin-bottom:0;">
+    <article class="card" data-type="task" style="margin-bottom:0;">
       <h3>01 视频帧提取</h3>
-      <p>3 路 MKV，10fps，7631 帧，视频覆盖 763s（LiDAR 951s）。后 1559 帧无视频。</p>
-      <span class="status status-done">已验证</span>
-      <nav class="hyperedges">
-        <a href="#data-raw">原始数据</a>
-        <a href="#risk-video-duration">视频时长待确认</a>
-      </nav>
+      <p>3 路 MKV → 22,893 帧 PNG（3×7631），已提取到服务器 frames/。</p>
+      <span class="status status-done">完成</span>
     </article>
-
-    <article id="task-parse-calibration" class="card" data-type="task" style="margin-bottom:0;">
+    <article class="card" data-type="task" style="margin-bottom:0;">
       <h3>02 标定解析</h3>
-      <p>cam_in_ex.txt 已解析：3 相机内参(4系数畸变) + Tcl + Til。Convention B 已验证。</p>
-      <span class="status status-done">已完成</span>
-      <nav class="hyperedges">
-        <a href="#calib-caminex">相机内参</a>
-        <a href="#calib-final">固定外参</a>
-      </nav>
+      <p>cam_in_ex.txt + calib_online_final.yaml + img_pos.txt 已解析。</p>
+      <span class="status status-done">完成</span>
     </article>
-
-    <article id="task-undistort" class="card" data-type="task" style="margin-bottom:0;">
+    <article class="card" data-type="task" style="margin-bottom:0;">
       <h3>03 鱼眼去畸变</h3>
-      <p>OpenCV fisheye 4系数去畸变，已生成 500 帧样本：image/undistort_cam{0,1,2}/。</p>
-      <span class="status status-done">已完成</span>
-      <nav class="hyperedges">
-        <a href="#decision-undistort-necessity">去畸变必要性决策</a>
-      </nav>
+      <p>OpenCV fisheye 4系数去畸变，500 帧样本已生成。</p>
+      <span class="status status-done">完成</span>
     </article>
-
-    <article id="task-build-transforms" class="card" data-type="task" style="margin-bottom:0;">
-      <h3>04 构建 transforms.json</h3>
-      <p>从 calib_online.yaml 的 body_T_lidar + Tcl + Til 构建相机世界位姿。</p>
-      <p class="warning">⚠️ 不得使用 img_pos.txt 列3-5 作为世界坐标！</p>
-      <span class="status status-pending">待做</span>
-      <nav class="hyperedges">
-        <a href="#calib-online">在线标定</a>
-        <a href="#risk-imgpos-interpretation">img_pos 风险</a>
-        <a href="#knowledge-tf-tree">TF 变换树</a>
-      </nav>
+    <article class="card" data-type="task" style="margin-bottom:0;">
+      <h3>04 位姿验证</h3>
+      <p>Convention B (Tcl = LiDAR→Cam) 验证正确：LiDAR 环水平对齐。</p>
+      <span class="status status-done">完成</span>
     </article>
+  </div>
+</article>
 
-    <article id="task-export-pointcloud" class="card" data-type="task" style="margin-bottom:0;">
-      <h3>06 导出全局点云</h3>
-      <p>合并 7,631 个 PLY section → 全局坐标系点云，下采样供 Splatfacto 初始化。</p>
-      <p class="warning">⚠️ 7,631 section 是旧路线 411 section 的 18 倍，内存需评估。</p>
-      <span class="status status-pending">待做</span>
-      <nav class="hyperedges">
-        <a href="#pc-extracted">提取点云</a>
-        <a href="#risk-data-scale">数据规模风险</a>
-      </nav>
+<article id="pipeline-skymask" class="card" data-type="module">
+  <h2>天空 Mask 管线</h2>
+  <span class="status status-done">已完成</span>
+
+  <div class="grid-2" style="margin-top:0.5rem;">
+    <article class="card" data-type="task" style="margin-bottom:0;">
+      <h3>skyseg ONNX 模型</h3>
+      <p>lingbot-map 的 skyseg_batch.onnx（168MB），自动天空分割。</p>
+      <p>cam0/cam2 正常工作（~25-55% 天空），cam1（朝上）不适用。</p>
+      <span class="status status-done">完成</span>
     </article>
-
-    <article id="task-validate-pose" class="card" data-type="task" style="margin-bottom:0;">
-      <h3>05 位姿验证</h3>
-      <p>Convention B (Tcl = LiDAR→Cam) 已验证正确：LiDAR 环在图像中水平对齐。</p>
-      <span class="status status-done">已验证</span>
-      <nav class="hyperedges">
-        <a href="#task-build-transforms">构建 transforms</a>
-      </nav>
+    <article class="card" data-type="task" style="margin-bottom:0;">
+      <h3>颜色填充扩充</h3>
+      <p>LAB 颜色空间 + 边界膨胀，填补楼间小缝隙（+1~3%）。</p>
+      <p>1374 张 sky mask 已生成（sky_masks_color/）。</p>
+      <span class="status status-done">完成</span>
     </article>
   </div>
 
   <nav class="hyperedges">
+    <a href="#pipeline-colorize">着色管线</a>
+    <a href="#asset-server">服务器</a>
+  </nav>
+</article>
+
+<article id="pipeline-colorize" class="card" data-type="module">
+  <h2>着色管线</h2>
+  <span class="status status-done">全量完成</span>
+
+  <div style="margin-top:0.5rem;">
+    <article class="card" data-type="task" style="margin-bottom:0;">
+      <h3>逐帧着色 + sky mask + 深度融合</h3>
+      <p>Convention B 投影 → OpenCV fisheye.projectPoints → sky mask 过滤 → 最近相机优先</p>
+      <table style="font-size:0.9rem; margin:0.5rem 0;">
+        <tr><td>输入</td><td>7,631 PLY sections + 22,893 视频帧 + 1,374 sky masks</td></tr>
+        <tr><td>输出</td><td>colorized_final.ply（<span class="metric">41,890,502</span> 点，599 MB）</td></tr>
+        <tr><td>着色率</td><td>100%（sky mask 过滤后）</td></tr>
+        <tr><td>耗时</td><td>~29 分钟（服务器）</td></tr>
+      </table>
+      <span class="status status-done">完成</span>
+    </article>
+  </div>
+
+  <nav class="hyperedges">
+    <a href="#knowledge-convention">Convention B</a>
+    <a href="#pipeline-skymask">天空 Mask</a>
     <a href="#pipeline-3dgs">3DGS 训练</a>
-    <a href="#asset-old-pipeline">旧管线参考</a>
   </nav>
 </article>
 
@@ -301,18 +275,8 @@
   <p>使用 Nerfstudio Splatfacto 进行 3D Gaussian Splatting 训练。</p>
   <span class="status status-pending">待建</span>
   <nav class="hyperedges">
-    <a href="#pipeline-preprocess">预处理管线</a>
-    <a href="#risk-data-scale">数据规模风险</a>
+    <a href="#pipeline-colorize">着色管线</a>
     <a href="#asset-old-pipeline">旧管线经验</a>
-  </nav>
-</article>
-
-<article id="pipeline-semantic" class="card" data-type="module">
-  <h2>语义分割管线</h2>
-  <p>SAM2 图像分割 + VLM 语义标注 + skymask 天空分割。</p>
-  <span class="status status-pending">待建</span>
-  <nav class="hyperedges">
-    <a href="#pipeline-3dgs">3DGS 训练</a>
   </nav>
 </article>
 
@@ -322,315 +286,177 @@
 
 <h2 class="section-title">🧠 知识层</h2>
 
-<article id="knowledge-tf-tree" class="card" data-type="module">
-  <h2>坐标系变换树</h2>
-  <p>MANIFOLD 设备 5 个坐标系之间的变换关系：</p>
-  <pre style="background:#111; padding:0.8rem; border-radius:4px; font-size:0.85rem; overflow-x:auto;">
-  World
-    │
-    │  body_T_lidar（逐帧，calib_online.yaml）
-    │
-    ▼
-  Body ←── Til（IMU 与 Body 对齐，calib_online_final.yaml）
-    │
-    │  inv(Til) = T_body_lidar
-    │
-    ▼
-  LiDAR ←── .lx 点云在此坐标系
-    │
-    │  inv(Tcl_0/1/2) = T_lidar_cam（在线标定，每帧微调）
-    │
-    ▼
-  Cam{0,1,2}
-  </pre>
-  <p>相机世界位姿计算：<code>T_world_cam = body_T_lidar @ Til @ inv(Tcl_*) @ OPENCV_TO_OPENGL</code></p>
+<article id="knowledge-convention" class="card" data-type="module">
+  <h2>Convention B：Tcl = LiDAR→Camera</h2>
+  <p><b>关键发现</b>：Tcl 矩阵含义为 LiDAR→Camera（<code>P_cam = Tcl @ P_lidar</code>），而非 Camera→LiDAR。</p>
+  <p><b>验证方法</b>：LiDAR 环在图像中应水平（平行宽度方向）。Convention A 导致 cam0/cam2 环垂直，Convention B 全部水平。</p>
+  <p><b>着色变换链</b>：</p>
+  <pre style="background:#111; padding:0.8rem; border-radius:4px; font-size:0.85rem;">
+P_cam = Tcl @ inv(T_world_lidar) @ P_world
+其中 T_world_lidar = T_world_body @ Til
+T_world_body = img_pos 位置 + 四元数旋转</pre>
+  <span class="status status-done">已验证</span>
   <nav class="hyperedges">
-    <a href="#calib-online">在线标定</a>
-    <a href="#calib-final">固定外参</a>
-    <a href="#risk-imgpos-interpretation">img_pos 风险</a>
+    <a href="#calib-final">标定外参</a>
+    <a href="#pipeline-colorize">着色管线</a>
   </nav>
 </article>
 
-<article id="knowledge-imgpos-format" class="card" data-type="module">
-  <h2>img_pos.txt 列含义</h2>
-  <p>7,631 行 × 19 列（空格分隔，逗号为千位分隔符）：</p>
-  <table style="font-size:0.85rem; margin:0.5rem 0;">
-    <tr><td>列1</td><td>帧号 (0~7630)</td></tr>
-    <tr><td>列2</td><td>Unix 时间戳</td></tr>
-    <tr><td><b>列3-5</b></td><td><b>IMU 位置 (x,y,z) — 非世界坐标！</b></td></tr>
-    <tr><td>列6-9</td><td>四元数 (qw,qx,qy,qz)</td></tr>
-    <tr><td>列10</td><td>四元数归一化因子</td></tr>
-    <tr><td>列11-13</td><td>角速度 (ωx,ωy,ωz)</td></tr>
-    <tr><td>列14,16,18</td><td>分隔常量 (10)</td></tr>
-    <tr><td>列15,17,19</td><td>帧分组号</td></tr>
-  </table>
-  <p class="warning">⚠️ 列3-5 是 IMU 局部坐标增量，绝对不能当世界坐标用于 transforms.json 构建！</p>
+<article id="knowledge-world-coords" class="card" data-type="module">
+  <h2>PLY 点云坐标系</h2>
+  <p><b>关键发现</b>：PLY section 中的点云为<span class="success">世界坐标系</span>，非本地 LiDAR 坐标系。</p>
+  <p><b>证据</b>：PLY 质心跟随设备位置移动（质心-设备距离始终 <5m），反变换到本地后质心在原点附近。</p>
+  <p>MANIFOLD 设备在存储时已将本地扫描变换到世界坐标系。</p>
+  <span class="status status-done">已确认</span>
   <nav class="hyperedges">
-    <a href="#risk-imgpos-interpretation">img_pos 风险</a>
-    <a href="#calib-online">在线标定（世界坐标权威来源）</a>
+    <a href="#data-pointcloud">点云数据</a>
+    <a href="#pipeline-colorize">着色管线</a>
   </nav>
 </article>
 
 <article id="knowledge-lx-format" class="card" data-type="module">
-  <h2>.lx Section 格式回顾</h2>
-  <p>每个 PLY section 对应 .lx 的一帧数据。Section 结构：</p>
-  <table style="font-size:0.85rem; margin:0.5rem 0;">
-    <tr><td>Header</td><td>48 bytes（版本/标定数据/帧号/参数）</td></tr>
-    <tr><td>Point Count</td><td>4 bytes (uint32 LE)</td></tr>
-    <tr><td>Points</td><td>N × 16 bytes (3×float32 xyz + uint32 marker)</td></tr>
+  <h2>.lx Section 格式</h2>
+  <p>Header 48B（float[1:7]=位姿 tx/ty/tz/qx/qy/qz/qw，float[8]=section编号）+ Point Count 4B + Points N×16B。</p>
+  <p>与 img_pos.txt 行号一一对应（7,631 sections）。</p>
+  <span class="status status-done">已解析</span>
+</article>
+
+<article id="knowledge-tf-tree" class="card" data-type="module">
+  <h2>坐标系变换树</h2>
+  <pre style="background:#111; padding:0.8rem; border-radius:4px; font-size:0.85rem;">
+  World (PLY 点云坐标系)
+    │
+    │  T_world_lidar = T_world_body @ Til
+    │  (img_pos 四元数+位置 → T_world_body)
+    │
+    ▼
+  LiDAR
+    │
+    │  Tcl (LiDAR→Camera, Convention B)
+    │
+    ▼
+  Cam{0,1,2}</pre>
+  <span class="status status-done">已验证</span>
+</article>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- ASSET & SERVER LAYER                                 -->
+<!-- ═══════════════════════════════════════════════════ -->
+
+<h2 class="section-title">💎 资产 & 服务器</h2>
+
+<article id="asset-server" class="card" data-type="asset">
+  <h2>GPU 服务器</h2>
+  <p><code>ssh root@10.0.8.114 -p 31079</code>（NVIDIA L20 46GB）</p>
+  <table style="font-size:0.9rem; margin:0.5rem 0;">
+    <tr><td>PyTorch</td><td>2.10.0 + CUDA</td></tr>
+    <tr><td>transformers</td><td>5.9.0（SAM3 支持）</td></tr>
+    <tr><td>onnxruntime</td><td>1.23.2（skyseg 推理）</td></tr>
+    <tr><td>scipy</td><td>1.15.3</td></tr>
   </table>
-  <p>新路线 Section 数量 <span class="metric">7,631</span>（旧路线 411），数据量约 18 倍。</p>
-  <nav class="hyperedges">
-    <a href="#pc-extracted">提取点云</a>
-    <a href="#risk-data-scale">数据规模风险</a>
-  </nav>
+  <p>数据目录：<code>/root/epfs/new_route_data/</code></p>
+  <ul style="margin-left:1.2rem; font-size:0.9rem;">
+    <li>images/ — 1,365 张去畸变图像</li>
+    <li>frames/ — 22,893 视频帧（3×7631）</li>
+    <li>ply/ — 7,631 个 PLY section</li>
+    <li>sky_masks_color/ — 1,374 张 sky mask</li>
+    <li>colorized.ply — 着色结果（599 MB）</li>
+  </ul>
+  <span class="status status-active">就绪</span>
+</article>
+
+<article id="asset-old-pipeline" class="card" data-type="asset">
+  <h2>旧路线完整管线</h2>
+  <p>服务器 <code>/root/epfs/manifold_3dgs_project/</code> 有旧路线（MT20260511-165822）完整管线：</p>
+  <ul style="margin-left:1.2rem; font-size:0.9rem;">
+    <li>scripts/00~08 预处理脚本</li>
+    <li>scripts/preprocess/13_v27_dense_mask_generator_sam3.py（SAM3+VLM 分割）</li>
+    <li>SAM3 + Qwen3.6-35B VLM 已部署</li>
+    <li>V22 最佳基线经验（236K 高斯）</li>
+  </ul>
+  <span class="status status-active">可复用</span>
 </article>
 
 <!-- ═══════════════════════════════════════════════════ -->
 <!-- RISK LAYER                                           -->
 <!-- ═══════════════════════════════════════════════════ -->
 
-<h2 class="section-title">⚠️ 风险层</h2>
+<h2 class="section-title">⚠️ 风险 & 已解决问题</h2>
 
-<article id="risk-overview" class="card" data-type="risk">
-  <h2>风险总览</h2>
-  <nav class="hyperedges">
-    <a href="#risk-imgpos-interpretation">img_pos 列含义误用</a>
-    <a href="#risk-data-scale">数据规模风险</a>
-    <a href="#risk-video-duration">视频时长待确认</a>
-    <a href="#risk-calib-consistency">标定一致性</a>
-    <a href="#risk-no-git">无 Git 版本控制</a>
-  </nav>
+<article id="risk-resolved" class="card" data-type="risk">
+  <h2>已解决的风险</h2>
+  <table style="font-size:0.9rem; margin:0.5rem 0;">
+    <tr><td>Convention 混淆</td><td>✓ Convention B 已验证</td></tr>
+    <tr><td>Kannala 6系数非单调</td><td>✓ 改用 OpenCV fisheye 4系数</td></tr>
+    <tr><td>视频帧映射错误</td><td>✓ 基于时间戳映射</td></tr>
+    <tr><td>天空颜色干扰</td><td>✓ sky mask 过滤</td></tr>
+    <tr><td>着色率低</td><td>✓ sky mask 后 100%</td></tr>
+  </table>
 </article>
 
-<article id="risk-imgpos-interpretation" class="card" data-type="risk">
-  <h2>⚠️ img_pos.txt 列含义误用</h2>
-  <p><b>严重性：高</b></p>
-  <p>列3-5 是 IMU 位置数据（来自 imu.bin 列8-10），不是 LiDAR 世界坐标。如果误用于构建 transforms.json，将导致相机轨迹完全错误。</p>
-  <p><b>正确做法：</b>从 calib_online.yaml 的 body_T_lidar 获取世界坐标。</p>
-  <p>此问题在旧路线项目中曾导致 V22 之前训练错误。</p>
-  <span class="status status-open">持续关注</span>
-  <nav class="hyperedges">
-    <a href="#knowledge-imgpos-format">img_pos 格式</a>
-    <a href="#knowledge-tf-tree">TF 变换树</a>
-    <a href="#task-build-transforms">构建 transforms</a>
-  </nav>
-</article>
-
-<article id="risk-data-scale" class="card" data-type="risk">
-  <h2>⚠️ 数据规模风险</h2>
-  <p><b>严重性：中</b></p>
-  <p>新路线点云 Section 数量 7,631（旧路线 411，18 倍增长），内存和计算资源需评估：</p>
+<article id="risk-remaining" class="card" data-type="risk">
+  <h2>待关注</h2>
   <ul style="margin-left:1.2rem; font-size:0.9rem;">
-    <li>合并 PLY → 可能 1 亿+ 点，需要分块或流式处理</li>
-    <li>视频帧提取 → 帧数可能超过 22,000（7,631 × 3 相机）</li>
-    <li>3DGS 训练时间将显著增加</li>
-    <li>calib_online.yaml 帧数（~19 万行）解析需优化</li>
+    <li><b>3DGS 训练</b>：着色点云 → transforms.json → Splatfacto 训练流程待建</li>
+    <li><b>cam1 天空</b>：朝上相机 skyseg 不适用，可能需要不同策略</li>
+    <li><b>数据规模</b>：1.1 亿原始点 → 4200 万着色点，3DGS 训练需评估</li>
   </ul>
-  <span class="status status-open">待评估</span>
-  <nav class="hyperedges">
-    <a href="#pc-extracted">提取点云</a>
-    <a href="#task-export-pointcloud">导出全局点云</a>
-  </nav>
-</article>
-
-<article id="risk-video-duration" class="card" data-type="risk">
-  <h2>⚠️ 视频时长与帧率待确认</h2>
-  <p><b>严重性：中</b> — 信息缺失</p>
-  <p>3 路视频文件（各 ~360 MB）的具体时长、帧率、编码尚未确认。这将决定帧提取 stride 和最终训练帧数。</p>
-  <span class="status status-pending">待确认</span>
-  <nav class="hyperedges">
-    <a href="#task-extract-frames">视频帧提取</a>
-  </nav>
-</article>
-
-<article id="risk-calib-consistency" class="card" data-type="risk">
-  <h2>⚠️ 标定数据一致性待验证</h2>
-  <p><b>严重性：中</b></p>
-  <p>calib_online.yaml 的帧数（需确认）与 img_pos.txt（7,631 行）的对应关系未验证。需要确认时间戳是否完全对齐。</p>
-  <p>calib_online_final.yaml 的设备标识为 "Pocket2"，而 cam_in_ex.txt 为 "Pocket2-Q9000"，需确认是否为同一设备的不同标识。</p>
-  <span class="status status-pending">待验证</span>
-  <nav class="hyperedges">
-    <a href="#calib-online">在线标定</a>
-    <a href="#calib-final">固定外参</a>
-  </nav>
-</article>
-
-<article id="risk-no-git" class="card" data-type="risk">
-  <h2>⚠️ 无 Git 版本控制</h2>
-  <p><b>严重性：中</b></p>
-  <p>整个 SCAN 目录（含 new_route）没有 Git 仓库。所有代码修改和管线演进无法追踪。</p>
-  <span class="status status-open">待初始化</span>
-  <nav class="hyperedges">
-    <a href="#task-init-git">Git 初始化</a>
-  </nav>
 </article>
 
 <!-- ═══════════════════════════════════════════════════ -->
 <!-- DECISION LAYER                                       -->
 <!-- ═══════════════════════════════════════════════════ -->
 
-<h2 class="section-title">🔀 决策层</h2>
+<h2 class="section-title">🔀 决策记录</h2>
 
-<article id="decision-undistort-necessity" class="card" data-type="decision">
-  <h2>去畸变必要性决策</h2>
-  <p>cam_in_ex.txt 显示畸变系数 k2~-0.006（绝对值很小），与旧路线项目结论一致（"畸变 &lt; 0.05，接近针孔模型"）。</p>
-  <p><b>决策：</b>待定 — 需在新路线图像上实际评估畸变影响，可能仍可跳过去畸变步骤。</p>
-  <span class="status status-pending">待评估</span>
-  <nav class="hyperedges">
-    <a href="#task-undistort">去畸变任务</a>
-    <a href="#calib-caminex">相机内参</a>
-  </nav>
+<article id="decision-convention" class="card" data-type="decision">
+  <h2>Convention B 决策</h2>
+  <p><b>决策</b>：Tcl = LiDAR→Camera（P_cam = Tcl @ P_lidar）</p>
+  <p><b>依据</b>：LiDAR 环在图像中水平对齐验证</p>
+  <p><b>影响</b>：所有投影代码使用 Tcl @ inv(T_world_lidar) 变换链</p>
+  <span class="status status-done">已决策</span>
 </article>
 
-<article id="decision-pipeline-reuse" class="card" data-type="decision">
-  <h2>管线复用 vs 重写决策</h2>
-  <p>MT20260511-165822 项目有完整的 7 阶段预处理管线 + SAM/VLM 管线 + 语义点云管线。</p>
-  <p><b>选项：</b></p>
-  <ul style="margin-left:1.2rem; font-size:0.9rem;">
-    <li><b>复用：</b>复制旧管线脚本，适配新数据路径和参数（帧数、分辨率等）</li>
-    <li><b>重写：</b>基于旧管线经验从零构建，利用已有知识避免踩坑</li>
-    <li><b>提取共享库：</b>将通用逻辑提取为库，两条路线共用</li>
-  </ul>
-  <p><b>决策：</b>待定 — 建议先复用再重构，快速验证数据。</p>
-  <span class="status status-pending">待决策</span>
-  <nav class="hyperedges">
-    <a href="#asset-old-pipeline">旧管线参考</a>
-    <a href="#pipeline-preprocess">预处理管线</a>
-  </nav>
+<article id="decision-skymask" class="card" data-type="decision">
+  <h2>Sky Mask 方案决策</h2>
+  <p><b>决策</b>：skyseg ONNX + 颜色填充扩充</p>
+  <p><b>依据</b>：SAM3 自动模式只找 7 个大 segment，不适合小缝隙填补</p>
+  <p><b>效果</b>：+1~3% 天空覆盖，填补楼间缝隙</p>
+  <span class="status status-done">已决策</span>
 </article>
 
 <!-- ═══════════════════════════════════════════════════ -->
-<!-- ASSET & DEBT LAYER                                   -->
+<!-- TASK BACKLOG                                         -->
 <!-- ═══════════════════════════════════════════════════ -->
 
-<h2 class="section-title">💎 资产 & 债务</h2>
-
-<article id="asset-old-pipeline" class="card" data-type="asset">
-  <h2>旧路线完整管线经验</h2>
-  <p>MT20260511-165822 项目已有：</p>
-  <ul style="margin-left:1.2rem; font-size:0.9rem;">
-    <li>7 阶段预处理脚本（00~07）</li>
-    <li>完整的坐标系变换知识（DATA_FORMAT.md）</li>
-    <li>V22 最佳基线经验（236K 高斯，55.8 MB）</li>
-    <li>SAM2 + VLM 语义分割管线</li>
-    <li>语义点云反投影管线</li>
-    <li>已验证的 img_pos.txt 列含义结论</li>
-  </ul>
-  <span class="status status-active">可复用</span>
-  <nav class="hyperedges">
-    <a href="#decision-pipeline-reuse">管线复用决策</a>
-    <a href="#pipeline-preprocess">预处理管线</a>
-  </nav>
-</article>
-
-<article id="asset-las-output" class="card" data-type="asset">
-  <h2>3DGS 已输出点云</h2>
-  <p>MANIFOLD 平台已有 3DGS 重建输出（.las 格式，1.09 亿点），可作为质量参考基线。</p>
-  <span class="status status-active">参考基线</span>
-  <nav class="hyperedges">
-    <a href="#pc-las">LAS 点云</a>
-  </nav>
-</article>
-
-<article id="debt-data-redundancy" class="card" data-type="debt">
-  <h2>🔧 数据冗余</h2>
-  <p>data.zip（3.5 GB）与 extracted/（3.1 GB）内容重复，加 __MACOSX 残留，共浪费 ~6.6 GB。</p>
-  <p><b>偿还计划：</b>验证 extracted/ 完整性后删除 data.zip 和 __MACOSX/。</p>
-  <span class="status status-open">中</span>
-  <nav class="hyperedges">
-    <a href="#data-raw">原始数据</a>
-    <a href="#task-cleanup">数据清理</a>
-  </nav>
-</article>
-
-<article id="debt-no-knowledge-structure" class="card" data-type="debt">
-  <h2>🔧 项目知识管理缺失</h2>
-  <p>new_route 目录缺少知识管理文件（roadmap.html, knowledge.yaml, assets-debt.yaml）、无 Git 仓库、无脚本代码。</p>
-  <p><b>偿还计划：</b>本次正在创建 roadmap.html / knowledge.yaml / assets-debt.yaml。</p>
-  <span class="status status-active">进行中</span>
-  <nav class="hyperedges">
-    <a href="#task-init-knowledge">知识管理初始化</a>
-  </nav>
-</article>
-
-<!-- ═══════════════════════════════════════════════════ -->
-<!-- TASK BACKLOG                                          -->
-<!-- ═══════════════════════════════════════════════════ -->
-
-<h2 class="section-title">📋 任务待办</h2>
+<h2 class="section-title">📋 下一步任务</h2>
 
 <article id="task-backlog" class="card" data-type="module">
-  <h2>任务待办（按依赖顺序）</h2>
+  <h2>任务待办</h2>
   <nav class="hyperedges">
-    <a href="#task-init-git">1. Git 初始化</a>
-    <a href="#task-init-knowledge">2. 知识管理</a>
-    <a href="#task-validate-data">3. 数据验证</a>
-    <a href="#task-cleanup">4. 数据清理</a>
-    <a href="#task-pipeline-build">5. 管线建设</a>
+    <a href="#task-transforms">1. 构建 transforms.json</a>
+    <a href="#task-3dgs-train">2. 3DGS 训练</a>
+    <a href="#task-visualize">3. 可视化验证</a>
   </nav>
 </article>
 
-<article id="task-init-git" class="card" data-type="task">
-  <h2>1. Git 仓库初始化</h2>
-  <p>为 new_route 或 SCAN 整体初始化 Git 仓库，配置 .gitignore（排除大文件、视频、点云数据）。</p>
+<article id="task-transforms" class="card" data-type="task">
+  <h2>1. 构建 transforms.json</h2>
+  <p>从 img_pos.txt 位姿 + Tcl + Til 构建 Nerfstudio 格式 transforms.json。</p>
+  <p>需包含：相机内参、世界位姿、图像路径、可选 mask_path。</p>
   <span class="status status-pending">待做</span>
-  <nav class="hyperedges">
-    <a href="#risk-no-git">无 Git 风险</a>
-  </nav>
 </article>
 
-<article id="task-init-knowledge" class="card" data-type="task">
-  <h2>2. 知识管理文档初始化</h2>
-  <p>创建 docs/roadmap.html, docs/knowledge.yaml, docs/assets-debt.yaml（本次正在做）。</p>
-  <span class="status status-active">进行中</span>
-  <nav class="hyperedges">
-    <a href="#debt-no-knowledge-structure">知识管理缺失</a>
-  </nav>
-</article>
-
-<article id="task-validate-data" class="card" data-type="task">
-  <h2>3. 数据完整性验证</h2>
-  <p style="font-size:0.9rem;">
-  · 确认视频时长/帧率<br>
-  · 验证 calib_online.yaml 帧数与 img_pos.txt 对应关系<br>
-  · 检查 PLY section 数量（7,631）与 img_pos.txt 行数（7,631）是否一致<br>
-  · 确认设备标识 "Pocket2" vs "Pocket2-Q9000"
-  </p>
+<article id="task-3dgs-train" class="card" data-type="task">
+  <h2>2. 3DGS 训练</h2>
+  <p>使用 Splatfacto 训练 3D Gaussian Splatting，参考旧路线 V22 参数。</p>
   <span class="status status-pending">待做</span>
-  <nav class="hyperedges">
-    <a href="#risk-video-duration">视频时长风险</a>
-    <a href="#risk-calib-consistency">标定一致性风险</a>
-  </nav>
 </article>
 
-<article id="task-cleanup" class="card" data-type="task">
-  <h2>4. 冗余数据清理</h2>
-  <p>验证 extracted/ 完整性后，删除 data.zip（3.5 GB）和 __MACOSX/ 目录。</p>
+<article id="task-visualize" class="card" data-type="task">
+  <h2>3. 可视化验证</h2>
+  <p>用 CloudCompare/Open3D 打开 colorized_final.ply 验证颜色和几何正确性。</p>
   <span class="status status-pending">待做</span>
-  <nav class="hyperedges">
-    <a href="#debt-data-redundancy">数据冗余</a>
-  </nav>
-</article>
-
-<article id="task-pipeline-build" class="card" data-type="task">
-  <h2>5. 预处理管线建设</h2>
-  <p>按顺序建立 01~07 预处理脚本，适配 new_route 数据。</p>
-  <span class="status status-pending">待做</span>
-  <nav class="hyperedges">
-    <a href="#pipeline-preprocess">预处理管线</a>
-    <a href="#decision-pipeline-reuse">管线复用决策</a>
-  </nav>
-</article>
-
-<article id="task-merge-pointcloud" class="card" data-type="task">
-  <h2>6. 点云合并与全局坐标变换</h2>
-  <p>将 7,631 个 section 合并到全局坐标系，考虑分块/流式处理以控制内存。</p>
-  <span class="status status-pending">待做</span>
-  <nav class="hyperedges">
-    <a href="#task-export-pointcloud">导出全局点云</a>
-    <a href="#risk-data-scale">数据规模风险</a>
-  </nav>
 </article>
 
 </body>

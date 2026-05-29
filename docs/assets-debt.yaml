@@ -1,148 +1,67 @@
 assets:
+  - id: asset-colorized-ply
+    title: 着色点云
+    type: output
+    status: active
+    value: colorized_final.ply (41,890,502 点, 599 MB, sky mask 过滤后 100% 着色)
+    path: /Users/skkac/Work/SCAN/new_route/colorized_final.ply
+
+  - id: asset-sky-masks
+    title: 天空Mask数据集
+    type: data
+    status: active
+    value: 1374张sky mask (sky_masks_color/)，skyseg+颜色填充扩充
+    path: /root/epfs/new_route_data/sky_masks_color/
+
+  - id: asset-video-frames
+    title: 视频帧数据集
+    type: data
+    status: active
+    value: 22893帧 (3×7631)，已提取到服务器
+    path: /root/epfs/new_route_data/frames/
+
+  - id: asset-server
+    title: GPU服务器
+    type: infrastructure
+    status: active
+    value: "L20 46GB, PyTorch 2.10, transformers 5.9, onnxruntime 1.23"
+    path: ssh root@10.0.8.114 -p 31079
+
   - id: asset-old-pipeline
-    title: 旧路线完整管线经验
-    type: knowledge
-    owner: agent
+    title: 旧路线管线
+    type: reference
     status: active
-    value: 7阶段预处理脚本 + V22基线经验 + SAM/VLM管线 + img_pos验证结论，可直接复用/适配
-    linked_nodes:
-      - decision-pipeline-reuse
-      - pipeline-preprocess
+    value: 服务器 /root/epfs/manifold_3dgs_project/ 完整脚本
+    path: /root/epfs/manifold_3dgs_project/scripts/
 
-  - id: asset-las-output
-    title: 3DGS 已输出点云
-    type: data
-    owner: external
+  - id: asset-skyseg-model
+    title: skyseg ONNX模型
+    type: model
     status: active
-    value: MANIFOLD 平台 LAS 格式 1.09 亿点输出，可作为 3DGS 重建质量参考基线
-    linked_nodes:
-      - pc-las
-
-  - id: asset-calib-knowledge
-    title: 坐标系变换树与标定知识
-    type: knowledge
-    owner: agent
-    status: active
-    value: 已解析完整的 TF 树（World→Body→LiDAR→Cam），明确了 body_T_lidar 为世界坐标唯一来源
-    linked_nodes:
-      - knowledge-tf-tree
-      - calib-online
-      - risk-imgpos-interpretation
-
-  - id: asset-imgpos-format
-    title: img_pos.txt 列含义验证结论
-    type: knowledge
-    owner: agent
-    status: active
-    value: 列3-5 是 IMU 位置（非世界坐标），列6-9 是四元数；旧项目已踩坑并验证
-    linked_nodes:
-      - knowledge-imgpos-format
-      - risk-imgpos-interpretation
-
-  - id: asset-extracted-pointcloud
-    title: 提取点云数据（7,631 PLY section）
-    type: data
-    owner: agent
-    status: active
-    value: 已从 .lx 提取的 ASCII PLY 点云，每 section 仅含 xyz，总计 ~3.1GB
-    linked_nodes:
-      - pc-extracted
-      - task-export-pointcloud
-
-  - id: asset-calib-data
-    title: 三层标定数据
-    type: data
-    owner: external
-    status: active
-    value: calib_online_final.yaml（固定外参） + calib_online.yaml（逐帧在线标定 ~19万行） + cam_in_ex.txt（内参）
-    linked_nodes:
-      - data-calib
-      - task-build-transforms
-
-  - id: asset-video-data
-    title: 3路鱼眼相机视频
-    type: data
-    owner: external
-    status: active
-    value: cam0/1/2 MKV 视频各 ~360MB，1600×1296 分辨率
-    linked_nodes:
-      - data-raw
-      - task-extract-frames
+    value: skyseg_batch.onnx (168MB)，天空分割
+    path: /root/epfs/lingbot-map/lingbot-map/skyseg_batch.onnx
 
 debts:
-  - id: debt-data-redundancy
-    title: 数据冗余（data.zip + __MACOSX）
-    severity: medium
-    status: open
-    cause: 原始数据解压后未清理压缩包和 macOS 残留
-    impact: 浪费 ~6.6 GB 磁盘空间
-    repayment_plan: 验证 extracted/ 完整性后删除 data.zip 和 __MACOSX/
-    linked_nodes:
-      - data-raw
-      - task-cleanup
-
-  - id: debt-no-knowledge-structure
-    title: 项目知识管理缺失
-    severity: medium
-    status: active
-    cause: 项目刚启动，无文档、无 Git、无脚本
-    impact: 知识无沉淀，进度不可追踪，无法回滚
-    repayment_plan: 正在创建 roadmap.html / knowledge.yaml / assets-debt.yaml；后续需初始化 Git
-    linked_nodes:
-      - task-init-knowledge
-      - task-init-git
-
-  - id: debt-no-git
-    title: 无 Git 版本控制
-    severity: medium
-    status: open
-    cause: 未初始化 Git 仓库
-    impact: 代码修改不可追踪，无协作基础
-    repayment_plan: 初始化 Git 仓库，配置 .gitignore 排除大文件（视频、点云、压缩包）
-    linked_nodes:
-      - risk-no-git
-      - task-init-git
-
-  - id: debt-video-metadata-unknown
-    title: 视频时长/帧率/编码未知
-    severity: low
-    status: open
-    cause: 未执行 ffprobe 检查视频元数据
-    impact: 无法确定帧提取 stride 和最终训练帧数
-    repayment_plan: 运行 ffprobe 检查 3 路 MKV 元数据
-    linked_nodes:
-      - risk-video-duration
-      - task-extract-frames
-
-  - id: debt-calib-frame-correspondence
-    title: 标定帧数对应关系未验证
-    severity: medium
-    status: open
-    cause: calib_online.yaml 帧数未确认与 img_pos.txt 7,631 行的精确对应关系
-    impact: 若帧数不对应，transforms.json 构建可能出错
-    repayment_plan: 解析 calib_online.yaml 帧数并与 img_pos.txt 时间戳对齐验证
-    linked_nodes:
-      - risk-calib-consistency
-      - task-validate-data
-
-  - id: debt-device-id-mismatch
-    title: 设备标识不一致
-    severity: low
-    status: open
-    cause: calib_online_final.yaml 标识 "Pocket2"，cam_in_ex.txt 标识 "Pocket2-Q9000"
-    impact: 需确认是同一设备的不同标识还是不同设备
-    repayment_plan: 查阅 MANIFOLD 文档或对比标定参数验证
-    linked_nodes:
-      - risk-calib-consistency
-
-  - id: debt-old-pipeline-adaptation
-    title: 旧管线适配待完成
+  - id: debt-no-transforms
+    title: transforms.json 未构建
     severity: high
     status: open
-    cause: 新路线数据量 18 倍增长（7631 vs 411 sections），旧管线需适配
-    impact: 内存、计算时间、存储需求显著增加
-    repayment_plan: 评估分块/流式处理方案，适配帧数参数
-    linked_nodes:
-      - decision-pipeline-reuse
-      - risk-data-scale
-      - task-pipeline-build
+    cause: 着色完成后尚未构建 Nerfstudio 格式 transforms.json
+    impact: 无法进行 3DGS 训练
+    repayment_plan: 从 img_pos 位姿 + Tcl + Til 构建
+
+  - id: debt-cam1-sky
+    title: cam1 天空检测不适用
+    severity: low
+    status: open
+    cause: cam1 朝上相机，skyseg 模型不识别室内天花板
+    impact: cam1 帧天空未过滤，但着色时已通过深度融合缓解
+    repayment_plan: 可对 cam1 使用不同策略或跳过 sky mask
+
+  - id: debt-data-redundancy
+    title: 数据冗余
+    severity: medium
+    status: open
+    cause: data.zip 与 extracted/ 重复
+    impact: 浪费 ~6.6GB 磁盘
+    repayment_plan: 验证后删除 data.zip 和 __MACOSX/
