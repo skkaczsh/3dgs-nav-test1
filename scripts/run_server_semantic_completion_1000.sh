@@ -22,11 +22,12 @@ CHUNK_SIZE="${CHUNK_SIZE:-10}"
 MAX_TOKENS="${MAX_TOKENS:-2048}"
 
 mkdir -p "${SAM_MASKS_DIR}" "${OUTPUT_DIR}"
-export MANIFEST SAM_MASKS_DIR EXISTING_SAM_DIR PART0 PART1
+export MANIFEST SAM_MASKS_DIR EXISTING_SAM_DIR PART0 PART1 START_INDEX END_INDEX
 
 echo "[1/5] Combining SAM2 masks into ${SAM_MASKS_DIR}"
 python3 - <<'PY'
 import os
+import json
 import shutil
 from pathlib import Path
 
@@ -34,19 +35,25 @@ manifest = Path(os.environ["MANIFEST"])
 out = Path(os.environ["SAM_MASKS_DIR"])
 sources = [Path(os.environ["EXISTING_SAM_DIR"]), Path(os.environ["PART0"]), Path(os.environ["PART1"])]
 out.mkdir(parents=True, exist_ok=True)
+start = int(os.environ.get("START_INDEX", "0"))
+end = int(os.environ.get("END_INDEX", "3000"))
+items = json.loads(manifest.read_text()).get("items", [])
+wanted = {item["image_id"] for item in items[start:end]}
 
 suffixes = ["_sam_masks.json", "_sam_masks.png", "_numbered.png", "_sam_done.flag"]
 copied = 0
 for src in sources:
     if not src.exists():
         continue
-    for path in src.iterdir():
-        if any(path.name.endswith(suffix) for suffix in suffixes):
-            dst = out / path.name
-            if not dst.exists() or path.stat().st_mtime > dst.stat().st_mtime:
-                shutil.copy2(path, dst)
-                copied += 1
-print({"copied_or_refreshed": copied, "json_count": len(list(out.glob("*_sam_masks.json")))})
+    for image_id in wanted:
+        for suffix in suffixes:
+            path = src / f"{image_id}{suffix}"
+            if path.exists():
+                dst = out / path.name
+                if not dst.exists() or path.stat().st_mtime > dst.stat().st_mtime:
+                    shutil.copy2(path, dst)
+                    copied += 1
+print({"wanted": len(wanted), "copied_or_refreshed": copied, "json_count": len(list(out.glob("*_sam_masks.json")))})
 PY
 
 echo "[2/5] Running sam2_qwen"
