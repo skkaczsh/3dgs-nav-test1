@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 SEMANTIC_ROOT="${SEMANTIC_ROOT:-/root/epfs/manifold_3dgs_project/semantic_eval}"
 RUN_EVAL="${RUN_EVAL:-${SEMANTIC_ROOT}/run_eval.py}"
 MERGE_SCRIPT="${MERGE_SCRIPT:-${SEMANTIC_ROOT}/merge_sam2_adjacency.py}"
