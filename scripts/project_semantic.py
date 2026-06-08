@@ -118,6 +118,20 @@ def read_semantic_ply(path: Path) -> tuple[np.ndarray, np.ndarray]:
     return points, labels
 
 
+def zbuffer_visible_indices(point_indices: np.ndarray, pixels: np.ndarray, depths: np.ndarray, width: int) -> np.ndarray:
+    """Return the nearest projected point for each image pixel."""
+    if len(point_indices) == 0:
+        return np.zeros(0, dtype=bool)
+    pixel_idx = pixels[:, 1].astype(np.int64) * int(width) + pixels[:, 0].astype(np.int64)
+    order = np.lexsort((depths, pixel_idx))
+    sorted_pixel_idx = pixel_idx[order]
+    first = np.r_[True, sorted_pixel_idx[1:] != sorted_pixel_idx[:-1]]
+    keep_order = order[first]
+    keep = np.zeros(len(point_indices), dtype=bool)
+    keep[keep_order] = True
+    return keep
+
+
 def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
     pcd_path = Path(config.EXTRACTED_DIR) / f"section_{frame_id:04d}.ply"
     if not pcd_path.exists():
@@ -177,18 +191,23 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
         idx = np.where(valid)[0][in_img]
         uu = np.clip(np.rint(u[in_img]).astype(np.int32), 0, W - 1)
         vv = np.clip(np.rint(v[in_img]).astype(np.int32), 0, H - 1)
+        depths = z[valid][in_img]
+        if args.zbuffer_visible:
+            visible = zbuffer_visible_indices(idx, np.column_stack([uu, vv]), depths, W)
+            idx, uu, vv, depths = idx[visible], uu[visible], vv[visible], depths[visible]
+            if len(idx) == 0:
+                continue
         sampled = sem[vv, uu].astype(np.uint8)
 
         if args.ignore_sky:
             keep = sampled != 11
-            idx, sampled = idx[keep], sampled[keep]
+            idx, sampled, depths = idx[keep], sampled[keep], depths[keep]
         if args.ignore_ids:
             ignore = np.isin(sampled, np.array(args.ignore_ids, dtype=np.uint8))
-            idx, sampled = idx[~ignore], sampled[~ignore]
+            idx, sampled, depths = idx[~ignore], sampled[~ignore], depths[~ignore]
         if len(idx) == 0:
             continue
 
-        depths = z[valid][in_img]
         if args.ignore_sky or args.ignore_ids:
             # Recompute depths for kept idx without relying on previous masks.
             depths = P_cam[idx, 2]
@@ -236,6 +255,9 @@ def main() -> None:
     parser.add_argument("--max-points", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--min-depth", type=float, default=0.1)
+    parser.add_argument("--zbuffer-visible", action="store_true", default=True,
+                        help="Keep only the nearest projected point per camera pixel before sampling semantic labels.")
+    parser.add_argument("--no-zbuffer-visible", dest="zbuffer_visible", action="store_false")
     parser.add_argument("--ignore-sky", action="store_true", default=True)
     parser.add_argument("--include-sky", dest="ignore_sky", action="store_false")
     parser.add_argument("--ignore-ids", type=int, nargs="*", default=[255])
