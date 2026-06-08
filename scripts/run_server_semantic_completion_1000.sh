@@ -21,7 +21,7 @@ VLM_MODEL="${VLM_MODEL:-Qwen3.6-35B-A3B-Q4_K_M}"
 START_INDEX="${START_INDEX:-0}"
 END_INDEX="${END_INDEX:-3000}"
 CHUNK_SIZE="${CHUNK_SIZE:-10}"
-MAX_TOKENS="${MAX_TOKENS:-2048}"
+MAX_TOKENS="${MAX_TOKENS:-1024}"
 
 mkdir -p "${SAM_MASKS_DIR}" "${OUTPUT_DIR}"
 export MANIFEST SAM_MASKS_DIR EXISTING_SAM_DIR PART0 PART1 START_INDEX END_INDEX
@@ -64,7 +64,8 @@ python3 "${REVIEW_SCRIPT}" \
   --output-combo sam2_prompt_v3_sky_label_merge \
   --manifest "${MANIFEST}" \
   --vlm-endpoint "${VLM_ENDPOINT}" \
-  --vlm-model "${VLM_MODEL}"
+  --vlm-model "${VLM_MODEL}" \
+  --vlm-max-tokens "${MAX_TOKENS}"
 
 echo "[5/5] Completing unknown non-sky regions"
 python3 "${COMPLETION_SCRIPT}" \
@@ -73,6 +74,7 @@ python3 "${COMPLETION_SCRIPT}" \
   --output-combo sam2_prompt_v3_sky_label_merge_completion \
   --manifest "${MANIFEST}" \
   --vlm-endpoint "${VLM_ENDPOINT}" \
-  --vlm-model "${VLM_MODEL}"
+  --vlm-model "${VLM_MODEL}" \
+  --vlm-max-tokens "${MAX_TOKENS}"
 
 echo "semantic completion output: ${OUTPUT_DIR}"
