@@ -11,6 +11,7 @@ LOG="${LOG:-/root/epfs/qwen_vl_server_${PORT}.log}"
 CTX_SIZE="${CTX_SIZE:-32768}"
 PARALLEL="${PARALLEL:-2}"
 NGL="${NGL:-99}"
+LLAMA_LIB_DIR="${LLAMA_LIB_DIR:-$(dirname "${LLAMA_SERVER}")}"
 
 if [[ ! -x "${LLAMA_SERVER}" ]]; then
   echo "missing llama-server: ${LLAMA_SERVER}" >&2
@@ -31,6 +32,7 @@ if [[ -n "${old_pids}" ]]; then
 fi
 
 echo "starting Qwen VL server port=${PORT} ctx=${CTX_SIZE} parallel=${PARALLEL}"
+export LD_LIBRARY_PATH="${LLAMA_LIB_DIR}:${LD_LIBRARY_PATH:-}"
 nohup "${LLAMA_SERVER}" \
   -m "${MODEL}" \
   --mmproj "${MMPROJ}" \
