@@ -260,6 +260,23 @@ Interpretation:
   - manual-equipment `fine_candidate` subclusters
   - excluding `linear_edge_review` and `large_mixed_review`
 
+Accepted fine-object QA:
+
+- output: `/root/epfs/new_route_stage1_skymask/accepted_fine_object_qa_0000_0999_v008`
+- local copy: `/Users/skkac/Work/SCAN/server_accepted_fine_object_qa_v008`
+- candidate count: `63`
+- accepted points: `48,804`
+- candidate sources:
+  - hygiene clusters: `2` candidates, `6,337` points
+  - manual equipment subclusters: `61` candidates, `42,467` points
+
+Accepted QA interpretation:
+
+- The accepted preview is substantially cleaner than the raw fine residual and hygiene-filtered previews.
+- The two large railing-pollution clusters are excluded.
+- Most accepted candidates are compact manual-equipment subclusters.
+- Two hygiene-derived candidates remain line-like (`100107`, `100122`), so the accepted set still needs a stricter geometry review before object fusion.
+
 Top ambiguous examples are listed in:
 
 - `/root/epfs/new_route_stage1_skymask/consolidated_object_qa_0000_0999/object_pipeline_qa_summary.json`
@@ -308,5 +325,6 @@ Use:
 6. Build a combined accepted fine-object QA PLY from:
    - hygiene fine-object candidate clusters
    - manual equipment fine-candidate subclusters
-7. Keep `linear_edge_review` and `large_mixed_review` out of accepted object fusion until further split/relabel.
-8. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
+7. Run a stricter accepted-candidate geometry review to demote line-like accepted candidates before object fusion.
+8. Keep `linear_edge_review` and `large_mixed_review` out of accepted object fusion until further split/relabel.
+9. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
