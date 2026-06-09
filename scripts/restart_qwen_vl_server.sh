@@ -9,7 +9,7 @@ MMPROJ="${MMPROJ:-${MODEL_DIR}/mmproj-Qwen3.6-A3B-Q4_K_M.gguf}"
 LLAMA_SERVER="${LLAMA_SERVER:-/root/llama-cpp-turboquant/build/bin/llama-server}"
 LOG="${LOG:-/root/epfs/qwen_vl_server_${PORT}.log}"
 CTX_SIZE="${CTX_SIZE:-32768}"
-PARALLEL="${PARALLEL:-2}"
+PARALLEL="${PARALLEL:-4}"
 NGL="${NGL:-99}"
 LLAMA_LIB_DIR="${LLAMA_LIB_DIR:-$(dirname "${LLAMA_SERVER}")}"
 
