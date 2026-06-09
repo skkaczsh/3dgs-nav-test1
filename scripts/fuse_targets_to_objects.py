@@ -137,7 +137,7 @@ def update_object(obj: dict, target: dict) -> None:
         obj["status"] = "single_target"
 
 
-def match_score(obj: dict, target: dict, args: argparse.Namespace) -> tuple[bool, dict]:
+def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_ids: set[int] | None = None) -> tuple[bool, dict]:
     centroid_dist = float(np.linalg.norm(np.array(obj["centroid"]) - np.array(target["centroid"])))
     bbox_dist = bbox_distance(obj, target)
     color_dist = float(np.linalg.norm(np.array(obj["mean_color"]) - np.array(target["mean_color"])))
@@ -149,7 +149,11 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace) -> tuple[bool
     near = centroid_dist <= args.centroid_distance or bbox_dist <= args.bbox_distance
     color_ok = color_dist <= args.color_distance
     normal_ok = normal_angle <= args.normal_angle
-    overlap = bool(obj.get("_point_id_set", set()) & target_point_indices(target))
+    overlap = False
+    if int(target["frame_id"]) in set(obj.get("frames", [])):
+        if target_point_ids is None:
+            target_point_ids = target_point_indices(target)
+        overlap = bool(obj.get("_point_id_set", set()) & target_point_ids)
     merge = False
     reason = "no_match"
     if same_label and near and color_ok and normal_ok:
@@ -237,18 +241,23 @@ def write_object_ply(path: Path, objects: list[dict]) -> None:
 
 def fuse_targets(targets: list[dict], args: argparse.Namespace) -> tuple[list[dict], list[dict]]:
     objects: list[dict] = []
+    objects_by_zone: dict[int, list[int]] = defaultdict(list)
     decisions = []
     for target in targets:
         best_idx = None
         best_meta = None
         best_dist = float("inf")
         current_zone = int(target["frame_id"]) // args.zone_size
-        for idx, obj in enumerate(objects):
-            if args.active_zone_window >= 0:
-                obj_zone = int(obj["zone_id"].rsplit("_", 1)[1])
-                if abs(obj_zone - current_zone) > args.active_zone_window:
-                    continue
-            ok, meta = match_score(obj, target, args)
+        if args.active_zone_window >= 0:
+            candidate_indices = []
+            for zone in range(current_zone - args.active_zone_window, current_zone + args.active_zone_window + 1):
+                candidate_indices.extend(objects_by_zone.get(zone, []))
+        else:
+            candidate_indices = list(range(len(objects)))
+        target_point_ids = target_point_indices(target)
+        for idx in candidate_indices:
+            obj = objects[idx]
+            ok, meta = match_score(obj, target, args, target_point_ids)
             if ok and meta["centroid_distance"] < best_dist:
                 best_idx = idx
                 best_meta = meta
@@ -256,6 +265,7 @@ def fuse_targets(targets: list[dict], args: argparse.Namespace) -> tuple[list[di
         if best_idx is None:
             object_id = f"obj_{len(objects) + 1:06d}"
             objects.append(create_object(object_id, target))
+            objects_by_zone[current_zone].append(len(objects) - 1)
             decisions.append({"target_id": target["target_id"], "object_id": object_id, "action": "new_object"})
         else:
             obj = objects[best_idx]
