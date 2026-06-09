@@ -39,6 +39,35 @@ Acceptance gate:
 - reviewed merge QA `passed == true`
 - No automatic merge should be trusted without `decision=merge` and confidence above threshold.
 
+## Main Route: Scene-Aware 2D Prompt Resume
+
+The sharded semantic completion runner now patches the server-side
+`semantic_eval/review_merged_labels_prompt_v2.py` and
+`semantic_eval/complete_unknown_regions.py` prompts before running. This keeps
+the existing `{"items":[...]}` parser contract but adds rooftop scene
+constraints and thin-object/floor disambiguation.
+
+Dry-run the patch first if the server source has changed:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+
+python3 scripts/patch_semantic_eval_scene_prompts.py \
+  --semantic-root /root/epfs/manifold_3dgs_project/semantic_eval \
+  --dry-run
+```
+
+The full sharded runner applies the patch by default:
+
+```bash
+PATCH_SCENE_PROMPTS=1 \
+SHARDS=4 \
+bash scripts/run_server_semantic_completion_sharded.sh
+```
+
+Set `PATCH_SCENE_PROMPTS=0` only when intentionally reproducing the older
+prompt baseline.
+
 ## Manual Review Fallback
 
 If Qwen remains unavailable, use the packaged human review bundle:
