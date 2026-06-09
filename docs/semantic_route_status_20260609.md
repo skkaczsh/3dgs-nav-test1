@@ -178,6 +178,36 @@ Trace interpretation:
 - The largest traced masks cover `64% - 68%` of the image with full-image bounding boxes, so at least part of the fine residual pollution is created before 3D fusion.
 - This shifts the immediate bottleneck from 3D object fusion to pre-fusion mask hygiene: large-mask splitting and stable-surface subtraction should run before accepting fine-object clusters.
 
+Full-source oversized mask hygiene evaluation:
+
+- output: `/root/epfs/new_route_stage1_skymask/fine_residual_trace_fullsources_0000_0999_v008`
+- local copy: `/Users/skkac/Work/SCAN/server_fine_residual_trace_fullsources_v008`
+- traced source rows: `2,135`
+- source mask area mean/median/max: `0.0368 / 0.0084 / 0.8119`
+- source mask bbox area mean/median/max: `0.0755 / 0.0184 / 1.0000`
+- source rows with mask area `>= 10%`: `220 / 2,135`
+- source rows with bbox area `>= 30%`: `136 / 2,135`
+- action counts:
+  - `pre_fusion_split_or_demote`: `2`
+  - `manual_review`: `8`
+  - `fine_object_candidate`: `2`
+
+Cluster-level hygiene decisions:
+
+| Cluster | Label | Points | Oversized source point share | Action |
+|---:|---|---:|---:|---|
+| `1` | `railing` | `22,324` | `0.848` | `pre_fusion_split_or_demote` |
+| `2` | `railing` | `16,981` | `0.966` | `pre_fusion_split_or_demote` |
+| `107` | `equipment` | `5,104` | `0.018` | `fine_object_candidate` |
+| `122` | `equipment` | `1,233` | `0.000` | `fine_object_candidate` |
+
+Interpretation:
+
+- The two largest railing clusters are dominated by oversized masks and should be handled before object fusion.
+- Most equipment suspicious clusters are not dominated by oversized masks; they are accumulated from many smaller source masks.
+- For equipment, the next improvement is not broad mask deletion. It should be 3D connected splitting plus color/PCA consistency checks.
+- For railing, the next improvement is pre-fusion stable-surface subtraction and mask/component splitting.
+
 Top ambiguous examples are listed in:
 
 - `/root/epfs/new_route_stage1_skymask/consolidated_object_qa_0000_0999/object_pipeline_qa_summary.json`
@@ -223,5 +253,6 @@ Use:
    - subtract known stable surface projections first
    - split mask projections by 3D connected components
    - reject/demote surface-like fragments before fine-object clustering
-6. Add a fine-object residual path for accepted equipment/railing clusters instead of merging them into surfaces.
-7. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
+6. Implement the hygiene step first on clusters `1` and `2`, then re-run fine residual clustering to confirm railing pollution drops.
+7. Add a fine-object residual path for accepted equipment clusters `107` and `122`.
+8. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
