@@ -168,3 +168,66 @@ def test_incremental_fine_fusion_uses_frame_window_and_semantic_gate():
     assert decisions[1]["action"] == "merge"
     assert decisions[2]["action"] == "new_object"
     assert decisions[3]["action"] == "new_object"
+
+
+def test_frame_fine_target_builder_splits_components_and_keeps_point_indices():
+    module = load_module(SCRIPTS / "build_frame_fine_targets_from_enriched.py", "frame_fine_targets_for_repo_test")
+    props = [
+        "x",
+        "y",
+        "z",
+        "red",
+        "green",
+        "blue",
+        "semantic",
+        "accepted_candidate",
+        "fine_object",
+        "source_type",
+        "source_cluster",
+        "subcluster",
+        "visual_red",
+        "visual_green",
+        "visual_blue",
+        "frame",
+        "camera",
+        "mask",
+        "point_index",
+        "trace_status",
+    ]
+    rows = []
+    for point_index, x in enumerate([0.00, 0.03, 1.00, 1.03, 4.00]):
+        rows.append(
+            [
+                x,
+                0,
+                0,
+                255,
+                0,
+                255,
+                16,
+                200001,
+                1,
+                2,
+                9,
+                1,
+                90,
+                100,
+                110,
+                7,
+                1,
+                3,
+                point_index,
+                1,
+            ]
+        )
+    args = type("Args", (), {"voxel_size": 0.08, "min_target_points": 2})()
+
+    targets, report, _ = module.build_targets(props, np.array(rows, dtype=float), args)
+
+    assert report["targets"] == 2
+    assert report["small_residual_points"] == 1
+    assert [t["cluster_size"] for t in targets] == [2, 2]
+    assert targets[0]["frame_id"] == 7
+    assert targets[0]["label"] == "equipment"
+    assert targets[0]["parent_class"] == "fine_object"
+    assert targets[0]["point_indices"] == [0, 1]

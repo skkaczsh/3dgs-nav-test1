@@ -430,3 +430,67 @@ Interpretation:
 - The scan-order constraint does not materially change the result because the enriched input candidates were already formed by global residual clustering before frame metadata was attached.
 - Several candidates span hundreds of frames by themselves, for example a top object spans `0-999`; therefore this is not yet a true online target/object pipeline.
 - To validate the original incremental object-building idea, the next implementation should build per-frame or short-window `Target` records first, then fuse those targets into objects. Do not reuse globally clustered fine candidates as the only unit for scan-order fusion.
+
+## Frame Fine-Target Fusion
+
+Per-frame fine-target reconstruction from enriched accepted fine points:
+
+- source: `/root/epfs/new_route_stage1_skymask/accepted_fine_object_enriched_0000_0999_v008/accepted_fine_object_enriched_v008.ply`
+- selected baseline target output: `/root/epfs/new_route_stage1_skymask/frame_fine_targets_0000_0999_v008_sweep/v0.16_m3`
+- local copy: `/Users/skkac/Work/SCAN/server_frame_fine_target_object_v008`
+- params:
+  - `voxel_size=0.16`
+  - `min_target_points=3`
+- source points: `42,467`
+- groups `(frame,camera,mask,semantic)`: `2,571`
+- targets: `3,164`
+- target points: `36,970`
+- small residual points: `5,497`
+- target point stats:
+  - min: `3`
+  - max: `157`
+  - mean: `11.68`
+
+Parameter sweep:
+
+- `v0.08_m3`: `3,880` targets, `24,786` target points, `17,681` residual points
+- `v0.08_m5`: `2,033` targets, `18,490` target points, `23,977` residual points
+- `v0.12_m3`: `3,559` targets, `33,372` target points, `9,095` residual points
+- `v0.12_m5`: `2,285` targets, `29,059` target points, `13,408` residual points
+- `v0.16_m3`: `3,164` targets, `36,970` target points, `5,497` residual points
+- `v0.16_m5`: `2,252` targets, `33,866` target points, `8,601` residual points
+
+Frame target fragmentation:
+
+- The `61` strict accepted candidates expand into `3,164` frame-level targets.
+- Average frame targets per accepted candidate: `51.87`.
+- Worst cases:
+  - candidate `200003`: `337` targets, `4,562` points, `117` frames, frames `354-798`
+  - candidate `200033`: `307` targets, `4,369` points, `64` frames, frames `872-999`
+  - candidate `200005`: `253` targets, `3,170` points, `156` frames, frames `256-825`
+
+Object fusion from frame targets:
+
+- online-like baseline output: `/root/epfs/new_route_stage1_skymask/frame_fine_object_fusion_0000_0999_v008_v016_m3`
+  - params: `centroid=0.45`, `bbox=0.12`, `color=45`, `normal=180`, `active_zone_window=2`
+  - targets: `3,164`
+  - objects: `302`
+  - merge ratio: `0.9046`
+  - stable objects: `260`
+  - single-target objects: `42`
+- global no-time-window control: `/root/epfs/new_route_stage1_skymask/frame_fine_object_fusion_0000_0999_v008_v016_m3_global`
+  - objects: `254`
+  - merge ratio: `0.9197`
+- loose global control: `/root/epfs/new_route_stage1_skymask/frame_fine_object_fusion_0000_0999_v008_v016_m3_loose_global`
+  - params: `centroid=0.9`, `bbox=0.25`, `color=70`, `normal=180`, no time window
+  - objects: `127`
+  - merge ratio: `0.9599`
+
+Interpretation:
+
+- `0.16m / min 3` is a better Mid360 frame-target baseline than `0.08m / min 5`; the latter loses too many single-frame sparse points.
+- Even without a temporal window, frame targets do not collapse back to the `47` strict2 global fine objects. The bottleneck is target fragmentation and missing cross-time re-identification / tracklet association.
+- The next route should add an intermediate `Tracklet` layer:
+  - frame target -> short-window tracklet by spatial/color continuity
+  - tracklet -> object by longer-range re-identification
+  - keep the global accepted-candidate result as QA reference only, not as online input.
