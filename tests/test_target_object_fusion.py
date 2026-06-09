@@ -646,6 +646,15 @@ def test_vlm_merge_review_resizes_image_data_url(tmp_path):
     assert max(resized.size) == 100
 
 
+def test_resume_qwen_review_uploads_prompt_dependency():
+    script = (SCRIPTS / "resume_server_qwen_review.sh").read_text(encoding="utf-8")
+
+    assert "PROMPT_SCRIPT" in script
+    assert "vlm_scene_prompt.py" in script
+    assert "${PROMPT_SCRIPT}" in script
+    assert "${SERVER}:/tmp/vlm_scene_prompt.py" in script
+
+
 def _review_object(object_id, centroid, points=10):
     c = np.array(centroid, dtype=float)
     return {

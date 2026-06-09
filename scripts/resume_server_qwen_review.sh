@@ -7,6 +7,7 @@ REMOTE_PACK="${REMOTE_PACK:-/root/epfs/frame_fine_cross_candidate_review_pack_00
 LOCAL_PACK="${LOCAL_PACK:-/Users/skkac/Work/SCAN/server_frame_fine_cross_candidate_review_pack_v008_v2/frame_fine_cross_candidate_review_pack_0000_0999_v008_strict_high_v2}"
 LOCAL_OUTPUT="${LOCAL_OUTPUT:-/Users/skkac/Work/SCAN/server_frame_fine_cross_candidate_review_pack_v008_v2}"
 REVIEW_SCRIPT="${REVIEW_SCRIPT:-/Users/skkac/Work/SCAN/new_route/scripts/review_cross_candidate_merges_vlm.py}"
+PROMPT_SCRIPT="${PROMPT_SCRIPT:-/Users/skkac/Work/SCAN/new_route/scripts/vlm_scene_prompt.py}"
 RESTART_QWEN="${RESTART_QWEN:-/Users/skkac/Work/SCAN/new_route/scripts/restart_qwen_vl_server.sh}"
 APPLY_SCRIPT="${APPLY_SCRIPT:-/Users/skkac/Work/SCAN/new_route/scripts/apply_cross_candidate_merge_reviews.py}"
 QA_SCRIPT="${QA_SCRIPT:-/Users/skkac/Work/SCAN/new_route/scripts/qa_reviewed_merge_results.py}"
@@ -30,6 +31,7 @@ ssh "${ssh_opts[@]}" "${SERVER}" 'nvidia-smi --query-gpu=index,name,memory.used,
 
 echo "[3/8] uploading scripts and review pack"
 scp "${ssh_opts[@]}" "${REVIEW_SCRIPT}" "${SERVER}:/tmp/review_cross_candidate_merges_vlm.py"
+scp "${ssh_opts[@]}" "${PROMPT_SCRIPT}" "${SERVER}:/tmp/vlm_scene_prompt.py"
 scp "${ssh_opts[@]}" "${RESTART_QWEN}" "${SERVER}:/tmp/restart_qwen_vl_server.sh"
 ssh "${ssh_opts[@]}" "${SERVER}" "rm -rf '${REMOTE_PACK}'"
 scp -r "${ssh_opts[@]}" "${LOCAL_PACK}" "${SERVER}:${REMOTE_PACK}"
