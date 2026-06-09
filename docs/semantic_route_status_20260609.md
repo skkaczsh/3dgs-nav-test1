@@ -86,6 +86,31 @@ Interpretation:
 3. Remaining equipment/railing residuals should not be solved by surface absorption; they need fine-object clustering/review.
 4. 2D-to-point coverage is already high enough for this stage, so the next gains should come from object fusion and residual absorption rules.
 
+## Fine Residual Clustering
+
+Fine-object residual clustering was run on unassigned `equipment` and `railing`
+points from `residual_surface_assigned_0000_0999.ply`.
+
+Output:
+
+- `/root/epfs/new_route_stage1_skymask/fine_residual_clusters_0000_0999/fine_residual_clusters_equipment_railing.ply`
+- `/root/epfs/new_route_stage1_skymask/fine_residual_clusters_0000_0999/fine_residual_clusters_report.json`
+
+Result:
+
+- selected fine residual points: `286,677`
+- clustered points: `264,828`
+- clusters: `124`
+- small-cluster residual: `21,849`
+- `equipment`: `201,070 / 214,092` clustered
+- `railing`: `63,758 / 72,585` clustered
+
+Interpretation:
+
+- Fine residuals are mostly structured enough for a second-stage object review path.
+- The largest `equipment` cluster has `118,365` points and a very large bbox, so it is likely a mixed or misclassified region rather than one equipment object.
+- Fine-object handling should therefore split/review large clusters before merging them into stable objects.
+
 Top ambiguous examples are listed in:
 
 - `/root/epfs/new_route_stage1_skymask/consolidated_object_qa_0000_0999/object_pipeline_qa_summary.json`
