@@ -26,6 +26,8 @@ def build_status(args: argparse.Namespace) -> dict:
     conceptseg = file_state(args.conceptseg_report)
     offline_qa_report = getattr(args, "offline_qa_report", None)
     offline_qa = read_json(offline_qa_report) if offline_qa_report else {}
+    resume_command_validation_report = getattr(args, "resume_command_validation", None)
+    resume_command_validation = read_json(resume_command_validation_report) if resume_command_validation_report else {}
     return {
         "connectivity": connectivity,
         "offline_qa": {
@@ -34,6 +36,14 @@ def build_status(args: argparse.Namespace) -> dict:
             "git_head": offline_qa.get("git_head"),
             "timestamp": offline_qa.get("timestamp"),
             "checks": offline_qa.get("checks", []),
+        },
+        "server_resume_command_plan": {
+            "validation_report": str(resume_command_validation_report) if resume_command_validation_report else "",
+            "passed": resume_command_validation.get("passed"),
+            "errors": resume_command_validation.get("errors", []),
+            "warnings": resume_command_validation.get("warnings", []),
+            "phase_ids": resume_command_validation.get("phase_ids", []),
+            "required_local_scripts": resume_command_validation.get("required_local_scripts", []),
         },
         "main_route": {
             "stage_summary": str(args.stage_summary),
@@ -74,6 +84,7 @@ def build_status(args: argparse.Namespace) -> dict:
 def render_markdown(status: dict) -> str:
     conn = status["connectivity"]
     offline_qa = status.get("offline_qa", {})
+    resume_plan = status.get("server_resume_command_plan", {})
     stage = status["main_route"]["stage_status"]
     delivery = status["delivery"]
     qa = status["main_route"].get("manual_merge_qa", {})
@@ -100,6 +111,13 @@ def render_markdown(status: dict) -> str:
             f"- git head: `{offline_qa.get('git_head')}`",
             f"- timestamp: `{offline_qa.get('timestamp')}`",
             f"- checks: `{offline_qa.get('checks')}`",
+            "",
+            "## Server Resume Plan",
+            "",
+            f"- validation passed: `{resume_plan.get('passed')}`",
+            f"- phase order: `{resume_plan.get('phase_ids')}`",
+            f"- errors: `{resume_plan.get('errors')}`",
+            f"- warnings: `{resume_plan.get('warnings')}`",
             "",
             "## Main Route",
             "",
@@ -141,6 +159,7 @@ def main() -> None:
     parser.add_argument("--conceptseg-report", type=Path, required=True)
     parser.add_argument("--old-route-summary", type=Path, required=True)
     parser.add_argument("--offline-qa-report", type=Path, default=None)
+    parser.add_argument("--resume-command-validation", type=Path, default=None)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
 

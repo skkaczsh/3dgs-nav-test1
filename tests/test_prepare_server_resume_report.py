@@ -30,7 +30,17 @@ def test_resume_report_marks_ready_when_local_artifacts_exist(tmp_path: Path):
     review = tmp_path / "review.jsonl"
     objects = tmp_path / "objects.jsonl"
     route.write_text("{}", encoding="utf-8")
-    latest.write_text(json.dumps({"review_pack_ready": True, "delivery_missing_count": 0}), encoding="utf-8")
+    latest.write_text(
+        json.dumps(
+            {
+                "review_pack_ready": True,
+                "delivery_missing_count": 0,
+                "resume_command_plan_passed": True,
+                "resume_command_plan_error_count": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
     offline.write_text(json.dumps({"passed": True, "git_head": "abc1234", "checks": ["python_compile"]}), encoding="utf-8")
     for path in [delivery, manual, review, objects]:
         path.write_text("ok", encoding="utf-8")
@@ -49,6 +59,8 @@ def test_resume_report_marks_ready_when_local_artifacts_exist(tmp_path: Path):
     assert report["ready_for_server_probe"] is True
     assert report["blockers"] == []
     assert report["offline_qa"]["git_head"] == "abc1234"
+    assert report["latest_snapshot"]["resume_command_plan_passed"] is True
+    assert report["latest_snapshot"]["resume_command_plan_error_count"] == 0
     assert any("prepare_server_resume_commands.py" in command for command in report["resume_commands"])
     assert any("resume_server_qwen_review.sh" in command for command in report["resume_commands"])
 
