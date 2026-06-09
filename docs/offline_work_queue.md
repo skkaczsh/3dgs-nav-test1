@@ -29,6 +29,7 @@ python3 scripts/verify_review_delivery_manifest.py \
 
 ```bash
 python3 -m py_compile scripts/*.py
+python3 scripts/audit_runner_dependencies.py --scripts-dir scripts
 pytest -q tests/test_target_object_fusion.py tests/test_vlm_scene_prompt.py tests/test_patch_semantic_eval_scene_prompts.py
 ```
 
