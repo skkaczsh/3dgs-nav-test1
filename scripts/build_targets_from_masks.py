@@ -273,27 +273,61 @@ def write_residual_ply(path: Path, residual_rows: list[dict]) -> None:
                 )
 
 
-def load_labels(path: Path) -> dict[int, str]:
+def normalize_label_record(value) -> dict:
+    if isinstance(value, dict):
+        label = str(value.get("label") or value.get("name") or "unknown")
+        confidence = value.get("confidence", 1.0)
+        try:
+            confidence = float(confidence)
+        except (TypeError, ValueError):
+            confidence = 1.0
+        ambiguous = value.get("ambiguous_with", [])
+        if isinstance(ambiguous, str):
+            ambiguous = [ambiguous]
+        if not isinstance(ambiguous, list):
+            ambiguous = []
+        return {
+            "label": label,
+            "confidence": max(0.0, min(1.0, confidence)),
+            "mixed": bool(value.get("mixed", False)),
+            "is_large_surface": bool(value.get("is_large_surface", False)),
+            "can_merge_to_surface": bool(value.get("can_merge_to_surface", False)),
+            "ambiguous_with": [str(x) for x in ambiguous],
+            "reason": str(value.get("reason", "")).strip(),
+        }
+    return {
+        "label": str(value),
+        "confidence": 1.0,
+        "mixed": False,
+        "is_large_surface": False,
+        "can_merge_to_surface": False,
+        "ambiguous_with": [],
+        "reason": "",
+    }
+
+
+def load_label_records(path: Path) -> dict[int, dict]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if isinstance(raw, dict) and "labels" in raw:
         raw = raw["labels"]
-    labels = {}
+    records = {}
     if isinstance(raw, dict):
         for key, value in raw.items():
             try:
                 mask_id = int(key)
             except (TypeError, ValueError):
                 continue
-            if isinstance(value, dict):
-                labels[mask_id] = str(value.get("label") or value.get("name") or "unknown")
-            else:
-                labels[mask_id] = str(value)
+            records[mask_id] = normalize_label_record(value)
     elif isinstance(raw, list):
         for item in raw:
             if isinstance(item, dict):
                 mask_id = int(item.get("id", item.get("mask_id", 0)))
-                labels[mask_id] = str(item.get("label") or item.get("name") or "unknown")
-    return labels
+                records[mask_id] = normalize_label_record(item)
+    return records
+
+
+def load_labels(path: Path) -> dict[int, str]:
+    return {mask_id: record["label"] for mask_id, record in load_label_records(path).items()}
 
 
 def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
@@ -335,7 +369,7 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
             continue
         if instance.ndim == 3:
             instance = instance[:, :, 0]
-        labels = load_labels(labels_path)
+        label_records = load_label_records(labels_path)
         projected = transform_project(points, frame_id, cam_id, config, args.min_depth)
         if projected is None:
             continue
@@ -357,7 +391,8 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
         instance_ids = instance[vv, uu].astype(np.int64)
         for mask_id in sorted(int(x) for x in np.unique(instance_ids) if int(x) != 0):
             masks_seen += 1
-            label = labels.get(mask_id, "unknown")
+            label_record = label_records.get(mask_id, normalize_label_record("unknown"))
+            label = label_record["label"]
             if label in SKIP_LABELS or label in args.skip_labels:
                 skipped_masks[label] += 1
                 continue
@@ -397,7 +432,12 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
                     "label": label,
                     "semantic_id": label_to_id(label),
                     "parent_class": PARENT_CLASSES.get(label, "other"),
-                    "confidence": 1.0,
+                    "confidence": float(label_record["confidence"]),
+                    "vlm_mixed": bool(label_record["mixed"]),
+                    "vlm_is_large_surface": bool(label_record["is_large_surface"]),
+                    "vlm_can_merge_to_surface": bool(label_record["can_merge_to_surface"]),
+                    "vlm_ambiguous_with": label_record["ambiguous_with"],
+                    "vlm_reason": label_record["reason"],
                     "image_path": str(combo_dir / "image.png"),
                     "mask_path": str(instance_path),
                     "raw_frame_ply": str(raw_path),

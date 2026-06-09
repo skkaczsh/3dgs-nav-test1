@@ -38,6 +38,64 @@ def test_target_connected_components_splits_voxel_groups():
     assert residual.tolist().count(True) == 1
 
 
+def test_target_label_loader_preserves_vlm_quality_fields(tmp_path: Path):
+    module = load_module(SCRIPTS / "build_targets_from_masks.py", "build_targets_label_loader_for_repo_test")
+    path = tmp_path / "labels.json"
+    path.write_text(
+        json.dumps(
+            {
+                "labels": {
+                    "1": "floor",
+                    "2": {
+                        "label": "railing",
+                        "confidence": 0.73,
+                        "mixed": True,
+                        "is_large_surface": False,
+                        "can_merge_to_surface": False,
+                        "ambiguous_with": ["pipe", "equipment"],
+                        "reason": "thin foreground structure",
+                    },
+                    "bad": {"label": "ignore"},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    records = module.load_label_records(path)
+    labels = module.load_labels(path)
+
+    assert labels == {1: "floor", 2: "railing"}
+    assert records[1]["confidence"] == 1.0
+    assert records[1]["mixed"] is False
+    assert records[2]["confidence"] == 0.73
+    assert records[2]["mixed"] is True
+    assert records[2]["ambiguous_with"] == ["pipe", "equipment"]
+    assert records[2]["reason"] == "thin foreground structure"
+
+
+def test_target_label_loader_accepts_item_list_schema(tmp_path: Path):
+    module = load_module(SCRIPTS / "build_targets_from_masks.py", "build_targets_label_list_for_repo_test")
+    path = tmp_path / "labels.json"
+    path.write_text(
+        json.dumps(
+            [
+                {"mask_id": "3", "label": "equipment", "confidence": "0.5", "ambiguous_with": "railing"},
+                {"id": 4, "name": "wall", "confidence": 2.0},
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    records = module.load_label_records(path)
+
+    assert records[3]["label"] == "equipment"
+    assert records[3]["confidence"] == 0.5
+    assert records[3]["ambiguous_with"] == ["railing"]
+    assert records[4]["label"] == "wall"
+    assert records[4]["confidence"] == 1.0
+
+
 def _target(target_id, frame_id, label, centroid, parent="surface", point_start=0):
     c = np.array(centroid, dtype=float)
     return {
