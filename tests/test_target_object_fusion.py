@@ -641,3 +641,26 @@ def test_manual_merge_review_workflow_end_to_end(tmp_path):
     assert errors == []
     assert len(merged) == 1
     assert decisions[0]["accepted"] is True
+
+
+def test_qa_reviewed_merge_results_checks_invariants():
+    module = load_module(SCRIPTS / "qa_reviewed_merge_results.py", "qa_review_merge_for_repo_test")
+    inputs = [
+        _review_object("long_obj_0001", [0, 0, 0], points=10),
+        _review_object("long_obj_0002", [0.1, 0, 0], points=20),
+    ]
+    outputs = [
+        {
+            **_review_object("review_obj_0001", [0.05, 0, 0], points=30),
+            "source_long_object_ids": ["long_obj_0001", "long_obj_0002"],
+            "source_object_count": 2,
+        }
+    ]
+    decisions = [{"object_a": "long_obj_0001", "object_b": "long_obj_0002", "accepted": True}]
+
+    report = module.qa(inputs, outputs, decisions)
+    bad_report = module.qa(inputs, [{**outputs[0], "point_count": 29}], decisions)
+
+    assert report["passed"] is True
+    assert bad_report["passed"] is False
+    assert bad_report["checks"]["point_count_preserved"] is False
