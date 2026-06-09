@@ -43,6 +43,9 @@ server state as authority when numbers differ.
 
 ## Watchers
 
+- Do not restart active semantic runners or Qwen servers while artifacts are
+  still increasing. First verify a real stall by checking process trees and
+  recent `labels.json` mtime counts.
 - Semantic-to-fusion watcher:
   - Script: `scripts/watch_server_semantic_to_fusion.sh`
   - Remote process writes: `/root/epfs/new_route_stage1_skymask/target_object_fusion_0000_0999.pid`
@@ -93,4 +96,3 @@ Check scan-vlm watcher:
 ```bash
 ssh -o BindAddress=192.168.100.113 scan-vlm 'ps -p 14227,14007,13816 -o pid,etime,pcpu,stat,cmd || true; tail -n 20 /root/epfs/new_route_stage1_skymask/logs/watch_semantic_to_fusion.log'
 ```
-
