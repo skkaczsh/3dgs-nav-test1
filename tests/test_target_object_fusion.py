@@ -231,3 +231,48 @@ def test_frame_fine_target_builder_splits_components_and_keeps_point_indices():
     assert targets[0]["label"] == "equipment"
     assert targets[0]["parent_class"] == "fine_object"
     assert targets[0]["point_indices"] == [0, 1]
+
+
+def _track_target(target_id, frame_id, centroid, color=(100, 100, 100)):
+    c = np.array(centroid, dtype=float)
+    return {
+        "target_id": target_id,
+        "frame_id": frame_id,
+        "label": "equipment",
+        "label_id": 16,
+        "parent_class": "fine_object",
+        "cluster_size": 5,
+        "point_indices": list(range(frame_id, frame_id + 5)),
+        "bbox_3d": {"min": (c - 0.02).tolist(), "max": (c + 0.02).tolist()},
+        "centroid": c.tolist(),
+        "mean_color": list(color),
+        "pca": {"normal": [0, 0, 1], "linearity": 0.1, "planarity": 0.1},
+    }
+
+
+def test_tracklet_builder_merges_short_gap_and_splits_long_gap():
+    module = load_module(SCRIPTS / "build_tracklets_from_frame_targets.py", "tracklets_for_repo_test")
+    args = type("Args", (), {
+        "max_frame_gap": 10,
+        "centroid_distance": 0.2,
+        "bbox_distance": 0.05,
+        "color_distance": 30.0,
+        "normal_angle": 180.0,
+    })()
+
+    tracklets, decisions = module.build_tracklets(
+        [
+            _track_target("t1", 0, [0, 0, 0]),
+            _track_target("t2", 5, [0.04, 0, 0]),
+            _track_target("t3", 30, [0.05, 0, 0]),
+            _track_target("t4", 35, [0.06, 0, 0], color=(220, 220, 220)),
+        ],
+        args,
+    )
+    finalized = [module.finalize_tracklet(t) for t in tracklets]
+
+    assert len(finalized) == 3
+    assert finalized[0]["target_count"] == 2
+    assert decisions[1]["action"] == "merge"
+    assert decisions[2]["action"] == "new_tracklet"
+    assert decisions[3]["action"] == "new_tracklet"

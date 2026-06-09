@@ -494,3 +494,45 @@ Interpretation:
   - frame target -> short-window tracklet by spatial/color continuity
   - tracklet -> object by longer-range re-identification
   - keep the global accepted-candidate result as QA reference only, not as online input.
+
+## Short-Window Tracklet Prototype
+
+Tracklet prototype from `v0.16_m3` frame targets:
+
+- local copy: `/Users/skkac/Work/SCAN/server_frame_fine_tracklet_v008`
+- server outputs:
+  - `/root/epfs/new_route_stage1_skymask/frame_fine_tracklets_0000_0999_v008_v016_m3_gap10`
+  - `/root/epfs/new_route_stage1_skymask/frame_fine_tracklets_0000_0999_v008_v016_m3_gap30`
+  - `/root/epfs/new_route_stage1_skymask/frame_fine_tracklets_0000_0999_v008_v016_m3_gap60`
+- tracklet params:
+  - `centroid_distance=0.45`
+  - `bbox_distance=0.12`
+  - `color_distance=45`
+  - `normal_angle=180`
+
+Results:
+
+- gap `10`:
+  - `3,164` frame targets -> `519` tracklets
+  - tracklet merge ratio: `0.8360`
+  - tracklets -> objects: `160`
+- gap `30`:
+  - `3,164` frame targets -> `379` tracklets
+  - tracklet merge ratio: `0.8802`
+  - tracklets -> objects: `141`
+- gap `60`:
+  - `3,164` frame targets -> `328` tracklets
+  - tracklet merge ratio: `0.8963`
+  - tracklets -> objects: `135`
+
+Interpretation:
+
+- Tracklets materially reduce short-term target fragmentation: `3,164` frame targets become `328-519` tracklets depending on frame-gap tolerance.
+- Tracklet-to-object fusion improves over direct strict frame-target object fusion (`302` objects) and global no-window frame-target fusion (`254` objects).
+- Tracklets still do not recover the global strict2 fine-object count (`47` objects). The remaining gap is long-range re-identification, not short-window continuity.
+- Next practical step is a second-stage long-range association over tracklets using stronger descriptors:
+  - spatial bbox/centroid
+  - visual RGB statistics
+  - frame span and revisit pattern
+  - original mask/camera evidence
+  - optional VLM/ConceptSeg review only for conflicting high-value tracklet pairs
