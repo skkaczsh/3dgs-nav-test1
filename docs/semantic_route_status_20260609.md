@@ -156,6 +156,22 @@ Interpretation:
 - Large `railing` clusters preserve useful line geometry but still need object-level review before being accepted as one global object.
 - The next useful step is to review suspicious cluster masks/images, then either split them or demote contaminated parts back to surface/residual.
 
+Fine-cluster mask trace:
+
+- output: `/root/epfs/new_route_stage1_skymask/fine_residual_trace_0000_0999_v008`
+- local copy: `/Users/skkac/Work/SCAN/server_fine_residual_trace_v008`
+- traced suspicious clusters: `12`
+- traced points: `134,687 / 134,687`
+- raw duplicate point matches: `3,836`
+- contact sheet: `/Users/skkac/Work/SCAN/server_fine_residual_trace_v008/fine_cluster_mask_trace_contact_sheet.png`
+
+Trace interpretation:
+
+- The suspicious clusters trace back to many consecutive frame/camera/mask observations, not one isolated bad frame.
+- Top source masks usually explain only `0.5% - 3%` of a large cluster, which means the large 3D cluster is accumulated from repeated over-large 2D masks.
+- Overlay review shows several masks include surface, railing edge, and equipment/background together.
+- This shifts the immediate bottleneck from 3D object fusion to pre-fusion mask hygiene: large-mask splitting and stable-surface subtraction should run before accepting fine-object clusters.
+
 Top ambiguous examples are listed in:
 
 - `/root/epfs/new_route_stage1_skymask/consolidated_object_qa_0000_0999/object_pipeline_qa_summary.json`
@@ -197,5 +213,9 @@ Use:
    - `color=110`
 3. Review top ambiguous large objects, especially floor/wall and building/railing conflicts.
 4. Review the `fine_residual_review_0000_0999_v008` suspicious clusters against source masks/images.
-5. Add a fine-object residual path for accepted equipment/railing clusters instead of merging them into surfaces.
-6. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
+5. Add a pre-fusion hygiene step for oversized masks:
+   - subtract known stable surface projections first
+   - split mask projections by 3D connected components
+   - reject/demote surface-like fragments before fine-object clustering
+6. Add a fine-object residual path for accepted equipment/railing clusters instead of merging them into surfaces.
+7. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
