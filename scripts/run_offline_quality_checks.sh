@@ -6,6 +6,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DELIVERY_ZIP="${DELIVERY_ZIP:-/Users/skkac/Work/SCAN/server_frame_fine_cross_candidate_review_delivery_v008/cross_candidate_review_delivery.zip}"
 RUN_DELIVERY_CHECK="${RUN_DELIVERY_CHECK:-1}"
+OFFLINE_QA_REPORT="${OFFLINE_QA_REPORT:-/Users/skkac/Work/SCAN/route_status_20260610/offline_quality_latest.json}"
 
 cd "${ROOT_DIR}"
 
@@ -33,5 +34,40 @@ pytest -q \
   tests/test_target_object_fusion.py \
   tests/test_vlm_scene_prompt.py \
   tests/test_patch_semantic_eval_scene_prompts.py
+
+python3 - <<'PY' "${OFFLINE_QA_REPORT}" "${DELIVERY_ZIP}" "${RUN_DELIVERY_CHECK}"
+import json
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+report_path = Path(sys.argv[1])
+delivery_zip = sys.argv[2]
+run_delivery_check = sys.argv[3]
+
+try:
+    git_head = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
+except Exception:
+    git_head = ""
+
+report = {
+    "timestamp": datetime.now(timezone.utc).isoformat(),
+    "passed": True,
+    "git_head": git_head,
+    "delivery_zip": delivery_zip,
+    "run_delivery_check": run_delivery_check == "1",
+    "checks": [
+        "python_compile",
+        "sensitive_token_scan",
+        "remote_runner_dependency_audit",
+        "review_delivery_package_verification" if run_delivery_check == "1" else "review_delivery_package_verification_skipped",
+        "core_offline_pytest",
+    ],
+}
+report_path.parent.mkdir(parents=True, exist_ok=True)
+report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+print(f"offline QA report: {report_path}")
+PY
 
 echo "offline quality checks passed"

@@ -33,6 +33,10 @@ python3 scripts/verify_review_delivery_manifest.py \
 bash scripts/run_offline_quality_checks.sh
 ```
 
+On success, the runner writes:
+
+- `/Users/skkac/Work/SCAN/route_status_20260610/offline_quality_latest.json`
+
 ## Priority 3: Deferred Server Resume
 
 When back on the server LAN:

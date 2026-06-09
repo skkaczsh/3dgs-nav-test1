@@ -20,6 +20,8 @@ def test_offline_quality_runner_covers_core_checks():
     assert "scan_sensitive_tokens.py" in script
     assert "audit_runner_dependencies.py" in script
     assert "verify_review_delivery_manifest.py" in script
+    assert "OFFLINE_QA_REPORT" in script
+    assert "offline_quality_latest.json" in script
     assert "pytest -q" in script
     assert "tests/test_offline_quality_runner.py" in script
     assert "tests/test_scan_sensitive_tokens.py" in script
