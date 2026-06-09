@@ -24,6 +24,7 @@ def test_offline_quality_runner_covers_core_checks():
     assert "offline_quality_latest.json" in script
     assert "pytest -q" in script
     assert "tests/test_offline_quality_runner.py" in script
+    assert "tests/test_prepare_server_resume_commands.py" in script
     assert "tests/test_prepare_server_resume_report.py" in script
     assert "tests/test_route_status_summary.py" in script
     assert "tests/test_scan_sensitive_tokens.py" in script

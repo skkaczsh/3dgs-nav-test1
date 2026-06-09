@@ -49,6 +49,7 @@ def test_resume_report_marks_ready_when_local_artifacts_exist(tmp_path: Path):
     assert report["ready_for_server_probe"] is True
     assert report["blockers"] == []
     assert report["offline_qa"]["git_head"] == "abc1234"
+    assert any("prepare_server_resume_commands.py" in command for command in report["resume_commands"])
     assert any("resume_server_qwen_review.sh" in command for command in report["resume_commands"])
 
 

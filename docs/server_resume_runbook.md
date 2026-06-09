@@ -34,6 +34,23 @@ Defer these until LAN connectivity returns:
 
 ## Main Route: Qwen Review Resume
 
+Before executing remote work, generate the local command plan from the latest
+readiness report:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+
+python3 scripts/prepare_server_resume_commands.py
+```
+
+This writes:
+
+- `/Users/skkac/Work/SCAN/route_status_20260610/server_resume_commands.json`
+- `/Users/skkac/Work/SCAN/route_status_20260610/server_resume_commands.sh`
+
+The generated shell plan runs the required main-route phases in order and only
+prints new-model / old-route side-track commands as optional follow-ups.
+
 Run after server connectivity returns:
 
 ```bash

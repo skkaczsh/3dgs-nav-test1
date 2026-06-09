@@ -67,6 +67,7 @@ def build_report(args: argparse.Namespace) -> dict:
             "long_objects": long_objects,
         },
         "resume_commands": [
+            "python3 scripts/prepare_server_resume_commands.py",
             "python3 scripts/diagnose_server_connectivity.py --output /Users/skkac/Work/SCAN/server_connectivity_diagnosis_20260610_latest.json",
             "BIND_ADDRESS=192.168.0.3 SERVER=scan-train CONCURRENCY=4 bash scripts/resume_server_qwen_review.sh",
             "PATCH_SCENE_PROMPTS=1 SHARDS=4 bash scripts/run_server_semantic_completion_sharded.sh",
