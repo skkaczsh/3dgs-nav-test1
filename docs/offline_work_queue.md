@@ -18,6 +18,8 @@ not treat server timeouts as regressions during this state.
 
 - Add tests for shell runner contracts whenever a script depends on another
   copied file.
+- Keep sensitive token scans passing. The default scan checks repository text
+  files up to 2MB and does not print matched secret values.
 - Keep review delivery verification passing:
 
 ```bash

@@ -9,23 +9,27 @@ RUN_DELIVERY_CHECK="${RUN_DELIVERY_CHECK:-1}"
 
 cd "${ROOT_DIR}"
 
-echo "[1/4] Python compile check"
+echo "[1/5] Python compile check"
 python3 -m py_compile scripts/*.py
 
-echo "[2/4] Remote runner dependency audit"
+echo "[2/5] Sensitive token scan"
+python3 scripts/scan_sensitive_tokens.py --root .
+
+echo "[3/5] Remote runner dependency audit"
 python3 scripts/audit_runner_dependencies.py --scripts-dir scripts
 
-echo "[3/4] Review delivery package verification"
+echo "[4/5] Review delivery package verification"
 if [[ "${RUN_DELIVERY_CHECK}" == "1" ]]; then
   python3 scripts/verify_review_delivery_manifest.py --zip-path "${DELIVERY_ZIP}"
 else
   echo "skipped: RUN_DELIVERY_CHECK=${RUN_DELIVERY_CHECK}"
 fi
 
-echo "[4/4] Core offline pytest suite"
+echo "[5/5] Core offline pytest suite"
 pytest -q \
   tests/test_audit_runner_dependencies.py \
   tests/test_offline_quality_runner.py \
+  tests/test_scan_sensitive_tokens.py \
   tests/test_target_object_fusion.py \
   tests/test_vlm_scene_prompt.py \
   tests/test_patch_semantic_eval_scene_prompts.py
