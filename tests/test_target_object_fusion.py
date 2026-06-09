@@ -754,3 +754,23 @@ def test_verify_review_delivery_manifest_detects_corruption(tmp_path):
     assert report["passed"] is True
     assert bad_report["passed"] is False
     assert bad_report["errors"][0]["error"] in {"size_mismatch", "sha256_mismatch"}
+
+
+def test_diagnose_server_connectivity_marks_missing_bind(monkeypatch):
+    module = load_module(SCRIPTS / "diagnose_server_connectivity.py", "diagnose_connectivity_for_repo_test")
+
+    def fake_run(cmd, timeout=10.0):
+        if cmd == ["ifconfig"]:
+            return 0, "en0: flags=x\n\tinet 192.168.0.3 netmask x\n", ""
+        if cmd == ["ssh", "-G", "scan-train"]:
+            return 0, "hostname 10.0.8.114\nport 31909\nbindaddress 192.168.100.115\nuser root\n", ""
+        return 1, "", "unexpected"
+
+    monkeypatch.setattr(module, "run", fake_run)
+    monkeypatch.setattr(module, "tcp_check", lambda hostname, port, timeout: {"hostname": hostname, "port": port, "reachable": False, "error": "timeout"})
+
+    report = module.diagnose(["scan-train"], timeout=1.0)
+
+    assert report["all_reachable"] is False
+    assert report["hosts"][0]["bind_address_present_locally"] is False
+    assert report["hosts"][0]["tcp"]["error"] == "timeout"
