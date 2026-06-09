@@ -247,6 +247,32 @@ def write_targets_ply(path: Path, rows: list[dict], points_by_target: dict[str, 
                 )
 
 
+def write_residual_ply(path: Path, residual_rows: list[dict]) -> None:
+    total = sum(len(row["points"]) for row in residual_rows)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        f.write("ply\nformat ascii 1.0\n")
+        f.write(f"element vertex {total}\n")
+        f.write("property float x\nproperty float y\nproperty float z\n")
+        f.write("property uchar red\nproperty uchar green\nproperty uchar blue\n")
+        f.write("property uchar visual_red\nproperty uchar visual_green\nproperty uchar visual_blue\n")
+        f.write("property uchar semantic\n")
+        f.write("property int frame\nproperty int camera\nproperty int mask\n")
+        f.write("property int point_index\n")
+        f.write("end_header\n")
+        for row in residual_rows:
+            label = row["label"]
+            sem = label_to_id(label)
+            color = LABEL_COLORS.get(sem, LABEL_COLORS.get(0, (128, 128, 128)))
+            for point, visual, point_index in zip(row["points"], row["colors"], row["point_indices"]):
+                f.write(
+                    f"{point[0]:.6f} {point[1]:.6f} {point[2]:.6f} "
+                    f"{int(color[0])} {int(color[1])} {int(color[2])} "
+                    f"{int(visual[0])} {int(visual[1])} {int(visual[2])} "
+                    f"{sem} {row['frame_id']} {row['cam_id']} {row['mask_id']} {int(point_index)}\n"
+                )
+
+
 def load_labels(path: Path) -> dict[int, str]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if isinstance(raw, dict) and "labels" in raw:
@@ -274,6 +300,7 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
     target_path = args.output_dir / "targets" / f"targets_frame_{frame_id:04d}.jsonl"
     report_path = args.output_dir / "reports" / f"targets_frame_{frame_id:04d}_report.json"
     ply_path = args.output_dir / "targets" / f"targets_frame_{frame_id:04d}.ply"
+    residual_ply_path = args.output_dir / "residuals" / f"residuals_frame_{frame_id:04d}.ply"
     if args.resume and target_path.exists() and report_path.exists():
         return json.loads(report_path.read_text(encoding="utf-8"))
 
@@ -287,7 +314,9 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
 
     rows: list[dict] = []
     points_by_target: dict[str, tuple[np.ndarray, str]] = {}
+    residual_rows: list[dict] = []
     residual_points = 0
+    residual_label_counts = Counter()
     masks_seen = 0
     masks_missing = 0
     skipped_masks = Counter()
@@ -337,6 +366,20 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
                 continue
             comps, residual = connected_components(points[selected], args.voxel_size, args.min_target_points)
             residual_points += int(residual.sum())
+            if args.write_residual_ply and np.any(residual):
+                residual_idx = selected[residual]
+                residual_rows.append(
+                    {
+                        "frame_id": int(frame_id),
+                        "cam_id": int(cam_id),
+                        "mask_id": int(mask_id),
+                        "label": label,
+                        "point_indices": [int(x) for x in residual_idx.tolist()],
+                        "points": points[residual_idx],
+                        "colors": colors[residual_idx],
+                    }
+                )
+                residual_label_counts[label] += int(residual.sum())
             for comp_id, comp_local in enumerate(comps):
                 global_idx = selected[comp_local]
                 target_id = f"t_{frame_id:04d}_cam{cam_id}_m{mask_id:04d}_c{comp_id:02d}"
@@ -371,6 +414,8 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
     if args.write_ply and rows:
         write_targets_ply(ply_path, rows, points_by_target)
+    if args.write_residual_ply and residual_rows:
+        write_residual_ply(residual_ply_path, residual_rows)
     label_counts = Counter(row["label"] for row in rows)
     report = {
         "frame_id": int(frame_id),
@@ -379,12 +424,14 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
         "targets": int(len(rows)),
         "target_points": int(sum(row["cluster_size"] for row in rows)),
         "small_target_residual_points": int(residual_points),
+        "small_target_residual_label_counts": dict(residual_label_counts),
         "masks_seen": int(masks_seen),
         "masks_missing_cameras": int(masks_missing),
         "skipped_masks": dict(skipped_masks),
         "label_counts": dict(label_counts),
         "target_jsonl": str(target_path),
         "target_ply": str(ply_path) if args.write_ply and rows else "",
+        "residual_ply": str(residual_ply_path) if args.write_residual_ply and residual_rows else "",
     }
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -411,6 +458,7 @@ def main() -> None:
     parser.add_argument("--skip-labels", nargs="*", default=[])
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--write-ply", action="store_true")
+    parser.add_argument("--write-residual-ply", action="store_true")
     parser.add_argument("--target-index-base", type=int, default=0)
     parser.add_argument("--target-index-frame-stride", type=int, default=100000)
     args = parser.parse_args()
