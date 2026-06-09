@@ -277,6 +277,26 @@ Accepted QA interpretation:
 - Most accepted candidates are compact manual-equipment subclusters.
 - Two hygiene-derived candidates remain line-like (`100107`, `100122`), so the accepted set still needs a stricter geometry review before object fusion.
 
+Strict accepted fine-object QA:
+
+- output: `/root/epfs/new_route_stage1_skymask/accepted_fine_object_strict_qa_0000_0999_v008`
+- local copy: `/Users/skkac/Work/SCAN/server_accepted_fine_object_strict_qa_v008`
+- input candidates: `63`
+- input points: `48,804`
+- kept strict candidates: `61`
+- kept strict points: `42,467`
+- demoted candidates: `2`
+- demoted points: `6,337`
+- demoted candidate ids: `100107`, `100122`
+
+Strict QA interpretation:
+
+- The strict geometry review removes the two line-like hygiene-derived candidates.
+- Both demoted candidates have long linear geometry:
+  - `100107`: `5,104` points, span approximately `9.30m x 3.05m x 2.12m`, linearity `0.961`
+  - `100122`: `1,233` points, span approximately `6.41m x 0.87m x 1.23m`, linearity `0.959`
+- The strict filtered PLY is the current best fine-object QA baseline for object-fusion testing.
+
 Top ambiguous examples are listed in:
 
 - `/root/epfs/new_route_stage1_skymask/consolidated_object_qa_0000_0999/object_pipeline_qa_summary.json`
@@ -325,6 +345,6 @@ Use:
 6. Build a combined accepted fine-object QA PLY from:
    - hygiene fine-object candidate clusters
    - manual equipment fine-candidate subclusters
-7. Run a stricter accepted-candidate geometry review to demote line-like accepted candidates before object fusion.
-8. Keep `linear_edge_review` and `large_mixed_review` out of accepted object fusion until further split/relabel.
+7. Use `accepted_fine_object_strict_qa_0000_0999_v008` as the fine-object input for object-fusion testing.
+8. Keep `linear_edge_review`, `large_mixed_review`, and strict-demoted line-like candidates out of accepted object fusion until further split/relabel.
 9. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
