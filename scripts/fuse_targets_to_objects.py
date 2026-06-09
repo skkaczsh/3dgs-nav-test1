@@ -201,6 +201,10 @@ def finalize_object(obj: dict) -> dict:
         out["semantic_label"] = winner if ratio >= 0.8 else "ambiguous"
         if ratio < 0.8:
             out["status"] = "ambiguous_object"
+        elif int(out.get("target_count", len(out.get("targets", [])))) > 1:
+            out["status"] = "stable"
+        else:
+            out["status"] = "single_target"
     return out
 
 

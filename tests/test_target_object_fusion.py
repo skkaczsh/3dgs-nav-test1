@@ -103,3 +103,16 @@ def test_fuse_targets_marks_same_parent_label_conflict_ambiguous():
     assert len(finalized) == 1
     assert finalized[0]["semantic_label"] == "ambiguous"
     assert finalized[0]["status"] == "ambiguous_object"
+
+
+def test_finalize_keeps_high_vote_conflict_stable():
+    module = load_module(SCRIPTS / "fuse_targets_to_objects.py", "fuse_targets_finalize_for_repo_test")
+    obj = module.create_object("obj_000001", _target("t1", 0, "floor", [0, 0, 0], point_start=0))
+    for idx in range(1, 9):
+        module.update_object(obj, _target(f"t_floor_{idx}", idx, "floor", [0.01 * idx, 0, 0], point_start=idx * 100))
+    module.update_object(obj, _target("t_wall", 9, "wall", [0.09, 0, 0], parent="surface", point_start=900))
+
+    finalized = module.finalize_object(obj)
+    assert finalized["semantic_label"] == "floor"
+    assert finalized["dominant_label_ratio"] >= 0.8
+    assert finalized["status"] == "stable"
