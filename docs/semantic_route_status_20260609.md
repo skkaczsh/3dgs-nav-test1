@@ -208,6 +208,29 @@ Interpretation:
 - For equipment, the next improvement is not broad mask deletion. It should be 3D connected splitting plus color/PCA consistency checks.
 - For railing, the next improvement is pre-fusion stable-surface subtraction and mask/component splitting.
 
+Oversized mask hygiene QA output:
+
+- output: `/root/epfs/new_route_stage1_skymask/fine_residual_hygiene_0000_0999_v008`
+- local copy: `/Users/skkac/Work/SCAN/server_fine_residual_hygiene_v008`
+- status PLY: `fine_residual_clusters_hygiene_status_v008.ply`
+- filtered PLY: `fine_residual_clusters_hygiene_filtered_v008.ply`
+- total fine residual cluster points: `240,673`
+- demoted points: `39,305`
+- demoted ratio: `0.1633`
+- kept points: `201,368`
+- demoted clusters: `1`, `2`
+- status counts:
+  - `pre_fusion_split_or_demote`: `39,305`
+  - `manual_review`: `89,045`
+  - `fine_object_candidate`: `6,337`
+  - `other`: `105,986`
+
+QA interpretation:
+
+- The status preview localizes the demoted points to two large railing-pollution regions.
+- The filtered preview removes those regions while preserving compact equipment candidates.
+- Remaining magenta/manual regions are still substantial, so the next step should split equipment by 3D geometry/color rather than accept all equipment residuals.
+
 Top ambiguous examples are listed in:
 
 - `/root/epfs/new_route_stage1_skymask/consolidated_object_qa_0000_0999/object_pipeline_qa_summary.json`
@@ -253,6 +276,7 @@ Use:
    - subtract known stable surface projections first
    - split mask projections by 3D connected components
    - reject/demote surface-like fragments before fine-object clustering
-6. Implement the hygiene step first on clusters `1` and `2`, then re-run fine residual clustering to confirm railing pollution drops.
+6. Use the `fine_residual_hygiene_0000_0999_v008` filtered PLY as the next fine-object QA baseline.
 7. Add a fine-object residual path for accepted equipment clusters `107` and `122`.
-8. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
+8. Split remaining manual-review equipment clusters by 3D geometry/color before accepting them as objects.
+9. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
