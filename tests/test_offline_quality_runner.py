@@ -20,3 +20,4 @@ def test_offline_quality_runner_covers_core_checks():
     assert "audit_runner_dependencies.py" in script
     assert "verify_review_delivery_manifest.py" in script
     assert "pytest -q" in script
+    assert "tests/test_offline_quality_runner.py" in script
