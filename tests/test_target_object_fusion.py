@@ -637,10 +637,12 @@ def test_manual_merge_review_workflow_end_to_end(tmp_path):
 
     rows, errors = module.normalize(manual_csv, review_jsonl)
     merged, decisions = module.apply_reviews(module.load_objects(objects), rows, min_confidence=0.75)
+    qa_report = module.qa_reviewed_merge(module.load_objects(objects), merged, decisions)
 
     assert errors == []
     assert len(merged) == 1
     assert decisions[0]["accepted"] is True
+    assert qa_report["passed"] is True
 
 
 def test_qa_reviewed_merge_results_checks_invariants():

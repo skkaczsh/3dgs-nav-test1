@@ -9,6 +9,7 @@ from pathlib import Path
 
 from apply_cross_candidate_merge_reviews import apply_reviews, load_jsonl as load_objects, write_outputs as write_applied_outputs
 from normalize_manual_merge_decisions import normalize, write_outputs as write_normalized_outputs
+from qa_reviewed_merge_results import qa as qa_reviewed_merge
 
 
 def main() -> None:
@@ -28,6 +29,10 @@ def main() -> None:
     objects = load_objects(args.objects)
     merged, decisions = apply_reviews(objects, rows, args.min_confidence)
     write_applied_outputs(merged, decisions, applied_dir)
+    qa_report = qa_reviewed_merge(objects, merged, decisions)
+    qa_path = args.output_dir / "qa_reviewed_merge_report.json"
+    qa_path.parent.mkdir(parents=True, exist_ok=True)
+    qa_path.write_text(json.dumps(qa_report, ensure_ascii=False, indent=2), encoding="utf-8")
 
     report = {
         "manual_csv": str(args.manual_csv),
@@ -41,6 +46,8 @@ def main() -> None:
         "output_object_count": len(merged),
         "accepted_merge_count": sum(1 for row in decisions if row["accepted"]),
         "min_confidence": args.min_confidence,
+        "qa_report": str(qa_path),
+        "qa_passed": qa_report["passed"],
     }
     args.output_dir.mkdir(parents=True, exist_ok=True)
     (args.output_dir / "manual_merge_workflow_report.json").write_text(
@@ -48,6 +55,8 @@ def main() -> None:
         encoding="utf-8",
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
+    if not qa_report["passed"]:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
