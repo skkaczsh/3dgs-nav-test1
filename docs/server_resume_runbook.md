@@ -50,13 +50,15 @@ This writes:
 - `/Users/skkac/Work/SCAN/route_status_20260610/server_resume_commands.sh`
 - `/Users/skkac/Work/SCAN/route_status_20260610/server_resume_commands_validation.json`
 
-The generated shell plan runs the required main-route phases in order and only
-prints new-model / old-route side-track commands as optional follow-ups.
+The generated shell plan runs the required main-route phases in order, runs
+strict output validation, and only then prints new-model / old-route side-track
+commands as optional follow-ups.
 It also runs `scripts/run_server_dataset_readiness.sh` after the scene-aware
 semantic refresh so strict output validation has the required dataset readiness
 input.
 
-After the generated shell plan finishes, validate the resulting local artifacts:
+The strict validation step is already included in the generated shell plan. It
+can also be rerun manually after inspecting or replacing artifacts:
 
 ```bash
 python3 scripts/validate_server_resume_outputs.py --strict
@@ -66,7 +68,7 @@ This writes:
 
 - `/Users/skkac/Work/SCAN/route_status_20260610/server_resume_output_validation.json`
 
-`--strict` should pass before treating the 0-999 dataset as ready for the new
+`--strict` must pass before treating the 0-999 dataset as ready for the new
 model side track or renewed old-route comparison.
 
 Run after server connectivity returns:

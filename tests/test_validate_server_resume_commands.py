@@ -29,6 +29,7 @@ def make_repo(tmp_path: Path) -> Path:
         "run_server_semantic_completion_sharded.sh",
         "run_server_dataset_readiness.sh",
         "run_server_target_object_fusion.sh",
+        "validate_server_resume_outputs.py",
     ]:
         (scripts / name).write_text("# ok\n", encoding="utf-8")
     return repo
@@ -84,6 +85,16 @@ def valid_plan() -> dict:
                 ],
             },
             {
+                "id": "main_output_validation",
+                "commands": [
+                    {
+                        "name": "strict_output_validation",
+                        "command": "python3 scripts/validate_server_resume_outputs.py --strict",
+                        "required": True,
+                    }
+                ],
+            },
+            {
                 "id": "new_model_side_track",
                 "commands": [
                     {
@@ -119,6 +130,7 @@ def test_validate_resume_commands_accepts_valid_plan(tmp_path: Path):
                 "bash scripts/run_server_semantic_completion_sharded.sh",
                 "bash scripts/run_server_dataset_readiness.sh",
                 "bash scripts/run_server_target_object_fusion.sh",
+                "python3 scripts/validate_server_resume_outputs.py --strict",
                 "[optional] conceptseg_status",
                 "[optional] old_route_smoke_status",
             ]
@@ -136,12 +148,24 @@ def test_validate_resume_commands_rejects_required_side_track(tmp_path: Path):
     module = load_module()
     repo = make_repo(tmp_path)
     plan = valid_plan()
-    plan["phases"][4]["commands"][0]["required"] = True
+    plan["phases"][5]["commands"][0]["required"] = True
 
     report = module.validate_plan(plan, repo)
 
     assert report["passed"] is False
     assert "side_track_command_required=new_model_side_track:conceptseg_status" in report["errors"]
+
+
+def test_validate_resume_commands_rejects_non_strict_output_validation(tmp_path: Path):
+    module = load_module()
+    repo = make_repo(tmp_path)
+    plan = valid_plan()
+    plan["phases"][4]["commands"][0]["command"] = "python3 scripts/validate_server_resume_outputs.py"
+
+    report = module.validate_plan(plan, repo)
+
+    assert report["passed"] is False
+    assert "strict_output_validation_not_strict" in report["errors"]
 
 
 def test_validate_resume_commands_rejects_missing_local_script(tmp_path: Path):

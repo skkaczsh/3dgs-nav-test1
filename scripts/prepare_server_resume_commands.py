@@ -52,6 +52,7 @@ def build_plan(args: argparse.Namespace) -> dict:
         f"MIN_MERGE_CONFIDENCE={args.min_merge_confidence} "
         "bash scripts/run_server_target_object_fusion.sh"
     )
+    output_validation_cmd = "python3 scripts/validate_server_resume_outputs.py --strict"
 
     phases = [
         {
@@ -108,9 +109,21 @@ def build_plan(args: argparse.Namespace) -> dict:
             ],
         },
         {
+            "id": "main_output_validation",
+            "title": "Main Route Output Validation",
+            "run_when": "Qwen review, semantic refresh, dataset readiness, and target/object fusion have finished",
+            "commands": [
+                command(
+                    "strict_output_validation",
+                    "Validate Qwen review, semantic dataset readiness, and target/object fusion before side tracks.",
+                    output_validation_cmd,
+                ),
+            ],
+        },
+        {
             "id": "new_model_side_track",
             "title": "New Model Side Track",
-            "run_when": "main route GPU demand is low",
+            "run_when": "strict main-route output validation passed and GPU demand is low",
             "commands": [
                 command(
                     "conceptseg_status",

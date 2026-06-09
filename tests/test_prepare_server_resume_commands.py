@@ -51,19 +51,22 @@ def test_resume_command_plan_orders_main_route_before_side_tracks(tmp_path: Path
     phase_ids = [phase["id"] for phase in plan["phases"]]
     shell = module.render_shell(plan)
 
-    assert phase_ids[:4] == [
+    assert phase_ids[:5] == [
         "connectivity",
         "main_qwen_review",
         "main_semantic_refresh",
         "main_object_fusion",
+        "main_output_validation",
     ]
     assert phase_ids[-2:] == ["new_model_side_track", "old_route_side_track"]
     assert "CONCURRENCY=4" in shell
     assert "PATCH_SCENE_PROMPTS=1 SHARDS=4" in shell
     assert "run_server_dataset_readiness.sh" in shell
     assert "MIN_MERGE_CONFIDENCE=0.5" in shell
+    assert "validate_server_resume_outputs.py --strict" in shell
     assert "ConceptSeg-R1" in shell
     assert "[optional]" in shell
+    assert shell.index("validate_server_resume_outputs.py --strict") < shell.index("[optional] conceptseg_status")
 
 
 def test_resume_command_plan_blocks_shell_when_not_ready(tmp_path: Path):

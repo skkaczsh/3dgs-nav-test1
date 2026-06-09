@@ -14,6 +14,7 @@ EXPECTED_PHASE_ORDER = [
     "main_qwen_review",
     "main_semantic_refresh",
     "main_object_fusion",
+    "main_output_validation",
     "new_model_side_track",
     "old_route_side_track",
 ]
@@ -24,6 +25,7 @@ REQUIRED_LOCAL_SCRIPTS = {
     "semantic_completion_sharded": "scripts/run_server_semantic_completion_sharded.sh",
     "dataset_readiness": "scripts/run_server_dataset_readiness.sh",
     "target_object_fusion": "scripts/run_server_target_object_fusion.sh",
+    "strict_output_validation": "scripts/validate_server_resume_outputs.py",
 }
 
 
@@ -93,6 +95,9 @@ def validate_plan(plan: dict, repo_root: Path, shell_path: Path | None = None) -
         errors.append("scene_prompt_patch_not_enabled")
     if "SHARDS=4" not in semantic:
         errors.append("semantic_shards_not_4")
+    strict_validation = commands_by_name.get("strict_output_validation", {}).get("command", "")
+    if "--strict" not in strict_validation:
+        errors.append("strict_output_validation_not_strict")
 
     if shell_path is not None:
         if not shell_path.exists():
