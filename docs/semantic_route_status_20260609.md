@@ -231,6 +231,35 @@ QA interpretation:
 - The filtered preview removes those regions while preserving compact equipment candidates.
 - Remaining magenta/manual regions are still substantial, so the next step should split equipment by 3D geometry/color rather than accept all equipment residuals.
 
+Manual equipment split QA:
+
+- output: `/root/epfs/new_route_stage1_skymask/manual_equipment_split_0000_0999_v008`
+- local copy: `/Users/skkac/Work/SCAN/server_manual_equipment_split_v008`
+- input manual equipment points: `89,045`
+- source clusters: `8`
+- subclusters: `68`
+- clustered points: `71,743`
+- small residual points: `17,302`
+- split params:
+  - voxel: `0.06m`
+  - max visual RGB distance: `45`
+  - min subcluster points: `80`
+
+Manual equipment subcluster review:
+
+- `fine_candidate`: `61` subclusters, `42,467` points
+- `linear_edge_review`: `6` subclusters, `22,226` points
+- `large_mixed_review`: `1` subcluster, `7,050` points
+
+Interpretation:
+
+- The first manual-equipment split turns most subclusters into compact candidates by count.
+- A large fraction of points still sits in linear/edge or large-mixed review buckets.
+- The next QA baseline should combine:
+  - existing hygiene `fine_object_candidate` clusters
+  - manual-equipment `fine_candidate` subclusters
+  - excluding `linear_edge_review` and `large_mixed_review`
+
 Top ambiguous examples are listed in:
 
 - `/root/epfs/new_route_stage1_skymask/consolidated_object_qa_0000_0999/object_pipeline_qa_summary.json`
@@ -276,7 +305,8 @@ Use:
    - subtract known stable surface projections first
    - split mask projections by 3D connected components
    - reject/demote surface-like fragments before fine-object clustering
-6. Use the `fine_residual_hygiene_0000_0999_v008` filtered PLY as the next fine-object QA baseline.
-7. Add a fine-object residual path for accepted equipment clusters `107` and `122`.
-8. Split remaining manual-review equipment clusters by 3D geometry/color before accepting them as objects.
-9. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
+6. Build a combined accepted fine-object QA PLY from:
+   - hygiene fine-object candidate clusters
+   - manual equipment fine-candidate subclusters
+7. Keep `linear_edge_review` and `large_mixed_review` out of accepted object fusion until further split/relabel.
+8. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
