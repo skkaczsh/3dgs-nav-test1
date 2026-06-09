@@ -130,6 +130,32 @@ Reason:
 - It does not fragment the data as aggressively as `voxel=0.06`.
 - The remaining large orange `equipment` regions in the XY preview still look like likely label/projection contamination, so they should be reviewed rather than blindly accepted.
 
+Fine-cluster review set:
+
+- output: `/root/epfs/new_route_stage1_skymask/fine_residual_review_0000_0999_v008`
+- local copy: `/Users/skkac/Work/SCAN/server_fine_cluster_review_v008`
+- review rows: `100`
+- suspicious clusters: `12`
+- likely fine objects: `8`
+- suspicious PLY points: `134,687`
+
+Top suspicious clusters:
+
+| Cluster | Label | Points | Main reasons |
+|---:|---|---:|---|
+| `97` | `equipment` | `35,462` | large points, large XY span, surface-like geometry |
+| `98` | `equipment` | `15,085` | large points, large XY span, surface-like geometry |
+| `99` | `equipment` | `13,457` | large points, large Z span, surface-like geometry |
+| `1` | `railing` | `22,324` | large points, large XY span |
+| `2` | `railing` | `16,981` | large points, large XY span, linear railing-like geometry |
+
+Interpretation:
+
+- The suspicious preview is structured, not random noise.
+- Large `equipment` clusters are likely mixed surface/edge projection contamination.
+- Large `railing` clusters preserve useful line geometry but still need object-level review before being accepted as one global object.
+- The next useful step is to review suspicious cluster masks/images, then either split them or demote contaminated parts back to surface/residual.
+
 Top ambiguous examples are listed in:
 
 - `/root/epfs/new_route_stage1_skymask/consolidated_object_qa_0000_0999/object_pipeline_qa_summary.json`
@@ -170,5 +196,6 @@ Use:
    - `plane=0.20`
    - `color=110`
 3. Review top ambiguous large objects, especially floor/wall and building/railing conflicts.
-4. Add a fine-object residual path for equipment/railing instead of merging them into surfaces.
-5. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
+4. Review the `fine_residual_review_0000_0999_v008` suspicious clusters against source masks/images.
+5. Add a fine-object residual path for accepted equipment/railing clusters instead of merging them into surfaces.
+6. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
