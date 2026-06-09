@@ -378,3 +378,30 @@ def test_cross_candidate_merge_proposals_filter_and_rank_candidates():
     assert proposals[0]["object_a"] == "o1"
     assert proposals[0]["object_b"] == "o2"
     assert proposals[0]["same_source_cluster"] is True
+
+
+def test_cross_candidate_review_pack_parses_target_and_selects_representatives():
+    module = load_module(SCRIPTS / "build_cross_candidate_review_pack.py", "review_pack_for_repo_test")
+    meta = module.parse_target_id("fine_t_000579_cam1_mask0008_sem16_cc02")
+    assert meta == {"frame": 579, "cam": 1, "mask": 8, "semantic": 16, "cc": 2}
+
+    tracklets = {
+        "trk_a": {
+            "tracklet_id": "trk_a",
+            "point_count": 20,
+            "target_count": 2,
+            "target_ids": ["fine_t_000579_cam1_mask0008_sem16_cc02"],
+            "accepted_candidate_votes": {"200001": 20},
+        },
+        "trk_b": {
+            "tracklet_id": "trk_b",
+            "point_count": 100,
+            "target_count": 4,
+            "target_ids": ["fine_t_000580_cam1_mask0009_sem16_cc00"],
+            "accepted_candidate_votes": {"200002": 100},
+        },
+    }
+    obj = {"tracklet_ids": ["trk_a", "trk_b"]}
+    reps = module.choose_representative_tracklets(obj, tracklets, "200002", 1)
+
+    assert reps[0]["tracklet_id"] == "trk_b"

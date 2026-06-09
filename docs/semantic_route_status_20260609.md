@@ -660,3 +660,38 @@ Interpretation:
 - The review queue is now small enough for manual/VLM review: `8-10` high-priority pairs.
 - These are exactly the pairs that explain most of the gap between the conservative `66` object baseline and the spatial strict2 `47` object QA.
 - Cross-candidate merges should stay proposed-only until reviewed; automatic merging is unsafe for thin rooftop structures.
+
+## Cross-Candidate Review Pack
+
+High-priority strict cross-candidate review pack:
+
+- server: `/root/epfs/new_route_stage1_skymask/frame_fine_cross_candidate_review_pack_0000_0999_v008_strict_high`
+- local copy: `/Users/skkac/Work/SCAN/server_frame_fine_cross_candidate_review_pack_v008`
+- source proposal queue: `/root/epfs/new_route_stage1_skymask/frame_fine_cross_candidate_merge_proposals_0000_0999_v008_strict/cross_candidate_merge_proposals.jsonl`
+- source objects: `/root/epfs/new_route_stage1_skymask/frame_fine_tracklet_long_assoc_0000_0999_v008_gap60_v2_samecand_loose/long_objects.jsonl`
+- source tracklets: `/root/epfs/new_route_stage1_skymask/frame_fine_tracklets_0000_0999_v008_v016_m3_gap60_v2/tracklets.jsonl`
+- semantic artifact base: `/root/epfs/manifold_3dgs_project/processed/semantic_eval_new_route_0000_0999_b`
+- combo: `sam2_prompt_v3_sky_label_merge_completion`
+
+Pack contents:
+
+- `README_review.md`
+- `cross_candidate_review_items.jsonl`
+- `cross_candidate_review_items.csv`
+- `cross_candidate_review_pack_report.json`
+- copied assets under `assets/proposal_*/`
+
+Coverage:
+
+- review items: `8`
+- representatives: `30`
+- copied overlays: `12`
+- items with at least one overlay: `4 / 8`
+
+Interpretation:
+
+- The review manifest is complete and traceable even when copied image artifacts are missing.
+- Overlay coverage is partial because `semantic_eval_new_route_0000_0999_b` does not contain every representative frame selected from the 1000-frame tracklets.
+- Existing copied overlays are adequate for a first manual/VLM review pass, but a full visual review should either:
+  - regenerate missing semantic artifacts for representative frames, or
+  - use original image paths plus target metadata to crop/re-run segmentation on demand.
