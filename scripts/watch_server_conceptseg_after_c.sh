@@ -11,6 +11,7 @@ QWEN_PORT="${QWEN_PORT:-8003}"
 CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-1}"
 LIMIT="${LIMIT:-8}"
 LOG_DIR="${LOG_DIR:-${STAGE_DIR}/logs}"
+INFERENCE_SCRIPT="${INFERENCE_SCRIPT:-${SCRIPTS_DIR}/conceptseg_inference_single_example_sdpa.py}"
 
 mkdir -p "${LOG_DIR}"
 
@@ -66,6 +67,7 @@ echo "[$(date -Is)] starting ConceptSeg-R1 smoke on GPU ${CUDA_VISIBLE_DEVICES}"
 CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES}" \
 LIMIT="${LIMIT}" \
 OUTPUT_DIR="${STAGE_DIR}/conceptseg_smoke_after_c" \
+INFERENCE_SCRIPT="${INFERENCE_SCRIPT}" \
 nohup "${SCRIPTS_DIR}/run_server_conceptseg_smoke.sh" \
   > "${LOG_DIR}/conceptseg_smoke_after_c.log" 2>&1 &
 

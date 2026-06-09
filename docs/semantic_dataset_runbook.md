@@ -55,6 +55,10 @@ server state as authority when numbers differ.
   - Script: `scripts/watch_server_conceptseg_after_c.sh`
   - Trigger: split C final combo reaches `913/913`.
   - Actions: stop Qwen on port `8003`, then run `scripts/run_server_conceptseg_smoke.sh`.
+  - Default inference entry: `conceptseg_inference_single_example_sdpa.py`.
+  - Known blocker: ConceptSeg-R1 internally needs access to gated HuggingFace
+    repo `facebook/sam3`. Without an authorized HF token/login, the smoke test
+    stops at SAM3 config download even after local dependencies are fixed.
 
 ## Verified Preflight
 
@@ -68,6 +72,13 @@ server state as authority when numbers differ.
   - Targets: `11`
   - Objects: `6`
   - Ambiguous ratio: `0.0`
+- ConceptSeg-R1 smoke dependency fixes completed:
+  - Installed `scikit-image` and `scikit-learn` in the remote
+    `conceptseg-r1` environment.
+  - Added an SDPA smoke entry to avoid hard-required `flash_attn`.
+  - Added repo-local SAM3 path bootstrap to avoid namespace-package import
+    issues.
+  - Remaining blocker is gated `facebook/sam3` access.
 - Local tests:
   - New route: `python3 -m pytest -q tests/test_new_route_scripts.py new_route/tests/test_target_object_fusion.py`
   - Old route baseline: `PYTHONPATH=/Users/skkac/Work/SCAN/MT20260511-165822 python3 -m pytest -q MT20260511-165822/tests/test_projection.py MT20260511-165822/tests/test_backproject.py MT20260511-165822/tests/test_merge.py`
