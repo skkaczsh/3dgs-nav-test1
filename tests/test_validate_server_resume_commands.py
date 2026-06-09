@@ -27,6 +27,7 @@ def make_repo(tmp_path: Path) -> Path:
         "diagnose_server_connectivity.py",
         "resume_server_qwen_review.sh",
         "run_server_semantic_completion_sharded.sh",
+        "run_server_dataset_readiness.sh",
         "run_server_target_object_fusion.sh",
     ]:
         (scripts / name).write_text("# ok\n", encoding="utf-8")
@@ -71,6 +72,11 @@ def valid_plan() -> dict:
                 "id": "main_object_fusion",
                 "commands": [
                     {
+                        "name": "dataset_readiness",
+                        "command": "BIND_ADDRESS=192.168.0.3 SERVER=scan-train bash scripts/run_server_dataset_readiness.sh",
+                        "required": True,
+                    },
+                    {
                         "name": "target_object_fusion",
                         "command": "MIN_MERGE_CONFIDENCE=0.5 bash scripts/run_server_target_object_fusion.sh",
                         "required": True,
@@ -111,6 +117,7 @@ def test_validate_resume_commands_accepts_valid_plan(tmp_path: Path):
                 "python3 scripts/diagnose_server_connectivity.py",
                 "bash scripts/resume_server_qwen_review.sh",
                 "bash scripts/run_server_semantic_completion_sharded.sh",
+                "bash scripts/run_server_dataset_readiness.sh",
                 "bash scripts/run_server_target_object_fusion.sh",
                 "[optional] conceptseg_status",
                 "[optional] old_route_smoke_status",

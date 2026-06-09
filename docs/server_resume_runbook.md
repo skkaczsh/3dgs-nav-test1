@@ -52,6 +52,9 @@ This writes:
 
 The generated shell plan runs the required main-route phases in order and only
 prints new-model / old-route side-track commands as optional follow-ups.
+It also runs `scripts/run_server_dataset_readiness.sh` after the scene-aware
+semantic refresh so strict output validation has the required dataset readiness
+input.
 
 After the generated shell plan finishes, validate the resulting local artifacts:
 

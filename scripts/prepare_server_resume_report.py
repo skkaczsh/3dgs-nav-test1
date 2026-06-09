@@ -75,6 +75,7 @@ def build_report(args: argparse.Namespace) -> dict:
             "python3 scripts/diagnose_server_connectivity.py --output /Users/skkac/Work/SCAN/server_connectivity_diagnosis_20260610_latest.json",
             "BIND_ADDRESS=192.168.0.3 SERVER=scan-train CONCURRENCY=4 bash scripts/resume_server_qwen_review.sh",
             "PATCH_SCENE_PROMPTS=1 SHARDS=4 bash scripts/run_server_semantic_completion_sharded.sh",
+            "BIND_ADDRESS=192.168.0.3 SERVER=scan-train bash scripts/run_server_dataset_readiness.sh",
             "MIN_MERGE_CONFIDENCE=0.5 bash scripts/run_server_target_object_fusion.sh",
         ],
         "notes": [

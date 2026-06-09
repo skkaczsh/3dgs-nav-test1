@@ -22,6 +22,7 @@ REQUIRED_LOCAL_SCRIPTS = {
     "diagnose_connectivity": "scripts/diagnose_server_connectivity.py",
     "qwen_review": "scripts/resume_server_qwen_review.sh",
     "semantic_completion_sharded": "scripts/run_server_semantic_completion_sharded.sh",
+    "dataset_readiness": "scripts/run_server_dataset_readiness.sh",
     "target_object_fusion": "scripts/run_server_target_object_fusion.sh",
 }
 

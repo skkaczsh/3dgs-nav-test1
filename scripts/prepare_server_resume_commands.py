@@ -44,6 +44,10 @@ def build_plan(args: argparse.Namespace) -> dict:
         f"PATCH_SCENE_PROMPTS=1 SHARDS={args.semantic_shards} "
         "bash scripts/run_server_semantic_completion_sharded.sh"
     )
+    dataset_readiness_cmd = (
+        f"{bind_prefix}SERVER={shlex.quote(args.server)} "
+        "bash scripts/run_server_dataset_readiness.sh"
+    )
     fusion_cmd = (
         f"MIN_MERGE_CONFIDENCE={args.min_merge_confidence} "
         "bash scripts/run_server_target_object_fusion.sh"
@@ -89,8 +93,13 @@ def build_plan(args: argparse.Namespace) -> dict:
         {
             "id": "main_object_fusion",
             "title": "Target/Object Fusion",
-            "run_when": "scene-aware semantic artifacts are ready",
+            "run_when": "dataset readiness report passes semantic/color thresholds",
             "commands": [
+                command(
+                    "dataset_readiness",
+                    "Generate the semantic dataset readiness report used by strict output validation.",
+                    dataset_readiness_cmd,
+                ),
                 command(
                     "target_object_fusion",
                     "Rebuild targets and objects with VLM quality gating preserved.",
