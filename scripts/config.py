@@ -7,11 +7,11 @@ import numpy as np
 import yaml
 
 # ==================== 路径配置 ====================
-DATA_DIR = os.environ.get("SCAN_DATA_DIR", "/root/epfs/zeende/zeende_planner/data")
-IMAGE_DIR = os.environ.get("SCAN_IMAGE_DIR", os.path.join(DATA_DIR, "image"))
+DATA_DIR = os.environ.get("SCAN_DATA_DIR", "/root/epfs/new_route_data")
+IMAGE_DIR = os.environ.get("SCAN_IMAGE_DIR", os.path.join(DATA_DIR, "calib"))
 VIDEO_DIR = os.environ.get("SCAN_VIDEO_DIR", IMAGE_DIR)
-EXTRACTED_DIR = os.environ.get("SCAN_EXTRACTED_DIR", os.path.join(DATA_DIR, "extracted"))
-STAGE1_DIR = os.environ.get("SCAN_STAGE1_DIR", "/root/epfs/zeende/zeende_planner/stage1_projection")
+EXTRACTED_DIR = os.environ.get("SCAN_EXTRACTED_DIR", os.path.join(DATA_DIR, "ply"))
+STAGE1_DIR = os.environ.get("SCAN_STAGE1_DIR", "/root/epfs/new_route_stage1_skymask")
 
 CALIB_FILE = os.path.join(IMAGE_DIR, "cam_in_ex.txt")
 IMG_POS_FILE = os.path.join(IMAGE_DIR, "img_pos.txt")
