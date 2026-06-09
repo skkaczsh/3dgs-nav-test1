@@ -67,6 +67,7 @@ def test_resume_report_marks_ready_when_local_artifacts_exist(tmp_path: Path):
     assert report["latest_snapshot"]["resume_outputs_blocker_count"] == 1
     assert any("prepare_server_resume_commands.py" in command for command in report["resume_commands"])
     assert any("run_server_dataset_readiness.sh" in command for command in report["resume_commands"])
+    assert any("validate_server_resume_outputs.py --strict" in command for command in report["resume_commands"])
     assert any("resume_server_qwen_review.sh" in command for command in report["resume_commands"])
 
 
