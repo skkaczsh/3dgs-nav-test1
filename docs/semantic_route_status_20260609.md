@@ -592,3 +592,71 @@ Interpretation:
 - The remaining difference from strict2 spatial fine-object fusion (`47` objects) is mostly cross accepted-candidate merging, not failure of the tracklet layer.
 - Conservative next baseline should be `66` objects from same-candidate loose, with manual/VLM review only for cross-candidate merge proposals.
 - Do not force convergence to `47` automatically; that risks merging distinct thin structures that were separated by source masks.
+
+## Cross-Candidate Merge Review Queue
+
+Cross accepted-candidate merge proposals from the conservative `66` long-object baseline:
+
+- local copy: `/Users/skkac/Work/SCAN/server_frame_fine_cross_candidate_proposals_v008`
+- source objects: `/root/epfs/new_route_stage1_skymask/frame_fine_tracklet_long_assoc_0000_0999_v008_gap60_v2_samecand_loose/long_objects.jsonl`
+- default output: `/root/epfs/new_route_stage1_skymask/frame_fine_cross_candidate_merge_proposals_0000_0999_v008`
+- strict output: `/root/epfs/new_route_stage1_skymask/frame_fine_cross_candidate_merge_proposals_0000_0999_v008_strict`
+
+Default proposal params:
+
+- `centroid_distance=1.2`
+- `bbox_distance=0.35`
+- `min_bbox_overlap=0.05`
+- `color_distance=80`
+- `frame_gap=360`
+- `auto_review_score=1.2`
+
+Default result:
+
+- proposals: `34`
+- high priority: `10`
+- medium priority: `0`
+- low priority: `24`
+
+Strict proposal params:
+
+- `centroid_distance=0.9`
+- `bbox_distance=0.2`
+- `min_bbox_overlap=0.2`
+- `color_distance=50`
+- `frame_gap=240`
+- `auto_review_score=0.8`
+
+Strict result:
+
+- proposals: `26`
+- high priority: `8`
+- medium priority: `0`
+- low priority: `18`
+
+Top high-priority examples:
+
+- `long_obj_0039` + `long_obj_0055`
+  - candidates: `200003` + `200015`
+  - same source cluster: `97`
+  - bbox overlap: `1.000`
+  - color distance: `4.61`
+  - score: `0.117`
+- `long_obj_0036` + `long_obj_0046`
+  - candidates: `200056` + `200057`
+  - same source cluster: `108`
+  - bbox overlap: `0.682`
+  - color distance: `17.52`
+  - score: `0.245`
+- `long_obj_0030` + `long_obj_0032`
+  - candidates: `200048` + `200047`
+  - same source cluster: `100`
+  - bbox overlap: `0.668`
+  - color distance: `22.74`
+  - score: `0.279`
+
+Interpretation:
+
+- The review queue is now small enough for manual/VLM review: `8-10` high-priority pairs.
+- These are exactly the pairs that explain most of the gap between the conservative `66` object baseline and the spatial strict2 `47` object QA.
+- Cross-candidate merges should stay proposed-only until reviewed; automatic merging is unsafe for thin rooftop structures.

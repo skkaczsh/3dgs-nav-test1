@@ -332,3 +332,49 @@ def test_long_range_association_uses_accepted_candidate_evidence():
     assert decisions[1]["action"] == "merge"
     assert decisions[1]["reason"] == "same_accepted_candidate"
     assert decisions[2]["action"] == "new_object"
+
+
+def _long_object(object_id, centroid, candidate, source="99", color=(100, 100, 100), label="equipment"):
+    c = np.array(centroid, dtype=float)
+    return {
+        "long_object_id": object_id,
+        "label": label,
+        "point_count": 100,
+        "tracklet_count": 3,
+        "frame_min": 0,
+        "frame_max": 20,
+        "bbox_3d": {"min": (c - 0.1).tolist(), "max": (c + 0.1).tolist()},
+        "centroid": c.tolist(),
+        "mean_color": list(color),
+        "dominant_accepted_candidate": candidate,
+        "dominant_accepted_candidate_ratio": 0.95,
+        "dominant_source_cluster": source,
+    }
+
+
+def test_cross_candidate_merge_proposals_filter_and_rank_candidates():
+    module = load_module(SCRIPTS / "propose_cross_candidate_object_merges.py", "cross_candidate_proposals_for_repo_test")
+    args = type("Args", (), {
+        "centroid_distance": 1.2,
+        "bbox_distance": 0.35,
+        "min_bbox_overlap": 0.05,
+        "color_distance": 80.0,
+        "frame_gap": 360,
+        "auto_review_score": 1.2,
+        "max_proposals": 20,
+    })()
+
+    proposals = module.propose(
+        [
+            _long_object("o1", [0, 0, 0], "200001"),
+            _long_object("o2", [0.4, 0, 0], "200002"),
+            _long_object("o3", [5, 0, 0], "200003"),
+            _long_object("o4", [10, 0, 0], "200001"),
+        ],
+        args,
+    )
+
+    assert len(proposals) == 1
+    assert proposals[0]["object_a"] == "o1"
+    assert proposals[0]["object_b"] == "o2"
+    assert proposals[0]["same_source_cluster"] is True
