@@ -471,3 +471,17 @@ def test_review_contact_sheet_remaps_server_asset_paths(tmp_path):
     resolved = module.image_path(rep, pack_dir)
 
     assert resolved == asset
+
+
+def test_vlm_merge_review_extracts_and_normalizes_json():
+    module = load_module(SCRIPTS / "review_cross_candidate_merges_vlm.py", "vlm_merge_review_for_repo_test")
+    parsed = module.extract_json(
+        """```json
+        {"decision": "MERGE", "confidence": 1.3, "physical_relation": "same_object", "reason": "continuous railing", "evidence": "same line", "risk": "overmerge"}
+        ```"""
+    )
+    normalized = module.normalize_decision(parsed)
+
+    assert normalized["decision"] == "merge"
+    assert normalized["confidence"] == 1.0
+    assert normalized["evidence"] == ["same line"]
