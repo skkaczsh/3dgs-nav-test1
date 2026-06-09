@@ -111,6 +111,25 @@ Interpretation:
 - The largest `equipment` cluster has `118,365` points and a very large bbox, so it is likely a mixed or misclassified region rather than one equipment object.
 - Fine-object handling should therefore split/review large clusters before merging them into stable objects.
 
+Fine-clustering parameter sweep:
+
+| Params | Clusters | Clustered ratio | Small points | Largest cluster |
+|---|---:|---:|---:|---:|
+| `voxel=0.16, min=80` | `62` | `0.9531` | `13,443` | `150,072 equipment` |
+| `voxel=0.12, min=50` | `124` | `0.9238` | `21,849` | `118,365 equipment` |
+| `voxel=0.08, min=40` | `320` | `0.8395` | `46,004` | `35,462 equipment` |
+| `voxel=0.06, min=30` | `543` | `0.7414` | `74,144` | `19,111 railing` |
+
+Recommended QA setting:
+
+- `voxel=0.08, min_cluster_points=40`
+
+Reason:
+
+- It breaks the largest `equipment` band from `118k` to `35k` points.
+- It does not fragment the data as aggressively as `voxel=0.06`.
+- The remaining large orange `equipment` regions in the XY preview still look like likely label/projection contamination, so they should be reviewed rather than blindly accepted.
+
 Top ambiguous examples are listed in:
 
 - `/root/epfs/new_route_stage1_skymask/consolidated_object_qa_0000_0999/object_pipeline_qa_summary.json`
