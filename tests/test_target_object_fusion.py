@@ -735,3 +735,22 @@ def test_package_cross_candidate_review_copies_manifest_and_zip(tmp_path):
     assert "contact_sheets/review_001_contact_sheet.jpg" in copied_paths
     assert manifest["file_count"] == len(copied)
     assert zip_path.exists()
+
+
+def test_verify_review_delivery_manifest_detects_corruption(tmp_path):
+    package = load_module(SCRIPTS / "package_cross_candidate_review.py", "package_review_for_verify_test")
+    verify = load_module(SCRIPTS / "verify_review_delivery_manifest.py", "verify_review_delivery_for_repo_test")
+    delivery = tmp_path / "delivery"
+    (delivery / "contact_sheets").mkdir(parents=True)
+    file_path = delivery / "contact_sheets" / "review_001_contact_sheet.jpg"
+    file_path.write_text("ok", encoding="utf-8")
+    manifest = package.build_manifest(delivery, [file_path], [], tmp_path / "source")
+    (delivery / "manifest_sha256.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    report = verify.verify_dir(delivery)
+    file_path.write_text("corrupt", encoding="utf-8")
+    bad_report = verify.verify_dir(delivery)
+
+    assert report["passed"] is True
+    assert bad_report["passed"] is False
+    assert bad_report["errors"][0]["error"] in {"size_mismatch", "sha256_mismatch"}
