@@ -4,6 +4,7 @@ set -euo pipefail
 REPO="${REPO:-/root/epfs/third_party/ConceptSeg-R1}"
 PYTHON="${PYTHON:-/root/epfs/conda_envs/conceptseg-r1/bin/python}"
 MODEL_PATH="${MODEL_PATH:-/root/epfs/models/ConceptSeg-R1-7B}"
+INFERENCE_SCRIPT="${INFERENCE_SCRIPT:-${REPO}/src/eval/inference_single_example.py}"
 SAMPLE_MANIFEST="${SAMPLE_MANIFEST:-/root/epfs/new_route_stage1_skymask/conceptseg_problem_samples.json}"
 OUTPUT_DIR="${OUTPUT_DIR:-/root/epfs/new_route_stage1_skymask/conceptseg_smoke}"
 LIMIT="${LIMIT:-8}"
@@ -34,7 +35,7 @@ print(runlist)
 PY
 
 RUNLIST="${OUTPUT_DIR}/runlist.json"
-"${PYTHON}" - <<'PY' "${RUNLIST}" "${OUTPUT_DIR}" "${REPO}" "${MODEL_PATH}" "${MAX_PIXELS}"
+"${PYTHON}" - <<'PY' "${RUNLIST}" "${OUTPUT_DIR}" "${REPO}" "${MODEL_PATH}" "${MAX_PIXELS}" "${INFERENCE_SCRIPT}"
 import json
 import shlex
 import subprocess
@@ -48,7 +49,7 @@ model_path = sys.argv[4]
 max_pixels = sys.argv[5]
 
 items = json.loads(runlist.read_text(encoding="utf-8"))["items"]
-script = repo / "src/eval/inference_single_example.py"
+script = Path(sys.argv[6]) if len(sys.argv) > 6 else repo / "src/eval/inference_single_example.py"
 rows = []
 for item in items:
     image_id = item["image_id"]
