@@ -37,6 +37,12 @@ On success, the runner writes:
 
 - `/Users/skkac/Work/SCAN/route_status_20260610/offline_quality_latest.json`
 
+Prepare a local resume-readiness report before probing the servers again:
+
+```bash
+python3 scripts/prepare_server_resume_report.py
+```
+
 ## Priority 3: Deferred Server Resume
 
 When back on the server LAN:
