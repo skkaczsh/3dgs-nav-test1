@@ -400,3 +400,33 @@ Use:
 8. Use `accepted_fine_object_enriched_0000_0999_v008` for the next incremental / scan-order fine-object fusion.
 9. Keep `linear_edge_review`, `large_mixed_review`, and strict-demoted line-like candidates out of accepted object fusion until further split/relabel.
 10. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
+
+## Incremental Fine-Object Fusion
+
+Scan-order fusion from enriched accepted fine points:
+
+- output: `/root/epfs/new_route_stage1_skymask/accepted_fine_object_incremental_fusion_0000_0999_v008`
+- local copy: `/Users/skkac/Work/SCAN/server_accepted_fine_object_incremental_fusion_v008`
+- source: `accepted_fine_object_enriched_v008.ply`
+- params:
+  - `centroid_distance=0.45`
+  - `cross_source_centroid_distance=0.25`
+  - `bbox_distance=0.05`
+  - `color_distance=30`
+  - `active_frame_window=120`
+  - `zone_size=100`
+- candidates: `61`
+- incremental fine objects: `47`
+- points: `42,467`
+- merges: `14`
+- zones: `7`
+- status:
+  - `stable_incremental_fine_object`: `12`
+  - `single_incremental_fine_candidate`: `35`
+
+Interpretation:
+
+- The result matches the previous `strict2` spatial-fusion baseline: `47` objects and `14` merges.
+- The scan-order constraint does not materially change the result because the enriched input candidates were already formed by global residual clustering before frame metadata was attached.
+- Several candidates span hundreds of frames by themselves, for example a top object spans `0-999`; therefore this is not yet a true online target/object pipeline.
+- To validate the original incremental object-building idea, the next implementation should build per-frame or short-window `Target` records first, then fuse those targets into objects. Do not reuse globally clustered fine candidates as the only unit for scan-order fusion.

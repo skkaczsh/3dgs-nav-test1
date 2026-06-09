@@ -116,3 +116,55 @@ def test_finalize_keeps_high_vote_conflict_stable():
     assert finalized["semantic_label"] == "floor"
     assert finalized["dominant_label_ratio"] >= 0.8
     assert finalized["status"] == "stable"
+
+
+def _fine_candidate(candidate_id, frame_min, semantic, centroid, source_cluster=1, color=(100, 100, 100)):
+    c = np.array(centroid, dtype=float)
+    return {
+        "candidate_id": candidate_id,
+        "semantic": semantic,
+        "source_type": 2,
+        "source_cluster": source_cluster,
+        "subcluster": 0,
+        "points": 10,
+        "bbox_3d": {"min": (c - 0.03).tolist(), "max": (c + 0.03).tolist()},
+        "centroid": c.tolist(),
+        "mean_visual_color": list(color),
+        "frame_min": frame_min,
+        "frame_max": frame_min + 2,
+        "frame_count": 3,
+        "camera_counts": {1: 10},
+        "mask_count": 1,
+        "linearity": 0.3,
+        "planarity": 0.3,
+        "scattering": 0.1,
+        "normal": [0, 0, 1],
+    }
+
+
+def test_incremental_fine_fusion_uses_frame_window_and_semantic_gate():
+    module = load_module(SCRIPTS / "fuse_enriched_fine_objects_incremental.py", "incremental_fine_fusion_for_repo_test")
+    args = type("Args", (), {
+        "centroid_distance": 0.45,
+        "cross_source_centroid_distance": 0.25,
+        "bbox_distance": 0.05,
+        "color_distance": 30.0,
+        "active_frame_window": 20,
+    })()
+
+    objects, decisions = module.fuse(
+        [
+            _fine_candidate(1, 10, 16, [0, 0, 0]),
+            _fine_candidate(2, 15, 16, [0.05, 0, 0]),
+            _fine_candidate(3, 18, 17, [0.06, 0, 0]),
+            _fine_candidate(4, 100, 16, [0.07, 0, 0]),
+        ],
+        args,
+    )
+    finalized = [module.finalize_object(o) for o in objects]
+
+    assert len(finalized) == 3
+    assert finalized[0]["candidate_count"] == 2
+    assert decisions[1]["action"] == "merge"
+    assert decisions[2]["action"] == "new_object"
+    assert decisions[3]["action"] == "new_object"
