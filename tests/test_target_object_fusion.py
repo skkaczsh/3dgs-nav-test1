@@ -424,3 +424,50 @@ def test_cross_candidate_review_pack_prefers_existing_artifact_and_scaled_raw(tm
 
     assert paths["overlay"].endswith("semantic_a/images/cam1_000189/combo/overlay.png")
     assert raw.endswith("raw/cam1_001890.png")
+
+
+def test_review_contact_sheet_builder_writes_sheet(tmp_path):
+    from PIL import Image
+
+    module = load_module(SCRIPTS / "make_review_contact_sheets.py", "review_contact_sheet_for_repo_test")
+    asset = tmp_path / "overlay.png"
+    Image.new("RGB", (32, 24), (255, 0, 0)).save(asset)
+    item = {
+        "review_id": "review_001",
+        "proposal": {
+            "object_a": "o1",
+            "object_b": "o2",
+            "score": 0.12,
+            "candidate_a": "200001",
+            "candidate_b": "200002",
+        },
+        "representatives": [
+            {
+                "side": "a",
+                "rep_index": 0,
+                "tracklet_id": "trk_1",
+                "target_meta": {"frame": 1, "cam": 2},
+                "copied_overlay": str(asset),
+            }
+        ],
+    }
+
+    out = module.make_sheet(item, tmp_path / "sheets", 160, 90)
+
+    assert out.exists()
+    assert out.name == "review_001_contact_sheet.jpg"
+
+
+def test_review_contact_sheet_remaps_server_asset_paths(tmp_path):
+    from PIL import Image
+
+    module = load_module(SCRIPTS / "make_review_contact_sheets.py", "review_contact_sheet_remap_for_repo_test")
+    pack_dir = tmp_path / "pack"
+    asset = pack_dir / "assets" / "proposal_001" / "a0_overlay.png"
+    asset.parent.mkdir(parents=True)
+    Image.new("RGB", (32, 24), (0, 255, 0)).save(asset)
+    rep = {"copied_overlay": "/root/epfs/some_pack/assets/proposal_001/a0_overlay.png"}
+
+    resolved = module.image_path(rep, pack_dir)
+
+    assert resolved == asset
