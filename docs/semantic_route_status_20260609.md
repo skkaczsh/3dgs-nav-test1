@@ -536,3 +536,59 @@ Interpretation:
   - frame span and revisit pattern
   - original mask/camera evidence
   - optional VLM/ConceptSeg review only for conflicting high-value tracklet pairs
+
+## Long-Range Tracklet Association
+
+Long-range association over `gap60` tracklets:
+
+- local copy: `/Users/skkac/Work/SCAN/server_frame_fine_long_assoc_v008`
+- baseline output: `/root/epfs/new_route_stage1_skymask/frame_fine_tracklet_long_assoc_0000_0999_v008_gap60_v2`
+- source tracklets: `/root/epfs/new_route_stage1_skymask/frame_fine_tracklets_0000_0999_v008_v016_m3_gap60_v2`
+
+Baseline params:
+
+- same accepted-candidate:
+  - `centroid_distance=1.5`
+  - `bbox_distance=0.5`
+  - `color_distance=90`
+- same source-cluster:
+  - `frame_gap=240`
+  - `centroid_distance=0.8`
+  - `bbox_distance=0.25`
+  - `color_distance=60`
+- strict cross-source:
+  - `frame_gap=80`
+  - `centroid_distance=0.35`
+  - `bbox_distance=0.08`
+  - `color_distance=35`
+
+Baseline result:
+
+- tracklets: `328`
+- objects: `95`
+- merge ratio: `0.7104`
+- stable long objects: `69`
+- single-tracklet objects: `26`
+- merge reasons:
+  - `same_accepted_candidate`: `229`
+  - `same_source_cluster`: `4`
+  - `new_object`: `95`
+
+Controls:
+
+- same-candidate loose:
+  - params: `same_candidate centroid=3.0`, `bbox=1.2`, `color=140`; source/cross disabled
+  - objects: `66`
+  - merge ratio: `0.7988`
+- same-candidate upper bound:
+  - params: same accepted-candidate only, effectively no spatial/color gate
+  - objects: `60`
+  - merge ratio: `0.8171`
+
+Interpretation:
+
+- Long-range association materially improves over short-window tracklets alone: `135` objects -> `95` conservative objects.
+- If the original global accepted-candidate ID is treated as authoritative source evidence, the lower bound is around `60` objects.
+- The remaining difference from strict2 spatial fine-object fusion (`47` objects) is mostly cross accepted-candidate merging, not failure of the tracklet layer.
+- Conservative next baseline should be `66` objects from same-candidate loose, with manual/VLM review only for cross-candidate merge proposals.
+- Do not force convergence to `47` automatically; that risks merging distinct thin structures that were separated by source masks.

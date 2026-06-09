@@ -48,6 +48,9 @@ def angle_degrees(a: list[float], b: list[float]) -> float:
 
 def create_tracklet(index: int, target: dict) -> dict:
     point_count = int(target.get("cluster_size", 1))
+    accepted_votes = Counter({str(k): int(v) for k, v in target.get("accepted_candidate_votes", {}).items()})
+    source_votes = Counter({str(k): int(v) for k, v in target.get("source_cluster_votes", {}).items()})
+    subcluster_votes = Counter({str(k): int(v) for k, v in target.get("subcluster_votes", {}).items()})
     return {
         "tracklet_id": f"trk_{index:06d}",
         "target_id": f"trk_{index:06d}",
@@ -66,6 +69,9 @@ def create_tracklet(index: int, target: dict) -> dict:
         "color_sum": (np.array(target["mean_color"], dtype=np.float64) * max(point_count, 1)).tolist(),
         "point_indices": list(target.get("point_indices", [])),
         "pca": target.get("pca", {"normal": [0, 0, 1], "linearity": 0.0, "planarity": 0.0}),
+        "accepted_candidate_votes": dict(accepted_votes),
+        "source_cluster_votes": dict(source_votes),
+        "subcluster_votes": dict(subcluster_votes),
         "_target_records": [target],
     }
 
@@ -89,6 +95,10 @@ def update_tracklet(tracklet: dict, target: dict) -> None:
     tracklet["color_sum"] = [float(x) for x in color_sum]
     tracklet["mean_color"] = [float(x) for x in color_sum / total]
     tracklet["_target_records"].append(target)
+    for key in ("accepted_candidate_votes", "source_cluster_votes", "subcluster_votes"):
+        votes = Counter({str(k): int(v) for k, v in tracklet.get(key, {}).items()})
+        votes.update({str(k): int(v) for k, v in target.get(key, {}).items()})
+        tracklet[key] = dict(votes)
     normals = [np.array(t.get("pca", {}).get("normal", [0.0, 0.0, 1.0]), dtype=np.float64) for t in tracklet["_target_records"]]
     normal = np.mean(normals, axis=0)
     norm = np.linalg.norm(normal)

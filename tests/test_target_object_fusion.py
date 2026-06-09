@@ -276,3 +276,59 @@ def test_tracklet_builder_merges_short_gap_and_splits_long_gap():
     assert decisions[1]["action"] == "merge"
     assert decisions[2]["action"] == "new_tracklet"
     assert decisions[3]["action"] == "new_tracklet"
+
+
+def _long_tracklet(tracklet_id, frame_min, centroid, candidate="200001", source="9", color=(100, 100, 100)):
+    c = np.array(centroid, dtype=float)
+    return {
+        "tracklet_id": tracklet_id,
+        "target_id": tracklet_id,
+        "label": "equipment",
+        "label_id": 16,
+        "parent_class": "fine_object",
+        "frames": [frame_min],
+        "frame_id": frame_min,
+        "frame_min": frame_min,
+        "frame_max": frame_min,
+        "target_count": 2,
+        "cluster_size": 10,
+        "point_count": 10,
+        "bbox_3d": {"min": (c - 0.03).tolist(), "max": (c + 0.03).tolist()},
+        "centroid": c.tolist(),
+        "mean_color": list(color),
+        "accepted_candidate_votes": {candidate: 10},
+        "source_cluster_votes": {source: 10},
+    }
+
+
+def test_long_range_association_uses_accepted_candidate_evidence():
+    module = load_module(SCRIPTS / "associate_tracklets_long_range.py", "long_range_assoc_for_repo_test")
+    args = type("Args", (), {
+        "same_candidate_centroid_distance": 1.5,
+        "same_candidate_bbox_distance": 0.5,
+        "same_candidate_color_distance": 90.0,
+        "source_frame_gap": 30,
+        "source_centroid_distance": 0.4,
+        "source_bbox_distance": 0.1,
+        "source_color_distance": 40.0,
+        "cross_frame_gap": 10,
+        "cross_centroid_distance": 0.2,
+        "cross_bbox_distance": 0.05,
+        "cross_color_distance": 25.0,
+    })()
+
+    objects, decisions = module.associate(
+        [
+            _long_tracklet("trk1", 0, [0, 0, 0], candidate="200001"),
+            _long_tracklet("trk2", 300, [0.4, 0, 0], candidate="200001"),
+            _long_tracklet("trk3", 310, [4.0, 0, 0], candidate="200002", source="99"),
+        ],
+        args,
+    )
+    finalized = [module.finalize_object(o) for o in objects]
+
+    assert len(finalized) == 2
+    assert finalized[0]["tracklet_count"] == 2
+    assert decisions[1]["action"] == "merge"
+    assert decisions[1]["reason"] == "same_accepted_candidate"
+    assert decisions[2]["action"] == "new_object"
