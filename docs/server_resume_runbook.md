@@ -4,6 +4,8 @@ This runbook records the next concrete steps once `scan-train` / `scan-vlm` conn
 
 ## Current Blocker
 
+- Current operator context: outside the server LAN. Do not repeatedly run SSH
+  or TCP probes until the machine is back on the reachable LAN/VPN.
 - Local active IPv4 observed: `192.168.0.3`
 - SSH config currently resolves both servers with `BindAddress 192.168.100.115`
 - Last checks timed out:
@@ -11,6 +13,24 @@ This runbook records the next concrete steps once `scan-train` / `scan-vlm` conn
   - `10.0.8.114:31079` (`scan-vlm`)
 
 Do not rotate keys or change scripts until the TCP ports are reachable again.
+
+## Offline Mode
+
+While outside the server LAN, prioritize local work that improves the next
+server run without requiring remote access:
+
+- Keep recovery scripts import-safe and self-contained.
+- Maintain review packages, manual CSV workflows, and delivery manifests.
+- Improve prompt/schema handling and Target/Object fusion logic.
+- Add local tests for server-runner shell scripts and JSON contracts.
+- Update runbooks with exact resume commands.
+
+Defer these until LAN connectivity returns:
+
+- Qwen review execution.
+- 0-999 semantic regeneration.
+- ConceptSeg-R1 GPU smoke or model downloads.
+- Old-route server-side reruns.
 
 ## Main Route: Qwen Review Resume
 
