@@ -686,12 +686,15 @@ Coverage:
 - review items: `8`
 - representatives: `30`
 - copied overlays: `12`
+- copied raw fallback images: `3`
 - items with at least one overlay: `4 / 8`
+- items with any copied image: `6 / 8`
 
 Interpretation:
 
 - The review manifest is complete and traceable even when copied image artifacts are missing.
 - Overlay coverage is partial because `semantic_eval_new_route_0000_0999_b` does not contain every representative frame selected from the 1000-frame tracklets.
+- Raw-image fallback improves visual coverage to `6 / 8`; the remaining `2 / 8` need artifact regeneration or alternate representative selection from available image frames.
 - Existing copied overlays are adequate for a first manual/VLM review pass, but a full visual review should either:
   - regenerate missing semantic artifacts for representative frames, or
   - use original image paths plus target metadata to crop/re-run segmentation on demand.

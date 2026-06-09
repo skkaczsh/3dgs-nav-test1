@@ -53,6 +53,14 @@ def artifact_paths(base: Path, combo: str, target_meta: dict) -> dict:
     }
 
 
+def raw_image_path(raw_image_dir: Path, target_meta: dict) -> str:
+    if not target_meta:
+        return ""
+    frame = int(target_meta["frame"])
+    cam = int(target_meta["cam"])
+    return str(raw_image_dir / f"cam{cam}_{frame:06d}.png")
+
+
 def choose_representative_tracklets(obj: dict, tracklet_by_id: dict[str, dict], candidate: str, limit: int) -> list[dict]:
     tracklets = [tracklet_by_id[tid] for tid in obj.get("tracklet_ids", []) if tid in tracklet_by_id]
     preferred = [t for t in tracklets if dominant_vote(t, "accepted_candidate_votes") == str(candidate)]
@@ -92,6 +100,16 @@ def copy_artifacts(paths: dict, asset_dir: Path, prefix: str) -> dict:
     return copied
 
 
+def copy_raw_image(raw_path: str, asset_dir: Path, prefix: str) -> dict:
+    src = Path(raw_path)
+    if not src.exists():
+        return {}
+    asset_dir.mkdir(parents=True, exist_ok=True)
+    dst = asset_dir / f"{prefix}_raw_image{src.suffix}"
+    shutil.copy2(src, dst)
+    return {"copied_raw_image": str(dst)}
+
+
 def build_review_items(
     proposals: list[dict],
     objects: list[dict],
@@ -118,9 +136,13 @@ def build_review_items(
                 target_id = representative_target(tracklet, candidate, args.artifact_base, args.combo)
                 target_meta = parse_target_id(target_id)
                 paths = artifact_paths(args.artifact_base, args.combo, target_meta)
+                raw_path = raw_image_path(args.raw_image_dir, target_meta)
                 copied = {}
                 if args.copy_assets:
-                    copied = copy_artifacts(paths, args.output_dir / "assets" / f"proposal_{idx:03d}", f"{side}{rep_idx}")
+                    asset_dir = args.output_dir / "assets" / f"proposal_{idx:03d}"
+                    copied = copy_artifacts(paths, asset_dir, f"{side}{rep_idx}")
+                    if "copied_image" not in copied:
+                        copied.update(copy_raw_image(raw_path, asset_dir, f"{side}{rep_idx}"))
                 reps.append(
                     {
                         "side": side,
@@ -133,6 +155,7 @@ def build_review_items(
                         "target_id": target_id,
                         "target_meta": target_meta,
                         "artifact_paths": paths,
+                        "raw_image": raw_path,
                         **copied,
                     }
                 )
@@ -220,8 +243,18 @@ def write_outputs(items: list[dict], args: argparse.Namespace) -> None:
         "copied_overlay_count": int(
             sum(1 for item in items for rep in item["representatives"] if "copied_overlay" in rep)
         ),
+        "copied_raw_image_count": int(
+            sum(1 for item in items for rep in item["representatives"] if "copied_raw_image" in rep)
+        ),
         "items_with_overlay": int(
             sum(1 for item in items if any("copied_overlay" in rep for rep in item["representatives"]))
+        ),
+        "items_with_any_image": int(
+            sum(
+                1
+                for item in items
+                if any(("copied_overlay" in rep or "copied_image" in rep or "copied_raw_image" in rep) for rep in item["representatives"])
+            )
         ),
         "params": {k: (str(v) if isinstance(v, Path) else v) for k, v in vars(args).items()},
     }
@@ -236,6 +269,7 @@ def main() -> None:
     parser.add_argument("--tracklets", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--artifact-base", type=Path, default=Path("/root/epfs/manifold_3dgs_project/processed/semantic_eval_new_route_0000_0999_b"))
+    parser.add_argument("--raw-image-dir", type=Path, default=Path("/root/epfs/manifold_3dgs_project/processed/images"))
     parser.add_argument("--combo", default="sam2_prompt_v3_sky_label_merge_completion")
     parser.add_argument("--priority", choices=["high", "medium", "low", "all"], default="high")
     parser.add_argument("--max-items", type=int, default=20)
