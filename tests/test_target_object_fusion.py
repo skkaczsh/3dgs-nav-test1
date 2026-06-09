@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -612,3 +613,31 @@ def test_normalize_manual_merge_decisions_validates_rows(tmp_path):
     assert rows[0]["vlm"]["decision"] == "merge"
     assert rows[0]["vlm"]["confidence"] == 0.8
     assert [e["error"] for e in errors] == ["pending", "unknown_review_id"]
+
+
+def test_manual_merge_review_workflow_end_to_end(tmp_path):
+    module = load_module(SCRIPTS / "run_manual_merge_review_workflow.py", "manual_workflow_for_repo_test")
+    review_jsonl = tmp_path / "items.jsonl"
+    review_jsonl.write_text(
+        '{"review_id":"review_001","proposal":{"object_a":"long_obj_0001","object_b":"long_obj_0002","candidate_a":"200001","candidate_b":"200002"}}\n',
+        encoding="utf-8",
+    )
+    manual_csv = tmp_path / "manual.csv"
+    manual_csv.write_text(
+        "review_id,object_a,object_b,decision,confidence,reviewer,notes\n"
+        "review_001,long_obj_0001,long_obj_0002,merge,0.9,skk,same object\n",
+        encoding="utf-8",
+    )
+    objects = tmp_path / "objects.jsonl"
+    objects.write_text(
+        json.dumps(_review_object("long_obj_0001", [0, 0, 0], points=10)) + "\n"
+        + json.dumps(_review_object("long_obj_0002", [0.1, 0, 0], points=20)) + "\n",
+        encoding="utf-8",
+    )
+
+    rows, errors = module.normalize(manual_csv, review_jsonl)
+    merged, decisions = module.apply_reviews(module.load_objects(objects), rows, min_confidence=0.75)
+
+    assert errors == []
+    assert len(merged) == 1
+    assert decisions[0]["accepted"] is True
