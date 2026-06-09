@@ -706,3 +706,30 @@ def test_summarize_cross_candidate_review_stage_marks_missing_qwen(tmp_path):
     assert summary["stage_status"]["review_pack_ready"] is True
     assert summary["stage_status"]["qwen_review_ready"] is False
     assert "run_manual_merge_review_workflow.py" in markdown
+
+
+def test_package_cross_candidate_review_copies_manifest_and_zip(tmp_path):
+    module = load_module(SCRIPTS / "package_cross_candidate_review.py", "package_review_for_repo_test")
+    pack = tmp_path / "pack"
+    for rel in (
+        "cross_candidate_review_items.jsonl",
+        "review_html/index.html",
+        "review_html/manual_merge_decisions.csv",
+        "contact_sheets/review_001_contact_sheet.jpg",
+    ):
+        path = pack / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("x", encoding="utf-8")
+    out = tmp_path / "out"
+    copied, missing = module.collect_files(pack, out)
+    manifest = module.build_manifest(out, copied, missing, pack)
+    manifest_path = out / "manifest_sha256.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    zip_path = tmp_path / "review.zip"
+    module.write_zip(out, zip_path)
+
+    copied_paths = {row["path"] for row in manifest["files"]}
+    assert "cross_candidate_review_items.jsonl" in copied_paths
+    assert "contact_sheets/review_001_contact_sheet.jpg" in copied_paths
+    assert manifest["file_count"] == len(copied)
+    assert zip_path.exists()
