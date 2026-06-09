@@ -8,6 +8,7 @@ RUN_EVAL="${RUN_EVAL:-${SEMANTIC_ROOT}/run_eval.py}"
 MERGE_SCRIPT="${MERGE_SCRIPT:-${SEMANTIC_ROOT}/merge_sam2_adjacency.py}"
 REVIEW_SCRIPT="${REVIEW_SCRIPT:-${SEMANTIC_ROOT}/review_merged_labels_prompt_v2.py}"
 COMPLETION_SCRIPT="${COMPLETION_SCRIPT:-${SEMANTIC_ROOT}/complete_unknown_regions.py}"
+PATCH_SCENE_PROMPTS="${PATCH_SCENE_PROMPTS:-1}"
 
 MANIFEST="${MANIFEST:-/root/epfs/new_route_stage1_skymask/semantic_manifest_0000_0999.json}"
 OUTPUT_DIR="${OUTPUT_DIR:-/root/epfs/manifold_3dgs_project/processed/semantic_eval_new_route_0000_0999}"
@@ -27,6 +28,13 @@ WORK_DIR="${WORK_DIR:-${OUTPUT_DIR}/_sharded_work}"
 LOG_DIR="${LOG_DIR:-${WORK_DIR}/logs}"
 
 mkdir -p "${SAM_MASKS_DIR}" "${OUTPUT_DIR}" "${WORK_DIR}" "${LOG_DIR}"
+
+if [[ "${PATCH_SCENE_PROMPTS}" == "1" ]]; then
+  echo "[0/5] Patching semantic_eval prompts with rooftop scene constraints"
+  python3 "${SCRIPT_DIR}/patch_semantic_eval_scene_prompts.py" \
+    --semantic-root "${SEMANTIC_ROOT}" \
+    --report "${LOG_DIR}/scene_prompt_patch_report.json"
+fi
 
 run_shards() {
   local stage="$1"
