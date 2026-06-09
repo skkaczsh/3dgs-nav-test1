@@ -325,6 +325,29 @@ Fine-object fusion interpretation:
 - `strict2` is the current better baseline for conservative object-fusion testing.
 - This remains a spatial fine-object fusion QA because strict accepted PLYs do not yet carry frame/time metadata.
 
+Accepted fine-object metadata enrichment:
+
+- output: `/root/epfs/new_route_stage1_skymask/accepted_fine_object_enriched_0000_0999_v008`
+- local copy: `/Users/skkac/Work/SCAN/server_accepted_fine_object_enriched_v008`
+- enriched PLY: `accepted_fine_object_enriched_v008.ply`
+- points: `42,467`
+- matched points: `42,467`
+- unmatched points: `0`
+- matched ratio: `1.0000`
+- duplicate matches: `1,524`
+- frame count: `766`
+- matched candidates: `61 / 61`
+- camera point counts:
+  - `cam0`: `10,289`
+  - `cam1`: `26,031`
+  - `cam2`: `6,147`
+
+Enrichment interpretation:
+
+- The enriched PLY preserves the strict accepted fine-object geometry while adding `frame`, `camera`, `mask`, and `point_index`.
+- All strict accepted points were traced back to residual diagnostic metadata.
+- The next fine-object fusion can now become incremental / scan-order aware instead of spatial-only.
+
 Top ambiguous examples are listed in:
 
 - `/root/epfs/new_route_stage1_skymask/consolidated_object_qa_0000_0999/object_pipeline_qa_summary.json`
@@ -374,6 +397,6 @@ Use:
    - hygiene fine-object candidate clusters
    - manual equipment fine-candidate subclusters
 7. Use the `strict2` fine-object fusion parameters as the next conservative object-fusion baseline.
-8. Preserve frame/time metadata in the next accepted fine-object PLY so object fusion can become incremental instead of spatial-only.
+8. Use `accepted_fine_object_enriched_0000_0999_v008` for the next incremental / scan-order fine-object fusion.
 9. Keep `linear_edge_review`, `large_mixed_review`, and strict-demoted line-like candidates out of accepted object fusion until further split/relabel.
 10. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
