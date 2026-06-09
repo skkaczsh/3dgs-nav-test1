@@ -485,3 +485,21 @@ def test_vlm_merge_review_extracts_and_normalizes_json():
     assert normalized["decision"] == "merge"
     assert normalized["confidence"] == 1.0
     assert normalized["evidence"] == ["same line"]
+
+
+def test_vlm_merge_review_resizes_image_data_url(tmp_path):
+    import base64
+    from io import BytesIO
+
+    from PIL import Image
+
+    module = load_module(SCRIPTS / "review_cross_candidate_merges_vlm.py", "vlm_merge_review_image_for_repo_test")
+    path = tmp_path / "sheet.jpg"
+    Image.new("RGB", (400, 100), (10, 20, 30)).save(path)
+
+    data_url = module.encode_image_data_url(path, long_edge=100, jpeg_quality=80)
+    payload = base64.b64decode(data_url.split(",", 1)[1])
+    resized = Image.open(BytesIO(payload))
+
+    assert data_url.startswith("data:image/jpeg;base64,")
+    assert max(resized.size) == 100

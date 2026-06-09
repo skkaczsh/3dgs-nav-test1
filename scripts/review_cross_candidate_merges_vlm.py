@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
+from PIL import Image
 
 
 SCENE_CONTEXT = """\
@@ -42,10 +43,22 @@ def load_jsonl(path: Path) -> list[dict]:
     return rows
 
 
-def encode_image_data_url(path: Path) -> str:
-    data = base64.b64encode(path.read_bytes()).decode("ascii")
-    suffix = path.suffix.lower()
-    mime = "image/png" if suffix == ".png" else "image/jpeg"
+def encode_image_data_url(path: Path, long_edge: int = 1280, jpeg_quality: int = 88) -> str:
+    if long_edge <= 0:
+        data = base64.b64encode(path.read_bytes()).decode("ascii")
+        suffix = path.suffix.lower()
+        mime = "image/png" if suffix == ".png" else "image/jpeg"
+        return f"data:{mime};base64,{data}"
+    import io
+
+    img = Image.open(path).convert("RGB")
+    scale = min(1.0, long_edge / max(img.size))
+    if scale < 1.0:
+        img = img.resize((max(1, int(img.width * scale)), max(1, int(img.height * scale))), Image.Resampling.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=jpeg_quality, optimize=True)
+    data = base64.b64encode(buf.getvalue()).decode("ascii")
+    mime = "image/jpeg"
     return f"data:{mime};base64,{data}"
 
 
@@ -129,7 +142,10 @@ def call_vlm(item: dict, sheet_path: Path, args: argparse.Namespace) -> dict:
                 "role": "user",
                 "content": [
                     {"type": "text", "text": prompt_for_item(item)},
-                    {"type": "image_url", "image_url": {"url": encode_image_data_url(sheet_path)}},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": encode_image_data_url(sheet_path, args.image_long_edge, args.jpeg_quality)},
+                    },
                 ],
             }
         ],
@@ -137,7 +153,10 @@ def call_vlm(item: dict, sheet_path: Path, args: argparse.Namespace) -> dict:
         "max_tokens": args.max_tokens,
     }
     response = requests.post(args.endpoint, json=payload, timeout=args.timeout)
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        raise RuntimeError(f"HTTP {response.status_code}: {response.text[:2000]}") from exc
     body = response.json()
     content = body["choices"][0]["message"]["content"]
     parsed = normalize_decision(extract_json(content))
@@ -227,6 +246,8 @@ def main() -> None:
     parser.add_argument("--timeout", type=float, default=180.0)
     parser.add_argument("--max-tokens", type=int, default=1024)
     parser.add_argument("--temperature", type=float, default=0.0)
+    parser.add_argument("--image-long-edge", type=int, default=1280)
+    parser.add_argument("--jpeg-quality", type=int, default=88)
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
 
