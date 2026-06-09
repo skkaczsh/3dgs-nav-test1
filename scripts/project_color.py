@@ -283,6 +283,8 @@ def main():
     parser.add_argument("--max-points", type=int, default=50000)
     parser.add_argument("--workers", type=int, default=16,
                         help="并发进程数 (默认: 16)")
+    parser.add_argument("--output-dir", type=str, default=OUTPUT_DIR,
+                        help="输出 PLY 目录 (默认: config.OUTPUT_DIR)")
     parser.add_argument("--sky-mask-dir", type=str, default=None,
                         help="可选 sky mask 目录，mask 中 >= threshold 的像素跳过")
     parser.add_argument("--sky-threshold", type=int, default=128)
@@ -296,10 +298,10 @@ def main():
     print(f"最大点数: {args.max_points}")
     print(f"并发进程: {args.workers}")
     print(f"点云目录: {EXTRACTED_DIR}")
-    print(f"输出目录: {OUTPUT_DIR}")
+    print(f"输出目录: {args.output_dir}")
     print(f"Sky mask: {args.sky_mask_dir or 'disabled'}")
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.makedirs(args.output_dir, exist_ok=True)
 
     # 加载位姿数据
     print("\n[1/4] 加载位姿数据...")
@@ -312,7 +314,7 @@ def main():
     tasks = []
     for pose in pose_data:
         frame_id = pose["frame_id"]
-        output_path = os.path.join(OUTPUT_DIR, f"frame_{frame_id:04d}.ply")
+        output_path = os.path.join(args.output_dir, f"frame_{frame_id:04d}.ply")
         pcd_path = os.path.join(EXTRACTED_DIR, f"section_{frame_id:04d}.ply")
         if len(tasks) == 0:
             print(f"  样例点云: {pcd_path} (存在: {os.path.exists(pcd_path)})")
@@ -363,7 +365,7 @@ def main():
           f"无图像 {stats['no_img']}, 错误 {stats['error']}")
 
     # 保存元数据
-    meta_path = os.path.join(OUTPUT_DIR, "projection_meta.txt")
+    meta_path = os.path.join(args.output_dir, "projection_meta.txt")
     with open(meta_path, "w") as f:
         f.write(f"start_frame={args.start}\n")
         f.write(f"end_frame={args.end}\n")
