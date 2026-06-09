@@ -32,8 +32,20 @@ def keep():
 
     assert count == 1
     assert "rooftop MANIFOLD/Mid360 scan" in updated
+    assert "mask-level evidence for dense point-cloud semantics" in updated
+    assert "large stable surface layers" in updated
+    assert "fine foreground targets" in updated
     assert '{"items":[{"mask_id":"1","label":"floor","confidence":0.90}]}' in updated
     assert "def keep()" in updated
+
+
+def test_completion_prompt_preserves_surface_and_fine_target_goal():
+    module = load_module()
+
+    assert "fills non-sky semantic gaps for dense point-cloud projection" in module.COMPLETION_PROMPT
+    assert "floor, wall, and building are large stable surface layers" in module.COMPLETION_PROMPT
+    assert "railing, pipe, and equipment are fine foreground targets" in module.COMPLETION_PROMPT
+    assert '{"items":[{"mask_id":"1","label":"floor","confidence":0.90}]}' in module.COMPLETION_PROMPT
 
 
 def test_patch_file_creates_backup_once(tmp_path: Path):

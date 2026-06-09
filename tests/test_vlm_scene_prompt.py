@@ -26,6 +26,9 @@ def test_mask_label_prompt_contains_scene_taxonomy_and_strict_json():
     assert "equipment" in prompt
     assert "mixed" in prompt
     assert "Do not invent labels or synonyms" in prompt
+    assert "dense point-level semantics" in prompt
+    assert "large stable surface layers" in prompt
+    assert "fine foreground targets" in prompt
 
 
 def test_merge_review_prompt_includes_candidate_metadata_and_failure_mode():
@@ -52,3 +55,4 @@ def test_merge_review_prompt_includes_candidate_metadata_and_failure_mode():
     assert "obj_a" in prompt
     assert "light brown/gray roof pixels" in prompt
     assert "merge | keep_split | uncertain" in prompt
+    assert "Build dense point-level semantics" in prompt

@@ -9,6 +9,9 @@ Use a scene-aware prompt for every mask classification and merge review:
 - The scene is a rooftop MANIFOLD/Mid360 scan.
 - A high ratio of large roof/floor surface is expected.
 - Sky and distant background should be ignored.
+- The task is dense point-level semantic evidence extraction, not image captioning.
+- `floor`, `wall`, and `building` form the large stable surface layer.
+- `railing`, `pipe`, and `equipment` form the fine foreground target layer.
 - Thin railings, pipes, cables, and equipment frequently touch floor-like roof pixels in 2D masks.
 - Labels must come from the fixed taxonomy used by `scripts/project_semantic.py`.
 - The model must return strict JSON, including confidence and ambiguity fields.
@@ -48,3 +51,9 @@ Current object fusion behavior:
 The shared prompt source is `scripts/vlm_scene_prompt.py`.
 
 When the server-side 2D semantic generator is updated, it should use `mask_label_prompt()` for `sam2_prompt_v3_sky_label_merge_completion` or for the next prompt variant. The existing cross-candidate Qwen review now uses `merge_review_prompt()` from the same module.
+
+The compatibility patcher `scripts/patch_semantic_eval_scene_prompts.py` cannot
+add new JSON fields to older server scripts without changing their parser
+contract. It therefore keeps the existing `{"items":[...]}` schema but embeds
+the point-cloud semantic goal, large-surface layer, and fine-target layer in the
+prompt text.

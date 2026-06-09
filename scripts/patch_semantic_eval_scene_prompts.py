@@ -34,6 +34,12 @@ Scene constraints:
 10. If one mask mixes a large surface and a thin object, choose the dominant physical object; use other only when no reliable dominant object exists.
 11. Invalid black borders, lens edges, and unusable regions should be ignore.
 
+Point-cloud semantic goal:
+1. This is mask-level evidence for dense point-cloud semantics, not a generic image caption.
+2. floor, wall, and building are large stable surface layers.
+3. railing, pipe, and equipment are fine foreground targets. Do not absorb them into floor only because their mask touches roof pixels.
+4. Prefer ignore for sky/background/invalid regions that should not create valid point-cloud objects.
+
 Allowed English labels only:
 floor, road, wall, building, railing, equipment, pipe, tree, grass, car, person, other, ignore
 
@@ -59,6 +65,12 @@ Scene constraints:
 8. pipe is for pipes, cables, conduits, cable trays, or long utility lines if visible.
 9. Panoramic/fisheye perspective can distort geometry. Large gray/brown regions near the lower half or image center are still likely floor unless clearly vertical or a fine object.
 10. Use ignore only for invalid border/lens artifacts. Use other for valid but uncertain scene content.
+
+Point-cloud semantic goal:
+1. This completion fills non-sky semantic gaps for dense point-cloud projection.
+2. floor, wall, and building are large stable surface layers.
+3. railing, pipe, and equipment are fine foreground targets. Preserve them when a numbered region follows a thin/compact physical object.
+4. Do not create valid semantics for sky/background/invalid image regions.
 
 Allowed English labels only:
 floor, road, wall, building, railing, equipment, pipe, tree, grass, car, person, other, ignore

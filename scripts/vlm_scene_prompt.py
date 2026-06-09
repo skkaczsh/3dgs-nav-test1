@@ -21,6 +21,16 @@ Scene:
 """
 
 
+SEGMENTATION_GOAL = """\
+Segmentation goal:
+- Build dense point-level semantics, not an image caption.
+- Treat floor/wall/building as large stable surface layers.
+- Treat railing/pipe/equipment as fine foreground targets that should not be absorbed into floor just because the 2D mask touches roof pixels.
+- Sky, distant background, invalid borders, and lens artifacts should not become valid point-cloud objects.
+- If one highlighted mask contains both a large surface and a fine target, report the dominant physical target and mark the observation as mixed when the schema supports it.
+"""
+
+
 LABEL_TAXONOMY = {
     "unknown": {
         "id": 0,
@@ -150,6 +160,7 @@ def mask_label_prompt(extra_context: str | None = None) -> str:
     """Prompt for classifying one highlighted segmentation mask."""
     sections = [
         ROOFTOP_SCENE_CONTEXT,
+        SEGMENTATION_GOAL,
         "Task:\nClassify only the highlighted mask for point-cloud semantic projection.",
         "Rules:\n"
         "- Return only strict JSON.\n"
@@ -172,6 +183,8 @@ def merge_review_prompt(item: dict) -> str:
     proposal = item["proposal"]
     return f"""\
 {ROOFTOP_SCENE_CONTEXT}
+
+{SEGMENTATION_GOAL}
 
 Task:
 Review whether the two long-range objects in this contact sheet should be merged into one physical object.
