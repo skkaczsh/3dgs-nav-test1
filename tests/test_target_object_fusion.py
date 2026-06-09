@@ -96,13 +96,28 @@ def test_target_label_loader_accepts_item_list_schema(tmp_path: Path):
     assert records[4]["confidence"] == 1.0
 
 
-def _target(target_id, frame_id, label, centroid, parent="surface", point_start=0):
+def _target(
+    target_id,
+    frame_id,
+    label,
+    centroid,
+    parent="surface",
+    point_start=0,
+    confidence=1.0,
+    mixed=False,
+    can_merge_to_surface=False,
+):
     c = np.array(centroid, dtype=float)
     return {
         "target_id": target_id,
         "frame_id": frame_id,
         "label": label,
         "parent_class": parent,
+        "confidence": confidence,
+        "vlm_mixed": mixed,
+        "vlm_can_merge_to_surface": can_merge_to_surface,
+        "vlm_is_large_surface": False,
+        "vlm_ambiguous_with": [],
         "cluster_size": 10,
         "point_indices": list(range(point_start, point_start + 10)),
         "bbox_3d": {"min": (c - 0.05).tolist(), "max": (c + 0.05).tolist()},
@@ -162,6 +177,73 @@ def test_fuse_targets_marks_same_parent_label_conflict_ambiguous():
     assert len(finalized) == 1
     assert finalized[0]["semantic_label"] == "ambiguous"
     assert finalized[0]["status"] == "ambiguous_object"
+
+
+def test_fuse_targets_does_not_merge_low_confidence_target_by_geometry_only():
+    module = load_module(SCRIPTS / "fuse_targets_to_objects.py", "fuse_targets_quality_for_repo_test")
+    args = type("Args", (), {
+        "centroid_distance": 0.35,
+        "bbox_distance": 0.35,
+        "color_distance": 70.0,
+        "normal_angle": 25.0,
+        "zone_size": 100,
+        "active_zone_window": 1,
+        "min_merge_confidence": 0.5,
+    })()
+
+    objects, decisions = module.fuse_targets(
+        [
+            _target("t1", 0, "railing", [0, 0, 0], parent="structure", point_start=0),
+            _target("t2", 1, "railing", [0.10, 0, 0], parent="structure", point_start=100, confidence=0.2),
+        ],
+        args,
+    )
+    finalized = [module.finalize_object(o) for o in objects]
+
+    assert len(finalized) == 2
+    assert decisions[1]["action"] == "new_object"
+
+
+def test_fuse_targets_blocks_mixed_target_unless_surface_mergeable():
+    module = load_module(SCRIPTS / "fuse_targets_to_objects.py", "fuse_targets_mixed_for_repo_test")
+    args = type("Args", (), {
+        "centroid_distance": 0.35,
+        "bbox_distance": 0.35,
+        "color_distance": 70.0,
+        "normal_angle": 25.0,
+        "zone_size": 100,
+        "active_zone_window": 1,
+        "min_merge_confidence": 0.5,
+    })()
+
+    blocked, blocked_decisions = module.fuse_targets(
+        [
+            _target("t1", 0, "floor", [0, 0, 0], parent="surface", point_start=0),
+            _target("t2", 1, "floor", [0.10, 0, 0], parent="surface", point_start=100, mixed=True),
+        ],
+        args,
+    )
+    allowed, allowed_decisions = module.fuse_targets(
+        [
+            _target("t1", 0, "floor", [0, 0, 0], parent="surface", point_start=0),
+            _target(
+                "t2",
+                1,
+                "floor",
+                [0.10, 0, 0],
+                parent="surface",
+                point_start=100,
+                mixed=True,
+                can_merge_to_surface=True,
+            ),
+        ],
+        args,
+    )
+
+    assert len([module.finalize_object(o) for o in blocked]) == 2
+    assert blocked_decisions[1]["action"] == "new_object"
+    assert len([module.finalize_object(o) for o in allowed]) == 1
+    assert allowed_decisions[1]["action"] == "merge"
 
 
 def test_finalize_keeps_high_vote_conflict_stable():

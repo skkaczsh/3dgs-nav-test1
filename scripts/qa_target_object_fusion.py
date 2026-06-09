@@ -37,6 +37,7 @@ def problematic_objects(objects: list[dict], limit: int) -> dict[str, list[dict]
     conflicts = []
     few_targets = []
     high_color_var = []
+    low_quality = []
     for obj in objects:
         votes = obj.get("label_votes", {})
         vote_total = sum(int(v) for v in votes.values())
@@ -60,13 +61,26 @@ def problematic_objects(objects: list[dict], limit: int) -> dict[str, list[dict]
             row = dict(base)
             row["target_rgb_variance"] = color_var
             high_color_var.append(row)
+        quality = obj.get("quality_stats", {})
+        if quality.get("low_confidence_targets", 0) or quality.get("mixed_targets", 0):
+            row = dict(base)
+            row["quality_stats"] = quality
+            low_quality.append(row)
     conflicts.sort(key=lambda x: (x["dominant_label_ratio"], -x["point_count"]))
     few_targets.sort(key=lambda x: -x["point_count"])
     high_color_var.sort(key=lambda x: -x["target_rgb_variance"])
+    low_quality.sort(
+        key=lambda x: (
+            -int(x.get("quality_stats", {}).get("low_confidence_targets", 0)),
+            -int(x.get("quality_stats", {}).get("mixed_targets", 0)),
+            -int(x["point_count"]),
+        )
+    )
     return {
         "multi_label_conflict": conflicts[:limit],
         "single_target_large_objects": few_targets[:limit],
         "high_color_variance": high_color_var[:limit],
+        "low_quality_vlm_targets": low_quality[:limit],
     }
 
 
@@ -95,6 +109,15 @@ def main() -> None:
     status_counts = Counter(obj.get("status", "unknown") for obj in objects)
     object_label_counts = Counter(obj.get("semantic_label", "unknown") for obj in objects)
     target_counts_per_frame = [int(r.get("targets", 0)) for r in ok_frames]
+    low_confidence_object_count = sum(
+        1 for obj in objects if int(obj.get("quality_stats", {}).get("low_confidence_targets", 0)) > 0
+    )
+    mixed_object_count = sum(1 for obj in objects if int(obj.get("quality_stats", {}).get("mixed_targets", 0)) > 0)
+    confidence_values = [
+        float(obj.get("quality_stats", {}).get("confidence_mean", 1.0))
+        for obj in objects
+        if obj.get("quality_stats")
+    ]
 
     summary = {
         "frames": {
@@ -117,6 +140,9 @@ def main() -> None:
             "status_counts": dict(status_counts),
             "ambiguous_ratio": float(status_counts.get("ambiguous_object", 0) / max(len(objects), 1)),
             "semantic_label_counts": dict(object_label_counts),
+            "low_confidence_object_count": int(low_confidence_object_count),
+            "mixed_object_count": int(mixed_object_count),
+            "avg_object_vlm_confidence": float(np.mean(confidence_values)) if confidence_values else 0.0,
         },
         "zones": {
             "count": len(zones),

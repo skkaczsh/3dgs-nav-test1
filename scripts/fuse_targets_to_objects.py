@@ -16,6 +16,37 @@ from project_semantic import LABEL_COLORS, LABEL_NAMES
 
 
 SURFACE_PARENT_CLASSES = {"surface", "structure"}
+DEFAULT_MIN_MERGE_CONFIDENCE = 0.5
+
+
+def target_confidence(target: dict) -> float:
+    value = target.get("confidence", 1.0)
+    try:
+        return max(0.0, min(1.0, float(value)))
+    except (TypeError, ValueError):
+        return 1.0
+
+
+def target_vote_weight(target: dict) -> float:
+    return float(max(int(target.get("cluster_size", 1)), 1)) * target_confidence(target)
+
+
+def target_quality(target: dict, min_merge_confidence: float = DEFAULT_MIN_MERGE_CONFIDENCE) -> dict:
+    confidence = target_confidence(target)
+    mixed = bool(target.get("vlm_mixed", False))
+    can_merge_to_surface = bool(target.get("vlm_can_merge_to_surface", False))
+    is_large_surface = bool(target.get("vlm_is_large_surface", False))
+    low_confidence = confidence < min_merge_confidence
+    mixed_blocks_merge = mixed and not can_merge_to_surface
+    return {
+        "confidence": confidence,
+        "mixed": mixed,
+        "is_large_surface": is_large_surface,
+        "can_merge_to_surface": can_merge_to_surface,
+        "low_confidence": low_confidence,
+        "mixed_blocks_merge": mixed_blocks_merge,
+        "merge_quality_ok": not low_confidence and not mixed_blocks_merge,
+    }
 
 
 def load_targets(inputs: list[Path]) -> list[dict]:
@@ -73,6 +104,8 @@ def bbox_cells(bbox: dict, cell_size: float, padding: float = 0.0) -> set[tuple[
 
 def create_object(object_id: str, target: dict) -> dict:
     point_ids = target_point_indices(target)
+    vote_weight = target_vote_weight(target)
+    quality = target_quality(target)
     return {
         "object_id": object_id,
         "semantic_label": target["label"],
@@ -85,6 +118,7 @@ def create_object(object_id: str, target: dict) -> dict:
         "bbox_3d": target["bbox_3d"],
         "centroid": target["centroid"],
         "label_votes": {target["label"]: int(target.get("cluster_size", 1))},
+        "label_vote_weights": {target["label"]: float(vote_weight)},
         "parent_class_votes": {target.get("parent_class", "other"): 1},
         "mean_color": target["mean_color"],
         "color_sum": (np.array(target["mean_color"], dtype=np.float64) * max(int(target.get("cluster_size", 1)), 1)).tolist(),
@@ -94,6 +128,12 @@ def create_object(object_id: str, target: dict) -> dict:
             "linearity_mean": float(target.get("pca", {}).get("linearity", 0.0)),
         },
         "color_stats": {"mean_rgb": target["mean_color"], "target_rgb_variance": 0.0},
+        "quality_stats": {
+            "confidence_mean": float(quality["confidence"]),
+            "low_confidence_targets": int(quality["low_confidence"]),
+            "mixed_targets": int(quality["mixed"]),
+            "surface_mergeable_targets": int(quality["can_merge_to_surface"]),
+        },
         "zone_id": f"zone_{int(target['frame_id']) // 100:03d}",
         "_target_records": [target],
         "_point_id_set": point_ids,
@@ -122,6 +162,7 @@ def update_object(obj: dict, target: dict) -> None:
     obj["mean_color"] = [float(x) for x in color_sum / total]
 
     obj["label_votes"][target["label"]] = int(obj["label_votes"].get(target["label"], 0) + new_count)
+    obj["label_vote_weights"][target["label"]] = float(obj["label_vote_weights"].get(target["label"], 0.0) + target_vote_weight(target))
     parent = target.get("parent_class", "other")
     obj["parent_class_votes"][parent] = int(obj["parent_class_votes"].get(parent, 0) + 1)
     obj["_target_records"].append(target)
@@ -138,9 +179,16 @@ def update_object(obj: dict, target: dict) -> None:
         "mean_rgb": obj["mean_color"],
         "target_rgb_variance": float(np.mean(np.var(colors, axis=0))) if len(colors) > 1 else 0.0,
     }
-    votes = Counter(obj["label_votes"])
+    qualities = [target_quality(t) for t in obj["_target_records"]]
+    obj["quality_stats"] = {
+        "confidence_mean": float(np.mean([q["confidence"] for q in qualities])) if qualities else 1.0,
+        "low_confidence_targets": int(sum(q["low_confidence"] for q in qualities)),
+        "mixed_targets": int(sum(q["mixed"] for q in qualities)),
+        "surface_mergeable_targets": int(sum(q["can_merge_to_surface"] for q in qualities)),
+    }
+    votes = Counter(obj["label_vote_weights"])
     winner, winner_votes = votes.most_common(1)[0]
-    vote_total = sum(votes.values())
+    vote_total = float(sum(votes.values()))
     obj["semantic_label"] = winner if winner_votes / max(vote_total, 1) >= 0.8 else "ambiguous"
     if obj["semantic_label"] == "ambiguous" or len(votes) > 1:
         obj["status"] = "ambiguous_object"
@@ -162,6 +210,8 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
     near = centroid_dist <= args.centroid_distance or bbox_dist <= args.bbox_distance
     color_ok = color_dist <= args.color_distance
     normal_ok = normal_angle <= args.normal_angle
+    quality = target_quality(target, float(getattr(args, "min_merge_confidence", DEFAULT_MIN_MERGE_CONFIDENCE)))
+    quality_ok = bool(quality["merge_quality_ok"])
     overlap = False
     if int(target["frame_id"]) in set(obj.get("frames", [])):
         if target_point_ids is None:
@@ -169,15 +219,17 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
         overlap = bool(obj.get("_point_id_set", set()) & target_point_ids)
     merge = False
     reason = "no_match"
-    if same_label and near and color_ok and normal_ok:
+    if same_label and near and color_ok and normal_ok and quality_ok:
         merge = True
         reason = "same_label_geometry_color"
-    elif overlap and (same_label or same_parent) and color_ok:
+    elif overlap and (same_label or same_parent) and color_ok and not quality["mixed_blocks_merge"]:
         merge = True
         reason = "point_overlap"
-    elif same_parent and parent in SURFACE_PARENT_CLASSES and near and color_ok and normal_ok:
+    elif same_parent and parent in SURFACE_PARENT_CLASSES and near and color_ok and normal_ok and quality_ok:
         merge = True
         reason = "same_parent_surface_review"
+    elif (same_label or same_parent) and near and color_ok and normal_ok and not quality_ok:
+        reason = "quality_gate"
     return merge, {
         "reason": reason,
         "centroid_distance": centroid_dist,
@@ -187,12 +239,18 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
         "same_label": same_label,
         "same_parent": same_parent,
         "overlap": overlap,
+        "target_confidence": quality["confidence"],
+        "target_mixed": quality["mixed"],
+        "target_is_large_surface": quality["is_large_surface"],
+        "target_can_merge_to_surface": quality["can_merge_to_surface"],
+        "target_low_confidence": quality["low_confidence"],
+        "target_mixed_blocks_merge": quality["mixed_blocks_merge"],
     }
 
 
 def finalize_object(obj: dict) -> dict:
     out = {k: v for k, v in obj.items() if not k.startswith("_") and k != "color_sum"}
-    votes = Counter(out["label_votes"])
+    votes = Counter(out.get("label_vote_weights") or out["label_votes"])
     if votes:
         winner, count = votes.most_common(1)[0]
         ratio = count / max(sum(votes.values()), 1)
@@ -341,6 +399,7 @@ def main() -> None:
     parser.add_argument("--bbox-distance", type=float, default=0.35)
     parser.add_argument("--color-distance", type=float, default=70.0)
     parser.add_argument("--normal-angle", type=float, default=25.0)
+    parser.add_argument("--min-merge-confidence", type=float, default=0.5)
     parser.add_argument("--zone-size", type=int, default=100)
     parser.add_argument("--active-zone-window", type=int, default=1)
     parser.add_argument("--spatial-cell-size", type=float, default=1.0)
