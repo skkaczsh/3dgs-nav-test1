@@ -11,6 +11,7 @@ START_FRAME="${START_FRAME:-0}"
 END_FRAME="${END_FRAME:-999}"
 VOXEL_SIZE="${VOXEL_SIZE:-0.08}"
 MIN_TARGET_POINTS="${MIN_TARGET_POINTS:-20}"
+MIN_MERGE_CONFIDENCE="${MIN_MERGE_CONFIDENCE:-0.5}"
 WORK_MODE="${WORK_MODE:-range}"
 
 export SCAN_DATA_DIR="${SCAN_DATA_DIR:-/root/epfs/new_route_data}"
@@ -41,6 +42,7 @@ python3 "${SCRIPT_DIR}/build_targets_from_masks.py" \
 python3 "${SCRIPT_DIR}/fuse_targets_to_objects.py" \
   --targets "${OUTPUT_DIR}/targets" \
   --output-dir "${OUTPUT_DIR}/objects" \
+  --min-merge-confidence "${MIN_MERGE_CONFIDENCE}" \
   --write-ply
 
 python3 "${SCRIPT_DIR}/qa_target_object_fusion.py" \

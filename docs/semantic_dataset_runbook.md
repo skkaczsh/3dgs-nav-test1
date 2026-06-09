@@ -40,6 +40,12 @@ server state as authority when numbers differ.
   - `/root/epfs/new_route_stage1_skymask/target_object_fusion_0000_0999`
 - Correct RGB PLY input for fusion:
   - `/root/epfs/new_route_stage1_skymask/output/frame_XXXX.ply`
+- Target/object fusion quality gate:
+  - `MIN_MERGE_CONFIDENCE=0.5` by default.
+  - Low-confidence targets are still preserved, but they do not actively merge
+    into existing objects by geometry/color alone.
+  - `vlm_mixed=true` targets are blocked from merging unless
+    `vlm_can_merge_to_surface=true`.
 
 ## Watchers
 
@@ -78,6 +84,9 @@ server state as authority when numbers differ.
   - Targets: `11`
   - Objects: `6`
   - Ambiguous ratio: `0.0`
+- Scene-aware VLM quality fields are now preserved from `labels.json` into
+  Target records and used by object fusion. Re-run target/object fusion after
+  regenerating scene-aware semantic artifacts.
 - ConceptSeg-R1 smoke dependency fixes completed:
   - Installed `scikit-image` and `scikit-learn` in the remote
     `conceptseg-r1` environment.

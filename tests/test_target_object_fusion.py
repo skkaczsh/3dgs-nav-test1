@@ -655,6 +655,14 @@ def test_resume_qwen_review_uploads_prompt_dependency():
     assert "${SERVER}:/tmp/vlm_scene_prompt.py" in script
 
 
+def test_server_target_object_runner_exposes_merge_confidence_gate():
+    script = (SCRIPTS / "run_server_target_object_fusion.sh").read_text(encoding="utf-8")
+
+    assert "MIN_MERGE_CONFIDENCE" in script
+    assert "--min-merge-confidence" in script
+    assert '"${MIN_MERGE_CONFIDENCE}"' in script
+
+
 def _review_object(object_id, centroid, points=10):
     c = np.array(centroid, dtype=float)
     return {

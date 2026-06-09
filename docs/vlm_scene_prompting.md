@@ -36,6 +36,13 @@ The VLM should classify only the highlighted mask and return:
 
 The fields `mixed`, `is_large_surface`, and `can_merge_to_surface` should be preserved on `Target` records when available. Object fusion should use them as quality signals rather than directly trusting every single mask label.
 
+Current object fusion behavior:
+
+- `confidence` is used as label vote weight: `cluster_size * confidence`.
+- Targets below `MIN_MERGE_CONFIDENCE` are preserved but do not actively merge by geometry/color alone.
+- `mixed=true` blocks merging unless `can_merge_to_surface=true`.
+- QA reports summarize low-confidence and mixed-object counts through `quality_stats`.
+
 ## Implementation Hook
 
 The shared prompt source is `scripts/vlm_scene_prompt.py`.
