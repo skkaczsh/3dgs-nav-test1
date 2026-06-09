@@ -774,3 +774,55 @@ def test_diagnose_server_connectivity_marks_missing_bind(monkeypatch):
     assert report["all_reachable"] is False
     assert report["hosts"][0]["bind_address_present_locally"] is False
     assert report["hosts"][0]["tcp"]["error"] == "timeout"
+
+
+def test_summarize_route_status_renders_blocker_and_side_tracks(tmp_path):
+    module = load_module(SCRIPTS / "summarize_route_status.py", "route_status_for_repo_test")
+    connectivity = tmp_path / "connectivity.json"
+    connectivity.write_text(
+        json.dumps(
+            {
+                "all_reachable": False,
+                "hosts": [
+                    {
+                        "host": "scan-train",
+                        "ssh_config": {"hostname": "10.0.8.114", "port": "31909"},
+                        "tcp": {"reachable": False, "error": "timed out"},
+                        "bind_address_present_locally": False,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    stage = tmp_path / "stage.json"
+    stage.write_text(
+        json.dumps(
+            {
+                "stage_status": {"review_pack_ready": True, "contact_sheets_ready": True, "manual_html_ready": True, "pending_apply_safe": True, "qwen_review_ready": False},
+                "manual_merge_qa": {"passed": True, "input_point_count": 1, "output_point_count": 1},
+            }
+        ),
+        encoding="utf-8",
+    )
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"file_count": 1, "missing": []}), encoding="utf-8")
+    conceptseg = tmp_path / "conceptseg.md"
+    conceptseg.write_text("side track", encoding="utf-8")
+    old = tmp_path / "old.json"
+    old.write_text("{}", encoding="utf-8")
+    args = type("Args", (), {
+        "connectivity": connectivity,
+        "stage_summary": stage,
+        "delivery_manifest": manifest,
+        "delivery_zip": tmp_path / "delivery.zip",
+        "conceptseg_report": conceptseg,
+        "old_route_summary": old,
+    })()
+
+    status = module.build_status(args)
+    markdown = module.render_markdown(status)
+
+    assert status["connectivity"]["all_reachable"] is False
+    assert "ConceptSeg-R1" in markdown
+    assert "Qwen review ready: `False`" in markdown
