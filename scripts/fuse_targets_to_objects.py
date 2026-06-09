@@ -58,6 +58,19 @@ def target_point_indices(target: dict) -> set[int]:
     return {frame * 100000000 + int(i) for i in target.get("point_indices", [])}
 
 
+def bbox_cells(bbox: dict, cell_size: float, padding: float = 0.0) -> set[tuple[int, int, int]]:
+    bmin = np.array(bbox["min"], dtype=np.float64) - padding
+    bmax = np.array(bbox["max"], dtype=np.float64) + padding
+    lo = np.floor(bmin / cell_size).astype(int)
+    hi = np.floor(bmax / cell_size).astype(int)
+    return {
+        (int(x), int(y), int(z))
+        for x in range(lo[0], hi[0] + 1)
+        for y in range(lo[1], hi[1] + 1)
+        for z in range(lo[2], hi[2] + 1)
+    }
+
+
 def create_object(object_id: str, target: dict) -> dict:
     point_ids = target_point_indices(target)
     return {
@@ -242,16 +255,26 @@ def write_object_ply(path: Path, objects: list[dict]) -> None:
 def fuse_targets(targets: list[dict], args: argparse.Namespace) -> tuple[list[dict], list[dict]]:
     objects: list[dict] = []
     objects_by_zone: dict[int, list[int]] = defaultdict(list)
+    objects_by_zone_cell: dict[tuple[int, tuple[int, int, int]], list[int]] = defaultdict(list)
+    object_cells: list[set[tuple[int, int, int]]] = []
     decisions = []
     for target in targets:
         best_idx = None
         best_meta = None
         best_dist = float("inf")
         current_zone = int(target["frame_id"]) // args.zone_size
+        spatial_cell_size = float(getattr(args, "spatial_cell_size", 1.0))
+        fallback_zone_scan = bool(getattr(args, "fallback_zone_scan", False))
         if args.active_zone_window >= 0:
-            candidate_indices = []
+            candidate_indices_set: set[int] = set()
+            target_cells = bbox_cells(target["bbox_3d"], spatial_cell_size, args.bbox_distance)
             for zone in range(current_zone - args.active_zone_window, current_zone + args.active_zone_window + 1):
-                candidate_indices.extend(objects_by_zone.get(zone, []))
+                for cell in target_cells:
+                    candidate_indices_set.update(objects_by_zone_cell.get((zone, cell), []))
+            candidate_indices = list(candidate_indices_set)
+            if not candidate_indices and fallback_zone_scan:
+                for zone in range(current_zone - args.active_zone_window, current_zone + args.active_zone_window + 1):
+                    candidate_indices.extend(objects_by_zone.get(zone, []))
         else:
             candidate_indices = list(range(len(objects)))
         target_point_ids = target_point_indices(target)
@@ -265,11 +288,23 @@ def fuse_targets(targets: list[dict], args: argparse.Namespace) -> tuple[list[di
         if best_idx is None:
             object_id = f"obj_{len(objects) + 1:06d}"
             objects.append(create_object(object_id, target))
-            objects_by_zone[current_zone].append(len(objects) - 1)
+            obj_idx = len(objects) - 1
+            objects_by_zone[current_zone].append(obj_idx)
+            cells = bbox_cells(objects[obj_idx]["bbox_3d"], spatial_cell_size, args.bbox_distance)
+            object_cells.append(cells)
+            for cell in cells:
+                objects_by_zone_cell[(current_zone, cell)].append(obj_idx)
             decisions.append({"target_id": target["target_id"], "object_id": object_id, "action": "new_object"})
         else:
             obj = objects[best_idx]
             update_object(obj, target)
+            obj_zone = int(obj["zone_id"].rsplit("_", 1)[1])
+            cells = bbox_cells(obj["bbox_3d"], spatial_cell_size, args.bbox_distance)
+            new_cells = cells - object_cells[best_idx]
+            if new_cells:
+                object_cells[best_idx].update(new_cells)
+                for cell in new_cells:
+                    objects_by_zone_cell[(obj_zone, cell)].append(best_idx)
             decisions.append({"target_id": target["target_id"], "object_id": obj["object_id"], "action": "merge", **(best_meta or {})})
     return objects, decisions
 
@@ -304,6 +339,8 @@ def main() -> None:
     parser.add_argument("--normal-angle", type=float, default=25.0)
     parser.add_argument("--zone-size", type=int, default=100)
     parser.add_argument("--active-zone-window", type=int, default=1)
+    parser.add_argument("--spatial-cell-size", type=float, default=1.0)
+    parser.add_argument("--fallback-zone-scan", action="store_true")
     parser.add_argument("--write-ply", action="store_true")
     args = parser.parse_args()
 
