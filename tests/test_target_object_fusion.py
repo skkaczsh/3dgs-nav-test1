@@ -556,3 +556,34 @@ def test_apply_cross_candidate_reviews_merges_only_accepted_pairs():
     assert ["long_obj_0003"] in groups
     assert [d["accepted"] for d in decisions] == [True, False]
     assert max(row["point_count"] for row in merged) == 30
+
+
+def test_cross_candidate_review_html_writes_template_and_context(tmp_path):
+    module = load_module(SCRIPTS / "make_cross_candidate_review_html.py", "review_html_for_repo_test")
+    items = [
+        {
+            "review_id": "review_001",
+            "proposal": {
+                "object_a": "long_obj_0001",
+                "object_b": "long_obj_0002",
+                "candidate_a": "200001",
+                "candidate_b": "200002",
+                "same_source_cluster": True,
+                "score": 0.12,
+                "centroid_distance": 0.5,
+                "bbox_distance": 0.0,
+                "bbox_overlap_ratio": 0.9,
+                "color_distance": 4.0,
+            },
+        }
+    ]
+    output = tmp_path / "out"
+    output.mkdir()
+    csv_path = output / "manual_merge_decisions.csv"
+    module.write_decision_template(items, csv_path)
+    html_text = module.render_html(items, tmp_path / "sheets", output, csv_path)
+
+    assert "review_001" in csv_path.read_text()
+    assert "rooftop scan" in html_text
+    assert "../sheets/review_001_contact_sheet.jpg" in html_text
+    assert "merge</code>" in html_text
