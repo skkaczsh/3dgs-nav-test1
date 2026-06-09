@@ -30,6 +30,7 @@ echo "[5/5] Core offline pytest suite"
 pytest -q \
   tests/test_audit_runner_dependencies.py \
   tests/test_offline_quality_runner.py \
+  tests/test_route_status_summary.py \
   tests/test_scan_sensitive_tokens.py \
   tests/test_target_object_fusion.py \
   tests/test_vlm_scene_prompt.py \

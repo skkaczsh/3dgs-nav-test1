@@ -24,8 +24,17 @@ def build_status(args: argparse.Namespace) -> dict:
     delivery = read_json(args.delivery_manifest)
     old_route = read_json(args.old_route_summary)
     conceptseg = file_state(args.conceptseg_report)
+    offline_qa_report = getattr(args, "offline_qa_report", None)
+    offline_qa = read_json(offline_qa_report) if offline_qa_report else {}
     return {
         "connectivity": connectivity,
+        "offline_qa": {
+            "report": str(offline_qa_report) if offline_qa_report else "",
+            "passed": offline_qa.get("passed"),
+            "git_head": offline_qa.get("git_head"),
+            "timestamp": offline_qa.get("timestamp"),
+            "checks": offline_qa.get("checks", []),
+        },
         "main_route": {
             "stage_summary": str(args.stage_summary),
             "stage_status": stage.get("stage_status", {}),
@@ -64,6 +73,7 @@ def build_status(args: argparse.Namespace) -> dict:
 
 def render_markdown(status: dict) -> str:
     conn = status["connectivity"]
+    offline_qa = status.get("offline_qa", {})
     stage = status["main_route"]["stage_status"]
     delivery = status["delivery"]
     qa = status["main_route"].get("manual_merge_qa", {})
@@ -83,6 +93,13 @@ def render_markdown(status: dict) -> str:
         )
     lines.extend(
         [
+            "",
+            "## Offline QA",
+            "",
+            f"- passed: `{offline_qa.get('passed')}`",
+            f"- git head: `{offline_qa.get('git_head')}`",
+            f"- timestamp: `{offline_qa.get('timestamp')}`",
+            f"- checks: `{offline_qa.get('checks')}`",
             "",
             "## Main Route",
             "",
@@ -123,6 +140,7 @@ def main() -> None:
     parser.add_argument("--delivery-zip", type=Path, required=True)
     parser.add_argument("--conceptseg-report", type=Path, required=True)
     parser.add_argument("--old-route-summary", type=Path, required=True)
+    parser.add_argument("--offline-qa-report", type=Path, default=None)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
 

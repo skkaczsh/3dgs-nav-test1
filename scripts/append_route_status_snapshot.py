@@ -20,8 +20,11 @@ def compact(status: dict, timestamp: str) -> dict:
     workflow = main.get("manual_workflow_pending", {})
     qa = main.get("manual_merge_qa", {})
     delivery = status.get("delivery", {})
+    offline_qa = status.get("offline_qa", {})
     return {
         "timestamp": timestamp,
+        "offline_qa_passed": offline_qa.get("passed"),
+        "offline_qa_git_head": offline_qa.get("git_head"),
         "all_servers_reachable": connectivity.get("all_reachable"),
         "qwen_review_ready": stage.get("qwen_review_ready"),
         "review_pack_ready": stage.get("review_pack_ready"),
