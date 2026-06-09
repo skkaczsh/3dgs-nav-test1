@@ -31,9 +31,21 @@ Current status:
 - Preparation runner: `/root/epfs/model_side_tracks/run_server_conceptseg_r1_smoke.sh`.
 - Local tracked runner: `/Users/skkac/Work/SCAN/new_route/scripts/run_server_conceptseg_r1_smoke.sh`.
 - Preparation check passed with `RUN_INFERENCE=0` on GPU1.
-- The next blocker is external assets/weights:
-  - `sam3-main.zip` and `all_meta.json.zip` from ConceptSeg-R1 GitHub releases.
-  - `ConceptSeg-R1-7B` weights from Hugging Face.
+- `ConceptSeg-R1-7B` weights are downloaded to `/root/epfs/model_side_tracks/ConceptSeg-R1/ConceptSeg-R1-7B`.
+- Release assets are downloaded:
+  - `/root/epfs/model_side_tracks/ConceptSeg-R1/sam3-main.zip`
+  - `/root/epfs/model_side_tracks/ConceptSeg-R1/all_meta.json.zip`
+- The existing environment `/root/epfs/conda_envs/conceptseg-r1` can load the model on GPU1 with `ATTENTION_IMPLEMENTATION=sdpa`; `flash-attn` is not required for smoke.
+- Smoke output:
+  - server: `/root/epfs/model_side_tracks/ConceptSeg-R1/example_images/outputs_scan_smoke/scan_smoke_railing_or_thin_metal_structure.png`
+  - local: `/Users/skkac/Work/SCAN/server_conceptseg_r1_smoke/scan_smoke_railing_or_thin_metal_structure.png`
+
+Smoke interpretation:
+
+- The full inference chain runs on GPU1.
+- The smoke response to `railing or thin metal structure` produced a non-empty mask, but the model response labeled the target as `wall` and visually selected the blue bird-house region rather than the intended thin metal support.
+- This reinforces the current decision: ConceptSeg-R1 is a side-track candidate for constrained second-stage review, not a replacement for `sam2_prompt_v3_sky_label_merge_completion`.
+- Next useful test should use our own problem crops with reference boxes/masks, not only the public example image.
 
 References:
 
