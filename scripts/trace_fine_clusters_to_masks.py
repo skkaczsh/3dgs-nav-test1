@@ -108,6 +108,40 @@ def make_overlay(image_path: Path, instance_path: Path, mask_id: int, label: str
     return bool(cv2.imwrite(str(out_path), overlay))
 
 
+def mask_stats(instance_path: Path, mask_id: int) -> dict:
+    instance = cv2.imread(str(instance_path), cv2.IMREAD_UNCHANGED)
+    if instance is None:
+        return {
+            "mask_area_pixels": 0,
+            "mask_area_ratio": 0.0,
+            "mask_bbox": [],
+            "mask_bbox_area_ratio": 0.0,
+        }
+    if instance.ndim == 3:
+        instance = instance[:, :, 0]
+    mask = instance.astype(np.int64) == int(mask_id)
+    area = int(mask.sum())
+    height, width = instance.shape[:2]
+    if area == 0:
+        return {
+            "mask_area_pixels": 0,
+            "mask_area_ratio": 0.0,
+            "mask_bbox": [],
+            "mask_bbox_area_ratio": 0.0,
+        }
+    ys, xs = np.where(mask)
+    x0, x1 = int(xs.min()), int(xs.max())
+    y0, y1 = int(ys.min()), int(ys.max())
+    bbox_area = int((x1 - x0 + 1) * (y1 - y0 + 1))
+    image_area = max(int(width * height), 1)
+    return {
+        "mask_area_pixels": area,
+        "mask_area_ratio": float(area / image_area),
+        "mask_bbox": [x0, y0, x1, y1],
+        "mask_bbox_area_ratio": float(bbox_area / image_area),
+    }
+
+
 def make_contact_sheet(paths: list[Path], output_path: Path, thumb_width: int = 420) -> None:
     images = []
     for path in paths:
@@ -199,6 +233,7 @@ def main() -> None:
             label = labels.get(mask_id, "unknown")
             image_path = combo_dir / "image.png"
             instance_path = combo_dir / "instance.png"
+            stats = mask_stats(instance_path, mask_id)
             overlay_path = args.output_dir / "overlays" / f"cluster_{cluster_id:04d}_f{frame_id:04d}_cam{cam_id}_m{mask_id:04d}.png"
             wrote_overlay = False
             if overlay_count < args.overlay_limit:
@@ -213,6 +248,7 @@ def main() -> None:
                 "label": label,
                 "points": int(count),
                 "share_of_cluster": float(count / max(total, 1)),
+                **stats,
                 "image_path": str(image_path),
                 "instance_path": str(instance_path),
                 "labels_path": str(combo_dir / "labels.json"),
@@ -262,6 +298,7 @@ def main() -> None:
             }
             for cluster_id in sorted(wanted_clusters)
         ],
+        "source_rows": rows,
     }
     (args.output_dir / "fine_cluster_mask_trace.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -277,6 +314,10 @@ def main() -> None:
             "label",
             "points",
             "share_of_cluster",
+            "mask_area_pixels",
+            "mask_area_ratio",
+            "mask_bbox",
+            "mask_bbox_area_ratio",
             "image_path",
             "instance_path",
             "labels_path",

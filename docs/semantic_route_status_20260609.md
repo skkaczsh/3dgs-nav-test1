@@ -163,6 +163,11 @@ Fine-cluster mask trace:
 - traced suspicious clusters: `12`
 - traced points: `134,687 / 134,687`
 - raw duplicate point matches: `3,836`
+- top source rows: `96`
+- source mask area mean/median/max: `0.1143 / 0.0447 / 0.6854`
+- source mask bbox area mean/median/max: `0.2101 / 0.0918 / 1.0000`
+- source rows with mask area `>= 10%`: `21 / 96`
+- source rows with bbox area `>= 30%`: `20 / 96`
 - contact sheet: `/Users/skkac/Work/SCAN/server_fine_residual_trace_v008/fine_cluster_mask_trace_contact_sheet.png`
 
 Trace interpretation:
@@ -170,6 +175,7 @@ Trace interpretation:
 - The suspicious clusters trace back to many consecutive frame/camera/mask observations, not one isolated bad frame.
 - Top source masks usually explain only `0.5% - 3%` of a large cluster, which means the large 3D cluster is accumulated from repeated over-large 2D masks.
 - Overlay review shows several masks include surface, railing edge, and equipment/background together.
+- The largest traced masks cover `64% - 68%` of the image with full-image bounding boxes, so at least part of the fine residual pollution is created before 3D fusion.
 - This shifts the immediate bottleneck from 3D object fusion to pre-fusion mask hygiene: large-mask splitting and stable-surface subtraction should run before accepting fine-object clusters.
 
 Top ambiguous examples are listed in:
