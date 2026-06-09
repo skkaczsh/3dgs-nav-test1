@@ -53,12 +53,30 @@ def artifact_paths(base: Path, combo: str, target_meta: dict) -> dict:
     }
 
 
-def raw_image_path(raw_image_dir: Path, target_meta: dict) -> str:
+def resolve_artifact_paths(bases: list[Path], combo: str, target_meta: dict) -> dict:
+    """Return artifact paths from the first base containing usable evidence."""
+    fallback = {}
+    for base in bases:
+        paths = artifact_paths(base, combo, target_meta)
+        if not fallback:
+            fallback = paths
+        if Path(paths.get("overlay", "")).exists() or Path(paths.get("image", "")).exists():
+            return paths
+    return fallback
+
+
+def raw_image_path(raw_image_dir: Path, target_meta: dict, frame_scale: int = 10) -> str:
     if not target_meta:
         return ""
     frame = int(target_meta["frame"])
     cam = int(target_meta["cam"])
-    return str(raw_image_dir / f"cam{cam}_{frame:06d}.png")
+    candidates = [raw_image_dir / f"cam{cam}_{frame:06d}.png"]
+    if frame_scale != 1:
+        candidates.append(raw_image_dir / f"cam{cam}_{frame * frame_scale:06d}.png")
+    for path in candidates:
+        if path.exists():
+            return str(path)
+    return str(candidates[0])
 
 
 def choose_representative_tracklets(obj: dict, tracklet_by_id: dict[str, dict], candidate: str, limit: int) -> list[dict]:
@@ -69,7 +87,14 @@ def choose_representative_tracklets(obj: dict, tracklet_by_id: dict[str, dict], 
     return pool[:limit]
 
 
-def representative_target(tracklet: dict, candidate: str, artifact_base: Path | None = None, combo: str = "") -> str:
+def representative_target(
+    tracklet: dict,
+    candidate: str,
+    artifact_bases: list[Path] | None = None,
+    combo: str = "",
+    raw_image_dir: Path | None = None,
+    raw_frame_scale: int = 10,
+) -> str:
     # Prefer target ids whose semantic artifacts exist. Within that set, start
     # near the middle of the tracklet span; middle frames tend to be better
     # observed than first/last frames.
@@ -77,11 +102,21 @@ def representative_target(tracklet: dict, candidate: str, artifact_base: Path | 
     if not ids:
         return ""
     order = sorted(range(len(ids)), key=lambda i: abs(i - len(ids) / 2.0))
-    if artifact_base is not None and combo:
+    if artifact_bases and combo:
         for i in order:
             meta = parse_target_id(ids[i])
-            paths = artifact_paths(artifact_base, combo, meta)
+            paths = resolve_artifact_paths(artifact_bases, combo, meta)
             if Path(paths.get("overlay", "")).exists():
+                return ids[i]
+        for i in order:
+            meta = parse_target_id(ids[i])
+            paths = resolve_artifact_paths(artifact_bases, combo, meta)
+            if Path(paths.get("image", "")).exists():
+                return ids[i]
+    if raw_image_dir is not None:
+        for i in order:
+            meta = parse_target_id(ids[i])
+            if Path(raw_image_path(raw_image_dir, meta, raw_frame_scale)).exists():
                 return ids[i]
     return ids[order[0]]
 
@@ -133,10 +168,20 @@ def build_review_items(
             ("b", obj_b, proposal.get("candidate_b", "")),
         ):
             for rep_idx, tracklet in enumerate(choose_representative_tracklets(obj, tracklet_by_id, candidate, args.reps_per_side)):
-                target_id = representative_target(tracklet, candidate, args.artifact_base, args.combo)
+                artifact_bases = list(args.artifact_bases or [])
+                if args.artifact_base not in artifact_bases:
+                    artifact_bases.insert(0, args.artifact_base)
+                target_id = representative_target(
+                    tracklet,
+                    candidate,
+                    artifact_bases,
+                    args.combo,
+                    args.raw_image_dir,
+                    args.raw_frame_scale,
+                )
                 target_meta = parse_target_id(target_id)
-                paths = artifact_paths(args.artifact_base, args.combo, target_meta)
-                raw_path = raw_image_path(args.raw_image_dir, target_meta)
+                paths = resolve_artifact_paths(artifact_bases, args.combo, target_meta)
+                raw_path = raw_image_path(args.raw_image_dir, target_meta, args.raw_frame_scale)
                 copied = {}
                 if args.copy_assets:
                     asset_dir = args.output_dir / "assets" / f"proposal_{idx:03d}"
@@ -216,6 +261,13 @@ def write_outputs(items: list[dict], args: argparse.Namespace) -> None:
         f"- combo: `{args.combo}`",
         f"- copied assets: `{bool(args.copy_assets)}`",
         "",
+        "Scene context for human/VLM review:",
+        "",
+        "- The data is an incremental MANIFOLD/Mid360 rooftop scan.",
+        "- A high ratio of large roof/ground surface is expected and should not be treated as an error by itself.",
+        "- Review focus: railings, equipment boxes, thin metal structures, and boundaries where fine objects touch floor/wall surfaces.",
+        "- Common failure mode: coarse masks or labels merge railings/equipment into floor-like light brown/gray surface regions.",
+        "",
         "Review guidance:",
         "",
         "- `merge`: two objects are the same physical structure/object.",
@@ -231,6 +283,17 @@ def write_outputs(items: list[dict], args: argparse.Namespace) -> None:
             f"score `{p['score']:.3f}` priority `{p['review_priority']}` reps `{len(item['representatives'])}`"
         )
     md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    def jsonable(value):
+        if isinstance(value, Path):
+            return str(value)
+        if isinstance(value, list):
+            return [jsonable(v) for v in value]
+        if isinstance(value, tuple):
+            return [jsonable(v) for v in value]
+        if isinstance(value, dict):
+            return {k: jsonable(v) for k, v in value.items()}
+        return value
+
     report = {
         "proposal_jsonl": str(args.proposals),
         "objects_jsonl": str(args.objects),
@@ -256,7 +319,7 @@ def write_outputs(items: list[dict], args: argparse.Namespace) -> None:
                 if any(("copied_overlay" in rep or "copied_image" in rep or "copied_raw_image" in rep) for rep in item["representatives"])
             )
         ),
-        "params": {k: (str(v) if isinstance(v, Path) else v) for k, v in vars(args).items()},
+        "params": {k: jsonable(v) for k, v in vars(args).items()},
     }
     (args.output_dir / "cross_candidate_review_pack_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({"item_count": len(items), "output_dir": str(args.output_dir)}, indent=2))
@@ -269,7 +332,9 @@ def main() -> None:
     parser.add_argument("--tracklets", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--artifact-base", type=Path, default=Path("/root/epfs/manifold_3dgs_project/processed/semantic_eval_new_route_0000_0999_b"))
+    parser.add_argument("--artifact-bases", type=Path, nargs="*", default=[])
     parser.add_argument("--raw-image-dir", type=Path, default=Path("/root/epfs/manifold_3dgs_project/processed/images"))
+    parser.add_argument("--raw-frame-scale", type=int, default=10)
     parser.add_argument("--combo", default="sam2_prompt_v3_sky_label_merge_completion")
     parser.add_argument("--priority", choices=["high", "medium", "low", "all"], default="high")
     parser.add_argument("--max-items", type=int, default=20)

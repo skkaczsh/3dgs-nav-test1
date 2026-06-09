@@ -405,3 +405,22 @@ def test_cross_candidate_review_pack_parses_target_and_selects_representatives()
     reps = module.choose_representative_tracklets(obj, tracklets, "200002", 1)
 
     assert reps[0]["tracklet_id"] == "trk_b"
+
+
+def test_cross_candidate_review_pack_prefers_existing_artifact_and_scaled_raw(tmp_path):
+    module = load_module(SCRIPTS / "build_cross_candidate_review_pack.py", "review_pack_paths_for_repo_test")
+    artifact_a = tmp_path / "semantic_a"
+    artifact_b = tmp_path / "semantic_b"
+    raw_dir = tmp_path / "raw"
+    overlay_dir = artifact_a / "images" / "cam1_000189" / "combo"
+    overlay_dir.mkdir(parents=True)
+    (overlay_dir / "overlay.png").write_bytes(b"png")
+    raw_dir.mkdir()
+    (raw_dir / "cam1_001890.png").write_bytes(b"raw")
+
+    meta = module.parse_target_id("fine_t_000189_cam1_mask0023_sem16_cc00")
+    paths = module.resolve_artifact_paths([artifact_b, artifact_a], "combo", meta)
+    raw = module.raw_image_path(raw_dir, meta, frame_scale=10)
+
+    assert paths["overlay"].endswith("semantic_a/images/cam1_000189/combo/overlay.png")
+    assert raw.endswith("raw/cam1_001890.png")
