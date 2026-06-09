@@ -297,6 +297,34 @@ Strict QA interpretation:
   - `100122`: `1,233` points, span approximately `6.41m x 0.87m x 1.23m`, linearity `0.959`
 - The strict filtered PLY is the current best fine-object QA baseline for object-fusion testing.
 
+Fine-object fusion QA:
+
+- default output: `/root/epfs/new_route_stage1_skymask/accepted_fine_object_fusion_0000_0999_v008`
+- local copy: `/Users/skkac/Work/SCAN/server_accepted_fine_object_fusion_v008`
+- input strict candidates: `61`
+- input points: `42,467`
+- default fine objects: `42`
+- default merges: `19`
+- status counts:
+  - `stable_fine_object`: `13`
+  - `single_fine_candidate`: `29`
+
+Fine-object fusion parameter sweep:
+
+| Variant | Centroid | Cross-source centroid | BBox | Color | Objects | Merges |
+|---|---:|---:|---:|---:|---:|---:|
+| `default` | `0.90` | `0.45` | `0.25` | `45` | `42` | `19` |
+| `strict` | `0.60` | `0.30` | `0.10` | `35` | `44` | `17` |
+| `strict2` | `0.45` | `0.25` | `0.05` | `30` | `47` | `14` |
+| `strict3` | `0.30` | `0.20` | `0.02` | `25` | `50` | `11` |
+
+Fine-object fusion interpretation:
+
+- Object count is sensitive to merge thresholds.
+- The default fusion is useful as a QA view but can merge candidates with centroid distances around `2-3m` when bboxes overlap.
+- `strict2` is the current better baseline for conservative object-fusion testing.
+- This remains a spatial fine-object fusion QA because strict accepted PLYs do not yet carry frame/time metadata.
+
 Top ambiguous examples are listed in:
 
 - `/root/epfs/new_route_stage1_skymask/consolidated_object_qa_0000_0999/object_pipeline_qa_summary.json`
@@ -345,6 +373,7 @@ Use:
 6. Build a combined accepted fine-object QA PLY from:
    - hygiene fine-object candidate clusters
    - manual equipment fine-candidate subclusters
-7. Use `accepted_fine_object_strict_qa_0000_0999_v008` as the fine-object input for object-fusion testing.
-8. Keep `linear_edge_review`, `large_mixed_review`, and strict-demoted line-like candidates out of accepted object fusion until further split/relabel.
-9. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
+7. Use the `strict2` fine-object fusion parameters as the next conservative object-fusion baseline.
+8. Preserve frame/time metadata in the next accepted fine-object PLY so object fusion can become incremental instead of spatial-only.
+9. Keep `linear_edge_review`, `large_mixed_review`, and strict-demoted line-like candidates out of accepted object fusion until further split/relabel.
+10. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
