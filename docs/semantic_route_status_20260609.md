@@ -1,0 +1,130 @@
+# Semantic Route Status - 2026-06-09
+
+## Current Main Route
+
+Authoritative semantic point-cloud route:
+
+- `scripts/project_color.py`
+- `scripts/project_semantic.py`
+- `scripts/build_targets_from_masks.py`
+- `scripts/fuse_targets_to_objects.py`
+- `scripts/assign_residuals_to_surface_objects.py`
+- `scripts/build_consolidated_object_ply.py`
+
+Deprecated semantic correctness route:
+
+- `MT20260511-165822/semantic_pointcloud_pipeline/project_frame_local_semantics.py`
+- `transforms.json + project_world_points()` semantic projection branch
+
+The deprecated route remains useful only for visual colorization comparison.
+
+## 1000 Frame Dataset State
+
+2D semantic source:
+
+- combo: `sam2_prompt_v3_sky_label_merge_completion`
+- images: `3000 / 3000`
+- frames: `0-999`
+
+Correct-route semantic projection:
+
+- output: `/root/epfs/new_route_stage1_skymask/semantic_projection_0000_0999_completion_correct_route`
+- frames: `1000 / 1000`
+- average per-frame labeled ratio: `0.9434`
+- merged labeled ratio: `0.9406`
+
+Target/object fusion:
+
+- output: `/root/epfs/new_route_stage1_skymask/target_object_fusion_0000_0999/objects_status_fixed`
+- targets: `34,252`
+- objects: `2,978`
+- stable objects: `1,785`
+- ambiguous objects: `207`
+- single-target objects: `986`
+- merge ratio: `0.9131`
+
+Consolidated QA PLY:
+
+- output: `/root/epfs/new_route_stage1_skymask/consolidated_object_qa_0000_0999/consolidated_object_qa_0000_0999.ply`
+- validation: `ok`
+- points: `8,374,961`
+- target object points: `6,993,947`
+- absorbed residual points: `1,381,014`
+
+## Residual Absorption Findings
+
+Default surface absorption:
+
+- params: `bbox=0.35m, plane=0.12m, color=70`
+- residual points: `2,990,515`
+- absorbed points: `1,381,014`
+- absorbed ratio: `0.4618`
+- absorbed labels:
+  - `floor`: `1,240,766`
+  - `building`: `116,226`
+  - `wall`: `24,022`
+
+Parameter sweep:
+
+| Params | Absorbed | Ratio | Main remaining residual |
+|---|---:|---:|---|
+| `bbox=0.35, plane=0.12, color=70` | `1,381,014` | `0.4618` | building, floor, equipment |
+| `bbox=0.50, plane=0.12, color=90` | `1,462,531` | `0.4891` | building, floor, equipment |
+| `bbox=0.50, plane=0.20, color=90` | `1,529,355` | `0.5114` | building, floor, equipment |
+| `bbox=0.80, plane=0.20, color=110` | `1,595,225` | `0.5334` | building, floor, equipment |
+
+Interpretation:
+
+- Loosening surface thresholds mostly absorbs more `floor/building/wall`.
+- `equipment` and `railing` are not absorbed by surface rules because label compatibility blocks them.
+- A loose surface-absorption QA PLY is worth generating only after checking the current consolidated PLY in CloudCompare.
+
+## Current Bottlenecks
+
+1. Building/wall/floor ambiguity dominates large ambiguous objects.
+2. Large single-target objects indicate missed cross-frame object merge opportunities.
+3. Remaining equipment/railing residuals should not be solved by surface absorption; they need fine-object clustering/review.
+4. 2D-to-point coverage is already high enough for this stage, so the next gains should come from object fusion and residual absorption rules.
+
+Top ambiguous examples are listed in:
+
+- `/root/epfs/new_route_stage1_skymask/consolidated_object_qa_0000_0999/object_pipeline_qa_summary.json`
+
+## New Model Status
+
+ConceptSeg-R1/SAM3 smoke:
+
+- problem sample outputs: `40 / 40`
+- QA mean non-black ratio: `0.6649`
+- visual result: category responses exist but are not stable enough to replace SAM2 main route.
+
+Current use:
+
+- keep as second-stage fine-object candidate only.
+- do not replace `sam2_prompt_v3_sky_label_merge_completion` in the main pipeline yet.
+
+## Old Route Status
+
+Old world-fused visual color smoke on server:
+
+- sections: `8`
+- source points: `64,437`
+- fused points: `31,323`
+- colored points: `27,613`
+- colored ratio: `0.8816`
+
+Use:
+
+- valid as visual colorization comparison.
+- not valid as semantic correctness route.
+
+## Next Steps
+
+1. Inspect current consolidated QA PLY in CloudCompare.
+2. If surface regions look under-absorbed and fine objects are not being swallowed, generate a loose absorption QA variant with:
+   - `bbox=0.80`
+   - `plane=0.20`
+   - `color=110`
+3. Review top ambiguous large objects, especially floor/wall and building/railing conflicts.
+4. Add a fine-object residual path for equipment/railing instead of merging them into surfaces.
+5. Keep ConceptSeg-R1 as a small-sample second-stage experiment until it has stable binary masks.
