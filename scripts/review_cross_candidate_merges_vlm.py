@@ -15,23 +15,7 @@ from typing import Any
 import requests
 from PIL import Image
 
-
-SCENE_CONTEXT = """\
-You are reviewing object merge candidates from an incremental MANIFOLD/Mid360 rooftop scan.
-The scene is a rooftop. A large roof/ground surface ratio is expected and is not an error by itself.
-Important fine targets include railings, equipment boxes/cabinets, pipes/cables, thin metal structures, and boundaries where fine objects touch floor/wall surfaces.
-Common failure mode: coarse segmentation masks or labels merge railings/equipment into floor-like light brown/gray surface regions.
-"""
-
-
-DECISION_SCHEMA = {
-    "decision": "merge | keep_split | uncertain",
-    "confidence": 0.0,
-    "physical_relation": "same_object | adjacent_touching | overlapping_mask_only | different_objects | unclear",
-    "reason": "short explanation",
-    "evidence": ["brief visual evidence"],
-    "risk": "main risk if this decision is wrong",
-}
+from vlm_scene_prompt import merge_review_prompt
 
 
 def load_jsonl(path: Path) -> list[dict]:
@@ -63,35 +47,7 @@ def encode_image_data_url(path: Path, long_edge: int = 1280, jpeg_quality: int =
 
 
 def prompt_for_item(item: dict) -> str:
-    proposal = item["proposal"]
-    return f"""\
-{SCENE_CONTEXT}
-
-Task:
-Review whether the two long-range objects in this contact sheet should be merged into one physical object.
-The sheet contains representative segmentation overlays from object A and object B.
-Labels like a0/a1 belong to object A; b0/b1 belong to object B.
-
-Merge only if the visual evidence suggests the two sides are the same physical object or the same continuous structure.
-Keep split if they are merely near each other, touch at an edge, are both on the same roof surface, or are caused by a coarse mask covering nearby but distinct structures.
-Use uncertain if the image evidence is insufficient.
-
-Candidate metadata:
-- review_id: {item["review_id"]}
-- object_a: {proposal["object_a"]}
-- object_b: {proposal["object_b"]}
-- candidate_a: {proposal["candidate_a"]}
-- candidate_b: {proposal["candidate_b"]}
-- score: {proposal["score"]}
-- centroid_distance: {proposal.get("centroid_distance", "")}
-- bbox_distance: {proposal.get("bbox_distance", "")}
-- bbox_overlap_ratio: {proposal.get("bbox_overlap_ratio", "")}
-- color_distance: {proposal.get("color_distance", "")}
-- same_source_cluster: {proposal.get("same_source_cluster", "")}
-
-Return only strict JSON with this schema:
-{json.dumps(DECISION_SCHEMA, ensure_ascii=False)}
-"""
+    return merge_review_prompt(item)
 
 
 def extract_json(text: str) -> dict[str, Any]:
