@@ -41,12 +41,14 @@ readiness report:
 cd /Users/skkac/Work/SCAN/new_route
 
 python3 scripts/prepare_server_resume_commands.py
+python3 scripts/validate_server_resume_commands.py
 ```
 
 This writes:
 
 - `/Users/skkac/Work/SCAN/route_status_20260610/server_resume_commands.json`
 - `/Users/skkac/Work/SCAN/route_status_20260610/server_resume_commands.sh`
+- `/Users/skkac/Work/SCAN/route_status_20260610/server_resume_commands_validation.json`
 
 The generated shell plan runs the required main-route phases in order and only
 prints new-model / old-route side-track commands as optional follow-ups.

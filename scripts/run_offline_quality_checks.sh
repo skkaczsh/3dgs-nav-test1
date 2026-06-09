@@ -10,23 +10,28 @@ OFFLINE_QA_REPORT="${OFFLINE_QA_REPORT:-/Users/skkac/Work/SCAN/route_status_2026
 
 cd "${ROOT_DIR}"
 
-echo "[1/5] Python compile check"
+echo "[1/6] Python compile check"
 python3 -m py_compile scripts/*.py
 
-echo "[2/5] Sensitive token scan"
+echo "[2/6] Sensitive token scan"
 python3 scripts/scan_sensitive_tokens.py --root .
 
-echo "[3/5] Remote runner dependency audit"
+echo "[3/6] Remote runner dependency audit"
 python3 scripts/audit_runner_dependencies.py --scripts-dir scripts
 
-echo "[4/5] Review delivery package verification"
+echo "[4/6] Review delivery package verification"
 if [[ "${RUN_DELIVERY_CHECK}" == "1" ]]; then
   python3 scripts/verify_review_delivery_manifest.py --zip-path "${DELIVERY_ZIP}"
 else
   echo "skipped: RUN_DELIVERY_CHECK=${RUN_DELIVERY_CHECK}"
 fi
 
-echo "[5/5] Core offline pytest suite"
+echo "[5/6] Server resume command plan validation"
+python3 scripts/prepare_server_resume_commands.py
+python3 scripts/validate_server_resume_commands.py \
+  --report /Users/skkac/Work/SCAN/route_status_20260610/server_resume_commands_validation.json
+
+echo "[6/6] Core offline pytest suite"
 pytest -q \
   tests/test_audit_runner_dependencies.py \
   tests/test_offline_quality_runner.py \
@@ -35,6 +40,7 @@ pytest -q \
   tests/test_route_status_summary.py \
   tests/test_scan_sensitive_tokens.py \
   tests/test_target_object_fusion.py \
+  tests/test_validate_server_resume_commands.py \
   tests/test_vlm_scene_prompt.py \
   tests/test_patch_semantic_eval_scene_prompts.py
 
@@ -65,6 +71,7 @@ report = {
         "sensitive_token_scan",
         "remote_runner_dependency_audit",
         "review_delivery_package_verification" if run_delivery_check == "1" else "review_delivery_package_verification_skipped",
+        "server_resume_command_plan_validation",
         "core_offline_pytest",
     ],
 }
