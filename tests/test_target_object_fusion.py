@@ -503,3 +503,56 @@ def test_vlm_merge_review_resizes_image_data_url(tmp_path):
 
     assert data_url.startswith("data:image/jpeg;base64,")
     assert max(resized.size) == 100
+
+
+def _review_object(object_id, centroid, points=10):
+    c = np.array(centroid, dtype=float)
+    return {
+        "long_object_id": object_id,
+        "label": "equipment",
+        "point_count": points,
+        "tracklet_ids": [f"trk_{object_id}"],
+        "tracklet_count": 1,
+        "target_count": 2,
+        "frame_min": 1,
+        "frame_max": 3,
+        "frame_count": 3,
+        "bbox_3d": {"min": (c - 0.1).tolist(), "max": (c + 0.1).tolist()},
+        "centroid": c.tolist(),
+        "mean_color": [10, 20, 30],
+        "accepted_candidate_votes": {object_id: points},
+        "source_cluster_votes": {"1": points},
+        "status": "stable_long_object",
+    }
+
+
+def test_apply_cross_candidate_reviews_merges_only_accepted_pairs():
+    module = load_module(SCRIPTS / "apply_cross_candidate_merge_reviews.py", "apply_reviews_for_repo_test")
+    objects = [
+        _review_object("long_obj_0001", [0, 0, 0], points=10),
+        _review_object("long_obj_0002", [1, 0, 0], points=20),
+        _review_object("long_obj_0003", [5, 0, 0], points=30),
+    ]
+    reviews = [
+        {
+            "review_id": "r1",
+            "object_a": "long_obj_0001",
+            "object_b": "long_obj_0002",
+            "vlm": {"decision": "merge", "confidence": 0.9},
+        },
+        {
+            "review_id": "r2",
+            "object_a": "long_obj_0002",
+            "object_b": "long_obj_0003",
+            "vlm": {"decision": "merge", "confidence": 0.2},
+        },
+    ]
+
+    merged, decisions = module.apply_reviews(objects, reviews, min_confidence=0.75)
+    groups = sorted(row["source_long_object_ids"] for row in merged)
+
+    assert len(merged) == 2
+    assert ["long_obj_0001", "long_obj_0002"] in groups
+    assert ["long_obj_0003"] in groups
+    assert [d["accepted"] for d in decisions] == [True, False]
+    assert max(row["point_count"] for row in merged) == 30
