@@ -826,3 +826,27 @@ def test_summarize_route_status_renders_blocker_and_side_tracks(tmp_path):
     assert status["connectivity"]["all_reachable"] is False
     assert "ConceptSeg-R1" in markdown
     assert "Qwen review ready: `False`" in markdown
+
+
+def test_append_route_status_snapshot_writes_history(tmp_path):
+    module = load_module(SCRIPTS / "append_route_status_snapshot.py", "route_snapshot_for_repo_test")
+    status = {
+        "connectivity": {"all_reachable": False},
+        "main_route": {
+            "stage_status": {"qwen_review_ready": False, "review_pack_ready": True, "contact_sheets_ready": True, "manual_html_ready": True, "pending_apply_safe": True},
+            "manual_workflow_pending": {"manual_review_count": 0, "accepted_merge_count": 0, "input_object_count": 66, "output_object_count": 66},
+            "manual_merge_qa": {"passed": True, "input_point_count": 1, "output_point_count": 1},
+        },
+        "delivery": {"file_count": 21, "missing": []},
+        "new_model_side_track": {"status": "side_track_only"},
+        "old_route_side_track": {"status": "visual_reference_only"},
+    }
+    status_path = tmp_path / "status.json"
+    history = tmp_path / "history.jsonl"
+    status_path.write_text(json.dumps(status), encoding="utf-8")
+
+    snapshot = module.append_snapshot(status_path, history, "2026-06-10T00:00:00+00:00")
+
+    assert snapshot["all_servers_reachable"] is False
+    assert snapshot["delivery_missing_count"] == 0
+    assert len(history.read_text().splitlines()) == 1
