@@ -664,3 +664,45 @@ def test_qa_reviewed_merge_results_checks_invariants():
     assert report["passed"] is True
     assert bad_report["passed"] is False
     assert bad_report["checks"]["point_count_preserved"] is False
+
+
+def test_summarize_cross_candidate_review_stage_marks_missing_qwen(tmp_path):
+    module = load_module(SCRIPTS / "summarize_cross_candidate_review_stage.py", "summary_review_stage_for_repo_test")
+    pack = tmp_path / "pack"
+    (pack / "contact_sheets").mkdir(parents=True)
+    (pack / "review_html").mkdir()
+    (pack / "manual_review_normalized").mkdir()
+    (pack / "manual_workflow_pending" / "applied").mkdir(parents=True)
+    (pack / "cross_candidate_review_items.jsonl").write_text("{}\n", encoding="utf-8")
+    (pack / "cross_candidate_review_pack_report.json").write_text(
+        json.dumps({"item_count": 1, "items_with_any_image": 1, "copied_overlay_count": 1}),
+        encoding="utf-8",
+    )
+    (pack / "contact_sheets" / "contact_sheet_report.json").write_text(
+        json.dumps({"sheet_count": 1}),
+        encoding="utf-8",
+    )
+    (pack / "review_html" / "review_html_report.json").write_text(
+        json.dumps({"html": "index.html", "decision_template": "manual.csv"}),
+        encoding="utf-8",
+    )
+    (pack / "manual_review_normalized" / "manual_merge_review_report.json").write_text("{}", encoding="utf-8")
+    (pack / "manual_workflow_pending" / "manual_merge_workflow_report.json").write_text(
+        json.dumps({"manual_review_count": 0, "manual_error_count": 1, "input_object_count": 2, "output_object_count": 2, "accepted_merge_count": 0}),
+        encoding="utf-8",
+    )
+    (pack / "manual_workflow_pending" / "applied" / "review_merge_report.json").write_text(
+        json.dumps({"accepted_merge_count": 0, "objects_path": "objects.jsonl"}),
+        encoding="utf-8",
+    )
+    (pack / "manual_workflow_pending" / "qa_reviewed_merge_report.json").write_text(
+        json.dumps({"passed": True}),
+        encoding="utf-8",
+    )
+
+    summary = module.build_summary(pack)
+    markdown = module.render_markdown(summary)
+
+    assert summary["stage_status"]["review_pack_ready"] is True
+    assert summary["stage_status"]["qwen_review_ready"] is False
+    assert "run_manual_merge_review_workflow.py" in markdown
