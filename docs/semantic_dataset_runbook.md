@@ -56,9 +56,15 @@ server state as authority when numbers differ.
   - Trigger: split C final combo reaches `913/913`.
   - Actions: stop Qwen on port `8003`, then run `scripts/run_server_conceptseg_smoke.sh`.
   - Default inference entry: `conceptseg_inference_single_example_sdpa.py`.
-  - Known blocker: ConceptSeg-R1 internally needs access to gated HuggingFace
-    repo `facebook/sam3`. Without an authorized HF token/login, the smoke test
-    stops at SAM3 config download even after local dependencies are fixed.
+  - Hugging Face auth must be configured locally on each server; never commit
+    or document the token value. Store it in `~/.cache/huggingface/token` and
+    `~/.huggingface/token` with `0600` permissions.
+  - HF cache must live on EPFS. `scripts/run_server_conceptseg_smoke.sh`
+    defaults to `HF_HOME=/root/epfs/hf_home` and
+    `HUGGINGFACE_HUB_CACHE=/root/epfs/hf_home/hub`.
+  - Do not use the root filesystem for SAM3 downloads. A failed download under
+    `/root/.cache/huggingface/hub/models--facebook--sam3` previously filled the
+    50GB root overlay.
 
 ## Verified Preflight
 
@@ -78,7 +84,9 @@ server state as authority when numbers differ.
   - Added an SDPA smoke entry to avoid hard-required `flash_attn`.
   - Added repo-local SAM3 path bootstrap to avoid namespace-package import
     issues.
-  - Remaining blocker is gated `facebook/sam3` access.
+  - After configuring authorized Hugging Face credentials and moving HF cache
+    to EPFS, `LIMIT=1` smoke succeeded on scan-vlm:
+    `/root/epfs/new_route_stage1_skymask/conceptseg_smoke_hfhome_20260609_101800/cam0_000000_floor.png`.
 - Local tests:
   - New route: `python3 -m pytest -q tests/test_new_route_scripts.py new_route/tests/test_target_object_fusion.py`
   - Old route baseline: `PYTHONPATH=/Users/skkac/Work/SCAN/MT20260511-165822 python3 -m pytest -q MT20260511-165822/tests/test_projection.py MT20260511-165822/tests/test_backproject.py MT20260511-165822/tests/test_merge.py`
