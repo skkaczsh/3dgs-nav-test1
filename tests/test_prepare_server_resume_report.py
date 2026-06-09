@@ -37,6 +37,8 @@ def test_resume_report_marks_ready_when_local_artifacts_exist(tmp_path: Path):
                 "delivery_missing_count": 0,
                 "resume_command_plan_passed": True,
                 "resume_command_plan_error_count": 0,
+                "resume_outputs_passed": False,
+                "resume_outputs_blocker_count": 1,
             }
         ),
         encoding="utf-8",
@@ -61,6 +63,8 @@ def test_resume_report_marks_ready_when_local_artifacts_exist(tmp_path: Path):
     assert report["offline_qa"]["git_head"] == "abc1234"
     assert report["latest_snapshot"]["resume_command_plan_passed"] is True
     assert report["latest_snapshot"]["resume_command_plan_error_count"] == 0
+    assert report["latest_snapshot"]["resume_outputs_passed"] is False
+    assert report["latest_snapshot"]["resume_outputs_blocker_count"] == 1
     assert any("prepare_server_resume_commands.py" in command for command in report["resume_commands"])
     assert any("resume_server_qwen_review.sh" in command for command in report["resume_commands"])
 

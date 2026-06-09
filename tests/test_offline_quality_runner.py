@@ -29,5 +29,8 @@ def test_offline_quality_runner_covers_core_checks():
     assert "tests/test_route_status_summary.py" in script
     assert "tests/test_scan_sensitive_tokens.py" in script
     assert "tests/test_validate_server_resume_commands.py" in script
+    assert "tests/test_validate_server_resume_outputs.py" in script
     assert "validate_server_resume_commands.py" in script
+    assert "validate_server_resume_outputs.py" in script
     assert "server_resume_command_plan_validation" in script
+    assert "server_resume_output_validation_non_strict" in script

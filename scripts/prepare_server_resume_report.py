@@ -54,6 +54,8 @@ def build_report(args: argparse.Namespace) -> dict:
             "offline_qa_git_head": latest.get("offline_qa_git_head"),
             "resume_command_plan_passed": latest.get("resume_command_plan_passed"),
             "resume_command_plan_error_count": latest.get("resume_command_plan_error_count"),
+            "resume_outputs_passed": latest.get("resume_outputs_passed"),
+            "resume_outputs_blocker_count": latest.get("resume_outputs_blocker_count"),
             "review_pack_ready": latest.get("review_pack_ready"),
             "delivery_file_count": latest.get("delivery_file_count"),
             "delivery_missing_count": latest.get("delivery_missing_count"),

@@ -28,6 +28,8 @@ def build_status(args: argparse.Namespace) -> dict:
     offline_qa = read_json(offline_qa_report) if offline_qa_report else {}
     resume_command_validation_report = getattr(args, "resume_command_validation", None)
     resume_command_validation = read_json(resume_command_validation_report) if resume_command_validation_report else {}
+    resume_output_validation_report = getattr(args, "resume_output_validation", None)
+    resume_output_validation = read_json(resume_output_validation_report) if resume_output_validation_report else {}
     return {
         "connectivity": connectivity,
         "offline_qa": {
@@ -44,6 +46,13 @@ def build_status(args: argparse.Namespace) -> dict:
             "warnings": resume_command_validation.get("warnings", []),
             "phase_ids": resume_command_validation.get("phase_ids", []),
             "required_local_scripts": resume_command_validation.get("required_local_scripts", []),
+        },
+        "server_resume_outputs": {
+            "validation_report": str(resume_output_validation_report) if resume_output_validation_report else "",
+            "passed": resume_output_validation.get("passed"),
+            "blockers": resume_output_validation.get("blockers", []),
+            "next_gate": resume_output_validation.get("next_gate"),
+            "checks": resume_output_validation.get("checks", []),
         },
         "main_route": {
             "stage_summary": str(args.stage_summary),
@@ -85,6 +94,7 @@ def render_markdown(status: dict) -> str:
     conn = status["connectivity"]
     offline_qa = status.get("offline_qa", {})
     resume_plan = status.get("server_resume_command_plan", {})
+    resume_outputs = status.get("server_resume_outputs", {})
     stage = status["main_route"]["stage_status"]
     delivery = status["delivery"]
     qa = status["main_route"].get("manual_merge_qa", {})
@@ -118,6 +128,12 @@ def render_markdown(status: dict) -> str:
             f"- phase order: `{resume_plan.get('phase_ids')}`",
             f"- errors: `{resume_plan.get('errors')}`",
             f"- warnings: `{resume_plan.get('warnings')}`",
+            "",
+            "## Server Resume Outputs",
+            "",
+            f"- validation passed: `{resume_outputs.get('passed')}`",
+            f"- blockers: `{resume_outputs.get('blockers')}`",
+            f"- next gate: `{resume_outputs.get('next_gate')}`",
             "",
             "## Main Route",
             "",
@@ -160,6 +176,7 @@ def main() -> None:
     parser.add_argument("--old-route-summary", type=Path, required=True)
     parser.add_argument("--offline-qa-report", type=Path, default=None)
     parser.add_argument("--resume-command-validation", type=Path, default=None)
+    parser.add_argument("--resume-output-validation", type=Path, default=None)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
 

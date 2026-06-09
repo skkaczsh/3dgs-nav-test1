@@ -22,12 +22,15 @@ def compact(status: dict, timestamp: str) -> dict:
     delivery = status.get("delivery", {})
     offline_qa = status.get("offline_qa", {})
     resume_plan = status.get("server_resume_command_plan", {})
+    resume_outputs = status.get("server_resume_outputs", {})
     return {
         "timestamp": timestamp,
         "offline_qa_passed": offline_qa.get("passed"),
         "offline_qa_git_head": offline_qa.get("git_head"),
         "resume_command_plan_passed": resume_plan.get("passed"),
         "resume_command_plan_error_count": len(resume_plan.get("errors", [])),
+        "resume_outputs_passed": resume_outputs.get("passed"),
+        "resume_outputs_blocker_count": len(resume_outputs.get("blockers", [])),
         "all_servers_reachable": connectivity.get("all_reachable"),
         "qwen_review_ready": stage.get("qwen_review_ready"),
         "review_pack_ready": stage.get("review_pack_ready"),

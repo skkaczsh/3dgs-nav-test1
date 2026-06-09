@@ -53,6 +53,19 @@ This writes:
 The generated shell plan runs the required main-route phases in order and only
 prints new-model / old-route side-track commands as optional follow-ups.
 
+After the generated shell plan finishes, validate the resulting local artifacts:
+
+```bash
+python3 scripts/validate_server_resume_outputs.py --strict
+```
+
+This writes:
+
+- `/Users/skkac/Work/SCAN/route_status_20260610/server_resume_output_validation.json`
+
+`--strict` should pass before treating the 0-999 dataset as ready for the new
+model side track or renewed old-route comparison.
+
 Run after server connectivity returns:
 
 ```bash
