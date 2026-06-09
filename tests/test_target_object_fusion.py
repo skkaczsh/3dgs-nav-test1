@@ -587,3 +587,28 @@ def test_cross_candidate_review_html_writes_template_and_context(tmp_path):
     assert "rooftop scan" in html_text
     assert "../sheets/review_001_contact_sheet.jpg" in html_text
     assert "merge</code>" in html_text
+
+
+def test_normalize_manual_merge_decisions_validates_rows(tmp_path):
+    module = load_module(SCRIPTS / "normalize_manual_merge_decisions.py", "normalize_manual_review_for_repo_test")
+    review_jsonl = tmp_path / "items.jsonl"
+    review_jsonl.write_text(
+        '{"review_id":"review_001","proposal":{"object_a":"long_obj_0001","object_b":"long_obj_0002","candidate_a":"200001","candidate_b":"200002"}}\n'
+        '{"review_id":"review_002","proposal":{"object_a":"long_obj_0003","object_b":"long_obj_0004","candidate_a":"200003","candidate_b":"200004"}}\n',
+        encoding="utf-8",
+    )
+    csv_path = tmp_path / "manual.csv"
+    csv_path.write_text(
+        "review_id,object_a,object_b,decision,confidence,reviewer,notes\n"
+        "review_001,long_obj_0001,long_obj_0002,merge,0.8,skk,same railing\n"
+        "review_002,long_obj_0003,long_obj_0004,pending,,,\n"
+        "review_003,long_obj_0005,long_obj_0006,bad,0.5,,\n",
+        encoding="utf-8",
+    )
+
+    rows, errors = module.normalize(csv_path, review_jsonl)
+
+    assert len(rows) == 1
+    assert rows[0]["vlm"]["decision"] == "merge"
+    assert rows[0]["vlm"]["confidence"] == 0.8
+    assert [e["error"] for e in errors] == ["pending", "unknown_review_id"]
