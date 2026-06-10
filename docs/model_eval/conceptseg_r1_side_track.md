@@ -39,6 +39,22 @@ Current status:
 - Smoke output:
   - server: `/root/epfs/model_side_tracks/ConceptSeg-R1/example_images/outputs_scan_smoke/scan_smoke_railing_or_thin_metal_structure.png`
   - local: `/Users/skkac/Work/SCAN/server_conceptseg_r1_smoke/scan_smoke_railing_or_thin_metal_structure.png`
+- Problem40 structured QA:
+  - script: `/Users/skkac/Work/SCAN/new_route/scripts/analyze_conceptseg_problem_outputs.py`
+  - local report: `/Users/skkac/Work/SCAN/server_conceptseg_problem40/conceptseg_problem40_structured_qa.json`
+  - outputs copied locally under: `/Users/skkac/Work/SCAN/server_conceptseg_problem40/outputs`
+  - items: `40 / 40` succeeded
+  - inference modes: `sam3=26`, `mllm=14`
+  - average red-overlay ratio:
+    - floor: `0.2813`, with `5 / 10` over-large masks
+    - wall: `0.0447`
+    - railing: `0.0869`, with `1 / 10` over-large masks
+    - equipment: `0.0456`
+  - answer stability:
+    - equipment answers include `equipment`, `barrel`, `pipe`, `crane`,
+      `aircon`, and `debris`
+    - railing answers include both `rail` and `railing`
+    - floor/wall often return empty answer text when using direct SAM3 mode
 
 Smoke interpretation:
 
@@ -46,6 +62,11 @@ Smoke interpretation:
 - The smoke response to `railing or thin metal structure` produced a non-empty mask, but the model response labeled the target as `wall` and visually selected the blue bird-house region rather than the intended thin metal support.
 - This reinforces the current decision: ConceptSeg-R1 is a side-track candidate for constrained second-stage review, not a replacement for `sam2_prompt_v3_sky_label_merge_completion`.
 - Next useful test should use our own problem crops with reference boxes/masks, not only the public example image.
+- Problem40 confirms the same direction: ConceptSeg-R1 can produce useful
+  constrained masks for some equipment/railing prompts, but broad surface
+  prompts and free-text answers are not stable enough for automatic dense
+  semantic production. Keep it as a second-stage candidate generator for
+  reviewed fine-object crops.
 
 References:
 
