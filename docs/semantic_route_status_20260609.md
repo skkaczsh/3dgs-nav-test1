@@ -762,3 +762,40 @@ Interpretation:
 - Remaining errors require applying the same surface-first logic before final
   PLY export, ideally on target/residual/frame evidence where mask, camera, and
   frame provenance are still available.
+
+## Dataset Delivery Manifest
+
+The 0-999 dataset now has a single local delivery manifest that links the main
+route outputs, surface-first QA, ConceptSeg-R1 side-track QA, and old-route
+visual reference artifacts.
+
+Manifest:
+
+- JSON:
+  `/Users/skkac/Work/SCAN/route_status_20260610/dataset_delivery_manifest_0000_0999.json`
+- Markdown:
+  `/Users/skkac/Work/SCAN/route_status_20260610/dataset_delivery_manifest_0000_0999.md`
+- validation:
+  `/Users/skkac/Work/SCAN/route_status_20260610/dataset_delivery_manifest_0000_0999_validation.json`
+
+Validation:
+
+- manifest passed: `true`
+- required file count: `17`
+- validation errors: `[]`
+
+Recommended viewer inputs:
+
+- `/Users/skkac/Work/SCAN/server_surface_first_subcluster_qa_0000_0999/object_points_surface_first_subcluster_voxel004.ply`
+- `/Users/skkac/Work/SCAN/server_resume_target_object_fusion_0000_0999/objects/object_points_latest_stride10.ply`
+
+Dataset status:
+
+- semantic combo: `sam2_prompt_v3_sky_label_merge_completion`
+- projection route: `img_pos.txt + cam_in_ex.txt + Tcl + Til`
+- delivery status: `ready_for_reviewed_side_tracks`
+- fine-object baseline:
+  - frame targets: `3,164`
+  - gap60 tracklets: `328`
+  - same-candidate loose long objects: `66`
+  - reviewed long objects after Qwen merge review: `62`
