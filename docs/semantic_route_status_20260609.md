@@ -698,3 +698,67 @@ Interpretation:
 - Existing copied overlays are adequate for a first manual/VLM review pass, but a full visual review should either:
   - regenerate missing semantic artifacts for representative frames, or
   - use original image paths plus target metadata to crop/re-run segmentation on demand.
+
+## Surface-First Subcluster QA Baseline
+
+Surface-first relabeling was added as a QA baseline for the early
+`target_object_fusion_0000_0999` object PLY. This is not a replacement for the
+v008 frame-target/tracklet route; it is a diagnostic pass for separating large
+surface contamination from fine-object labels in the existing 0-999 fused PLY.
+
+Scripts:
+
+- `scripts/surface_first_relabel_object_ply.py`
+- `scripts/surface_first_subcluster_relabel_object_ply.py`
+- `scripts/run_server_surface_first_subcluster_qa.sh`
+- `scripts/run_remote_server_surface_first_subcluster_qa.sh`
+
+Remote run:
+
+- server: `scan-train`
+- source PLY:
+  `/root/epfs/new_route_stage1_skymask/target_object_fusion_0000_0999/objects/object_centroids.ply`
+- output:
+  `/root/epfs/new_route_stage1_skymask/surface_first_subcluster_qa_0000_0999`
+- local copy:
+  `/Users/skkac/Work/SCAN/server_surface_first_subcluster_qa_0000_0999`
+
+Artifacts:
+
+- full PLY:
+  `/root/epfs/new_route_stage1_skymask/surface_first_subcluster_qa_0000_0999/object_points_surface_first_subcluster.ply`
+- local quick PLY:
+  `/Users/skkac/Work/SCAN/server_surface_first_subcluster_qa_0000_0999/object_points_surface_first_subcluster_voxel004.ply`
+- report:
+  `/Users/skkac/Work/SCAN/server_surface_first_subcluster_qa_0000_0999/surface_first_subcluster_report.json`
+- preview:
+  `/Users/skkac/Work/SCAN/server_surface_first_subcluster_qa_0000_0999/object_points_surface_first_subcluster_xy.png`
+
+Result:
+
+- objects: `2,978`
+- chunks: `24,410`
+- points: `6,993,947`
+- changed points: `499,030`
+- changed ratio: `0.07135`
+- label counts after relabel:
+  - unknown: `626,860`
+  - floor: `5,241,767`
+  - wall: `267,734`
+  - equipment: `166,056`
+  - building: `652,686`
+  - other: `15,830`
+  - railing: `21,461`
+  - tree: `344`
+  - grass: `1,184`
+  - person: `25`
+
+Interpretation:
+
+- The subcluster pass reduces equipment-colored surface contamination
+  substantially (`385,641 -> 166,056`) while preserving most rooftop floor.
+- It is more conservative than whole-object surface-first relabeling and is
+  better suited as a QA baseline for visual inspection.
+- Remaining errors require applying the same surface-first logic before final
+  PLY export, ideally on target/residual/frame evidence where mask, camera, and
+  frame provenance are still available.
