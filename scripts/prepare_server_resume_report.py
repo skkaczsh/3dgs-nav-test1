@@ -73,10 +73,10 @@ def build_report(args: argparse.Namespace) -> dict:
         "resume_commands": [
             "python3 scripts/prepare_server_resume_commands.py",
             "python3 scripts/diagnose_server_connectivity.py --output /Users/skkac/Work/SCAN/server_connectivity_diagnosis_20260610_latest.json",
-            "BIND_ADDRESS=192.168.0.3 SERVER=scan-train CONCURRENCY=4 bash scripts/resume_server_qwen_review.sh",
-            "PATCH_SCENE_PROMPTS=1 SHARDS=4 bash scripts/run_server_semantic_completion_sharded.sh",
-            "BIND_ADDRESS=192.168.0.3 SERVER=scan-train bash scripts/run_server_dataset_readiness.sh",
-            "MIN_MERGE_CONFIDENCE=0.5 bash scripts/run_server_target_object_fusion.sh",
+            "BIND_ADDRESS=192.168.100.125 SERVER=scan-train CONCURRENCY=4 bash scripts/resume_server_qwen_review.sh",
+            "BIND_ADDRESS=192.168.100.125 SERVER=scan-train PATCH_SCENE_PROMPTS=1 SHARDS=4 bash scripts/run_remote_server_semantic_completion_sharded.sh",
+            "BIND_ADDRESS=192.168.100.125 SERVER=scan-train bash scripts/run_server_dataset_readiness.sh",
+            "BIND_ADDRESS=192.168.100.125 SERVER=scan-train MIN_MERGE_CONFIDENCE=0.5 bash scripts/run_remote_server_target_object_fusion.sh",
             "python3 scripts/validate_server_resume_outputs.py --strict",
         ],
         "notes": [

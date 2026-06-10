@@ -53,9 +53,13 @@ This writes:
 The generated shell plan runs the required main-route phases in order, runs
 strict output validation, and only then prints new-model / old-route side-track
 commands as optional follow-ups.
-It also runs `scripts/run_server_dataset_readiness.sh` after the scene-aware
-semantic refresh so strict output validation has the required dataset readiness
-input.
+The semantic refresh and target/object fusion phases use remote wrappers that
+sync local `scripts/` to `/root/epfs/new_route_scripts` and execute the
+`/root/epfs/...` workload on `scan-train`; do not run the lower-level
+`run_server_semantic_completion_sharded.sh` or
+`run_server_target_object_fusion.sh` directly on the laptop. The plan also runs
+`scripts/run_server_dataset_readiness.sh` after the scene-aware semantic refresh
+so strict output validation has the required dataset readiness input.
 
 The strict validation step is already included in the generated shell plan. It
 can also be rerun manually after inspecting or replacing artifacts:

@@ -26,9 +26,9 @@ def make_repo(tmp_path: Path) -> Path:
     for name in [
         "diagnose_server_connectivity.py",
         "resume_server_qwen_review.sh",
-        "run_server_semantic_completion_sharded.sh",
+        "run_remote_server_semantic_completion_sharded.sh",
         "run_server_dataset_readiness.sh",
-        "run_server_target_object_fusion.sh",
+        "run_remote_server_target_object_fusion.sh",
         "validate_server_resume_outputs.py",
     ]:
         (scripts / name).write_text("# ok\n", encoding="utf-8")
@@ -64,7 +64,7 @@ def valid_plan() -> dict:
                 "commands": [
                     {
                         "name": "semantic_completion_sharded",
-                        "command": "PATCH_SCENE_PROMPTS=1 SHARDS=4 bash scripts/run_server_semantic_completion_sharded.sh",
+                        "command": "BIND_ADDRESS=192.168.100.125 SERVER=scan-train PATCH_SCENE_PROMPTS=1 SHARDS=4 bash scripts/run_remote_server_semantic_completion_sharded.sh",
                         "required": True,
                     }
                 ],
@@ -79,7 +79,7 @@ def valid_plan() -> dict:
                     },
                     {
                         "name": "target_object_fusion",
-                        "command": "MIN_MERGE_CONFIDENCE=0.5 bash scripts/run_server_target_object_fusion.sh",
+                        "command": "BIND_ADDRESS=192.168.100.125 SERVER=scan-train MIN_MERGE_CONFIDENCE=0.5 bash scripts/run_remote_server_target_object_fusion.sh",
                         "required": True,
                     }
                 ],
@@ -127,9 +127,9 @@ def test_validate_resume_commands_accepts_valid_plan(tmp_path: Path):
             [
                 "python3 scripts/diagnose_server_connectivity.py",
                 "bash scripts/resume_server_qwen_review.sh",
-                "bash scripts/run_server_semantic_completion_sharded.sh",
+                "bash scripts/run_remote_server_semantic_completion_sharded.sh",
                 "bash scripts/run_server_dataset_readiness.sh",
-                "bash scripts/run_server_target_object_fusion.sh",
+                "bash scripts/run_remote_server_target_object_fusion.sh",
                 "python3 scripts/validate_server_resume_outputs.py --strict",
                 "[optional] conceptseg_status",
                 "[optional] old_route_smoke_status",

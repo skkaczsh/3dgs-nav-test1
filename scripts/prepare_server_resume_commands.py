@@ -41,16 +41,16 @@ def build_plan(args: argparse.Namespace) -> dict:
         "bash scripts/resume_server_qwen_review.sh"
     )
     semantic_cmd = (
-        f"PATCH_SCENE_PROMPTS=1 SHARDS={args.semantic_shards} "
-        "bash scripts/run_server_semantic_completion_sharded.sh"
+        f"{bind_prefix}SERVER={shlex.quote(args.server)} PATCH_SCENE_PROMPTS=1 SHARDS={args.semantic_shards} "
+        "bash scripts/run_remote_server_semantic_completion_sharded.sh"
     )
     dataset_readiness_cmd = (
         f"{bind_prefix}SERVER={shlex.quote(args.server)} "
         "bash scripts/run_server_dataset_readiness.sh"
     )
     fusion_cmd = (
-        f"MIN_MERGE_CONFIDENCE={args.min_merge_confidence} "
-        "bash scripts/run_server_target_object_fusion.sh"
+        f"{bind_prefix}SERVER={shlex.quote(args.server)} MIN_MERGE_CONFIDENCE={args.min_merge_confidence} "
+        "bash scripts/run_remote_server_target_object_fusion.sh"
     )
     output_validation_cmd = "python3 scripts/validate_server_resume_outputs.py --strict"
 
@@ -208,7 +208,7 @@ def main() -> None:
     parser.add_argument("--output-json", type=Path, default=DEFAULT_OUTPUT_JSON)
     parser.add_argument("--output-shell", type=Path, default=DEFAULT_OUTPUT_SH)
     parser.add_argument("--server", default="scan-train")
-    parser.add_argument("--bind-address", default="192.168.0.3")
+    parser.add_argument("--bind-address", default="192.168.100.125")
     parser.add_argument("--qwen-concurrency", type=int, default=4)
     parser.add_argument("--semantic-shards", type=int, default=4)
     parser.add_argument("--min-merge-confidence", type=float, default=0.5)

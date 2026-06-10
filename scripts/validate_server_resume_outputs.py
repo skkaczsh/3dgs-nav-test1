@@ -128,7 +128,7 @@ def main() -> None:
     parser.add_argument("--qwen-report", type=Path, default=Path("/Users/skkac/Work/SCAN/server_frame_fine_cross_candidate_review_pack_v008_v2/vlm_review_qwen_compact/vlm_merge_review_report.json"))
     parser.add_argument("--reviewed-merge-qa", type=Path, default=Path("/Users/skkac/Work/SCAN/server_frame_fine_cross_candidate_review_pack_v008_v2/vlm_review_qwen_compact_applied/qa_reviewed_merge_report.json"))
     parser.add_argument("--dataset-readiness", type=Path, default=Path("/Users/skkac/Work/SCAN/route_status_20260610/server_dataset_readiness_0000_0999.json"))
-    parser.add_argument("--target-object-qa", type=Path, default=Path("/Users/skkac/Work/SCAN/server_target_object_existing_completion_0000_0999/target_object_qa.json"))
+    parser.add_argument("--target-object-qa", type=Path, default=Path("/Users/skkac/Work/SCAN/server_resume_target_object_fusion_0000_0999/reports/target_object_qa.json"))
     parser.add_argument("--command-plan-validation", type=Path, default=Path("/Users/skkac/Work/SCAN/route_status_20260610/server_resume_commands_validation.json"))
     parser.add_argument("--conceptseg-report", type=Path, default=Path("/Users/skkac/Work/SCAN/new_route/docs/model_eval/conceptseg_r1_side_track.md"))
     parser.add_argument("--old-route-summary", type=Path, default=Path("/Users/skkac/Work/SCAN/server_old_route_smoke/world_colorize_summary.json"))
