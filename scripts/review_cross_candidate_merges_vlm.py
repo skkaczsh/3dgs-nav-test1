@@ -233,7 +233,7 @@ def main() -> None:
     parser.add_argument("--model", default="Qwen3.6-35B-A3B-Q4_K_M")
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--timeout", type=float, default=180.0)
-    parser.add_argument("--max-tokens", type=int, default=512)
+    parser.add_argument("--max-tokens", type=int, default=1024)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--image-long-edge", type=int, default=1280)
     parser.add_argument("--jpeg-quality", type=int, default=88)

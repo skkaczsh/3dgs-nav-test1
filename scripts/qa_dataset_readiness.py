@@ -23,7 +23,7 @@ def main() -> None:
     parser.add_argument("--frames-dir", type=Path, default=Path("/root/epfs/new_route_stage1_skymask/frames"))
     parser.add_argument("--color-dir", type=Path, default=Path("/root/epfs/new_route_stage1_skymask/output"))
     parser.add_argument("--sky-mask-dir", type=Path, default=Path("/root/epfs/new_route_data/sky_masks_color"))
-    parser.add_argument("--sam-masks-dir", type=Path, default=Path("/root/epfs/manifold_3dgs_project/processed/sam_masks"))
+    parser.add_argument("--sam-masks-dir", type=Path, default=Path("/root/epfs/new_route_stage1_skymask/sam_masks_0000_0999_combined"))
     parser.add_argument("--semantic-eval-dir", type=Path, default=Path("/root/epfs/manifold_3dgs_project/processed/semantic_eval_new_route_0000_0999"))
     parser.add_argument("--combo", default="sam2_prompt_v3_sky_label_merge_completion")
     parser.add_argument("--start", type=int, default=0)

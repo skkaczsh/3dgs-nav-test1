@@ -114,12 +114,19 @@ run_shards sam2_qwen "${SAM2_MISSING}" "${RUN_EVAL}" \
   --vlm-max-tokens "${MAX_TOKENS}" \
   --combos sam2_qwen
 
-echo "[3/5] Merging adjacent SAM2 labels"
-python3 "${MERGE_SCRIPT}" \
+echo "[3/5] Merging missing adjacent SAM2 labels with ${SHARDS} shards"
+MERGE_MISSING="${WORK_DIR}/missing_sam2_sky_label_merge_qwen_review.json"
+python3 "${SCRIPT_DIR}/filter_missing_semantic_manifest.py" \
+  --manifest "${BASE_MANIFEST}" \
+  --output-dir "${OUTPUT_DIR}" \
+  --combo sam2_sky_label_merge_qwen_review \
+  --require-source-combo sam2_qwen \
+  --output "${MERGE_MISSING}" \
+  > "${LOG_DIR}/missing_merge.json"
+run_shards merge "${MERGE_MISSING}" "${MERGE_SCRIPT}" \
   --output-dir "${OUTPUT_DIR}" \
   --source-combo sam2_qwen \
-  --output-combo sam2_sky_label_merge_qwen_review \
-  --manifest "${BASE_MANIFEST}"
+  --output-combo sam2_sky_label_merge_qwen_review
 
 echo "[4/5] Reviewing missing merged labels with prompt v3 using ${SHARDS} shards"
 REVIEW_MISSING="${WORK_DIR}/missing_sam2_prompt_v3_sky_label_merge.json"

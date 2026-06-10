@@ -14,7 +14,7 @@ COMBO="${COMBO:-sam2_prompt_v3_sky_label_merge_completion}"
 FRAMES_DIR="${FRAMES_DIR:-/root/epfs/new_route_stage1_skymask/frames}"
 COLOR_DIR="${COLOR_DIR:-/root/epfs/new_route_stage1_skymask/output}"
 SKY_MASK_DIR="${SKY_MASK_DIR:-/root/epfs/new_route_data/sky_masks_color}"
-SAM_MASKS_DIR="${SAM_MASKS_DIR:-/root/epfs/manifold_3dgs_project/processed/sam_masks}"
+SAM_MASKS_DIR="${SAM_MASKS_DIR:-/root/epfs/new_route_stage1_skymask/sam_masks_0000_0999_combined}"
 SEMANTIC_EVAL_DIR="${SEMANTIC_EVAL_DIR:-/root/epfs/manifold_3dgs_project/processed/semantic_eval_new_route_0000_0999}"
 
 ssh_opts=()

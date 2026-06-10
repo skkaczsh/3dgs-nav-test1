@@ -72,6 +72,59 @@ def test_route_status_includes_offline_qa_report(tmp_path: Path):
     assert "## Server Resume Outputs" in markdown
 
 
+def test_route_status_overlays_resume_output_success_on_stale_stage_summary(tmp_path: Path):
+    module = load_module("summarize_route_status")
+    stage = tmp_path / "stage.json"
+    stage.write_text(
+        json.dumps(
+            {
+                "stage_status": {"qwen_review_ready": False},
+                "manual_merge_qa": {"passed": False, "accepted_merge_count": 0},
+            }
+        ),
+        encoding="utf-8",
+    )
+    output_validation = tmp_path / "resume_outputs.json"
+    output_validation.write_text(
+        json.dumps(
+            {
+                "passed": True,
+                "blockers": [],
+                "checks": [
+                    {"name": "qwen_review", "passed": True, "detail": {"error_count": 0}},
+                    {
+                        "name": "reviewed_merge_qa",
+                        "passed": True,
+                        "detail": {"accepted_merge_count": 4, "checks": {"point_count_preserved": True}},
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    empty = tmp_path / "empty.json"
+    empty.write_text("{}", encoding="utf-8")
+    concept = tmp_path / "concept.md"
+    concept.write_text("ok", encoding="utf-8")
+    args = type("Args", (), {
+        "connectivity": empty,
+        "stage_summary": stage,
+        "delivery_manifest": empty,
+        "delivery_zip": tmp_path / "delivery.zip",
+        "conceptseg_report": concept,
+        "old_route_summary": empty,
+        "offline_qa_report": None,
+        "resume_command_validation": None,
+        "resume_output_validation": output_validation,
+    })()
+
+    status = module.build_status(args)
+
+    assert status["main_route"]["stage_status"]["qwen_review_ready"] is True
+    assert status["main_route"]["manual_merge_qa"]["passed"] is True
+    assert status["main_route"]["manual_merge_qa"]["accepted_merge_count"] == 4
+
+
 def test_compact_snapshot_keeps_offline_qa_fields():
     module = load_module("append_route_status_snapshot")
 
@@ -90,3 +143,19 @@ def test_compact_snapshot_keeps_offline_qa_fields():
     assert snapshot["resume_command_plan_error_count"] == 0
     assert snapshot["resume_outputs_passed"] is False
     assert snapshot["resume_outputs_blocker_count"] == 1
+
+
+def test_compact_snapshot_prefers_reviewed_merge_qa_count():
+    module = load_module("append_route_status_snapshot")
+
+    snapshot = module.compact(
+        {
+            "main_route": {
+                "manual_workflow_pending": {"accepted_merge_count": 0},
+                "manual_merge_qa": {"accepted_merge_count": 4},
+            }
+        },
+        "now",
+    )
+
+    assert snapshot["accepted_merge_count"] == 4

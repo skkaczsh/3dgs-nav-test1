@@ -38,7 +38,7 @@ def compact(status: dict, timestamp: str) -> dict:
         "manual_html_ready": stage.get("manual_html_ready"),
         "pending_apply_safe": stage.get("pending_apply_safe"),
         "manual_review_count": workflow.get("manual_review_count"),
-        "accepted_merge_count": workflow.get("accepted_merge_count"),
+        "accepted_merge_count": qa.get("accepted_merge_count", workflow.get("accepted_merge_count")),
         "input_object_count": workflow.get("input_object_count"),
         "output_object_count": workflow.get("output_object_count"),
         "qa_passed": qa.get("passed"),

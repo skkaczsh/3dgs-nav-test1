@@ -659,7 +659,7 @@ def test_vlm_merge_review_disables_qwen_thinking_by_default(tmp_path):
         image_long_edge=1280,
         jpeg_quality=88,
         temperature=0.0,
-        max_tokens=512,
+        max_tokens=1024,
         enable_thinking=False,
     )
     item = {
@@ -676,7 +676,7 @@ def test_vlm_merge_review_disables_qwen_thinking_by_default(tmp_path):
     payload = module.build_payload(item, sheet, args)
 
     assert payload["chat_template_kwargs"] == {"enable_thinking": False}
-    assert payload["max_tokens"] == 512
+    assert payload["max_tokens"] == 1024
 
 
 def test_resume_qwen_review_uploads_prompt_dependency():
@@ -695,6 +695,22 @@ def test_server_target_object_runner_exposes_merge_confidence_gate():
     assert "MIN_MERGE_CONFIDENCE" in script
     assert "--min-merge-confidence" in script
     assert '"${MIN_MERGE_CONFIDENCE}"' in script
+
+
+def test_semantic_completion_runner_shards_merge_stage():
+    script = (SCRIPTS / "run_server_semantic_completion_sharded.sh").read_text(encoding="utf-8")
+
+    assert "MERGE_MISSING" in script
+    assert "--combo sam2_sky_label_merge_qwen_review" in script
+    assert "run_shards merge" in script
+
+
+def test_dataset_readiness_runner_uses_combined_sam_masks():
+    script = (SCRIPTS / "run_server_dataset_readiness.sh").read_text(encoding="utf-8")
+    qa_script = (SCRIPTS / "qa_dataset_readiness.py").read_text(encoding="utf-8")
+
+    assert "sam_masks_0000_0999_combined" in script
+    assert "sam_masks_0000_0999_combined" in qa_script
 
 
 def _review_object(object_id, centroid, points=10):

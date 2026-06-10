@@ -18,6 +18,32 @@ def file_state(path: Path) -> dict:
     return {"path": str(path), "exists": path.exists(), "bytes": path.stat().st_size if path.exists() else 0}
 
 
+def output_check_map(resume_output_validation: dict) -> dict[str, dict]:
+    return {row.get("name"): row for row in resume_output_validation.get("checks", []) if row.get("name")}
+
+
+def merged_stage_status(stage: dict, resume_output_validation: dict) -> tuple[dict, dict]:
+    stage_status = dict(stage.get("stage_status", {}))
+    manual_merge_qa = dict(stage.get("manual_merge_qa", {}))
+    checks = output_check_map(resume_output_validation)
+
+    qwen = checks.get("qwen_review", {})
+    if qwen:
+        stage_status["qwen_review_ready"] = bool(qwen.get("passed"))
+
+    reviewed = checks.get("reviewed_merge_qa", {})
+    if reviewed:
+        detail = reviewed.get("detail", {})
+        manual_merge_qa.update(
+            {
+                "passed": bool(reviewed.get("passed")),
+                "accepted_merge_count": detail.get("accepted_merge_count"),
+                "checks": detail.get("checks", {}),
+            }
+        )
+    return stage_status, manual_merge_qa
+
+
 def build_status(args: argparse.Namespace) -> dict:
     connectivity = read_json(args.connectivity)
     stage = read_json(args.stage_summary)
@@ -30,6 +56,7 @@ def build_status(args: argparse.Namespace) -> dict:
     resume_command_validation = read_json(resume_command_validation_report) if resume_command_validation_report else {}
     resume_output_validation_report = getattr(args, "resume_output_validation", None)
     resume_output_validation = read_json(resume_output_validation_report) if resume_output_validation_report else {}
+    stage_status, manual_merge_qa = merged_stage_status(stage, resume_output_validation)
     return {
         "connectivity": connectivity,
         "offline_qa": {
@@ -56,10 +83,10 @@ def build_status(args: argparse.Namespace) -> dict:
         },
         "main_route": {
             "stage_summary": str(args.stage_summary),
-            "stage_status": stage.get("stage_status", {}),
+            "stage_status": stage_status,
             "review_items": stage.get("review_items"),
             "manual_workflow_pending": stage.get("manual_workflow_pending", {}),
-            "manual_merge_qa": stage.get("manual_merge_qa", {}),
+            "manual_merge_qa": manual_merge_qa,
         },
         "delivery": {
             "manifest": str(args.delivery_manifest),
