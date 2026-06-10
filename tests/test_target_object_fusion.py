@@ -646,6 +646,39 @@ def test_vlm_merge_review_resizes_image_data_url(tmp_path):
     assert max(resized.size) == 100
 
 
+def test_vlm_merge_review_disables_qwen_thinking_by_default(tmp_path):
+    import argparse
+
+    from PIL import Image
+
+    module = load_module(SCRIPTS / "review_cross_candidate_merges_vlm.py", "vlm_merge_review_payload_for_repo_test")
+    sheet = tmp_path / "sheet.jpg"
+    Image.new("RGB", (32, 24), (10, 20, 30)).save(sheet)
+    args = argparse.Namespace(
+        model="Qwen3.6-35B-A3B-Q4_K_M",
+        image_long_edge=1280,
+        jpeg_quality=88,
+        temperature=0.0,
+        max_tokens=512,
+        enable_thinking=False,
+    )
+    item = {
+        "review_id": "review_001",
+        "proposal": {
+            "object_a": "obj_a",
+            "object_b": "obj_b",
+            "candidate_a": "cand_a",
+            "candidate_b": "cand_b",
+            "score": 0.9,
+        },
+    }
+
+    payload = module.build_payload(item, sheet, args)
+
+    assert payload["chat_template_kwargs"] == {"enable_thinking": False}
+    assert payload["max_tokens"] == 512
+
+
 def test_resume_qwen_review_uploads_prompt_dependency():
     script = (SCRIPTS / "resume_server_qwen_review.sh").read_text(encoding="utf-8")
 
@@ -653,6 +686,7 @@ def test_resume_qwen_review_uploads_prompt_dependency():
     assert "vlm_scene_prompt.py" in script
     assert "${PROMPT_SCRIPT}" in script
     assert "${SERVER}:/tmp/vlm_scene_prompt.py" in script
+    assert "MAX_TOKENS" in script
 
 
 def test_server_target_object_runner_exposes_merge_confidence_gate():

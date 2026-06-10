@@ -90,8 +90,8 @@ def normalize_decision(parsed: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def call_vlm(item: dict, sheet_path: Path, args: argparse.Namespace) -> dict:
-    payload = {
+def build_payload(item: dict, sheet_path: Path, args: argparse.Namespace) -> dict[str, Any]:
+    payload: dict[str, Any] = {
         "model": args.model,
         "messages": [
             {
@@ -108,14 +108,47 @@ def call_vlm(item: dict, sheet_path: Path, args: argparse.Namespace) -> dict:
         "temperature": args.temperature,
         "max_tokens": args.max_tokens,
     }
+    if not args.enable_thinking:
+        payload["chat_template_kwargs"] = {"enable_thinking": False}
+    return payload
+
+
+def error_result(item: dict, sheet_path: Path, reason: str, raw_content: str = "", usage: dict | None = None) -> dict:
+    return {
+        "review_id": item["review_id"],
+        "object_a": item["proposal"]["object_a"],
+        "object_b": item["proposal"]["object_b"],
+        "candidate_a": item["proposal"]["candidate_a"],
+        "candidate_b": item["proposal"]["candidate_b"],
+        "sheet_path": str(sheet_path),
+        "vlm": {"decision": "uncertain", "confidence": 0.0, "reason": reason},
+        "raw_content": raw_content,
+        "usage": usage or {},
+        "status": "error",
+    }
+
+
+def call_vlm(item: dict, sheet_path: Path, args: argparse.Namespace) -> dict:
+    payload = build_payload(item, sheet_path, args)
     response = requests.post(args.endpoint, json=payload, timeout=args.timeout)
     try:
         response.raise_for_status()
     except requests.HTTPError as exc:
         raise RuntimeError(f"HTTP {response.status_code}: {response.text[:2000]}") from exc
     body = response.json()
-    content = body["choices"][0]["message"]["content"]
-    parsed = normalize_decision(extract_json(content))
+    message = body["choices"][0]["message"]
+    content = message.get("content") or ""
+    reasoning = message.get("reasoning_content") or ""
+    usage = body.get("usage", {})
+    try:
+        parsed = normalize_decision(extract_json(content))
+    except Exception as exc:  # noqa: BLE001
+        raw = content or reasoning
+        if not content and reasoning:
+            reason = "empty assistant content; model returned reasoning_content only. disable thinking or increase max_tokens."
+        else:
+            reason = str(exc)
+        return error_result(item, sheet_path, reason, raw_content=raw[:8000], usage=usage)
     return {
         "review_id": item["review_id"],
         "object_a": item["proposal"]["object_a"],
@@ -125,7 +158,7 @@ def call_vlm(item: dict, sheet_path: Path, args: argparse.Namespace) -> dict:
         "sheet_path": str(sheet_path),
         "vlm": parsed,
         "raw_content": content,
-        "usage": body.get("usage", {}),
+        "usage": usage,
         "status": "ok",
     }
 
@@ -200,10 +233,11 @@ def main() -> None:
     parser.add_argument("--model", default="Qwen3.6-35B-A3B-Q4_K_M")
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--timeout", type=float, default=180.0)
-    parser.add_argument("--max-tokens", type=int, default=1024)
+    parser.add_argument("--max-tokens", type=int, default=512)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--image-long-edge", type=int, default=1280)
     parser.add_argument("--jpeg-quality", type=int, default=88)
+    parser.add_argument("--enable-thinking", action="store_true")
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
 
@@ -223,19 +257,8 @@ def main() -> None:
             try:
                 rows.append(future.result())
             except Exception as exc:  # noqa: BLE001
-                errors.append(
-                    {
-                        "review_id": item["review_id"],
-                        "object_a": item["proposal"]["object_a"],
-                        "object_b": item["proposal"]["object_b"],
-                        "candidate_a": item["proposal"]["candidate_a"],
-                        "candidate_b": item["proposal"]["candidate_b"],
-                        "vlm": {"decision": "uncertain", "confidence": 0.0, "reason": str(exc)},
-                        "raw_content": "",
-                        "usage": {},
-                        "status": "error",
-                    }
-                )
+                sheet = args.contact_sheet_dir / f"{item['review_id']}_contact_sheet.jpg"
+                errors.append(error_result(item, sheet, str(exc)))
     rows.extend(errors)
     rows.sort(key=lambda row: row["review_id"])
     write_outputs(rows, args.output_dir)

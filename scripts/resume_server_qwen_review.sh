@@ -17,6 +17,7 @@ QWEN_PORT="${QWEN_PORT:-8001}"
 CONCURRENCY="${CONCURRENCY:-4}"
 IMAGE_LONG_EDGE="${IMAGE_LONG_EDGE:-1280}"
 MIN_CONFIDENCE="${MIN_CONFIDENCE:-0.75}"
+MAX_TOKENS="${MAX_TOKENS:-512}"
 
 ssh_opts=()
 if [[ -n "${BIND_ADDRESS}" ]]; then
@@ -40,7 +41,7 @@ echo "[4/8] starting/checking Qwen VL server"
 ssh "${ssh_opts[@]}" "${SERVER}" "chmod +x /tmp/restart_qwen_vl_server.sh /tmp/review_cross_candidate_merges_vlm.py; CUDA_VISIBLE_DEVICES=\${CUDA_VISIBLE_DEVICES:-1} LLAMA_SERVER=\${LLAMA_SERVER:-/root/epfs/llama-server/bin/llama-server} PARALLEL=${CONCURRENCY} PORT=${QWEN_PORT} LOG=/root/epfs/qwen_vl_server_${QWEN_PORT}_${SERVER}.log bash /tmp/restart_qwen_vl_server.sh"
 
 echo "[5/8] running compact Qwen review"
-ssh "${ssh_opts[@]}" "${SERVER}" "rm -rf '${REMOTE_PACK}/vlm_review_qwen_compact'; python3 /tmp/review_cross_candidate_merges_vlm.py --review-jsonl '${REMOTE_PACK}/cross_candidate_review_items.jsonl' --contact-sheet-dir '${REMOTE_PACK}/contact_sheets' --output-dir '${REMOTE_PACK}/vlm_review_qwen_compact' --endpoint 'http://127.0.0.1:${QWEN_PORT}/v1/chat/completions' --model Qwen3.6-35B-A3B-Q4_K_M --concurrency '${CONCURRENCY}' --timeout 240 --max-tokens 1024 --temperature 0 --image-long-edge '${IMAGE_LONG_EDGE}' --resume"
+ssh "${ssh_opts[@]}" "${SERVER}" "rm -rf '${REMOTE_PACK}/vlm_review_qwen_compact'; python3 /tmp/review_cross_candidate_merges_vlm.py --review-jsonl '${REMOTE_PACK}/cross_candidate_review_items.jsonl' --contact-sheet-dir '${REMOTE_PACK}/contact_sheets' --output-dir '${REMOTE_PACK}/vlm_review_qwen_compact' --endpoint 'http://127.0.0.1:${QWEN_PORT}/v1/chat/completions' --model Qwen3.6-35B-A3B-Q4_K_M --concurrency '${CONCURRENCY}' --timeout 240 --max-tokens '${MAX_TOKENS}' --temperature 0 --image-long-edge '${IMAGE_LONG_EDGE}' --resume"
 
 echo "[6/8] pulling Qwen review results"
 rm -rf "${LOCAL_OUTPUT}/vlm_review_qwen_compact"
