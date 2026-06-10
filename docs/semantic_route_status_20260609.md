@@ -799,3 +799,12 @@ Dataset status:
   - gap60 tracklets: `328`
   - same-candidate loose long objects: `66`
   - reviewed long objects after Qwen merge review: `62`
+
+Lightweight package:
+
+- directory: `/Users/skkac/Work/SCAN/dataset_delivery_0000_0999`
+- archive: `/Users/skkac/Work/SCAN/dataset_delivery_0000_0999.tgz`
+- validation: `/Users/skkac/Work/SCAN/dataset_delivery_0000_0999_validation.json`
+- package validation passed: `true`
+- packaged small files: `18`
+- referenced large files: `3`
