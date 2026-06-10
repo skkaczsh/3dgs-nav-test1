@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Semantic PLY/Object Viewer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111318;
+      --panel: #181b22;
+      --panel-2: #20242d;
+      --text: #eef1f5;
+      --muted: #9aa3af;
+      --line: #303642;
+      --accent: #42b8d8;
+      --warn: #f0b84f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font: 13px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    #app {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      height: 100vh;
+      min-width: 920px;
+    }
+    aside {
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      overflow: auto;
+      padding: 14px;
+    }
+    main {
+      position: relative;
+      min-width: 0;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+    h2 {
+      margin: 18px 0 8px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    label {
+      display: block;
+      margin: 10px 0 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    input, select, button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 8px 9px;
+      font: inherit;
+    }
+    input[type="range"] { padding: 0; }
+    button {
+      cursor: pointer;
+      background: #243140;
+    }
+    button:hover { border-color: var(--accent); }
+    .drop {
+      display: grid;
+      place-items: center;
+      min-height: 94px;
+      padding: 12px;
+      border: 1px dashed #4b5563;
+      border-radius: 8px;
+      color: var(--muted);
+      text-align: center;
+      background: #151922;
+    }
+    .drop.drag { border-color: var(--accent); color: var(--text); }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .stats, .details, .legend {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #151922;
+      padding: 10px;
+    }
+    .kv {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 6px;
+      margin: 3px 0;
+      word-break: break-word;
+    }
+    .kv span:first-child { color: var(--muted); }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 100%;
+      margin: 3px 4px 3px 0;
+      padding: 3px 7px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #10141b;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .swatch {
+      width: 10px;
+      height: 10px;
+      flex: 0 0 auto;
+      border-radius: 2px;
+      background: var(--accent);
+    }
+    #viewport {
+      position: absolute;
+      inset: 0;
+    }
+    #hud {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      max-width: min(460px, calc(100vw - 380px));
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(17, 19, 24, 0.9);
+      padding: 10px 12px;
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .warn { color: var(--warn); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <aside>
+      <h1>Semantic PLY/Object Viewer</h1>
+      <div id="drop" class="drop">
+        Drop ASCII PLY or objects JSONL here<br>
+        <span class="mono">x y z red green blue object semantic frame</span>
+      </div>
+      <input id="file" type="file" accept=".ply,.jsonl,.json,.txt">
+
+      <h2>Display</h2>
+      <label for="colorMode">Color mode</label>
+      <select id="colorMode">
+        <option value="rgb">PLY RGB / object mean color</option>
+        <option value="semantic">Semantic label</option>
+        <option value="object">Object id</option>
+        <option value="status">Object status</option>
+      </select>
+      <div class="row">
+        <div>
+          <label for="pointSize">Point size</label>
+          <input id="pointSize" type="range" min="1" max="8" step="0.5" value="2">
+        </div>
+        <div>
+          <label for="sampleStride">Stride</label>
+          <input id="sampleStride" type="number" min="1" value="1">
+        </div>
+      </div>
+      <label for="labelFilter">Label filter</label>
+      <select id="labelFilter"><option value="">All labels</option></select>
+      <div class="row">
+        <button id="fit">Fit view</button>
+        <button id="resetFilter">Clear filter</button>
+      </div>
+
+      <h2>Stats</h2>
+      <div id="stats" class="stats">No file loaded.</div>
+
+      <h2>Selected</h2>
+      <div id="details" class="details">Click a point to inspect object and label.</div>
+
+      <h2>Legend</h2>
+      <div id="legend" class="legend"></div>
+    </aside>
+    <main>
+      <div id="viewport"></div>
+      <div id="hud">Left drag: orbit. Wheel: zoom. Right drag: pan. Click a point to inspect label/object.</div>
+    </main>
+  </div>
+
+  <script type="module">
+    import * as THREE from "https://unpkg.com/three@0.166.1/build/three.module.js";
+    import { OrbitControls } from "https://unpkg.com/three@0.166.1/examples/jsm/controls/OrbitControls.js";
+
+    const LABELS = {
+      0: "unknown", 1: "other", 2: "wall", 3: "floor", 4: "ceiling", 5: "grass", 6: "tree",
+      7: "person", 8: "car", 9: "railing", 10: "building", 11: "sky", 12: "road",
+      13: "water", 14: "furniture", 15: "pipe", 16: "equipment", 255: "ignore"
+    };
+    const LABEL_IDS = Object.fromEntries(Object.entries(LABELS).map(([k, v]) => [v, Number(k)]));
+    const LABEL_COLORS = {
+      unknown: [120, 120, 120], other: [210, 210, 210], wall: [160, 160, 165], floor: [139, 100, 60],
+      ceiling: [180, 180, 210], grass: [70, 150, 80], tree: [40, 120, 60], person: [230, 80, 80],
+      car: [80, 110, 230], railing: [245, 210, 50], building: [190, 170, 140], sky: [70, 150, 220],
+      road: [90, 90, 90], water: [50, 120, 200], furniture: [180, 100, 200], pipe: [240, 140, 40],
+      equipment: [30, 210, 190], ignore: [20, 20, 20], ambiguous: [230, 40, 210]
+    };
+    const STATUS_COLORS = {
+      stable: [80, 190, 130],
+      single_target: [80, 150, 230],
+      ambiguous_object: [230, 40, 210]
+    };
+
+    const viewport = document.querySelector("#viewport");
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x0e1117, 1);
+    viewport.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 10000);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    const grid = new THREE.GridHelper(20, 20, 0x2d3748, 0x1f2937);
+    grid.rotation.x = Math.PI / 2;
+    scene.add(grid);
+    scene.add(new THREE.AmbientLight(0xffffff, 1));
+
+    let pointsObject = null;
+    let rawRows = [];
+    let filteredIndices = [];
+    let bounds = null;
+
+    const els = {
+      file: document.querySelector("#file"),
+      drop: document.querySelector("#drop"),
+      colorMode: document.querySelector("#colorMode"),
+      pointSize: document.querySelector("#pointSize"),
+      sampleStride: document.querySelector("#sampleStride"),
+      labelFilter: document.querySelector("#labelFilter"),
+      fit: document.querySelector("#fit"),
+      resetFilter: document.querySelector("#resetFilter"),
+      stats: document.querySelector("#stats"),
+      details: document.querySelector("#details"),
+      legend: document.querySelector("#legend")
+    };
+
+    function hashColor(value) {
+      let h = 2166136261;
+      const s = String(value ?? "");
+      for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+      return [(h >>> 0) & 255, (h >>> 8) & 255, (h >>> 16) & 255].map(v => 70 + (v % 170));
+    }
+
+    function colorForRow(row, mode) {
+      if (mode === "semantic") return LABEL_COLORS[row.label] || LABEL_COLORS.unknown;
+      if (mode === "object") return hashColor(row.objectId);
+      if (mode === "status") return STATUS_COLORS[row.status] || [150, 150, 150];
+      return row.rgb || LABEL_COLORS[row.label] || LABEL_COLORS.unknown;
+    }
+
+    function labelFromSemantic(value) {
+      const n = Number(value);
+      return LABELS[n] || String(value || "unknown");
+    }
+
+    function parseAsciiPly(text) {
+      const lines = text.split(/\r?\n/);
+      if (lines[0]?.trim() !== "ply") throw new Error("Not a PLY file.");
+      let vertexCount = 0;
+      const properties = [];
+      let inVertex = false;
+      let headerEnd = -1;
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line === "end_header") { headerEnd = i; break; }
+        const parts = line.split(/\s+/);
+        if (parts[0] === "format" && parts[1] !== "ascii") throw new Error("Only ASCII PLY is supported.");
+        if (parts[0] === "element") {
+          inVertex = parts[1] === "vertex";
+          if (inVertex) vertexCount = Number(parts[2]);
+        } else if (inVertex && parts[0] === "property") {
+          properties.push(parts.at(-1));
+        }
+      }
+      if (headerEnd < 0) throw new Error("PLY header has no end_header.");
+      const rows = [];
+      const dataLines = lines.slice(headerEnd + 1, headerEnd + 1 + vertexCount);
+      for (const line of dataLines) {
+        if (!line.trim()) continue;
+        const values = line.trim().split(/\s+/);
+        const row = {};
+        for (let i = 0; i < properties.length; i++) row[properties[i]] = values[i];
+        const semantic = row.semantic ?? row.label ?? row.class ?? row.semantic_label;
+        rows.push({
+          x: Number(row.x), y: Number(row.y), z: Number(row.z),
+          rgb: [Number(row.red ?? 220), Number(row.green ?? 220), Number(row.blue ?? 220)],
+          objectId: row.object ?? row.object_id ?? row.obj ?? "",
+          semanticId: semantic,
+          label: labelFromSemantic(semantic),
+          frame: row.frame ?? "",
+          status: row.status ?? "",
+          source: "ply"
+        });
+      }
+      return rows.filter(r => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z));
+    }
+
+    function parseObjectJsonl(text) {
+      const rows = [];
+      for (const line of text.split(/\r?\n/)) {
+        if (!line.trim()) continue;
+        const obj = JSON.parse(line);
+        const c = obj.centroid || [0, 0, 0];
+        const label = obj.semantic_label || obj.dominant_label || "unknown";
+        rows.push({
+          x: Number(c[0]), y: Number(c[1]), z: Number(c[2]),
+          rgb: obj.mean_color || LABEL_COLORS[label] || LABEL_COLORS.unknown,
+          objectId: obj.object_id,
+          semanticId: LABEL_IDS[label] ?? "",
+          label,
+          frame: Array.isArray(obj.frames) ? `${obj.frames[0]}-${obj.frames.at(-1)}` : "",
+          status: obj.status || "",
+          pointCount: obj.point_count,
+          targetCount: obj.target_count,
+          dominantLabelRatio: obj.dominant_label_ratio,
+          labelVotes: obj.label_votes || {},
+          bbox: obj.bbox_3d,
+          source: "objects_jsonl"
+        });
+      }
+      return rows;
+    }
+
+    function parseFile(file, text) {
+      const name = file.name.toLowerCase();
+      if (name.endsWith(".ply")) return parseAsciiPly(text);
+      if (name.endsWith(".jsonl") || name.endsWith(".json") || name.endsWith(".txt")) return parseObjectJsonl(text);
+      throw new Error("Unsupported file extension. Use .ply or .jsonl.");
+    }
+
+    function computeBounds(rows) {
+      const min = new THREE.Vector3(Infinity, Infinity, Infinity);
+      const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
+      for (const r of rows) {
+        min.min(new THREE.Vector3(r.x, r.y, r.z));
+        max.max(new THREE.Vector3(r.x, r.y, r.z));
+      }
+      return { min, max, center: min.clone().add(max).multiplyScalar(0.5), size: max.clone().sub(min) };
+    }
+
+    function rebuildGeometry() {
+      if (pointsObject) {
+        scene.remove(pointsObject);
+        pointsObject.geometry.dispose();
+        pointsObject.material.dispose();
+      }
+      const stride = Math.max(1, Number(els.sampleStride.value) || 1);
+      const labelFilter = els.labelFilter.value;
+      filteredIndices = [];
+      for (let i = 0; i < rawRows.length; i += stride) {
+        if (!labelFilter || rawRows[i].label === labelFilter) filteredIndices.push(i);
+      }
+      const positions = new Float32Array(filteredIndices.length * 3);
+      const colors = new Float32Array(filteredIndices.length * 3);
+      const mode = els.colorMode.value;
+      for (let i = 0; i < filteredIndices.length; i++) {
+        const row = rawRows[filteredIndices[i]];
+        positions[i * 3] = row.x;
+        positions[i * 3 + 1] = row.y;
+        positions[i * 3 + 2] = row.z;
+        const color = colorForRow(row, mode);
+        colors[i * 3] = color[0] / 255;
+        colors[i * 3 + 1] = color[1] / 255;
+        colors[i * 3 + 2] = color[2] / 255;
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      const material = new THREE.PointsMaterial({
+        size: Number(els.pointSize.value),
+        sizeAttenuation: false,
+        vertexColors: true
+      });
+      pointsObject = new THREE.Points(geometry, material);
+      scene.add(pointsObject);
+      renderStats();
+      renderLegend();
+    }
+
+    function fitView() {
+      if (!bounds) return;
+      const radius = Math.max(bounds.size.x, bounds.size.y, bounds.size.z, 1);
+      controls.target.copy(bounds.center);
+      camera.position.set(bounds.center.x + radius * 0.8, bounds.center.y - radius * 1.2, bounds.center.z + radius * 0.8);
+      camera.near = Math.max(radius / 10000, 0.01);
+      camera.far = radius * 100;
+      camera.updateProjectionMatrix();
+      controls.update();
+    }
+
+    function renderStats() {
+      const labels = new Map();
+      const statuses = new Map();
+      for (const r of rawRows) {
+        labels.set(r.label, (labels.get(r.label) || 0) + 1);
+        if (r.status) statuses.set(r.status, (statuses.get(r.status) || 0) + 1);
+      }
+      els.stats.innerHTML = [
+        kv("loaded rows", rawRows.length.toLocaleString()),
+        kv("visible rows", filteredIndices.length.toLocaleString()),
+        kv("labels", labels.size),
+        kv("bounds", bounds ? `${bounds.size.x.toFixed(2)}, ${bounds.size.y.toFixed(2)}, ${bounds.size.z.toFixed(2)}` : "")
+      ].join("") + "<h2>Label Counts</h2>" + [...labels.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([label, count]) => `<span class="pill">${escapeHtml(label)} ${count.toLocaleString()}</span>`)
+        .join("") + (statuses.size ? "<h2>Status Counts</h2>" + [...statuses.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .map(([status, count]) => `<span class="pill">${escapeHtml(status)} ${count.toLocaleString()}</span>`)
+          .join("") : "");
+    }
+
+    function renderLegend() {
+      const mode = els.colorMode.value;
+      const values = mode === "status"
+        ? Object.keys(STATUS_COLORS)
+        : [...new Set(rawRows.map(r => r.label))].sort();
+      els.legend.innerHTML = values.map(value => {
+        const rgb = mode === "status" ? STATUS_COLORS[value] : colorForRow({ label: value, objectId: value }, mode);
+        return `<span class="pill"><span class="swatch" style="background: rgb(${rgb.join(",")})"></span>${escapeHtml(value)}</span>`;
+      }).join("");
+    }
+
+    function kv(k, v) {
+      return `<div class="kv"><span>${escapeHtml(k)}</span><span>${escapeHtml(String(v ?? ""))}</span></div>`;
+    }
+    function escapeHtml(value) {
+      return value.replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    }
+
+    function updateLabelOptions() {
+      const labels = [...new Set(rawRows.map(r => r.label))].sort();
+      els.labelFilter.innerHTML = '<option value="">All labels</option>' + labels.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join("");
+    }
+
+    async function loadFile(file) {
+      els.stats.textContent = `Loading ${file.name} ...`;
+      const text = await file.text();
+      rawRows = parseFile(file, text);
+      if (!rawRows.length) throw new Error("No points/objects parsed.");
+      bounds = computeBounds(rawRows);
+      updateLabelOptions();
+      rebuildGeometry();
+      fitView();
+      els.details.innerHTML = kv("file", file.name) + kv("type", rawRows[0].source);
+    }
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.params.Points.threshold = 0.12;
+    const pointer = new THREE.Vector2();
+    renderer.domElement.addEventListener("click", event => {
+      if (!pointsObject) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hit = raycaster.intersectObject(pointsObject, false)[0];
+      if (!hit) return;
+      const row = rawRows[filteredIndices[hit.index]];
+      els.details.innerHTML = [
+        kv("object", row.objectId),
+        kv("label", row.label),
+        kv("semantic", row.semanticId),
+        kv("status", row.status),
+        kv("frame", row.frame),
+        kv("points", row.pointCount ?? ""),
+        kv("targets", row.targetCount ?? ""),
+        kv("dominant ratio", row.dominantLabelRatio != null ? Number(row.dominantLabelRatio).toFixed(3) : ""),
+        kv("xyz", `${row.x.toFixed(3)}, ${row.y.toFixed(3)}, ${row.z.toFixed(3)}`),
+        kv("votes", row.labelVotes ? JSON.stringify(row.labelVotes) : "")
+      ].join("");
+    });
+
+    function resize() {
+      const rect = viewport.getBoundingClientRect();
+      renderer.setSize(rect.width, rect.height);
+      camera.aspect = rect.width / Math.max(rect.height, 1);
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    els.file.addEventListener("change", async () => {
+      const file = els.file.files[0];
+      if (!file) return;
+      try { await loadFile(file); } catch (err) { els.stats.innerHTML = `<span class="warn">${escapeHtml(err.message)}</span>`; }
+    });
+    for (const eventName of ["dragenter", "dragover"]) {
+      els.drop.addEventListener(eventName, event => {
+        event.preventDefault();
+        els.drop.classList.add("drag");
+      });
+    }
+    for (const eventName of ["dragleave", "drop"]) {
+      els.drop.addEventListener(eventName, event => {
+        event.preventDefault();
+        els.drop.classList.remove("drag");
+      });
+    }
+    els.drop.addEventListener("drop", async event => {
+      const file = event.dataTransfer.files[0];
+      if (!file) return;
+      try { await loadFile(file); } catch (err) { els.stats.innerHTML = `<span class="warn">${escapeHtml(err.message)}</span>`; }
+    });
+    for (const el of [els.colorMode, els.pointSize, els.sampleStride, els.labelFilter]) {
+      el.addEventListener("input", () => rawRows.length && rebuildGeometry());
+    }
+    els.fit.addEventListener("click", fitView);
+    els.resetFilter.addEventListener("click", () => {
+      els.labelFilter.value = "";
+      if (rawRows.length) rebuildGeometry();
+    });
+  </script>
+</body>
+</html>
