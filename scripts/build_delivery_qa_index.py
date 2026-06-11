@@ -38,6 +38,25 @@ def row_link(package_dir: Path, role_map: dict[str, dict[str, Any]], role: str) 
     return ""
 
 
+def browser_href(package_dir: Path, href: str) -> str:
+    if not href:
+        return ""
+    path = Path(href)
+    root = package_dir.parent
+    if path.is_absolute():
+        try:
+            return "/" + str(path.relative_to(root))
+        except ValueError:
+            return href
+    return f"/{package_dir.name}/{href}"
+
+
+def viewer_link(package_dir: Path, href: str) -> str:
+    if not href:
+        return ""
+    return f"/new_route/tools/semantic_ply_viewer.html?file={browser_href(package_dir, href)}"
+
+
 def render_markdown(package_dir: Path, package: dict[str, Any], validation: dict[str, Any]) -> str:
     metrics = package.get("metrics", {})
     role_map = artifact_by_role(package)
@@ -147,23 +166,31 @@ def render_html(package_dir: Path, package: dict[str, Any], validation: dict[str
     def card(title: str, body: str) -> str:
         return f"<section><h2>{html.escape(title)}</h2>{body}</section>"
 
+    def visual_li(label: str, href: str, load_in_viewer: bool = False) -> str:
+        if not href:
+            return f"<li>{html.escape(label)}</li>"
+        primary = link(label, browser_href(package_dir, href))
+        if load_in_viewer and (href.endswith(".ply") or href.endswith(".jsonl") or href.endswith(".json")):
+            return f"<li>{primary} <span class=\"muted\">({link('open in viewer', viewer_link(package_dir, href))})</span></li>"
+        return f"<li>{primary}</li>"
+
     visual_items = [
-        ("Primary hybrid strict-surface PLY", row_link(package_dir, role_map, "surface_hybrid_consolidated_preview_ply")),
-        ("Balanced consolidated PLY", row_link(package_dir, role_map, "surface_consolidated_preview_ply")),
-        ("Strict raw surface PLY", row_link(package_dir, role_map, "strict_surface_fusion_preview_ply")),
-        ("Old/base object PLY", row_link(package_dir, role_map, "target_object_preview_ply")),
-        ("ConceptSeg 3D refinement PLY", row_link(package_dir, role_map, "conceptseg_3d_components_ply")),
-        ("Hybrid strict-surface XY preview", row_link(package_dir, role_map, "surface_hybrid_consolidated_xy_preview")),
-        ("Balanced consolidated XY preview", row_link(package_dir, role_map, "surface_consolidated_xy_preview")),
-        ("Strict raw surface XY preview", row_link(package_dir, role_map, "strict_surface_fusion_xy_preview")),
-        ("Surface-first preview PLY", row_link(package_dir, role_map, "surface_first_subcluster_preview_ply")),
-        ("Surface-first XY preview", row_link(package_dir, role_map, "surface_first_subcluster_xy_preview")),
-        ("Residual surface-assignment XY preview", row_link(package_dir, role_map, "residual_surface_assignment_xy_preview")),
-        ("ConceptSeg 3D refinement XY preview", row_link(package_dir, role_map, "conceptseg_3d_components_xy_preview")),
-        ("ConceptSeg accepted sheet", row_link(package_dir, role_map, "conceptseg_instance_accepted_sheet")),
-        ("Old-route color preview", row_link(package_dir, role_map, "old_route_color_smoke_preview")),
-        ("Large file index", "large_files.json"),
-        ("Semantic PLY viewer", "../new_route/tools/semantic_ply_viewer.html"),
+        ("Primary hybrid strict-surface PLY", row_link(package_dir, role_map, "surface_hybrid_consolidated_preview_ply"), True),
+        ("Balanced consolidated PLY", row_link(package_dir, role_map, "surface_consolidated_preview_ply"), True),
+        ("Strict raw surface PLY", row_link(package_dir, role_map, "strict_surface_fusion_preview_ply"), True),
+        ("Old/base object PLY", row_link(package_dir, role_map, "target_object_preview_ply"), True),
+        ("ConceptSeg 3D refinement PLY", row_link(package_dir, role_map, "conceptseg_3d_components_ply"), True),
+        ("Hybrid strict-surface XY preview", row_link(package_dir, role_map, "surface_hybrid_consolidated_xy_preview"), False),
+        ("Balanced consolidated XY preview", row_link(package_dir, role_map, "surface_consolidated_xy_preview"), False),
+        ("Strict raw surface XY preview", row_link(package_dir, role_map, "strict_surface_fusion_xy_preview"), False),
+        ("Surface-first preview PLY", row_link(package_dir, role_map, "surface_first_subcluster_preview_ply"), True),
+        ("Surface-first XY preview", row_link(package_dir, role_map, "surface_first_subcluster_xy_preview"), False),
+        ("Residual surface-assignment XY preview", row_link(package_dir, role_map, "residual_surface_assignment_xy_preview"), False),
+        ("ConceptSeg 3D refinement XY preview", row_link(package_dir, role_map, "conceptseg_3d_components_xy_preview"), False),
+        ("ConceptSeg accepted sheet", row_link(package_dir, role_map, "conceptseg_instance_accepted_sheet"), False),
+        ("Old-route color preview", row_link(package_dir, role_map, "old_route_color_smoke_preview"), False),
+        ("Large file index", "large_files.json", False),
+        ("Semantic PLY viewer", "/new_route/tools/semantic_ply_viewer.html", False),
     ]
     report_items = [
         ("Route decision", row_link(package_dir, role_map, "dense_semantic_route_decision_markdown")),
@@ -215,14 +242,13 @@ def render_html(package_dir: Path, package: dict[str, Any], validation: dict[str
     section{border:1px solid #2b3440;border-radius:8px;padding:16px;margin:16px 0;background:#151b22}
     a{color:#83c5ff} table{border-collapse:collapse;width:100%} td,th{border-bottom:1px solid #2b3440;padding:8px;text-align:left}
     code{background:#202833;padding:2px 4px;border-radius:4px}
+    .muted{color:#9aa3af}
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
     """
     metrics_html = "<table>" + "".join(
         f"<tr><th>{html.escape(str(k))}</th><td><code>{html.escape(str(v))}</code></td></tr>" for k, v in metric_rows
     ) + "</table>"
-    visual_html = "<ul>" + "".join(
-        f"<li>{link(label, href) if href else html.escape(label)}</li>" for label, href in visual_items
-    ) + "</ul>"
+    visual_html = "<ul>" + "".join(visual_li(label, href, load_in_viewer) for label, href, load_in_viewer in visual_items) + "</ul>"
     report_html = "<ul>" + "".join(
         f"<li>{link(label, href) if href else html.escape(label)}</li>" for label, href in report_items
     ) + "</ul>"

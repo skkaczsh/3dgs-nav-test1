@@ -471,6 +471,21 @@
       els.details.innerHTML = kv("file", file.name) + kv("type", rawRows[0].source);
     }
 
+    async function loadUrl(url) {
+      const displayName = decodeURIComponent(url.split("/").pop() || "remote.ply");
+      els.stats.textContent = `Loading ${displayName} ...`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Failed to load ${url}: HTTP ${response.status}`);
+      const text = await response.text();
+      rawRows = parseFile({ name: displayName }, text);
+      if (!rawRows.length) throw new Error("No points/objects parsed.");
+      bounds = computeBounds(rawRows);
+      updateLabelOptions();
+      rebuildGeometry();
+      fitView();
+      els.details.innerHTML = kv("file", displayName) + kv("url", url) + kv("type", rawRows[0].source);
+    }
+
     const raycaster = new THREE.Raycaster();
     raycaster.params.Points.threshold = 0.12;
     const pointer = new THREE.Vector2();
@@ -543,6 +558,14 @@
       els.labelFilter.value = "";
       if (rawRows.length) rebuildGeometry();
     });
+
+    const params = new URLSearchParams(window.location.search);
+    const fileParam = params.get("file");
+    if (fileParam) {
+      loadUrl(fileParam).catch(err => {
+        els.stats.innerHTML = `<span class="warn">${escapeHtml(err.message)}</span>`;
+      });
+    }
   </script>
 </body>
 </html>
