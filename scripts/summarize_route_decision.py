@@ -46,6 +46,7 @@ def write_markdown(summary: dict[str, Any], path: Path) -> None:
         f"- Residual surface unassigned points: `{main['residual_surface_unassigned_points']}`",
         f"- Residual absorption sweep best ratio: `{main['residual_absorption_sweep_best_ratio']:.4f}`",
         f"- Residual miss reasons: `{main['residual_surface_miss_reason_counts']}`",
+        f"- Residual candidate coverage best ratio: `{main['residual_candidate_coverage_best_ratio']:.4f}`",
         "",
         "## ConceptSeg-R1 Evidence",
         "",
@@ -118,6 +119,7 @@ def main() -> None:
             "residual_surface_unassigned_points": metrics.get("residual_surface_unassigned_points"),
             "residual_absorption_sweep_best_ratio": float(metrics.get("residual_absorption_sweep_best_ratio", 0.0)),
             "residual_surface_miss_reason_counts": metrics.get("residual_surface_miss_reason_counts", {}),
+            "residual_candidate_coverage_best_ratio": float(metrics.get("residual_candidate_coverage_best_ratio", 0.0)),
         },
         "conceptseg_side_track": {
             "decision": "keep_as_conservative_fine_object_refinement_only",

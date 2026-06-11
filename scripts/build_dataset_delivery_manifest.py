@@ -57,6 +57,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     residual_assignment = read_json(args.residual_assignment_report)
     residual_sweep = read_json(args.residual_absorption_sweep)
     residual_miss_reasons = read_json(args.residual_miss_reasons)
+    residual_candidate_coverage = read_json(args.residual_candidate_coverage)
     concept = read_json(args.conceptseg_qa)
     route_decision = read_json(args.route_decision)
     concept_align = read_json(args.conceptseg_alignment)
@@ -110,6 +111,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.residual_assignment_preview, "residual_surface_assignment_xy_preview", required=True),
         file_entry(args.residual_absorption_sweep, "residual_absorption_sweep_report", required=True),
         file_entry(args.residual_miss_reasons, "residual_surface_miss_reasons_report", required=True),
+        file_entry(args.residual_candidate_coverage, "residual_candidate_surface_coverage_report", required=True),
         file_entry(args.conceptseg_qa, "conceptseg_problem40_structured_qa", required=False),
         file_entry(args.conceptseg_contact_sheet, "conceptseg_problem40_contact_sheet", required=False),
         file_entry(args.route_decision, "dense_semantic_route_decision", required=True),
@@ -182,6 +184,15 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             ),
             "residual_surface_miss_reason_counts": residual_miss_reasons.get("reason_counts", {}),
             "residual_surface_miss_reason_by_label": residual_miss_reasons.get("reason_by_label", {}),
+            "residual_candidate_coverage_best_ratio": max(
+                (row.get("matched_surface_ratio", 0.0) for row in residual_candidate_coverage.get("configs", [])),
+                default=0.0,
+            ),
+            "residual_candidate_coverage_best_reasons": max(
+                residual_candidate_coverage.get("configs", []),
+                key=lambda row: row.get("matched_surface_ratio", 0.0),
+                default={},
+            ).get("reason_counts", {}),
             "conceptseg_items": concept.get("items"),
             "conceptseg_mode_counts": concept.get("mode_counts", {}),
             "route_decision": nested(route_decision, "main_route", "decision"),
@@ -296,6 +307,7 @@ def main() -> None:
     parser.add_argument("--residual-assignment-preview", type=Path, default=root / "server_residual_surface_assignment_0000_0999/residual_surface_assigned_xy.png")
     parser.add_argument("--residual-absorption-sweep", type=Path, default=root / "server_residual_surface_assignment_0000_0999/residual_absorption_sweep_20260611.json")
     parser.add_argument("--residual-miss-reasons", type=Path, default=root / "server_residual_surface_assignment_0000_0999/residual_surface_miss_reasons_20260611.json")
+    parser.add_argument("--residual-candidate-coverage", type=Path, default=root / "server_residual_surface_assignment_0000_0999/residual_candidate_surface_coverage_20260611.json")
     parser.add_argument("--conceptseg-qa", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_structured_qa.json")
     parser.add_argument("--conceptseg-contact-sheet", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_contact_sheet.jpg")
     parser.add_argument("--route-decision", type=Path, default=root / "route_status_20260610/dense_semantic_route_decision_20260611.json")
