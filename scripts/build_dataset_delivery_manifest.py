@@ -63,6 +63,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     residual_candidate_coverage_augmented = read_json(args.residual_candidate_coverage_augmented)
     surface_fusion_bottleneck = read_json(args.surface_fusion_bottleneck)
     surface_fusion_bottleneck_strict = read_json(args.surface_fusion_bottleneck_strict)
+    surface_consolidation = read_json(args.surface_consolidation_report)
     concept = read_json(args.conceptseg_qa)
     route_decision = read_json(args.route_decision)
     concept_align = read_json(args.conceptseg_alignment)
@@ -125,6 +126,10 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.strict_surface_stride_ply, "strict_surface_fusion_preview_ply", required=True),
         file_entry(args.strict_surface_preview, "strict_surface_fusion_xy_preview", required=True),
         file_entry(args.strict_surface_fusion_report, "strict_surface_fusion_report", required=True),
+        file_entry(args.surface_consolidated_stride_ply, "surface_consolidated_preview_ply", required=True),
+        file_entry(args.surface_consolidated_preview, "surface_consolidated_xy_preview", required=True),
+        file_entry(args.surface_consolidation_report, "surface_consolidation_report", required=True),
+        file_entry(args.surface_consolidation_mapping, "surface_consolidation_mapping", required=True),
         file_entry(args.conceptseg_qa, "conceptseg_problem40_structured_qa", required=False),
         file_entry(args.conceptseg_contact_sheet, "conceptseg_problem40_contact_sheet", required=False),
         file_entry(args.route_decision, "dense_semantic_route_decision", required=True),
@@ -218,6 +223,9 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             "surface_fusion_wall_points_strict": nested(surface_fusion_bottleneck_strict, "objects", "by_label", "wall", "point_count"),
             "surface_fusion_ambiguous_points_base": nested(surface_fusion_bottleneck, "objects", "by_label", "ambiguous", "point_count"),
             "surface_fusion_ambiguous_points_strict": nested(surface_fusion_bottleneck_strict, "objects", "by_label", "ambiguous", "point_count"),
+            "surface_consolidation_input_objects": surface_consolidation.get("input_objects"),
+            "surface_consolidation_output_objects": surface_consolidation.get("output_objects"),
+            "surface_consolidation_merged_reduction": surface_consolidation.get("merged_object_reduction"),
             "conceptseg_items": concept.get("items"),
             "conceptseg_mode_counts": concept.get("mode_counts", {}),
             "route_decision": nested(route_decision, "main_route", "decision"),
@@ -246,6 +254,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         "file_failures": file_failures,
         "files": files,
         "recommended_viewer_inputs": [
+            str(args.surface_consolidated_stride_ply),
             str(args.strict_surface_stride_ply),
             str(args.surface_first_voxel_ply),
             str(args.object_points_stride_ply),
@@ -290,6 +299,7 @@ def render_markdown(manifest: dict[str, Any]) -> str:
         f"- residual surface unassigned points: `{metrics.get('residual_surface_unassigned_points')}`",
         f"- surface fusion wall points base/strict: `{metrics.get('surface_fusion_wall_points_base')}` / `{metrics.get('surface_fusion_wall_points_strict')}`",
         f"- surface fusion ambiguous points base/strict: `{metrics.get('surface_fusion_ambiguous_points_base')}` / `{metrics.get('surface_fusion_ambiguous_points_strict')}`",
+        f"- surface consolidation objects input/output/reduced: `{metrics.get('surface_consolidation_input_objects')}` / `{metrics.get('surface_consolidation_output_objects')}` / `{metrics.get('surface_consolidation_merged_reduction')}`",
         f"- ConceptSeg modes: `{metrics.get('conceptseg_mode_counts')}`",
         f"- route decision: `{metrics.get('route_decision')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
@@ -345,6 +355,10 @@ def main() -> None:
     parser.add_argument("--strict-surface-stride-ply", type=Path, default=root / "server_strict_surface_fusion_0000_0999/objects/object_points_strict_surface_stride10.ply")
     parser.add_argument("--strict-surface-preview", type=Path, default=root / "server_strict_surface_fusion_0000_0999/objects/object_points_strict_surface_stride10_xy.png")
     parser.add_argument("--strict-surface-fusion-report", type=Path, default=root / "server_strict_surface_fusion_0000_0999/objects/fusion_report.json")
+    parser.add_argument("--surface-consolidated-stride-ply", type=Path, default=root / "server_strict_surface_fusion_0000_0999/surface_consolidated/object_points_strict_surface_consolidated_stride10.ply")
+    parser.add_argument("--surface-consolidated-preview", type=Path, default=root / "server_strict_surface_fusion_0000_0999/surface_consolidated/object_points_strict_surface_consolidated_stride10_xy.png")
+    parser.add_argument("--surface-consolidation-report", type=Path, default=root / "server_strict_surface_fusion_0000_0999/surface_consolidated/surface_consolidation_report.json")
+    parser.add_argument("--surface-consolidation-mapping", type=Path, default=root / "server_strict_surface_fusion_0000_0999/surface_consolidated/object_mapping.jsonl")
     parser.add_argument("--conceptseg-qa", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_structured_qa.json")
     parser.add_argument("--conceptseg-contact-sheet", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_contact_sheet.jpg")
     parser.add_argument("--route-decision", type=Path, default=root / "route_status_20260610/dense_semantic_route_decision_20260611.json")
