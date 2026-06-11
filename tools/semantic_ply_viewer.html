@@ -559,20 +559,45 @@
       els.details.innerHTML = kv("file", loaded.names.join(", ")) + kv("type", rawRows[0].source);
     }
 
-    async function loadUrl(url) {
+    async function fetchUrlRows(url) {
       const displayName = decodeURIComponent(url.split("/").pop() || "remote.ply");
-      els.stats.textContent = `Loading ${displayName} ...`;
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Failed to load ${url}: HTTP ${response.status}`);
       const text = await response.text();
-      rawRows = parseFile({ name: displayName }, text);
+      return { name: displayName, rows: parseFile({ name: displayName }, text), url };
+    }
+
+    async function loadUrl(url) {
+      els.stats.textContent = `Loading ${decodeURIComponent(url.split("/").pop() || "remote.ply")} ...`;
+      const loaded = await fetchUrlRows(url);
+      rawRows = loaded.rows;
       if (!rawRows.length) throw new Error("No points/objects parsed.");
       bounds = computeBounds(rawRows);
       updateLabelOptions();
       applyUrlLabelParam(new URLSearchParams(window.location.search));
       rebuildGeometry();
       fitView();
-      els.details.innerHTML = kv("file", displayName) + kv("url", url) + kv("type", rawRows[0].source);
+      els.details.innerHTML = kv("file", loaded.name) + kv("url", url) + kv("type", rawRows[0].source);
+    }
+
+    async function loadUrls(urls) {
+      els.stats.textContent = `Loading ${urls.length} files ...`;
+      const parsed = [];
+      for (const url of urls) parsed.push(await fetchUrlRows(url));
+      const pointRows = parsed.flatMap(item => item.rows.filter(row => row.source === "ply"));
+      const objectRows = parsed.flatMap(item => item.rows.filter(row => row.source === "objects_jsonl"));
+      rawRows = pointRows.length ? enrichPointRows(pointRows, objectRows) : objectRows;
+      if (!rawRows.length) throw new Error("No points/objects parsed.");
+      bounds = computeBounds(rawRows);
+      updateLabelOptions();
+      applyUrlLabelParam(new URLSearchParams(window.location.search));
+      rebuildGeometry();
+      fitView();
+      els.details.innerHTML = [
+        kv("file", parsed.map(item => item.name).join(", ")),
+        kv("url", urls.join(", ")),
+        kv("type", rawRows[0].source)
+      ].join("");
     }
 
     const raycaster = new THREE.Raycaster();
@@ -654,9 +679,9 @@
 
     const params = new URLSearchParams(window.location.search);
     applyUrlDisplayParams(params);
-    const fileParam = params.get("file");
-    if (fileParam) {
-      loadUrl(fileParam).catch(err => {
+    const urlParams = [params.get("file"), params.get("objects")].filter(Boolean);
+    if (urlParams.length) {
+      loadUrls(urlParams).catch(err => {
         els.stats.innerHTML = `<span class="warn">${escapeHtml(err.message)}</span>`;
       });
     }
