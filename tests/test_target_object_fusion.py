@@ -106,6 +106,9 @@ def _target(
     confidence=1.0,
     mixed=False,
     can_merge_to_surface=False,
+    description="",
+    identity_hint="",
+    attributes=None,
 ):
     c = np.array(centroid, dtype=float)
     return {
@@ -123,6 +126,9 @@ def _target(
         "bbox_3d": {"min": (c - 0.05).tolist(), "max": (c + 0.05).tolist()},
         "centroid": c.tolist(),
         "mean_color": [100, 100, 100],
+        "description": description,
+        "identity_hint": identity_hint,
+        "attributes": attributes or {},
         "pca": {"normal": [0, 0, 1], "planarity": 0.8, "linearity": 0.1},
     }
 
@@ -202,6 +208,89 @@ def test_fuse_targets_does_not_merge_low_confidence_target_by_geometry_only():
 
     assert len(finalized) == 2
     assert decisions[1]["action"] == "new_object"
+
+
+def test_fuse_targets_uses_identity_gate_for_fine_object_labels():
+    module = load_module(SCRIPTS / "fuse_targets_to_objects.py", "fuse_targets_identity_gate_for_repo_test")
+    args = type("Args", (), {
+        "centroid_distance": 0.35,
+        "bbox_distance": 0.35,
+        "color_distance": 70.0,
+        "normal_angle": 25.0,
+        "zone_size": 100,
+        "active_zone_window": 1,
+        "identity_similarity_threshold": 0.2,
+    })()
+
+    objects, decisions = module.fuse_targets(
+        [
+            _target(
+                "t1",
+                0,
+                "equipment",
+                [0, 0, 0],
+                parent="object",
+                point_start=0,
+                description="white HVAC outdoor unit",
+                attributes={"color": "white", "function": "HVAC outdoor unit"},
+            ),
+            _target(
+                "t2",
+                1,
+                "equipment",
+                [0.10, 0, 0],
+                parent="object",
+                point_start=100,
+                description="gray electrical cabinet",
+                attributes={"color": "gray", "function": "electrical cabinet"},
+            ),
+            _target(
+                "t3",
+                2,
+                "equipment",
+                [0.12, 0, 0],
+                parent="object",
+                point_start=200,
+                description="white HVAC outdoor unit",
+                attributes={"color": "white", "function": "HVAC outdoor unit"},
+            ),
+        ],
+        args,
+    )
+    finalized = [module.finalize_object(o) for o in objects]
+
+    assert len(finalized) == 2
+    assert decisions[1]["action"] == "new_object"
+    assert decisions[2]["action"] == "merge"
+    assert finalized[0]["target_count"] == 2
+
+    obj = module.create_object(
+        "obj_000001",
+        _target(
+            "seed",
+            0,
+            "equipment",
+            [0, 0, 0],
+            parent="object",
+            description="white HVAC outdoor unit",
+            attributes={"color": "white", "function": "HVAC outdoor unit"},
+        ),
+    )
+    ok, meta = module.match_score(
+        obj,
+        _target(
+            "candidate",
+            1,
+            "equipment",
+            [0.10, 0, 0],
+            parent="object",
+            description="gray electrical cabinet",
+            attributes={"color": "gray", "function": "electrical cabinet"},
+        ),
+        args,
+    )
+    assert ok is False
+    assert meta["reason"] == "identity_gate"
 
 
 def test_fuse_targets_blocks_mixed_target_unless_surface_mergeable():

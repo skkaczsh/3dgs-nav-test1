@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -18,6 +19,22 @@ from project_semantic import LABEL_COLORS, LABEL_NAMES
 SURFACE_PARENT_CLASSES = {"surface", "structure"}
 SURFACE_LABELS = {"floor", "wall", "building"}
 DEFAULT_MIN_MERGE_CONFIDENCE = 0.5
+IDENTITY_GATE_LABELS = {"equipment", "pipe", "railing", "vehicle", "furniture", "person", "tree", "grass", "other"}
+IDENTITY_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "around",
+    "at",
+    "near",
+    "object",
+    "on",
+    "roof",
+    "rooftop",
+    "surface",
+    "the",
+    "unit",
+}
 
 
 def target_confidence(target: dict) -> float:
@@ -34,6 +51,45 @@ def target_vote_weight(target: dict) -> float:
 
 def target_description(target: dict) -> str:
     return str(target.get("description") or target.get("identity_hint") or "").strip()
+
+
+def identity_terms(text: str) -> set[str]:
+    terms = set()
+    for token in re.findall(r"[a-zA-Z0-9]+", text.lower()):
+        if len(token) < 3 or token in IDENTITY_STOPWORDS:
+            continue
+        terms.add(token)
+    return terms
+
+
+def object_identity_terms(obj: dict) -> set[str]:
+    terms: set[str] = set()
+    for description in (obj.get("description_votes") or {}).keys():
+        terms.update(identity_terms(str(description)))
+    if not terms:
+        terms.update(identity_terms(str(obj.get("description", ""))))
+    for values in (obj.get("attribute_votes") or {}).values():
+        if isinstance(values, dict):
+            for value in values.keys():
+                terms.update(identity_terms(str(value)))
+    return terms
+
+
+def target_identity_terms(target: dict) -> set[str]:
+    terms = identity_terms(target_description(target))
+    attrs = target.get("attributes") or {}
+    if isinstance(attrs, dict):
+        for value in attrs.values():
+            terms.update(identity_terms(str(value)))
+    return terms
+
+
+def identity_similarity(obj: dict, target: dict) -> float | None:
+    obj_terms = object_identity_terms(obj)
+    target_terms = target_identity_terms(target)
+    if not obj_terms or not target_terms:
+        return None
+    return float(len(obj_terms & target_terms) / max(len(obj_terms | target_terms), 1))
 
 
 def update_description_votes(votes: dict, target: dict) -> None:
@@ -242,6 +298,15 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
     parent = target.get("parent_class", "other")
     obj_parents = set(obj.get("parent_class_votes", {}).keys())
     same_parent = parent in obj_parents
+    identity_sim = identity_similarity(obj, target)
+    identity_threshold = float(getattr(args, "identity_similarity_threshold", 0.2))
+    use_identity_gate = (
+        not bool(getattr(args, "disable_identity_gate", False))
+        and target.get("label") in IDENTITY_GATE_LABELS
+        and (set(obj.get("label_votes", {}).keys()) & IDENTITY_GATE_LABELS)
+        and identity_sim is not None
+    )
+    identity_ok = (not use_identity_gate) or identity_sim >= identity_threshold
     strict_surface_labels = bool(getattr(args, "strict_surface_labels", False))
     target_is_surface_label = target.get("label") in SURFACE_LABELS
     obj_surface_labels = set(obj.get("label_votes", {}).keys()) & SURFACE_LABELS
@@ -258,15 +323,17 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
         overlap = bool(obj.get("_point_id_set", set()) & target_point_ids)
     merge = False
     reason = "no_match"
-    if same_label and near and color_ok and normal_ok and quality_ok:
+    if same_label and near and color_ok and normal_ok and quality_ok and identity_ok:
         merge = True
         reason = "same_label_geometry_color"
-    elif overlap and (same_label or (same_parent and not surface_cross_label)) and color_ok and not quality["mixed_blocks_merge"]:
+    elif overlap and (same_label or (same_parent and not surface_cross_label)) and color_ok and not quality["mixed_blocks_merge"] and identity_ok:
         merge = True
         reason = "point_overlap"
-    elif same_parent and parent in SURFACE_PARENT_CLASSES and not surface_cross_label and near and color_ok and normal_ok and quality_ok:
+    elif same_parent and parent in SURFACE_PARENT_CLASSES and not surface_cross_label and near and color_ok and normal_ok and quality_ok and identity_ok:
         merge = True
         reason = "same_parent_surface_review"
+    elif use_identity_gate and not identity_ok and (same_label or same_parent) and near and color_ok and normal_ok:
+        reason = "identity_gate"
     elif (same_label or same_parent) and near and color_ok and normal_ok and not quality_ok:
         reason = "quality_gate"
     return merge, {
@@ -277,6 +344,9 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
         "normal_angle": normal_angle,
         "same_label": same_label,
         "same_parent": same_parent,
+        "identity_similarity": identity_sim,
+        "identity_gate_used": use_identity_gate,
+        "identity_ok": identity_ok,
         "surface_cross_label_blocked": surface_cross_label,
         "overlap": overlap,
         "target_confidence": quality["confidence"],
@@ -456,6 +526,8 @@ def main() -> None:
     parser.add_argument("--color-distance", type=float, default=70.0)
     parser.add_argument("--normal-angle", type=float, default=25.0)
     parser.add_argument("--min-merge-confidence", type=float, default=0.5)
+    parser.add_argument("--identity-similarity-threshold", type=float, default=0.2)
+    parser.add_argument("--disable-identity-gate", action="store_true")
     parser.add_argument("--zone-size", type=int, default=100)
     parser.add_argument("--active-zone-window", type=int, default=1)
     parser.add_argument("--spatial-cell-size", type=float, default=1.0)
