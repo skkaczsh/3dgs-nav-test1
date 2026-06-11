@@ -44,9 +44,15 @@ Context:
        `/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full`.
      - Local merged QA:
        `/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/conceptseg_fine_object_all_qa.json`.
-     - Next action: compare these constrained masks only inside the existing
-       target/object review workflow. Do not promote them to dense semantic
-       image generation.
+     - Target/object alignment:
+       `/Users/skkac/Work/SCAN/server_conceptseg_fine_object_alignment_v008/conceptseg_target_object_alignment_report.json`.
+     - Alignment result: `30 / 30` targets have usable candidates, but
+       `0 / 30` targets are semantically discriminative because multiple prompts
+       can match different local structures in the same image.
+     - Next action: use ConceptSeg only to split/refine fine residual masks
+       after intersection with existing SAM2/Qwen masks and 3D connected
+       components. Do not promote it to dense semantic image generation or
+       target-level classification.
 
 2. Old-route visual-reference expansion on `scan-train` only if GPU/CPU is idle.
    - Scope: color/reference comparison, not semantic source.

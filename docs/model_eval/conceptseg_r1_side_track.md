@@ -139,6 +139,25 @@ Fine-object v008 constrained run:
     floor/wall pollution. Treat them as target-level candidates that still need
     3D connected-component and mask-intersection filtering before point-level
     fusion.
+- Target/object alignment:
+  - script:
+    `/Users/skkac/Work/SCAN/new_route/scripts/align_conceptseg_fine_object_results.py`
+  - local output:
+    `/Users/skkac/Work/SCAN/server_conceptseg_fine_object_alignment_v008`
+  - aligned candidates: `90`
+  - aligned targets: `30`
+  - aligned long objects: `16`
+  - bbox parse failures: `0`
+  - concept matches: `89 / 90`
+  - overlarge candidates: `2 / 90`
+  - usable candidate targets: `30 / 30`
+  - semantically discriminative targets: `0 / 30`
+  - key limitation: the same target often returns valid local candidates for
+    multiple prompts. Therefore ConceptSeg-R1 is useful for local candidate
+    mask generation, but this result is not a target-level semantic classifier.
+  - next integration point: intersect ConceptSeg candidate masks with the
+    existing SAM2/Qwen instance mask and projected 3D connected components,
+    then use it only to split/refine fine residual objects.
 
 References:
 
