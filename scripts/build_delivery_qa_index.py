@@ -49,18 +49,24 @@ def render_markdown(package_dir: Path, package: dict[str, Any], validation: dict
         f"- package passed: `{package.get('passed')}`",
         f"- package validation passed: `{validation.get('passed')}`",
         f"- route decision: `{metrics.get('route_decision')}`",
+        f"- release status: `{metrics.get('release_status')}`",
+        f"- release manual gate: `{metrics.get('release_manual_gate')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
         f"- old route decision: `{metrics.get('old_route_decision')}`",
         "",
         "## Visual Review Order",
         "",
         "1. Open the semantic PLY viewer: `tools/semantic_ply_viewer.html` from the repository root.",
-        f"2. Load surface-first preview PLY: `{row_link(package_dir, role_map, 'surface_first_subcluster_preview_ply')}`.",
-        "3. Compare against the full/stride object PLY listed in `large_files.json`.",
-        f"4. Inspect surface-first XY preview: `{row_link(package_dir, role_map, 'surface_first_subcluster_xy_preview')}`.",
-        f"5. Inspect residual surface-assignment preview: `{row_link(package_dir, role_map, 'residual_surface_assignment_xy_preview')}`.",
-        f"6. Inspect ConceptSeg accepted sheet: `{row_link(package_dir, role_map, 'conceptseg_instance_accepted_sheet')}`.",
-        f"7. Inspect old-route color preview: `{row_link(package_dir, role_map, 'old_route_color_smoke_preview')}`.",
+        f"2. Load primary hybrid strict-surface PLY: `{row_link(package_dir, role_map, 'surface_hybrid_consolidated_preview_ply')}`.",
+        f"3. Compare balanced consolidated PLY: `{row_link(package_dir, role_map, 'surface_consolidated_preview_ply')}`.",
+        f"4. Compare strict raw surface PLY: `{row_link(package_dir, role_map, 'strict_surface_fusion_preview_ply')}`.",
+        f"5. Compare old/base object PLY: `{row_link(package_dir, role_map, 'target_object_preview_ply')}`.",
+        f"6. Inspect ConceptSeg 3D refinement PLY: `{row_link(package_dir, role_map, 'conceptseg_3d_components_ply')}`.",
+        f"7. Inspect XY previews: `{row_link(package_dir, role_map, 'surface_hybrid_consolidated_xy_preview')}`, `{row_link(package_dir, role_map, 'surface_consolidated_xy_preview')}`, `{row_link(package_dir, role_map, 'strict_surface_fusion_xy_preview')}`.",
+        f"8. Inspect surface-first XY preview: `{row_link(package_dir, role_map, 'surface_first_subcluster_xy_preview')}`.",
+        f"9. Inspect residual surface-assignment preview: `{row_link(package_dir, role_map, 'residual_surface_assignment_xy_preview')}`.",
+        f"10. Inspect ConceptSeg accepted sheet: `{row_link(package_dir, role_map, 'conceptseg_instance_accepted_sheet')}`.",
+        f"11. Inspect old-route color preview: `{row_link(package_dir, role_map, 'old_route_color_smoke_preview')}`.",
         "",
         "## Key Metrics",
         "",
@@ -79,6 +85,8 @@ def render_markdown(package_dir: Path, package: dict[str, Any], validation: dict
         f"- surface seed augmented best ratio: `{metrics.get('residual_candidate_coverage_augmented_best_ratio')}`",
         f"- ConceptSeg accepted intersections: `{metrics.get('conceptseg_instance_accepted_candidates')}`",
         f"- ConceptSeg target status: `{metrics.get('conceptseg_instance_target_status_counts')}`",
+        f"- ConceptSeg 3D refinement components/points: `{metrics.get('conceptseg_3d_refinement_components')}` / `{metrics.get('conceptseg_3d_refinement_component_points')}`",
+        f"- ConceptSeg 3D refinement status: `{metrics.get('conceptseg_3d_refinement_status_counts')}`",
         f"- old-route colored ratio: `{metrics.get('old_route_colored_ratio')}`",
         "",
         "## Packaged Reports",
@@ -86,6 +94,7 @@ def render_markdown(package_dir: Path, package: dict[str, Any], validation: dict
     ]
     for role in [
         "dense_semantic_route_decision_markdown",
+        "dense_semantic_release_status_markdown",
         "strict_output_validation",
         "target_object_qa",
         "object_pipeline_qa_summary",
@@ -99,6 +108,8 @@ def render_markdown(package_dir: Path, package: dict[str, Any], validation: dict
         "residual_candidate_surface_coverage_augmented_report",
         "conceptseg_fine_object_alignment",
         "conceptseg_instance_intersection",
+        "conceptseg_integration_plan_markdown",
+        "conceptseg_3d_refinement_report",
         "old_route_reference_validation",
         "v008_reviewed_merge_qa",
     ]:
@@ -127,9 +138,18 @@ def render_html(package_dir: Path, package: dict[str, Any], validation: dict[str
         return f"<section><h2>{html.escape(title)}</h2>{body}</section>"
 
     visual_items = [
+        ("Primary hybrid strict-surface PLY", row_link(package_dir, role_map, "surface_hybrid_consolidated_preview_ply")),
+        ("Balanced consolidated PLY", row_link(package_dir, role_map, "surface_consolidated_preview_ply")),
+        ("Strict raw surface PLY", row_link(package_dir, role_map, "strict_surface_fusion_preview_ply")),
+        ("Old/base object PLY", row_link(package_dir, role_map, "target_object_preview_ply")),
+        ("ConceptSeg 3D refinement PLY", row_link(package_dir, role_map, "conceptseg_3d_components_ply")),
+        ("Hybrid strict-surface XY preview", row_link(package_dir, role_map, "surface_hybrid_consolidated_xy_preview")),
+        ("Balanced consolidated XY preview", row_link(package_dir, role_map, "surface_consolidated_xy_preview")),
+        ("Strict raw surface XY preview", row_link(package_dir, role_map, "strict_surface_fusion_xy_preview")),
         ("Surface-first preview PLY", row_link(package_dir, role_map, "surface_first_subcluster_preview_ply")),
         ("Surface-first XY preview", row_link(package_dir, role_map, "surface_first_subcluster_xy_preview")),
         ("Residual surface-assignment XY preview", row_link(package_dir, role_map, "residual_surface_assignment_xy_preview")),
+        ("ConceptSeg 3D refinement XY preview", row_link(package_dir, role_map, "conceptseg_3d_components_xy_preview")),
         ("ConceptSeg accepted sheet", row_link(package_dir, role_map, "conceptseg_instance_accepted_sheet")),
         ("Old-route color preview", row_link(package_dir, role_map, "old_route_color_smoke_preview")),
         ("Large file index", "large_files.json"),
@@ -137,6 +157,7 @@ def render_html(package_dir: Path, package: dict[str, Any], validation: dict[str
     ]
     report_items = [
         ("Route decision", row_link(package_dir, role_map, "dense_semantic_route_decision_markdown")),
+        ("Release status", row_link(package_dir, role_map, "dense_semantic_release_status_markdown")),
         ("Strict output validation", row_link(package_dir, role_map, "strict_output_validation")),
         ("Target/object QA", row_link(package_dir, role_map, "target_object_qa")),
         ("Object pipeline QA summary", row_link(package_dir, role_map, "object_pipeline_qa_summary")),
@@ -150,12 +171,16 @@ def render_html(package_dir: Path, package: dict[str, Any], validation: dict[str
         ("Residual candidate coverage augmented", row_link(package_dir, role_map, "residual_candidate_surface_coverage_augmented_report")),
         ("ConceptSeg alignment", row_link(package_dir, role_map, "conceptseg_fine_object_alignment")),
         ("ConceptSeg intersection", row_link(package_dir, role_map, "conceptseg_instance_intersection")),
+        ("ConceptSeg integration plan", row_link(package_dir, role_map, "conceptseg_integration_plan_markdown")),
+        ("ConceptSeg 3D refinement", row_link(package_dir, role_map, "conceptseg_3d_refinement_report")),
         ("Old-route validation", row_link(package_dir, role_map, "old_route_reference_validation")),
     ]
     metric_rows = [
         ("Package passed", package.get("passed")),
         ("Validation passed", validation.get("passed")),
         ("Route decision", metrics.get("route_decision")),
+        ("Release status", metrics.get("release_status")),
+        ("Release manual gate", metrics.get("release_manual_gate")),
         ("ConceptSeg decision", metrics.get("conceptseg_decision")),
         ("Old route decision", metrics.get("old_route_decision")),
         ("Targets", metrics.get("target_count")),
@@ -170,6 +195,8 @@ def render_html(package_dir: Path, package: dict[str, Any], validation: dict[str
         ("Surface seed candidate count", metrics.get("surface_seed_candidate_count")),
         ("Surface seed augmented best ratio", metrics.get("residual_candidate_coverage_augmented_best_ratio")),
         ("ConceptSeg accepted intersections", metrics.get("conceptseg_instance_accepted_candidates")),
+        ("ConceptSeg 3D refinement components", metrics.get("conceptseg_3d_refinement_components")),
+        ("ConceptSeg 3D refinement points", metrics.get("conceptseg_3d_refinement_component_points")),
         ("Old-route colored ratio", metrics.get("old_route_colored_ratio")),
     ]
     css = """
@@ -191,10 +218,11 @@ def render_html(package_dir: Path, package: dict[str, Any], validation: dict[str
     ) + "</ul>"
     review_html = """
     <ol>
-      <li>Open the semantic PLY viewer and load the surface-first preview PLY.</li>
+      <li>Open the semantic PLY viewer and load the primary hybrid strict-surface PLY.</li>
+      <li>Compare hybrid, balanced, strict raw, and old/base PLYs in that order.</li>
       <li>Check whether floor/wall/building regions are coherent and not fragmented into fine-object colors.</li>
       <li>Use residual surface-assignment evidence to distinguish surface-noise cleanup from unresolved fine-object residuals.</li>
-      <li>Open the ConceptSeg accepted sheet; use it only as evidence for local fine-object refinements.</li>
+      <li>Open the ConceptSeg 3D refinement PLY and accepted sheet; use them only as evidence for local fine-object refinements.</li>
       <li>Use the old-route color preview only as RGB sanity reference.</li>
     </ol>
     """
