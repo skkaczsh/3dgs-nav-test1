@@ -48,6 +48,7 @@
 - Refreshed package: `/Users/skkac/Work/SCAN/dataset_delivery_0000_0999.tgz`
 - Package validation: `/Users/skkac/Work/SCAN/dataset_delivery_0000_0999_validation.json`
 - Manifest validation: `/Users/skkac/Work/SCAN/route_status_20260610/dataset_delivery_manifest_0000_0999_validation.json`
+- Delivery acceptance: `/Users/skkac/Work/SCAN/route_status_20260610/delivery_acceptance_20260611.json`
 - Packaged files: `24`
 - Large referenced files: `3`
 - Included side-track evidence:

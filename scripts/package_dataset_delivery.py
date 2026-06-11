@@ -133,6 +133,7 @@ def render_readme(package: dict) -> str:
         f"- ConceptSeg target status: `{metrics.get('conceptseg_instance_target_status_counts')}`",
         f"- old route decision: `{metrics.get('old_route_decision')}`",
         f"- old route reference passed: `{metrics.get('old_route_reference_passed')}`",
+        f"- delivery acceptance passed: `{metrics.get('delivery_acceptance_passed')}`",
         "",
         "## Viewer Inputs",
         "",

@@ -59,6 +59,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     concept_intersection = read_json(args.conceptseg_intersection)
     old_route = read_json(args.old_route_summary)
     old_route_validation = read_json(args.old_route_validation)
+    delivery_acceptance = read_json(args.delivery_acceptance)
     fine_targets = read_json(args.fine_targets_report)
     fine_tracklets = read_json(args.fine_tracklet_report)
     long_assoc = read_json(args.long_assoc_report)
@@ -79,6 +80,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         check_threshold("conceptseg_instance_targets", nested(concept_intersection, "target_status_counts", "has_intersection_candidate", default=0), 1, ">="),
         check_threshold("old_route_colored_ratio", old_route.get("colored_ratio"), 0.80, ">="),
         check_threshold("old_route_reference_validation", 1.0 if old_route_validation.get("passed") else 0.0, 1.0, ">="),
+        check_threshold("delivery_acceptance", 1.0 if delivery_acceptance.get("passed") else 0.0, 1.0, ">="),
         check_threshold("fine_targets", fine_targets.get("targets"), 3000, ">="),
         check_threshold("fine_tracklet_merge_ratio", fine_tracklets.get("merge_ratio"), 0.85, ">="),
         check_threshold("long_assoc_objects", long_assoc.get("objects"), 100, "<="),
@@ -108,6 +110,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.old_route_summary, "old_route_color_smoke_summary", required=False),
         file_entry(args.old_route_preview, "old_route_color_smoke_preview", required=False),
         file_entry(args.old_route_validation, "old_route_reference_validation", required=False),
+        file_entry(args.delivery_acceptance, "delivery_acceptance_report", required=True),
         file_entry(args.fine_targets_report, "v008_fine_targets_report"),
         file_entry(args.fine_targets_jsonl, "v008_fine_targets_jsonl"),
         file_entry(args.fine_tracklet_report, "v008_fine_tracklet_report"),
@@ -152,6 +155,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             "old_route_decision": nested(route_decision, "old_route_side_track", "decision"),
             "old_route_colored_ratio": old_route.get("colored_ratio"),
             "old_route_reference_passed": old_route_validation.get("passed"),
+            "delivery_acceptance_passed": delivery_acceptance.get("passed"),
             "fine_targets": fine_targets.get("targets"),
             "fine_target_points": fine_targets.get("target_points"),
             "fine_target_small_residual_points": fine_targets.get("small_residual_points"),
@@ -213,6 +217,7 @@ def render_markdown(manifest: dict[str, Any]) -> str:
         f"- old route decision: `{metrics.get('old_route_decision')}`",
         f"- old route colored ratio: `{metrics.get('old_route_colored_ratio')}`",
         f"- old route reference passed: `{metrics.get('old_route_reference_passed')}`",
+        f"- delivery acceptance passed: `{metrics.get('delivery_acceptance_passed')}`",
         f"- fine targets: `{metrics.get('fine_targets')}`",
         f"- fine tracklets: `{metrics.get('fine_tracklets')}`",
         f"- long-association objects: `{metrics.get('long_assoc_objects')}`",
@@ -255,6 +260,7 @@ def main() -> None:
     parser.add_argument("--old-route-summary", type=Path, default=root / "server_old_route_smoke/world_colorize_summary.json")
     parser.add_argument("--old-route-preview", type=Path, default=root / "server_old_route_smoke/old_route_world_color_smoke_s8_v010_best_chroma_xy.png")
     parser.add_argument("--old-route-validation", type=Path, default=root / "server_old_route_smoke/old_route_reference_validation.json")
+    parser.add_argument("--delivery-acceptance", type=Path, default=root / "route_status_20260610/delivery_acceptance_20260611.json")
     parser.add_argument("--fine-targets-report", type=Path, default=root / "server_frame_fine_target_object_v008/frame_fine_targets_0000_0999_v008_sweep/v0.16_m3/frame_fine_targets_report.json")
     parser.add_argument("--fine-targets-jsonl", type=Path, default=root / "server_frame_fine_target_object_v008/frame_fine_targets_0000_0999_v008_sweep/v0.16_m3/targets_all.jsonl")
     parser.add_argument("--fine-tracklet-report", type=Path, default=root / "server_frame_fine_long_assoc_v008/frame_fine_tracklets_0000_0999_v008_v016_m3_gap60_v2/tracklet_report.json")
