@@ -20,6 +20,7 @@
 - Residual surface assignment ratio: `0.4618`
 - Residual surface unassigned points: `1609501`
 - Residual absorption sweep best ratio: `0.5576`
+- Residual miss reasons: `no_candidate_cell=767620`, `label_incompatible=396654`, `plane_distance_failed=225349`, `color_distance_failed=147082`, `bbox_distance_failed=72796`
 
 ## ConceptSeg-R1 Evidence
 
@@ -52,12 +53,13 @@
 - Package validation: `/Users/skkac/Work/SCAN/dataset_delivery_0000_0999_validation.json`
 - Manifest validation: `/Users/skkac/Work/SCAN/route_status_20260610/dataset_delivery_manifest_0000_0999_validation.json`
 - Delivery acceptance: `/Users/skkac/Work/SCAN/route_status_20260610/delivery_acceptance_20260611.json`
-- Packaged files: `29`
+- Packaged files: `30`
 - Large referenced files: `3`
 - Included side-track evidence:
   - route decision JSON/Markdown
   - residual surface-assignment report and preview
   - residual absorption parameter sweep
+  - residual surface miss-reason report
   - ConceptSeg fine-object alignment report
   - ConceptSeg instance-intersection report and accepted sheet
   - old-route reference validation
