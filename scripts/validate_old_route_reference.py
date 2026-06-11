@@ -48,11 +48,13 @@ def read_ply_header(path: Path) -> dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--summary", type=Path, required=True)
-    parser.add_argument("--ply", type=Path, required=True)
-    parser.add_argument("--preview", type=Path, required=True)
-    parser.add_argument("--debug-dir", type=Path, required=True)
-    parser.add_argument("--output", type=Path, required=True)
+    root = Path("/Users/skkac/Work/SCAN")
+    old_route_dir = root / "server_old_route_smoke"
+    parser.add_argument("--summary", type=Path, default=old_route_dir / "world_colorize_summary.json")
+    parser.add_argument("--ply", type=Path, default=old_route_dir / "old_route_world_color_smoke_s8_v010_best_chroma.ply")
+    parser.add_argument("--preview", type=Path, default=old_route_dir / "old_route_world_color_smoke_s8_v010_best_chroma_xy.png")
+    parser.add_argument("--debug-dir", type=Path, default=old_route_dir / "debug")
+    parser.add_argument("--output", type=Path, default=old_route_dir / "old_route_reference_validation.json")
     parser.add_argument("--min-colored-ratio", type=float, default=0.85)
     args = parser.parse_args()
 

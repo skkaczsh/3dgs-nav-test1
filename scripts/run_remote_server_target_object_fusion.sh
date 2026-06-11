@@ -8,6 +8,7 @@ SSH_USER="${SSH_USER:-root}"
 BIND_ADDRESS="${BIND_ADDRESS:-}"
 REMOTE_SCRIPT_DIR="${REMOTE_SCRIPT_DIR:-/root/epfs/new_route_scripts}"
 LOCAL_SCRIPT_DIR="${LOCAL_SCRIPT_DIR:-/Users/skkac/Work/SCAN/new_route/scripts}"
+TAR_BIN="${TAR_BIN:-bsdtar}"
 
 REMOTE_OUTPUT_DIR="${REMOTE_OUTPUT_DIR:-/root/epfs/new_route_stage1_skymask/target_object_fusion_0000_0999}"
 LOCAL_OUTPUT_DIR="${LOCAL_OUTPUT_DIR:-/Users/skkac/Work/SCAN/server_resume_target_object_fusion_0000_0999}"
@@ -42,7 +43,8 @@ echo "[1/4] checking SSH connectivity: ${server_target}"
 ssh "${ssh_cmd_opts[@]}" -o ConnectTimeout=8 "${server_target}" 'hostname; date'
 
 echo "[2/4] syncing scripts to ${server_target}:${REMOTE_SCRIPT_DIR}"
-tar -C "${LOCAL_SCRIPT_DIR}" -cf - . | ssh "${ssh_cmd_opts[@]}" "${server_target}" "mkdir -p '${REMOTE_SCRIPT_DIR}' && tar -C '${REMOTE_SCRIPT_DIR}' -xf -"
+COPYFILE_DISABLE=1 "${TAR_BIN}" --no-xattrs -C "${LOCAL_SCRIPT_DIR}" --exclude='__pycache__' --exclude='._*' -cf - . \
+  | ssh "${ssh_cmd_opts[@]}" "${server_target}" "mkdir -p '${REMOTE_SCRIPT_DIR}' && tar -C '${REMOTE_SCRIPT_DIR}' -xf -"
 
 echo "[3/4] running target/object fusion on server"
 ssh "${ssh_cmd_opts[@]}" "${server_target}" "cd '${REMOTE_SCRIPT_DIR}' && \
