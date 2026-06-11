@@ -332,6 +332,15 @@ ssh -F /dev/null -p 31909 root@10.0.8.114 \
 
 Do not promote ConceptSeg-R1 to main path unless it beats `sam2_prompt_v3_sky_label_merge_completion` on the same review artifacts.
 
+SAM2 TensorRT status:
+
+- TensorRT is a possible speed optimization, not a semantic-quality fix.
+- Keep the production SAM2 route unchanged until a 20-50 image side benchmark
+  proves equivalent mask coverage, thin-object recall, schema compatibility,
+  and downstream target/object QA.
+- Side-track details:
+  `/Users/skkac/Work/SCAN/new_route/docs/model_eval/sam2_tensorrt_side_track.md`
+
 ## Old Route Side Track
 
 Current old-route status:
