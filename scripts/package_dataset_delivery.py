@@ -143,6 +143,8 @@ def render_readme(package: dict) -> str:
         f"- release manual gate: `{metrics.get('release_manual_gate')}`",
         f"- infra readiness passed: `{metrics.get('infra_readiness_passed')}`",
         f"- parallel queue tasks: `{metrics.get('parallel_queue_task_count')}`",
+        f"- visual acceptance status: `{metrics.get('visual_acceptance_status')}`",
+        f"- visual acceptance allow next increment: `{metrics.get('visual_acceptance_allow_next_increment')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
         f"- side-track ConceptSeg decision: `{metrics.get('side_track_conceptseg_decision')}`",
         f"- side-track ConceptSeg accepted target ratio: `{metrics.get('side_track_conceptseg_accepted_target_ratio')}`",

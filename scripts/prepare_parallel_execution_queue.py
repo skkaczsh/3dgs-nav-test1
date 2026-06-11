@@ -54,10 +54,12 @@ def make_queue(args: argparse.Namespace) -> dict[str, Any]:
     release = read_json(args.release_status)
     acceptance = read_json(args.delivery_acceptance)
     route_decision = read_json(args.route_decision)
+    visual_acceptance = read_json(args.visual_acceptance)
     train = server_by_name(infra, "scan-train")
     vlm = server_by_name(infra, "scan-vlm")
 
-    visual_gate_open = release.get("release", {}).get("status") == "ready_for_visual_review"
+    visual_accepted = bool(visual_acceptance.get("allow_next_increment"))
+    visual_gate_open = release.get("release", {}).get("status") == "ready_for_visual_review" and not visual_accepted
     package_ok = bool(acceptance.get("passed"))
     infra_ok = bool(infra.get("passed"))
     main_authoritative = route_decision.get("main_route", {}).get("decision") == "continue_as_authoritative_route"
@@ -80,6 +82,7 @@ def make_queue(args: argparse.Namespace) -> dict[str, Any]:
                     "http://127.0.0.1:8765/dataset_delivery_0000_0999/qa_index.html",
                     "http://127.0.0.1:8765/new_route/tools/semantic_ply_viewer.html",
                 ],
+                "acceptance_record": str(args.visual_acceptance),
                 "gate": "visual_acceptance_in_ply_viewer_or_cloudcompare",
             }
         )
@@ -170,11 +173,14 @@ def make_queue(args: argparse.Namespace) -> dict[str, Any]:
             "release_status": str(args.release_status),
             "delivery_acceptance": str(args.delivery_acceptance),
             "route_decision": str(args.route_decision),
+            "visual_acceptance": str(args.visual_acceptance),
         },
         "gates": {
             "infra_passed": infra_ok,
             "delivery_acceptance_passed": package_ok,
             "main_route_authoritative": main_authoritative,
+            "visual_acceptance_status": visual_acceptance.get("status", "missing"),
+            "visual_acceptance_all_required_accepted": visual_accepted,
             "visual_gate_open": visual_gate_open,
         },
         "queue": queue,
@@ -222,6 +228,7 @@ def main() -> None:
     parser.add_argument("--release-status", type=Path, default=ROOT / "route_status_20260610/dense_semantic_release_status_20260611.json")
     parser.add_argument("--delivery-acceptance", type=Path, default=ROOT / "route_status_20260610/delivery_acceptance_20260611.json")
     parser.add_argument("--route-decision", type=Path, default=ROOT / "route_status_20260610/dense_semantic_route_decision_20260611.json")
+    parser.add_argument("--visual-acceptance", type=Path, default=ROOT / "route_status_20260610/visual_acceptance_review_20260611.json")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "route_status_20260610")
     args = parser.parse_args()
 
