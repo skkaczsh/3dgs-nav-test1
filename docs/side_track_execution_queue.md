@@ -58,6 +58,15 @@ Context:
    - Scope: color/reference comparison, not semantic source.
    - Use the fixed scanner-native color route.
    - Do not reintroduce deprecated `transforms.json + project_world_points()`.
+   - Status 2026-06-11:
+     - Old-route smoke PLY and debug images were pulled locally.
+     - Reference validation passed:
+       `/Users/skkac/Work/SCAN/server_old_route_smoke/old_route_reference_validation.json`.
+     - Validated metrics: `31,323` RGB vertices, colored ratio `0.8816`,
+       `12` color frames, `8` sections.
+     - No reusable server runner was found under EPFS; keep this as a fixed
+       visual/color reference until a reproducible runner is rebuilt from the
+       validated scanner-native route.
 
 3. Main-route next dataset increment.
    - Candidate: extend from 0-999 to the next contiguous range only after visual QA accepts the current package.

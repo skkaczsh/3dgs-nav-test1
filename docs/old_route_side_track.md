@@ -12,8 +12,14 @@ Current usable local artifacts:
 
 - Smoke summary:
   `/Users/skkac/Work/SCAN/server_old_route_smoke/world_colorize_summary.json`
+- Smoke PLY:
+  `/Users/skkac/Work/SCAN/server_old_route_smoke/old_route_world_color_smoke_s8_v010_best_chroma.ply`
 - Smoke preview:
   `/Users/skkac/Work/SCAN/server_old_route_smoke/old_route_world_color_smoke_s8_v010_best_chroma_xy.png`
+- Smoke debug visible images:
+  `/Users/skkac/Work/SCAN/server_old_route_smoke/debug`
+- Reference validation:
+  `/Users/skkac/Work/SCAN/server_old_route_smoke/old_route_reference_validation.json`
 - Local debug PLYs:
   `/Users/skkac/Work/SCAN/MT20260511-165822/outputs/debug_colorize_20_mid360_direct*.ply`
 - Larger local reference:
@@ -31,6 +37,10 @@ Current smoke result:
 - sample radius: `6`
 - fusion mode: `best_chroma`
 - skymask source: `/root/epfs/manifold_3dgs_project/processed/final_masks`
+- reference validation: passed
+- PLY vertex count: `31,323`
+- PLY RGB fields: present
+- debug visible images: `3`
 
 Interpretation:
 
@@ -44,3 +54,18 @@ Interpretation:
   same frame range, same skymask, same best-observation color rule, and visual
   QA only. It should not consume Qwen/SAM2 resources while main-route data
   preparation is running.
+- The current server no longer exposes a reusable old-route generation script,
+  only the smoke artifacts. Treat this package as a fixed reference until a
+  reproducible runner is reconstructed from the validated scanner-native
+  projection code.
+
+Validation command:
+
+```bash
+python3 scripts/validate_old_route_reference.py \
+  --summary /Users/skkac/Work/SCAN/server_old_route_smoke/world_colorize_summary.json \
+  --ply /Users/skkac/Work/SCAN/server_old_route_smoke/old_route_world_color_smoke_s8_v010_best_chroma.ply \
+  --preview /Users/skkac/Work/SCAN/server_old_route_smoke/old_route_world_color_smoke_s8_v010_best_chroma_xy.png \
+  --debug-dir /Users/skkac/Work/SCAN/server_old_route_smoke/debug \
+  --output /Users/skkac/Work/SCAN/server_old_route_smoke/old_route_reference_validation.json
+```
