@@ -144,6 +144,8 @@ def render_readme(package: dict) -> str:
         f"- side-track ConceptSeg accepted target ratio: `{metrics.get('side_track_conceptseg_accepted_target_ratio')}`",
         f"- ConceptSeg accepted intersection candidates: `{metrics.get('conceptseg_instance_accepted_candidates')}`",
         f"- ConceptSeg target status: `{metrics.get('conceptseg_instance_target_status_counts')}`",
+        f"- ConceptSeg integration decision: `{metrics.get('conceptseg_integration_decision')}`",
+        f"- ConceptSeg integration accepted targets/objects: `{metrics.get('conceptseg_integration_accepted_targets')}` / `{metrics.get('conceptseg_integration_accepted_objects')}`",
         f"- side-track old route decision: `{metrics.get('side_track_old_route_decision')}`",
         f"- old route decision: `{metrics.get('old_route_decision')}`",
         f"- old route reference passed: `{metrics.get('old_route_reference_passed')}`",

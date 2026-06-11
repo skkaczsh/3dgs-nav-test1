@@ -69,6 +69,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     route_decision = read_json(args.route_decision)
     concept_align = read_json(args.conceptseg_alignment)
     concept_intersection = read_json(args.conceptseg_intersection)
+    concept_integration = read_json(args.conceptseg_integration_plan)
     side_track_readiness = read_json(args.side_track_readiness)
     old_route = read_json(args.old_route_summary)
     old_route_validation = read_json(args.old_route_validation)
@@ -144,6 +145,9 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.conceptseg_alignment, "conceptseg_fine_object_alignment", required=False),
         file_entry(args.conceptseg_intersection, "conceptseg_instance_intersection", required=False),
         file_entry(args.conceptseg_instance_accepted_sheet, "conceptseg_instance_accepted_sheet", required=False),
+        file_entry(args.conceptseg_integration_plan, "conceptseg_integration_plan", required=True),
+        file_entry(args.conceptseg_integration_plan_md, "conceptseg_integration_plan_markdown", required=True),
+        file_entry(args.conceptseg_accepted_integration_candidates, "conceptseg_accepted_integration_candidates", required=True),
         file_entry(args.side_track_readiness, "side_track_readiness", required=True),
         file_entry(args.side_track_readiness_md, "side_track_readiness_markdown", required=True),
         file_entry(args.old_route_summary, "old_route_color_smoke_summary", required=False),
@@ -246,6 +250,11 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             "conceptseg_semantically_discriminative_targets": concept_align.get("semantically_discriminative_target_count"),
             "conceptseg_instance_accepted_candidates": concept_intersection.get("accepted_candidate_count"),
             "conceptseg_instance_target_status_counts": concept_intersection.get("target_status_counts", {}),
+            "conceptseg_integration_decision": concept_integration.get("decision"),
+            "conceptseg_integration_role": concept_integration.get("role"),
+            "conceptseg_integration_accepted_targets": nested(concept_integration, "summary", "accepted_target_count"),
+            "conceptseg_integration_accepted_objects": nested(concept_integration, "summary", "accepted_object_count"),
+            "conceptseg_integration_accepted_source_labels": nested(concept_integration, "summary", "accepted_source_label_counts", default={}),
             "side_track_conceptseg_decision": nested(side_track_readiness, "conceptseg_r1", "decision"),
             "side_track_conceptseg_accepted_target_ratio": nested(side_track_readiness, "conceptseg_r1", "accepted_target_ratio"),
             "side_track_old_route_decision": nested(side_track_readiness, "old_route", "decision"),
@@ -283,6 +292,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             "Use reviewed long objects as the current fine-object object baseline.",
             "Keep ConceptSeg-R1 as constrained second-stage candidate generator.",
             "Use ConceptSeg-R1 only after strict instance-mask intersection; current accepted target coverage is low.",
+            "Use ConceptSeg integration plan as review-only split/refine candidates; do not overwrite dense labels automatically.",
             "Keep old route as visual color reference only.",
         ],
     }
@@ -324,6 +334,9 @@ def render_markdown(manifest: dict[str, Any]) -> str:
         f"- side-track ConceptSeg accepted target ratio: `{metrics.get('side_track_conceptseg_accepted_target_ratio')}`",
         f"- ConceptSeg instance accepted candidates: `{metrics.get('conceptseg_instance_accepted_candidates')}`",
         f"- ConceptSeg instance target status: `{metrics.get('conceptseg_instance_target_status_counts')}`",
+        f"- ConceptSeg integration decision: `{metrics.get('conceptseg_integration_decision')}`",
+        f"- ConceptSeg integration accepted targets/objects: `{metrics.get('conceptseg_integration_accepted_targets')}` / `{metrics.get('conceptseg_integration_accepted_objects')}`",
+        f"- ConceptSeg integration accepted source labels: `{metrics.get('conceptseg_integration_accepted_source_labels')}`",
         f"- side-track old route decision: `{metrics.get('side_track_old_route_decision')}`",
         f"- old route decision: `{metrics.get('old_route_decision')}`",
         f"- old route colored ratio: `{metrics.get('old_route_colored_ratio')}`",
@@ -391,6 +404,9 @@ def main() -> None:
     parser.add_argument("--conceptseg-alignment", type=Path, default=root / "server_conceptseg_fine_object_alignment_v008/conceptseg_target_object_alignment_report.json")
     parser.add_argument("--conceptseg-intersection", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_intersection_report.json")
     parser.add_argument("--conceptseg-instance-accepted-sheet", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_accepted_sheet.jpg")
+    parser.add_argument("--conceptseg-integration-plan", type=Path, default=root / "route_status_20260610/conceptseg_integration_plan_20260611.json")
+    parser.add_argument("--conceptseg-integration-plan-md", type=Path, default=root / "route_status_20260610/conceptseg_integration_plan_20260611.md")
+    parser.add_argument("--conceptseg-accepted-integration-candidates", type=Path, default=root / "route_status_20260610/conceptseg_accepted_integration_candidates_20260611.jsonl")
     parser.add_argument("--side-track-readiness", type=Path, default=root / "route_status_20260610/side_track_readiness_20260611.json")
     parser.add_argument("--side-track-readiness-md", type=Path, default=root / "route_status_20260610/side_track_readiness_20260611.md")
     parser.add_argument("--old-route-summary", type=Path, default=root / "server_old_route_smoke/world_colorize_summary.json")
