@@ -151,10 +151,10 @@
     <aside>
       <h1>Semantic PLY/Object Viewer</h1>
       <div id="drop" class="drop">
-        Drop ASCII PLY or objects JSONL here<br>
+        Drop ASCII PLY and optional objects JSONL here<br>
         <span class="mono">x y z red green blue object semantic frame</span>
       </div>
-      <input id="file" type="file" accept=".ply,.jsonl,.json,.txt">
+      <input id="file" type="file" accept=".ply,.jsonl,.json,.txt" multiple>
 
       <h2>Display</h2>
       <label for="colorMode">Color mode</label>
@@ -280,6 +280,59 @@
       return LABELS[n] || String(value || "unknown");
     }
 
+    function objectKeys(value) {
+      const raw = String(value ?? "").trim();
+      if (!raw) return [];
+      const keys = new Set([raw]);
+      const match = raw.match(/^obj_0*(\d+)$/i);
+      if (match) keys.add(match[1]);
+      if (/^\d+$/.test(raw)) {
+        keys.add(`obj_${String(Number(raw)).padStart(6, "0")}`);
+        keys.add(String(Number(raw)));
+      }
+      return [...keys];
+    }
+
+    function buildObjectMetadata(rows) {
+      const map = new Map();
+      for (const row of rows) {
+        if (row.source !== "objects_jsonl") continue;
+        for (const key of objectKeys(row.objectId)) map.set(key, row);
+      }
+      return map;
+    }
+
+    function enrichPointRows(pointRows, objectRows) {
+      const metadata = buildObjectMetadata(objectRows);
+      if (!metadata.size) return pointRows;
+      return pointRows.map(row => {
+        let meta = null;
+        for (const key of objectKeys(row.objectId)) {
+          if (metadata.has(key)) {
+            meta = metadata.get(key);
+            break;
+          }
+        }
+        if (!meta) return row;
+        return {
+          ...row,
+          status: row.status || meta.status,
+          pointCount: meta.pointCount,
+          targetCount: meta.targetCount,
+          dominantLabelRatio: meta.dominantLabelRatio,
+          labelVotes: meta.labelVotes,
+          description: meta.description,
+          descriptionVoteRatio: meta.descriptionVoteRatio,
+          descriptionVotes: meta.descriptionVotes,
+          identityHint: meta.identityHint,
+          attributes: meta.attributes,
+          objectFrame: meta.frame,
+          objectBbox: meta.bbox,
+          source: "ply+objects_jsonl"
+        };
+      });
+    }
+
     function parseAsciiPly(text) {
       const lines = text.split(/\r?\n/);
       if (lines[0]?.trim() !== "ply") throw new Error("Not a PLY file.");
@@ -358,6 +411,18 @@
       if (name.endsWith(".ply")) return parseAsciiPly(text);
       if (name.endsWith(".jsonl") || name.endsWith(".json") || name.endsWith(".txt")) return parseObjectJsonl(text);
       throw new Error("Unsupported file extension. Use .ply or .jsonl.");
+    }
+
+    async function parseFiles(files) {
+      const parsed = [];
+      for (const file of files) {
+        const rows = parseFile(file, await file.text());
+        parsed.push({ name: file.name, rows });
+      }
+      const pointRows = parsed.flatMap(item => item.rows.filter(row => row.source === "ply"));
+      const objectRows = parsed.flatMap(item => item.rows.filter(row => row.source === "objects_jsonl"));
+      const rows = pointRows.length ? enrichPointRows(pointRows, objectRows) : objectRows;
+      return { rows, names: parsed.map(item => item.name) };
     }
 
     function computeBounds(rows) {
@@ -480,17 +545,18 @@
       if (option) els.labelFilter.value = label;
     }
 
-    async function loadFile(file) {
-      els.stats.textContent = `Loading ${file.name} ...`;
-      const text = await file.text();
-      rawRows = parseFile(file, text);
+    async function loadFiles(files) {
+      const list = [...files];
+      els.stats.textContent = `Loading ${list.map(file => file.name).join(", ")} ...`;
+      const loaded = await parseFiles(list);
+      rawRows = loaded.rows;
       if (!rawRows.length) throw new Error("No points/objects parsed.");
       bounds = computeBounds(rawRows);
       updateLabelOptions();
       applyUrlLabelParam(new URLSearchParams(window.location.search));
       rebuildGeometry();
       fitView();
-      els.details.innerHTML = kv("file", file.name) + kv("type", rawRows[0].source);
+      els.details.innerHTML = kv("file", loaded.names.join(", ")) + kv("type", rawRows[0].source);
     }
 
     async function loadUrl(url) {
@@ -527,6 +593,7 @@
         kv("semantic", row.semanticId),
         kv("status", row.status),
         kv("frame", row.frame),
+        kv("object frame", row.objectFrame || ""),
         kv("points", row.pointCount ?? ""),
         kv("targets", row.targetCount ?? ""),
         kv("dominant ratio", row.dominantLabelRatio != null ? Number(row.dominantLabelRatio).toFixed(3) : ""),
@@ -557,9 +624,8 @@
     animate();
 
     els.file.addEventListener("change", async () => {
-      const file = els.file.files[0];
-      if (!file) return;
-      try { await loadFile(file); } catch (err) { els.stats.innerHTML = `<span class="warn">${escapeHtml(err.message)}</span>`; }
+      if (!els.file.files.length) return;
+      try { await loadFiles(els.file.files); } catch (err) { els.stats.innerHTML = `<span class="warn">${escapeHtml(err.message)}</span>`; }
     });
     for (const eventName of ["dragenter", "dragover"]) {
       els.drop.addEventListener(eventName, event => {
@@ -574,9 +640,8 @@
       });
     }
     els.drop.addEventListener("drop", async event => {
-      const file = event.dataTransfer.files[0];
-      if (!file) return;
-      try { await loadFile(file); } catch (err) { els.stats.innerHTML = `<span class="warn">${escapeHtml(err.message)}</span>`; }
+      if (!event.dataTransfer.files.length) return;
+      try { await loadFiles(event.dataTransfer.files); } catch (err) { els.stats.innerHTML = `<span class="warn">${escapeHtml(err.message)}</span>`; }
     });
     for (const el of [els.colorMode, els.pointSize, els.sampleStride, els.labelFilter]) {
       el.addEventListener("input", () => rawRows.length && rebuildGeometry());

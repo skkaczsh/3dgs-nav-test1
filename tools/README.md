@@ -21,6 +21,7 @@ Supported drag-and-drop inputs:
 
 - ASCII PLY with vertex properties such as `x y z red green blue object semantic frame`.
 - Target/object fusion `objects.jsonl`; the viewer displays object centroids, labels, status, vote summary, target count, point count, and optional identity fields such as `description`, `identity_hint`, `dominant_attributes`, and `description_votes`.
+- ASCII PLY plus `objects.jsonl` together; the viewer keeps PLY point geometry and enriches selected points with object-level description, identity, attributes, and vote metadata by object id.
 
 Useful local files:
 
