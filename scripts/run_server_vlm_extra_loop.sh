@@ -108,21 +108,23 @@ PY
 
   if [[ "${count}" -gt 0 ]]; then
     echo "$$" >"${PID_FILE}"
-    if ! MANIFEST="${VLM_MANIFEST}" \
-      OUTPUT_DIR="${OUTPUT_DIR}" \
-      SAM_MASKS_DIR="${LINKED_SAM_DIR}" \
-      EXISTING_SAM_DIR="${SAM_MASKS_DIR}" \
-      PART0="${SAM_MASKS_DIR}" \
-      PART1="${SAM_MASKS_DIR}" \
-      WORK_DIR="${WORK_DIR}" \
-      LOG_DIR="${WORK_DIR}/logs" \
-      START_INDEX=0 \
-      END_INDEX="${count}" \
-      SHARDS="${SHARDS}" \
-      CHUNK_SIZE="${CHUNK_SIZE}" \
-      MAX_TOKENS="${MAX_TOKENS}" \
-      PATCH_SCENE_PROMPTS="${PATCH_SCENE_PROMPTS}" \
-      bash "${SCRIPT_DIR}/run_server_semantic_completion_sharded.sh"; then
+    if ! (
+      export MANIFEST="${VLM_MANIFEST}"
+      export OUTPUT_DIR="${OUTPUT_DIR}"
+      export SAM_MASKS_DIR="${LINKED_SAM_DIR}"
+      export EXISTING_SAM_DIR="${SAM_MASKS_DIR}"
+      export PART0="${SAM_MASKS_DIR}"
+      export PART1="${SAM_MASKS_DIR}"
+      export WORK_DIR="${WORK_DIR}"
+      export LOG_DIR="${WORK_DIR}/logs"
+      export START_INDEX=0
+      export END_INDEX="${count}"
+      export SHARDS="${SHARDS}"
+      export CHUNK_SIZE="${CHUNK_SIZE}"
+      export MAX_TOKENS="${MAX_TOKENS}"
+      export PATCH_SCENE_PROMPTS="${PATCH_SCENE_PROMPTS}"
+      bash "${SCRIPT_DIR}/run_server_semantic_completion_sharded.sh"
+    ); then
       echo "[cycle ${cycle}] semantic extra failed; continuing after sleep"
     fi
   fi

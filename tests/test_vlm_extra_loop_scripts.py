@@ -13,6 +13,8 @@ def test_server_vlm_extra_loop_filters_stable_sam_and_limits_batch():
     assert "invalid_sam_extra_candidates" in text
     assert "run_server_semantic_completion_sharded.sh" in text
     assert "sam2_prompt_v3_sky_label_merge_completion/semantic.png" in text
+    assert 'export SAM_MASKS_DIR="${LINKED_SAM_DIR}"' in text
+    assert 'export EXISTING_SAM_DIR="${SAM_MASKS_DIR}"' in text
 
 
 def test_remote_vlm_extra_loop_starts_tmux_and_syncs_scripts():
