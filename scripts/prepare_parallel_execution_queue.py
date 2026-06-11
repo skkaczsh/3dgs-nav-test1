@@ -70,12 +70,15 @@ def next_increment_commands(train: dict[str, Any], status: str) -> list[str]:
         commands.extend(
             [
                 (
-                    f"{direct} 'tmux new-session -Ad -s next_increment_sky_1000_1999 "
+                    f"{direct} 'for spec in 1000:1249 1250:1499 1500:1749 1750:1999; do "
+                    "s=${spec%:*}; e=${spec#*:}; name=next_sky_${s}_${e}; "
+                    "tmux new-session -Ad -s \"$name\" "
                     "\"cd /root/epfs/new_route_scripts && /root/epfs/conda_envs/vlm_seg/bin/python build_sky_masks_from_frames.py "
                     "--frames-dir /root/epfs/new_route_stage1_skymask/frames "
                     "--output-dir /root/epfs/new_route_data/sky_masks_color "
-                    "--start 1000 --end 1999 --skip-existing "
-                    "--report /root/epfs/new_route_data/sky_masks_color/sky_masks_1000_1999_report.json\"'"
+                    "--start $s --end $e --skip-existing "
+                    "--report /root/epfs/new_route_data/sky_masks_color/sky_masks_${s}_${e}_report.json\"; "
+                    "done'"
                 ),
                 "python3 scripts/check_next_increment_readiness.py",
             ]
