@@ -68,6 +68,16 @@ def render_markdown(package_dir: Path, package: dict[str, Any], validation: dict
         f"10. Inspect ConceptSeg accepted sheet: `{row_link(package_dir, role_map, 'conceptseg_instance_accepted_sheet')}`.",
         f"11. Inspect old-route color preview: `{row_link(package_dir, role_map, 'old_route_color_smoke_preview')}`.",
         "",
+        "## Local Review Server",
+        "",
+        "```bash",
+        "cd /Users/skkac/Work/SCAN/new_route",
+        "python3 scripts/serve_review_package.py --root /Users/skkac/Work/SCAN --host 127.0.0.1 --port 8765",
+        "```",
+        "",
+        "- QA index: `http://127.0.0.1:8765/dataset_delivery_0000_0999/qa_index.html`",
+        "- PLY viewer: `http://127.0.0.1:8765/new_route/tools/semantic_ply_viewer.html`",
+        "",
         "## Key Metrics",
         "",
         f"- target count: `{metrics.get('target_count')}`",
@@ -225,6 +235,8 @@ def render_html(package_dir: Path, package: dict[str, Any], validation: dict[str
       <li>Open the ConceptSeg 3D refinement PLY and accepted sheet; use them only as evidence for local fine-object refinements.</li>
       <li>Use the old-route color preview only as RGB sanity reference.</li>
     </ol>
+    <p><code>python3 scripts/serve_review_package.py --root /Users/skkac/Work/SCAN --host 127.0.0.1 --port 8765</code></p>
+    <p><a href="/new_route/tools/semantic_ply_viewer.html">Open PLY viewer</a></p>
     """
     nogo_html = """
     <ul>
