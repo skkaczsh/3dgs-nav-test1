@@ -49,7 +49,6 @@ python3 filter_semantic_manifest_ready.py \
   --sam-masks-dir "${SAM_MASKS_DIR}" \
   --output "${READY_ALL}" \
   --require-sky \
-  --validate-sam-json \
   --min-sam-age-seconds "${MIN_SAM_AGE_SECONDS}" \
   >"${LOG_DIR}/vlm_ready_all_filter.log"
 python3 - <<PY
@@ -59,15 +58,28 @@ ready = json.loads(Path("${READY_ALL}").read_text(encoding="utf-8"))
 train = json.loads(Path("${TRAIN_MANIFEST}").read_text(encoding="utf-8")) if Path("${TRAIN_MANIFEST}").exists() else {"items": []}
 train_ids = {x["image_id"] for x in train.get("items", [])}
 items = []
+invalid_sam = []
 for item in ready.get("items", []):
     image_id = item["image_id"]
     if image_id in train_ids:
         continue
     if (Path("${OUTPUT_DIR}") / "images" / image_id / "sam2_prompt_v3_sky_label_merge_completion" / "semantic.png").exists():
         continue
+    sam_path = Path("${SAM_MASKS_DIR}") / f"{image_id}_sam_masks.json"
+    try:
+        json.loads(sam_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        invalid_sam.append({"image_id": image_id, "path": str(sam_path), "error": repr(exc)})
+        continue
     items.append(item)
 ready["items"] = items
-ready["filter_report"] = {**ready.get("filter_report", {}), "excluded_train_manifest": len(train_ids), "selected_vlm_extra": len(items)}
+ready["filter_report"] = {
+    **ready.get("filter_report", {}),
+    "excluded_train_manifest": len(train_ids),
+    "selected_vlm_extra": len(items),
+    "invalid_sam_extra_candidates": len(invalid_sam),
+    "invalid_sam_extra_samples": invalid_sam[:20],
+}
 Path("${VLM_MANIFEST}").write_text(json.dumps(ready, ensure_ascii=False, indent=2), encoding="utf-8")
 print(len(items))
 PY
