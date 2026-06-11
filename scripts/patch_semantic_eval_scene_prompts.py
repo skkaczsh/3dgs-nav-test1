@@ -33,8 +33,10 @@ Scene constraints:
 9. Thin railings/equipment often touch floor-like light brown/gray roof pixels. Prefer the thin-object label when the highlighted mask follows the thin foreground structure.
 10. Keep label coarse and fixed, but add a short description and identity_hint for the physical instance when visible.
     Examples: label equipment + description "white HVAC outdoor unit"; label pipe + description "thin gray conduit"; label railing + description "yellow metal guardrail".
-11. If one mask mixes a large surface and a thin object, choose the dominant physical object; use other only when no reliable dominant object exists.
-12. Invalid black borders, lens edges, and unusable regions should be ignore.
+11. Numbered mask overlays may use artificial palette colors. Never use overlay/highlight colors in description, identity_hint, or attributes.
+12. Describe color/material only from the underlying original RGB image. If the real color/material is uncertain, leave that attribute empty.
+13. If one mask mixes a large surface and a thin object, choose the dominant physical object; use other only when no reliable dominant object exists.
+14. Invalid black borders, lens edges, and unusable regions should be ignore.
 
 Point-cloud semantic goal:
 1. This is mask-level evidence for dense point-cloud semantics, not a generic image caption.
@@ -68,7 +70,9 @@ Scene constraints:
 9. Panoramic/fisheye perspective can distort geometry. Large gray/brown regions near the lower half or image center are still likely floor unless clearly vertical or a fine object.
 10. Keep label coarse and fixed, but add a short description and identity_hint for the physical instance when visible.
     Examples: label equipment + description "white HVAC outdoor unit"; label pipe + description "thin gray conduit"; label railing + description "yellow metal guardrail".
-11. Use ignore only for invalid border/lens artifacts. Use other for valid but uncertain scene content.
+11. Numbered mask overlays may use artificial palette colors. Never use overlay/highlight colors in description, identity_hint, or attributes.
+12. Describe color/material only from the underlying original RGB image. If the real color/material is uncertain, leave that attribute empty.
+13. Use ignore only for invalid border/lens artifacts. Use other for valid but uncertain scene content.
 
 Point-cloud semantic goal:
 1. This completion fills non-sky semantic gaps for dense point-cloud projection.

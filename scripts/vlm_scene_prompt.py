@@ -176,6 +176,8 @@ def mask_label_prompt(extra_context: str | None = None) -> str:
         "- Do not invent labels or synonyms.\n"
         "- Keep label coarse and fixed, but use description/identity_hint/attributes to describe the physical instance.\n"
         "- Examples: label=equipment with description='white HVAC outdoor unit'; label=pipe with description='thin gray conduit along wall'.\n"
+        "- The highlighted mask/overlay may use artificial palette colors. Never copy overlay colors into description or attributes.\n"
+        "- Describe color/material only from the underlying original RGB image; leave color/material empty when uncertain.\n"
         "- If the highlighted mask mixes a large surface and a thin object, set mixed=true.\n"
         "- If the mask is mostly sky or distant background, use sky or ignore.\n"
         "- Prefer railing/pipe/equipment for thin foreground structures even when they touch floor pixels.\n"
