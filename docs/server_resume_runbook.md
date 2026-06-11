@@ -31,6 +31,7 @@ cd /Users/skkac/Work/SCAN/new_route
 python3 scripts/check_infra_readiness.py
 python3 scripts/prepare_visual_acceptance_review.py
 python3 scripts/validate_visual_acceptance_review.py
+python3 scripts/check_next_increment_readiness.py
 python3 scripts/prepare_parallel_execution_queue.py
 ```
 
@@ -38,11 +39,14 @@ This writes:
 
 - `/Users/skkac/Work/SCAN/route_status_20260610/infra_readiness_20260611.json`
 - `/Users/skkac/Work/SCAN/route_status_20260610/visual_acceptance_review_20260611.json`
+- `/Users/skkac/Work/SCAN/route_status_20260610/next_increment_readiness_1000_1999.json`
 - `/Users/skkac/Work/SCAN/route_status_20260610/parallel_execution_queue_20260611.json`
 
 The next main-route increment remains blocked until all required checks in
 `visual_acceptance_review_20260611.json` are set to `accepted`, and
 `validate_visual_acceptance_review.py --require-accepted` passes.
+Current 1000-1999 preflight has scanner section PLY and calibration sources, but
+still needs camera frame extraction before color/SAM/Qwen/target-object phases.
 
 ## Offline Mode
 

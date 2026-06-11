@@ -72,6 +72,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     parallel_execution_queue = read_json(args.parallel_execution_queue)
     visual_acceptance = read_json(args.visual_acceptance)
     visual_acceptance_validation = read_json(args.visual_acceptance_validation)
+    next_increment_readiness = read_json(args.next_increment_readiness)
     concept_align = read_json(args.conceptseg_alignment)
     concept_intersection = read_json(args.conceptseg_intersection)
     concept_integration = read_json(args.conceptseg_integration_plan)
@@ -159,6 +160,8 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.visual_acceptance_md, "visual_acceptance_review_markdown", required=True),
         file_entry(args.visual_acceptance_html, "visual_acceptance_review_html", required=True),
         file_entry(args.visual_acceptance_validation, "visual_acceptance_review_validation", required=True),
+        file_entry(args.next_increment_readiness, "next_increment_readiness", required=True),
+        file_entry(args.next_increment_readiness_md, "next_increment_readiness_markdown", required=True),
         file_entry(args.conceptseg_alignment, "conceptseg_fine_object_alignment", required=False),
         file_entry(args.conceptseg_intersection, "conceptseg_instance_intersection", required=False),
         file_entry(args.conceptseg_instance_accepted_sheet, "conceptseg_instance_accepted_sheet", required=False),
@@ -288,6 +291,9 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             "visual_acceptance_allow_next_increment": visual_acceptance.get("allow_next_increment"),
             "visual_acceptance_validation_passed": visual_acceptance_validation.get("passed"),
             "visual_acceptance_pending_required": visual_acceptance_validation.get("pending_required", []),
+            "next_increment_status": next_increment_readiness.get("status"),
+            "next_increment_ratios": next_increment_readiness.get("ratios", {}),
+            "next_increment_next_steps": next_increment_readiness.get("next_steps", []),
             "conceptseg_decision": nested(route_decision, "conceptseg_side_track", "decision"),
             "conceptseg_fine_candidates": concept_align.get("item_count"),
             "conceptseg_semantically_discriminative_targets": concept_align.get("semantically_discriminative_target_count"),
@@ -384,6 +390,7 @@ def render_markdown(manifest: dict[str, Any]) -> str:
         f"- infra readiness passed/all reachable/paths ok: `{metrics.get('infra_readiness_passed')}` / `{metrics.get('infra_all_reachable')}` / `{metrics.get('infra_all_required_paths_ok')}`",
         f"- parallel queue tasks/gates: `{metrics.get('parallel_queue_task_count')}` / `{metrics.get('parallel_queue_gates')}`",
         f"- visual acceptance status/allow next increment: `{metrics.get('visual_acceptance_status')}` / `{metrics.get('visual_acceptance_allow_next_increment')}`",
+        f"- next increment status: `{metrics.get('next_increment_status')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
         f"- side-track ConceptSeg decision: `{metrics.get('side_track_conceptseg_decision')}`",
         f"- side-track ConceptSeg accepted target ratio: `{metrics.get('side_track_conceptseg_accepted_target_ratio')}`",
@@ -469,6 +476,8 @@ def main() -> None:
     parser.add_argument("--visual-acceptance-md", type=Path, default=root / "route_status_20260610/visual_acceptance_review_20260611.md")
     parser.add_argument("--visual-acceptance-html", type=Path, default=root / "route_status_20260610/visual_acceptance_review_20260611.html")
     parser.add_argument("--visual-acceptance-validation", type=Path, default=root / "route_status_20260610/visual_acceptance_review_20260611_validation.json")
+    parser.add_argument("--next-increment-readiness", type=Path, default=root / "route_status_20260610/next_increment_readiness_1000_1999.json")
+    parser.add_argument("--next-increment-readiness-md", type=Path, default=root / "route_status_20260610/next_increment_readiness_1000_1999.md")
     parser.add_argument("--conceptseg-alignment", type=Path, default=root / "server_conceptseg_fine_object_alignment_v008/conceptseg_target_object_alignment_report.json")
     parser.add_argument("--conceptseg-intersection", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_intersection_report.json")
     parser.add_argument("--conceptseg-instance-accepted-sheet", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_accepted_sheet.jpg")

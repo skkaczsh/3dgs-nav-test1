@@ -49,12 +49,50 @@ def gpu_summary(server: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def next_increment_commands(train: dict[str, Any], status: str) -> list[str]:
+    direct = "ssh -F /dev/null -p 31909 root@10.0.8.114"
+    endpoint = endpoint_env(train)
+    commands = [
+        "cd /Users/skkac/Work/SCAN/new_route",
+        "python3 scripts/check_next_increment_readiness.py",
+    ]
+    if status == "needs_frame_or_sky_generation":
+        commands.extend(
+            [
+                (
+                    f"{direct} 'tmux new-session -Ad -s next_increment_1000_1999 "
+                    "\"cd /root/epfs/new_route_scripts && python3 extract_frames.py --start 1000 --end 1999 --skip-existing --workers 32\"'"
+                ),
+                "python3 scripts/check_next_increment_readiness.py",
+            ]
+        )
+    elif status == "ready_for_color_sam_semantic_generation":
+        commands.extend(
+            [
+                (
+                    f"{direct} 'tmux new-session -Ad -s next_increment_1000_1999 "
+                    "\"cd /root/epfs/new_route_scripts && python3 project_color.py --start 1000 --end 1999 --skip-existing --workers 64 "
+                    "--sky-mask-dir /root/epfs/new_route_data/sky_masks_color\"'"
+                ),
+                "python3 scripts/check_next_increment_readiness.py",
+            ]
+        )
+    elif status == "ready_for_target_object_fusion":
+        commands.append(
+            f"{endpoint} SERVER=scan-train START_FRAME=1000 END_FRAME=1999 bash scripts/run_remote_server_target_object_fusion.sh"
+        )
+    else:
+        commands.append("# Missing sources or unknown status; inspect next_increment_readiness before launching compute.")
+    return commands
+
+
 def make_queue(args: argparse.Namespace) -> dict[str, Any]:
     infra = read_json(args.infra_readiness)
     release = read_json(args.release_status)
     acceptance = read_json(args.delivery_acceptance)
     route_decision = read_json(args.route_decision)
     visual_acceptance = read_json(args.visual_acceptance)
+    next_increment = read_json(args.next_increment_readiness)
     train = server_by_name(infra, "scan-train")
     vlm = server_by_name(infra, "scan-vlm")
 
@@ -87,22 +125,29 @@ def make_queue(args: argparse.Namespace) -> dict[str, Any]:
             }
         )
     if infra_ok and train.get("reachable"):
+        next_status = next_increment.get("status", "missing")
+        next_generation_ready = next_status in {
+            "ready_for_generation",
+            "needs_frame_or_sky_generation",
+            "ready_for_color_sam_semantic_generation",
+            "ready_for_target_object_fusion",
+        }
         queue.append(
             {
                 "id": "main_route_next_increment_plan",
                 "track": "main",
                 "server": "scan-train",
                 "priority": 1,
-                "status": "blocked_by_visual_gate" if visual_gate_open else "ready_after_gate",
+                "status": "blocked_by_visual_gate" if visual_gate_open else ("ready_after_gate" if next_generation_ready else "blocked_by_missing_sources"),
                 "reason": "Do not extend beyond 0-999 until current package is visually accepted.",
+                "next_increment_readiness": {
+                    "path": str(args.next_increment_readiness),
+                    "status": next_status,
+                    "ratios": next_increment.get("ratios", {}),
+                    "next_steps": next_increment.get("next_steps", []),
+                },
                 "gpu_summary": gpu_summary(train),
-                "commands_after_gate": [
-                    "cd /Users/skkac/Work/SCAN/new_route",
-                    (
-                        f"{endpoint_env(train)} SERVER=scan-train START_FRAME=1000 END_FRAME=1999 "
-                        "bash scripts/run_remote_server_target_object_fusion.sh"
-                    ),
-                ],
+                "commands_after_gate": next_increment_commands(train, next_status),
             }
         )
     if infra_ok and train.get("reachable"):
@@ -174,6 +219,7 @@ def make_queue(args: argparse.Namespace) -> dict[str, Any]:
             "delivery_acceptance": str(args.delivery_acceptance),
             "route_decision": str(args.route_decision),
             "visual_acceptance": str(args.visual_acceptance),
+            "next_increment_readiness": str(args.next_increment_readiness),
         },
         "gates": {
             "infra_passed": infra_ok,
@@ -182,6 +228,7 @@ def make_queue(args: argparse.Namespace) -> dict[str, Any]:
             "visual_acceptance_status": visual_acceptance.get("status", "missing"),
             "visual_acceptance_all_required_accepted": visual_accepted,
             "visual_gate_open": visual_gate_open,
+            "next_increment_status": next_increment.get("status", "missing"),
         },
         "queue": queue,
     }
@@ -229,6 +276,7 @@ def main() -> None:
     parser.add_argument("--delivery-acceptance", type=Path, default=ROOT / "route_status_20260610/delivery_acceptance_20260611.json")
     parser.add_argument("--route-decision", type=Path, default=ROOT / "route_status_20260610/dense_semantic_route_decision_20260611.json")
     parser.add_argument("--visual-acceptance", type=Path, default=ROOT / "route_status_20260610/visual_acceptance_review_20260611.json")
+    parser.add_argument("--next-increment-readiness", type=Path, default=ROOT / "route_status_20260610/next_increment_readiness_1000_1999.json")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "route_status_20260610")
     args = parser.parse_args()
 
