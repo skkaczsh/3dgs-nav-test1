@@ -4,7 +4,10 @@
 
 import os
 import numpy as np
-import yaml
+try:
+    import yaml
+except ModuleNotFoundError:
+    yaml = None
 
 # ==================== 路径配置 ====================
 DATA_DIR = os.environ.get("SCAN_DATA_DIR", "/root/epfs/new_route_data")

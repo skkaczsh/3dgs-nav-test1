@@ -17,8 +17,11 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-import cv2
 import numpy as np
+try:
+    import cv2
+except ModuleNotFoundError:  # Allows importing label/z-buffer helpers without OpenCV.
+    cv2 = None
 
 from project_color import load_ply_xyz
 
@@ -167,6 +170,8 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
             semantic_missing += 1
             continue
         semantic_found += 1
+        if cv2 is None:
+            raise RuntimeError("OpenCV is required to load semantic PNGs in project_semantic.py")
         sem = cv2.imread(str(sem_path), cv2.IMREAD_GRAYSCALE)
         if sem is None:
             continue

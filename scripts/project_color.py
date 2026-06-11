@@ -19,7 +19,10 @@ import argparse
 import time
 import struct
 import numpy as np
-import cv2
+try:
+    import cv2
+except ModuleNotFoundError:  # Allows importing PLY helpers without OpenCV.
+    cv2 = None
 import multiprocessing as mp
 
 # ==================== 全局变量 (fork 后子进程共享只读副本) ====================
@@ -134,6 +137,8 @@ def _project_and_save(args_dict):
     返回: (frame_id, status, colored_count, total_count)
     """
     global _worker_cam_ids, _worker_max_points, _worker_skip_existing
+    if cv2 is None:
+        raise RuntimeError("OpenCV is required to project image colors in project_color.py")
 
     frame_id   = args_dict["frame_id"]
     pcd_path   = args_dict["pcd_path"]

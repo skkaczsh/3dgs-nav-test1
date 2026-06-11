@@ -17,8 +17,11 @@ import sys
 from collections import Counter, deque
 from pathlib import Path
 
-import cv2
 import numpy as np
+try:
+    import cv2
+except ModuleNotFoundError:  # Allows utility imports in environments without OpenCV.
+    cv2 = None
 
 from project_color import load_ply_xyz
 from project_semantic import LABEL_COLORS, LABEL_NAMES, zbuffer_visible_indices
@@ -363,6 +366,8 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
         if not instance_path.exists() or not labels_path.exists():
             masks_missing += 1
             continue
+        if cv2 is None:
+            raise RuntimeError("OpenCV is required to load instance masks in build_targets_from_masks.py")
         instance = cv2.imread(str(instance_path), cv2.IMREAD_UNCHANGED)
         if instance is None:
             masks_missing += 1
