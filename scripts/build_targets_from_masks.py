@@ -319,7 +319,8 @@ def normalize_label_record(value) -> dict:
 
 
 def load_label_records(path: Path) -> dict[int, dict]:
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    sidecar = path.with_name("label_records.json")
+    raw = json.loads((sidecar if sidecar.exists() else path).read_text(encoding="utf-8"))
     if isinstance(raw, dict) and "labels" in raw:
         raw = raw["labels"]
     records = {}

@@ -98,7 +98,9 @@ def prompt_assignment(prompt: str) -> str:
 
 
 def patch_text(text: str, prompt: str) -> tuple[str, int]:
-    return PROMPT_RE.subn(prompt_assignment(prompt), text, count=1)
+    updated, count = PROMPT_RE.subn(prompt_assignment(prompt), text, count=1)
+    updated = updated.replace('"raw": text[:2000]', '"raw": text[:20000]')
+    return updated, count
 
 
 def patch_file(path: Path, prompt: str, dry_run: bool) -> dict:

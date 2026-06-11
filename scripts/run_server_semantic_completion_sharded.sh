@@ -22,7 +22,7 @@ VLM_MODEL="${VLM_MODEL:-Qwen3.6-35B-A3B-Q4_K_M}"
 START_INDEX="${START_INDEX:-0}"
 END_INDEX="${END_INDEX:-3000}"
 CHUNK_SIZE="${CHUNK_SIZE:-10}"
-MAX_TOKENS="${MAX_TOKENS:-1024}"
+MAX_TOKENS="${MAX_TOKENS:-4096}"
 SHARDS="${SHARDS:-4}"
 WORK_DIR="${WORK_DIR:-${OUTPUT_DIR}/_sharded_work}"
 LOG_DIR="${LOG_DIR:-${WORK_DIR}/logs}"
@@ -145,6 +145,13 @@ run_shards review "${REVIEW_MISSING}" "${REVIEW_SCRIPT}" \
   --vlm-model "${VLM_MODEL}" \
   --vlm-max-tokens "${MAX_TOKENS}"
 
+echo "[4/post] Extracting structured review label records"
+python3 "${SCRIPT_DIR}/extract_semantic_label_records.py" \
+  --semantic-eval-dir "${OUTPUT_DIR}" \
+  --combo sam2_prompt_v3_sky_label_merge \
+  --overwrite \
+  --report "${LOG_DIR}/label_records_review_report.json"
+
 echo "[5/5] Completing missing unknown non-sky regions with ${SHARDS} shards"
 COMPLETION_MISSING="${WORK_DIR}/missing_sam2_prompt_v3_sky_label_merge_completion.json"
 python3 "${SCRIPT_DIR}/filter_missing_semantic_manifest.py" \
@@ -161,5 +168,12 @@ run_shards completion "${COMPLETION_MISSING}" "${COMPLETION_SCRIPT}" \
   --vlm-endpoint "${VLM_ENDPOINT}" \
   --vlm-model "${VLM_MODEL}" \
   --vlm-max-tokens "${MAX_TOKENS}"
+
+echo "[post] Extracting structured label records"
+python3 "${SCRIPT_DIR}/extract_semantic_label_records.py" \
+  --semantic-eval-dir "${OUTPUT_DIR}" \
+  --combo sam2_prompt_v3_sky_label_merge_completion \
+  --overwrite \
+  --report "${LOG_DIR}/label_records_report.json"
 
 echo "semantic completion output: ${OUTPUT_DIR}"
