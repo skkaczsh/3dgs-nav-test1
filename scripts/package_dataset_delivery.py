@@ -15,6 +15,9 @@ import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from build_delivery_qa_index import render_html as render_qa_html
+from build_delivery_qa_index import render_markdown as render_qa_markdown
+
 
 DEFAULT_COPY_LIMIT = 32 * 1024 * 1024
 
@@ -93,6 +96,9 @@ def build_package(args: argparse.Namespace) -> dict:
 
     readme = args.output_dir / "README.md"
     readme.write_text(render_readme(package_manifest), encoding="utf-8")
+    validation_stub = {"passed": package_manifest["passed"], "errors": []}
+    (args.output_dir / "qa_index.md").write_text(render_qa_markdown(args.output_dir, package_manifest, validation_stub), encoding="utf-8")
+    (args.output_dir / "qa_index.html").write_text(render_qa_html(args.output_dir, package_manifest, validation_stub), encoding="utf-8")
 
     if args.tgz:
         with tarfile.open(args.tgz, "w:gz") as tf:

@@ -21,7 +21,9 @@ def main() -> None:
     package_manifest = args.package_dir / "package_manifest.json"
     large_files = args.package_dir / "large_files.json"
     readme = args.package_dir / "README.md"
-    for path in [package_manifest, large_files, readme]:
+    qa_index_md = args.package_dir / "qa_index.md"
+    qa_index_html = args.package_dir / "qa_index.html"
+    for path in [package_manifest, large_files, readme, qa_index_md, qa_index_html]:
         if not path.exists() or path.stat().st_size <= 0:
             errors.append(f"missing or empty package file: {path}")
 
@@ -50,6 +52,10 @@ def main() -> None:
                 errors.append("tgz missing package_manifest.json")
             if f"{args.package_dir.name}/README.md" not in names:
                 errors.append("tgz missing README.md")
+            if f"{args.package_dir.name}/qa_index.html" not in names:
+                errors.append("tgz missing qa_index.html")
+            if f"{args.package_dir.name}/qa_index.md" not in names:
+                errors.append("tgz missing qa_index.md")
         except tarfile.TarError as exc:
             errors.append(f"invalid tgz: {exc}")
 
