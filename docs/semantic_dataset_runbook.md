@@ -100,6 +100,34 @@ server state as authority when numbers differ.
   - New route: `python3 -m pytest -q tests/test_new_route_scripts.py new_route/tests/test_target_object_fusion.py`
   - Old route baseline: `PYTHONPATH=/Users/skkac/Work/SCAN/MT20260511-165822 python3 -m pytest -q MT20260511-165822/tests/test_projection.py MT20260511-165822/tests/test_backproject.py MT20260511-165822/tests/test_merge.py`
 
+## Delivery Acceptance
+
+Run this local gate before handing off the 0-999 package or extending the run
+beyond the current frame range:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+
+python3 scripts/build_dataset_delivery_manifest.py
+python3 scripts/validate_dataset_delivery_manifest.py \
+  --manifest /Users/skkac/Work/SCAN/route_status_20260610/dataset_delivery_manifest_0000_0999.json \
+  --output /Users/skkac/Work/SCAN/route_status_20260610/dataset_delivery_manifest_0000_0999_validation.json
+python3 scripts/package_dataset_delivery.py --clean
+python3 scripts/validate_dataset_package.py \
+  --output /Users/skkac/Work/SCAN/dataset_delivery_0000_0999_validation.json
+python3 scripts/run_delivery_acceptance.py
+```
+
+Expected:
+
+- `passed: true`
+- package: `/Users/skkac/Work/SCAN/dataset_delivery_0000_0999.tgz`
+- QA index:
+  `/Users/skkac/Work/SCAN/dataset_delivery_0000_0999/qa_index.html`
+- acceptance report:
+  `/Users/skkac/Work/SCAN/route_status_20260610/delivery_acceptance_20260611.json`
+- next manual gate: visual acceptance in the PLY viewer or CloudCompare.
+
 ## Monitor Commands
 
 Refresh semantic split progress:

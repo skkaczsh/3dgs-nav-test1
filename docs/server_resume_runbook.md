@@ -1,18 +1,18 @@
 # Server Resume Runbook
 
-This runbook records the next concrete steps once `scan-train` / `scan-vlm` connectivity returns.
+This runbook records the next concrete steps for server resume and local
+delivery verification.
 
-## Current Blocker
+## Current Connectivity
 
-- Current operator context: outside the server LAN. Do not repeatedly run SSH
-  or TCP probes until the machine is back on the reachable LAN/VPN.
-- Local active IPv4 observed: `192.168.0.3`
-- SSH config currently resolves both servers with `BindAddress 192.168.100.115`
-- Last checks timed out:
-  - `10.0.8.114:31909` (`scan-train`)
-  - `10.0.8.114:31079` (`scan-vlm`)
+- Latest verified route: `ssh -p 31909 root@10.0.8.114` for `scan-train`.
+- If an explicit `BindAddress` fails after a network change, omit it first and
+  verify the direct SSH route before editing keys or scripts.
+- For repeated SSH work, use `tmux` on the remote host and avoid restarting
+  active runners until process trees and artifact mtimes confirm a real stall.
 
-Do not rotate keys or change scripts until the TCP ports are reachable again.
+Do not rotate keys or change scripts just because a previous `BindAddress`
+stopped working.
 
 ## Offline Mode
 
@@ -151,7 +151,7 @@ python3 scripts/run_manual_merge_review_workflow.py \
 
 The workflow now runs QA automatically and exits non-zero if invariants fail.
 
-## Verify Delivery Package
+## Verify Review Delivery Package
 
 ```bash
 cd /Users/skkac/Work/SCAN/new_route
@@ -165,6 +165,35 @@ Expected:
 - `passed: true`
 - `expected_file_count: 21`
 - `errors: []`
+
+## Verify Dataset Delivery Package
+
+Use this local acceptance gate for the current 0-999 dense semantic dataset:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+
+python3 scripts/build_dataset_delivery_manifest.py
+python3 scripts/validate_dataset_delivery_manifest.py \
+  --manifest /Users/skkac/Work/SCAN/route_status_20260610/dataset_delivery_manifest_0000_0999.json \
+  --output /Users/skkac/Work/SCAN/route_status_20260610/dataset_delivery_manifest_0000_0999_validation.json
+python3 scripts/package_dataset_delivery.py --clean
+python3 scripts/validate_dataset_package.py \
+  --output /Users/skkac/Work/SCAN/dataset_delivery_0000_0999_validation.json
+python3 scripts/run_delivery_acceptance.py
+```
+
+Expected:
+
+- `passed: true`
+- manifest validation:
+  `/Users/skkac/Work/SCAN/route_status_20260610/dataset_delivery_manifest_0000_0999_validation.json`
+- package validation:
+  `/Users/skkac/Work/SCAN/dataset_delivery_0000_0999_validation.json`
+- acceptance report:
+  `/Users/skkac/Work/SCAN/route_status_20260610/delivery_acceptance_20260611.json`
+- package:
+  `/Users/skkac/Work/SCAN/dataset_delivery_0000_0999.tgz`
 
 ## New Model Side Track
 
