@@ -51,10 +51,10 @@ def browser_href(package_dir: Path, href: str) -> str:
     return f"/{package_dir.name}/{href}"
 
 
-def viewer_link(package_dir: Path, href: str) -> str:
+def viewer_link(package_dir: Path, href: str, mode: str = "semantic") -> str:
     if not href:
         return ""
-    return f"/new_route/tools/semantic_ply_viewer.html?file={browser_href(package_dir, href)}"
+    return f"/new_route/tools/semantic_ply_viewer.html?file={browser_href(package_dir, href)}&mode={mode}&stride=1&pointSize=2"
 
 
 def render_markdown(package_dir: Path, package: dict[str, Any], validation: dict[str, Any]) -> str:
@@ -171,7 +171,7 @@ def render_html(package_dir: Path, package: dict[str, Any], validation: dict[str
             return f"<li>{html.escape(label)}</li>"
         primary = link(label, browser_href(package_dir, href))
         if load_in_viewer and (href.endswith(".ply") or href.endswith(".jsonl") or href.endswith(".json")):
-            return f"<li>{primary} <span class=\"muted\">({link('open in viewer', viewer_link(package_dir, href))})</span></li>"
+            return f"<li>{primary} <span class=\"muted\">({link('open in semantic viewer', viewer_link(package_dir, href, 'semantic'))})</span></li>"
         return f"<li>{primary}</li>"
 
     visual_items = [

@@ -459,6 +459,22 @@
       els.labelFilter.innerHTML = '<option value="">All labels</option>' + labels.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join("");
     }
 
+    function applyUrlDisplayParams(params) {
+      const mode = params.get("mode");
+      if (mode && [...els.colorMode.options].some(option => option.value === mode)) els.colorMode.value = mode;
+      const pointSize = Number(params.get("pointSize"));
+      if (Number.isFinite(pointSize) && pointSize > 0) els.pointSize.value = String(pointSize);
+      const stride = Number(params.get("stride"));
+      if (Number.isFinite(stride) && stride >= 1) els.sampleStride.value = String(Math.floor(stride));
+    }
+
+    function applyUrlLabelParam(params) {
+      const label = params.get("label");
+      if (!label) return;
+      const option = [...els.labelFilter.options].find(item => item.value === label);
+      if (option) els.labelFilter.value = label;
+    }
+
     async function loadFile(file) {
       els.stats.textContent = `Loading ${file.name} ...`;
       const text = await file.text();
@@ -466,6 +482,7 @@
       if (!rawRows.length) throw new Error("No points/objects parsed.");
       bounds = computeBounds(rawRows);
       updateLabelOptions();
+      applyUrlLabelParam(new URLSearchParams(window.location.search));
       rebuildGeometry();
       fitView();
       els.details.innerHTML = kv("file", file.name) + kv("type", rawRows[0].source);
@@ -481,6 +498,7 @@
       if (!rawRows.length) throw new Error("No points/objects parsed.");
       bounds = computeBounds(rawRows);
       updateLabelOptions();
+      applyUrlLabelParam(new URLSearchParams(window.location.search));
       rebuildGeometry();
       fitView();
       els.details.innerHTML = kv("file", displayName) + kv("url", url) + kv("type", rawRows[0].source);
@@ -560,6 +578,7 @@
     });
 
     const params = new URLSearchParams(window.location.search);
+    applyUrlDisplayParams(params);
     const fileParam = params.get("file");
     if (fileParam) {
       loadUrl(fileParam).catch(err => {
