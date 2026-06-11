@@ -12,6 +12,7 @@ START="${START:-1000}"
 END="${END:-1999}"
 SESSION_NAME="${SESSION_NAME:-vlm_extra_loop_${START}_${END}}"
 LOG_DIR="${LOG_DIR:-/root/epfs/new_route_stage1_skymask/logs}"
+PID_FILE="${PID_FILE:-${LOG_DIR}/${SESSION_NAME}.pid}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-180}"
 MAX_CYCLES="${MAX_CYCLES:-0}"
 MAX_ITEMS_PER_CYCLE="${MAX_ITEMS_PER_CYCLE:-24}"
@@ -28,6 +29,7 @@ ssh "${ssh_opts[@]}" "${ssh_target}" \
   END="${END}" \
   SESSION_NAME="${SESSION_NAME}" \
   LOG_DIR="${LOG_DIR}" \
+  PID_FILE="${PID_FILE}" \
   SLEEP_SECONDS="${SLEEP_SECONDS}" \
   MAX_CYCLES="${MAX_CYCLES}" \
   MAX_ITEMS_PER_CYCLE="${MAX_ITEMS_PER_CYCLE}" \
@@ -36,12 +38,24 @@ ssh "${ssh_opts[@]}" "${ssh_target}" \
   'bash -s' <<'REMOTE'
 set -euo pipefail
 mkdir -p "${LOG_DIR}"
-if tmux has-session -t "${SESSION_NAME}" 2>/dev/null; then
-  echo "already_running_session=${SESSION_NAME}"
-  tmux list-sessions | grep "^${SESSION_NAME}:"
+if command -v tmux >/dev/null 2>&1; then
+  if tmux has-session -t "${SESSION_NAME}" 2>/dev/null; then
+    echo "already_running_session=${SESSION_NAME}"
+    tmux list-sessions | grep "^${SESSION_NAME}:"
+    exit 0
+  fi
+  tmux new-session -d -s "${SESSION_NAME}" \
+    "cd '${REMOTE_SCRIPT_DIR}' && START='${START}' END='${END}' SLEEP_SECONDS='${SLEEP_SECONDS}' MAX_CYCLES='${MAX_CYCLES}' MAX_ITEMS_PER_CYCLE='${MAX_ITEMS_PER_CYCLE}' MIN_SAM_AGE_SECONDS='${MIN_SAM_AGE_SECONDS}' bash ./run_server_vlm_extra_loop.sh >> '${LOG_DIR}/semantic_vlm_extra_loop_${START}_${END}.log' 2>&1"
+  echo "started_session=${SESSION_NAME}"
   exit 0
 fi
-tmux new-session -d -s "${SESSION_NAME}" \
-  "cd '${REMOTE_SCRIPT_DIR}' && START='${START}' END='${END}' SLEEP_SECONDS='${SLEEP_SECONDS}' MAX_CYCLES='${MAX_CYCLES}' MAX_ITEMS_PER_CYCLE='${MAX_ITEMS_PER_CYCLE}' MIN_SAM_AGE_SECONDS='${MIN_SAM_AGE_SECONDS}' bash ./run_server_vlm_extra_loop.sh >> '${LOG_DIR}/semantic_vlm_extra_loop_${START}_${END}.log' 2>&1"
-echo "started_session=${SESSION_NAME}"
+
+old_pid="$(cat "${PID_FILE}" 2>/dev/null || true)"
+if [[ -n "${old_pid}" ]] && kill -0 "${old_pid}" 2>/dev/null; then
+  echo "already_running_pid=${old_pid}"
+  exit 0
+fi
+nohup bash -lc "cd '${REMOTE_SCRIPT_DIR}' && START='${START}' END='${END}' SLEEP_SECONDS='${SLEEP_SECONDS}' MAX_CYCLES='${MAX_CYCLES}' MAX_ITEMS_PER_CYCLE='${MAX_ITEMS_PER_CYCLE}' MIN_SAM_AGE_SECONDS='${MIN_SAM_AGE_SECONDS}' bash ./run_server_vlm_extra_loop.sh >> '${LOG_DIR}/semantic_vlm_extra_loop_${START}_${END}.log' 2>&1" >/dev/null 2>&1 &
+echo "$!" >"${PID_FILE}"
+echo "started_pid=$(cat "${PID_FILE}")"
 REMOTE

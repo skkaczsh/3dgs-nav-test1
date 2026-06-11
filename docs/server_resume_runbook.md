@@ -197,10 +197,11 @@ bash scripts/start_remote_scan_vlm_extra_loop.sh
 ```
 
 It syncs `scripts/` to scan-vlm and starts a tmux session named
-`vlm_extra_loop_1000_1999`. Each cycle selects only stable SAM mask JSON files,
-validates the small VLM-extra candidate set, caps the batch size with
-`MAX_ITEMS_PER_CYCLE`, and then runs the same sharded semantic completion route.
-Use `MAX_CYCLES=1` for a dry operational check.
+`vlm_extra_loop_1000_1999`; if tmux is unavailable on the server, it falls back
+to `nohup` with a pid file under the logs directory. Each cycle selects only
+stable SAM mask JSON files, validates the small VLM-extra candidate set, caps
+the batch size with `MAX_ITEMS_PER_CYCLE`, and then runs the same sharded
+semantic completion route. Use `MAX_CYCLES=1` for a dry operational check.
 
 ## Manual Review Fallback
 

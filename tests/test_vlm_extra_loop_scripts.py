@@ -20,5 +20,7 @@ def test_remote_vlm_extra_loop_starts_tmux_and_syncs_scripts():
 
     assert "tmux has-session" in text
     assert "tmux new-session -d" in text
+    assert "nohup bash -lc" in text
+    assert "already_running_pid" in text
     assert "COPYFILE_DISABLE=1" in text
     assert "run_server_vlm_extra_loop.sh" in text
