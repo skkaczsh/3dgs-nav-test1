@@ -129,6 +129,14 @@ MASK_LABEL_SCHEMA = {
     "label": "one taxonomy label",
     "parent_class": "taxonomy parent class",
     "confidence": 0.0,
+    "description": "short free-text physical description, e.g. white HVAC outdoor unit",
+    "identity_hint": "stable instance hint useful for object fusion, e.g. white rectangular HVAC unit near parapet",
+    "attributes": {
+        "color": "dominant visible color or empty string",
+        "material": "visible material if obvious or empty string",
+        "shape": "compact shape phrase if obvious or empty string",
+        "function": "specific function/type if obvious, such as HVAC outdoor unit, pipe, guardrail",
+    },
     "mixed": False,
     "is_large_surface": False,
     "can_merge_to_surface": False,
@@ -166,6 +174,8 @@ def mask_label_prompt(extra_context: str | None = None) -> str:
         "- Return only strict JSON.\n"
         "- Use exactly one label from the taxonomy below.\n"
         "- Do not invent labels or synonyms.\n"
+        "- Keep label coarse and fixed, but use description/identity_hint/attributes to describe the physical instance.\n"
+        "- Examples: label=equipment with description='white HVAC outdoor unit'; label=pipe with description='thin gray conduit along wall'.\n"
         "- If the highlighted mask mixes a large surface and a thin object, set mixed=true.\n"
         "- If the mask is mostly sky or distant background, use sky or ignore.\n"
         "- Prefer railing/pipe/equipment for thin foreground structures even when they touch floor pixels.\n"

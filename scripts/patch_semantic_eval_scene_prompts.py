@@ -31,8 +31,10 @@ Scene constraints:
 7. equipment is for rooftop boxes, cabinets, HVAC-like units, sensors, antennas, machinery, fixtures, and compact devices.
 8. pipe is for pipes, cables, conduits, cable trays, or long utility lines if visible.
 9. Thin railings/equipment often touch floor-like light brown/gray roof pixels. Prefer the thin-object label when the highlighted mask follows the thin foreground structure.
-10. If one mask mixes a large surface and a thin object, choose the dominant physical object; use other only when no reliable dominant object exists.
-11. Invalid black borders, lens edges, and unusable regions should be ignore.
+10. Keep label coarse and fixed, but add a short description and identity_hint for the physical instance when visible.
+    Examples: label equipment + description "white HVAC outdoor unit"; label pipe + description "thin gray conduit"; label railing + description "yellow metal guardrail".
+11. If one mask mixes a large surface and a thin object, choose the dominant physical object; use other only when no reliable dominant object exists.
+12. Invalid black borders, lens edges, and unusable regions should be ignore.
 
 Point-cloud semantic goal:
 1. This is mask-level evidence for dense point-cloud semantics, not a generic image caption.
@@ -44,7 +46,7 @@ Allowed English labels only:
 floor, road, wall, building, railing, equipment, pipe, tree, grass, car, person, other, ignore
 
 Return valid JSON only. No explanation. No Markdown.
-{"items":[{"mask_id":"1","label":"floor","confidence":0.90}]}
+{"items":[{"mask_id":"1","label":"equipment","confidence":0.90,"description":"white HVAC outdoor unit","identity_hint":"white rectangular HVAC unit on rooftop","attributes":{"color":"white","material":"metal","shape":"rectangular box","function":"HVAC outdoor unit"}}]}
 '''.strip()
 
 
@@ -64,7 +66,9 @@ Scene constraints:
 7. equipment is for rooftop boxes, cabinets, HVAC-like units, sensors, antennas, machinery, fixtures, and compact devices.
 8. pipe is for pipes, cables, conduits, cable trays, or long utility lines if visible.
 9. Panoramic/fisheye perspective can distort geometry. Large gray/brown regions near the lower half or image center are still likely floor unless clearly vertical or a fine object.
-10. Use ignore only for invalid border/lens artifacts. Use other for valid but uncertain scene content.
+10. Keep label coarse and fixed, but add a short description and identity_hint for the physical instance when visible.
+    Examples: label equipment + description "white HVAC outdoor unit"; label pipe + description "thin gray conduit"; label railing + description "yellow metal guardrail".
+11. Use ignore only for invalid border/lens artifacts. Use other for valid but uncertain scene content.
 
 Point-cloud semantic goal:
 1. This completion fills non-sky semantic gaps for dense point-cloud projection.
@@ -76,7 +80,7 @@ Allowed English labels only:
 floor, road, wall, building, railing, equipment, pipe, tree, grass, car, person, other, ignore
 
 Return valid JSON only. No explanation. No Markdown.
-{"items":[{"mask_id":"1","label":"floor","confidence":0.90}]}
+{"items":[{"mask_id":"1","label":"floor","confidence":0.90,"description":"large gray rooftop floor surface","identity_hint":"broad horizontal roof surface","attributes":{"color":"gray","material":"concrete","shape":"large horizontal plane","function":"walkable roof surface"}}]}
 '''.strip()
 
 

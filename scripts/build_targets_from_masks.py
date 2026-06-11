@@ -289,9 +289,15 @@ def normalize_label_record(value) -> dict:
             ambiguous = [ambiguous]
         if not isinstance(ambiguous, list):
             ambiguous = []
+        attributes = value.get("attributes", {})
+        if not isinstance(attributes, dict):
+            attributes = {}
         return {
             "label": label,
             "confidence": max(0.0, min(1.0, confidence)),
+            "description": str(value.get("description", "")).strip(),
+            "identity_hint": str(value.get("identity_hint", "")).strip(),
+            "attributes": {str(k): str(v).strip() for k, v in attributes.items() if str(v).strip()},
             "mixed": bool(value.get("mixed", False)),
             "is_large_surface": bool(value.get("is_large_surface", False)),
             "can_merge_to_surface": bool(value.get("can_merge_to_surface", False)),
@@ -301,6 +307,9 @@ def normalize_label_record(value) -> dict:
     return {
         "label": str(value),
         "confidence": 1.0,
+        "description": "",
+        "identity_hint": "",
+        "attributes": {},
         "mixed": False,
         "is_large_surface": False,
         "can_merge_to_surface": False,
@@ -438,6 +447,9 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
                     "semantic_id": label_to_id(label),
                     "parent_class": PARENT_CLASSES.get(label, "other"),
                     "confidence": float(label_record["confidence"]),
+                    "description": label_record["description"],
+                    "identity_hint": label_record["identity_hint"],
+                    "attributes": label_record["attributes"],
                     "vlm_mixed": bool(label_record["mixed"]),
                     "vlm_is_large_surface": bool(label_record["is_large_surface"]),
                     "vlm_can_merge_to_surface": bool(label_record["can_merge_to_surface"]),

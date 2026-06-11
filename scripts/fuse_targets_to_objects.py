@@ -32,6 +32,30 @@ def target_vote_weight(target: dict) -> float:
     return float(max(int(target.get("cluster_size", 1)), 1)) * target_confidence(target)
 
 
+def target_description(target: dict) -> str:
+    return str(target.get("description") or target.get("identity_hint") or "").strip()
+
+
+def update_description_votes(votes: dict, target: dict) -> None:
+    description = target_description(target)
+    if not description:
+        return
+    votes[description] = float(votes.get(description, 0.0) + target_vote_weight(target))
+
+
+def merge_attribute_votes(votes: dict, target: dict) -> None:
+    attrs = target.get("attributes") or {}
+    if not isinstance(attrs, dict):
+        return
+    weight = target_vote_weight(target)
+    for key, value in attrs.items():
+        value = str(value).strip()
+        if not value:
+            continue
+        bucket = votes.setdefault(str(key), {})
+        bucket[value] = float(bucket.get(value, 0.0) + weight)
+
+
 def target_quality(target: dict, min_merge_confidence: float = DEFAULT_MIN_MERGE_CONFIDENCE) -> dict:
     confidence = target_confidence(target)
     mixed = bool(target.get("vlm_mixed", False))
@@ -107,6 +131,10 @@ def create_object(object_id: str, target: dict) -> dict:
     point_ids = target_point_indices(target)
     vote_weight = target_vote_weight(target)
     quality = target_quality(target)
+    description_votes: dict[str, float] = {}
+    attribute_votes: dict[str, dict[str, float]] = {}
+    update_description_votes(description_votes, target)
+    merge_attribute_votes(attribute_votes, target)
     return {
         "object_id": object_id,
         "semantic_label": target["label"],
@@ -120,6 +148,9 @@ def create_object(object_id: str, target: dict) -> dict:
         "centroid": target["centroid"],
         "label_votes": {target["label"]: int(target.get("cluster_size", 1))},
         "label_vote_weights": {target["label"]: float(vote_weight)},
+        "description": target_description(target),
+        "description_votes": description_votes,
+        "attribute_votes": attribute_votes,
         "parent_class_votes": {target.get("parent_class", "other"): 1},
         "mean_color": target["mean_color"],
         "color_sum": (np.array(target["mean_color"], dtype=np.float64) * max(int(target.get("cluster_size", 1)), 1)).tolist(),
@@ -164,6 +195,8 @@ def update_object(obj: dict, target: dict) -> None:
 
     obj["label_votes"][target["label"]] = int(obj["label_votes"].get(target["label"], 0) + new_count)
     obj["label_vote_weights"][target["label"]] = float(obj["label_vote_weights"].get(target["label"], 0.0) + target_vote_weight(target))
+    update_description_votes(obj.setdefault("description_votes", {}), target)
+    merge_attribute_votes(obj.setdefault("attribute_votes", {}), target)
     parent = target.get("parent_class", "other")
     obj["parent_class_votes"][parent] = int(obj["parent_class_votes"].get(parent, 0) + 1)
     obj["_target_records"].append(target)
@@ -269,6 +302,22 @@ def finalize_object(obj: dict) -> dict:
             out["status"] = "stable"
         else:
             out["status"] = "single_target"
+    description_votes = Counter(out.get("description_votes", {}))
+    if description_votes:
+        description, weight = description_votes.most_common(1)[0]
+        out["description"] = description
+        out["description_vote_ratio"] = float(weight / max(sum(description_votes.values()), 1.0))
+    attr_summary = {}
+    for key, values in (out.get("attribute_votes") or {}).items():
+        value_votes = Counter(values)
+        if value_votes:
+            value, weight = value_votes.most_common(1)[0]
+            attr_summary[key] = {
+                "value": value,
+                "vote_ratio": float(weight / max(sum(value_votes.values()), 1.0)),
+            }
+    if attr_summary:
+        out["dominant_attributes"] = attr_summary
     return out
 
 
