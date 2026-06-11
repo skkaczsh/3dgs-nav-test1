@@ -53,6 +53,11 @@ Context:
        after intersection with existing SAM2/Qwen masks and 3D connected
        components. Do not promote it to dense semantic image generation or
        target-level classification.
+     - Instance-mask intersection QA:
+       `/Users/skkac/Work/SCAN/server_conceptseg_instance_intersection_v008/conceptseg_instance_intersection_report.json`.
+     - Intersection result: `10 / 90` candidates accepted, covering `7 / 30`
+       targets. This is useful as a conservative refinement signal but too low
+       coverage for dataset-wide mask production.
 
 2. Old-route visual-reference expansion on `scan-train` only if GPU/CPU is idle.
    - Scope: color/reference comparison, not semantic source.

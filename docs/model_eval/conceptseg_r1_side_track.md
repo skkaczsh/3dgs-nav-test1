@@ -158,6 +158,26 @@ Fine-object v008 constrained run:
   - next integration point: intersect ConceptSeg candidate masks with the
     existing SAM2/Qwen instance mask and projected 3D connected components,
     then use it only to split/refine fine residual objects.
+- Instance-mask intersection QA:
+  - script:
+    `/Users/skkac/Work/SCAN/new_route/scripts/intersect_conceptseg_with_instance_masks.py`
+  - local output:
+    `/Users/skkac/Work/SCAN/server_conceptseg_instance_intersection_v008`
+  - accepted review sheet:
+    `/Users/skkac/Work/SCAN/server_conceptseg_instance_intersection_v008/conceptseg_instance_accepted_sheet.jpg`
+  - candidates checked: `90`
+  - targets checked: `30`
+  - accepted candidates after instance intersection: `10`
+  - targets with accepted candidates: `7 / 30`
+  - accepted concepts: `railing=3`, `pipe=5`, `equipment=2`
+  - error count: `0`
+  - median candidate-inside-instance ratio: `0.0`
+  - p90 candidate-inside-instance ratio: `0.2043`
+  - interpretation: most ConceptSeg candidates are valid local detections in
+    the image but do not overlap the original target instance. Therefore the
+    safe integration rule is strict intersection with existing instance masks
+    plus later 3D connected-component filtering. ConceptSeg can recover a small
+    subset of fine-object refinements, not provide broad semantic coverage.
 
 References:
 
