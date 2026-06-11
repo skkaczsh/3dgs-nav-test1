@@ -110,8 +110,11 @@ def make_queue(args: argparse.Namespace) -> dict[str, Any]:
     route_decision = read_json(args.route_decision)
     visual_acceptance = read_json(args.visual_acceptance)
     next_increment = read_json(args.next_increment_readiness)
+    active_progress = read_json(args.active_progress)
     train = server_by_name(infra, "scan-train")
     vlm = server_by_name(infra, "scan-vlm")
+    vlm_qwen = (active_progress.get("scan_vlm", {}).get("qwen_localhost_8001") or {})
+    vlm_qwen_ready = bool(vlm_qwen.get("reachable"))
 
     visual_accepted = bool(visual_acceptance.get("allow_next_increment"))
     visual_gate_open = release.get("release", {}).get("status") == "ready_for_visual_review" and not visual_accepted
@@ -205,12 +208,19 @@ def make_queue(args: argparse.Namespace) -> dict[str, Any]:
                 "track": "vlm_side_track",
                 "server": "scan-vlm",
                 "priority": 3,
-                "status": "capacity_available",
-                "reason": "L20 is reachable and mostly idle; Qwen concurrency should default to 4 when review work resumes.",
+                "status": "endpoint_ready" if vlm_qwen_ready else "capacity_available",
+                "reason": "scan-vlm Qwen localhost:8001 is ready with -np 4." if vlm_qwen_ready else "L20 is reachable; start Qwen with -np 4 before review work resumes.",
                 "gpu_summary": gpu_summary(vlm),
+                "endpoint": {
+                    "url": "http://127.0.0.1:8001/v1/chat/completions",
+                    "models_url": "http://127.0.0.1:8001/v1/models",
+                    "reachable": vlm_qwen_ready,
+                    "model_count": vlm_qwen.get("model_count"),
+                },
                 "constraints": [
                     "Avoid root-backed Hugging Face/cache writes.",
                     "Use /root/epfs for all model/cache/output paths.",
+                    "Use Qwen concurrency 4 unless latency or memory proves otherwise.",
                 ],
             }
         )
@@ -238,6 +248,7 @@ def make_queue(args: argparse.Namespace) -> dict[str, Any]:
             "route_decision": str(args.route_decision),
             "visual_acceptance": str(args.visual_acceptance),
             "next_increment_readiness": str(args.next_increment_readiness),
+            "active_progress": str(args.active_progress),
         },
         "gates": {
             "infra_passed": infra_ok,
@@ -295,6 +306,7 @@ def main() -> None:
     parser.add_argument("--route-decision", type=Path, default=ROOT / "route_status_20260610/dense_semantic_route_decision_20260611.json")
     parser.add_argument("--visual-acceptance", type=Path, default=ROOT / "route_status_20260610/visual_acceptance_review_20260611.json")
     parser.add_argument("--next-increment-readiness", type=Path, default=ROOT / "route_status_20260610/next_increment_readiness_1000_1999.json")
+    parser.add_argument("--active-progress", type=Path, default=ROOT / "route_status_20260610/active_route_progress_20260611.json")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "route_status_20260610")
     args = parser.parse_args()
 
