@@ -111,6 +111,12 @@ connectivity separately while substantially reducing residual loss on large
 surfaces. Visual QA is still required because a larger surface voxel can
 over-connect adjacent planar regions.
 
+Operational note: `scripts/start_remote_scan_train_target_refresh_loop.sh`
+starts a scan-train watcher that refreshes the `surface024_fine012` target/object
+variant when `label_records` grows by `MIN_COMPLETION_DELTA` records. It uses
+the artifact-aware resume logic in `build_targets_from_masks.py`, then rebuilds
+the identity-relabel JSONL and stride preview PLY.
+
 ## ConceptSeg-R1 Evidence
 
 - Candidate runs: `90`
