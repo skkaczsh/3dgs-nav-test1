@@ -20,7 +20,7 @@ http://127.0.0.1:8765/tools/semantic_ply_viewer.html
 Supported drag-and-drop inputs:
 
 - ASCII PLY with vertex properties such as `x y z red green blue object semantic frame`.
-- Target/object fusion `objects.jsonl`; the viewer displays object centroids, labels, status, vote summary, target count, and point count.
+- Target/object fusion `objects.jsonl`; the viewer displays object centroids, labels, status, vote summary, target count, point count, and optional identity fields such as `description`, `identity_hint`, `dominant_attributes`, and `description_votes`.
 
 Useful local files:
 

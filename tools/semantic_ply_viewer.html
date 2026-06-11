@@ -341,6 +341,11 @@
           targetCount: obj.target_count,
           dominantLabelRatio: obj.dominant_label_ratio,
           labelVotes: obj.label_votes || {},
+          description: obj.description || "",
+          descriptionVoteRatio: obj.description_vote_ratio,
+          descriptionVotes: obj.description_votes || {},
+          identityHint: obj.identity_hint || "",
+          attributes: obj.dominant_attributes || obj.attributes || {},
           bbox: obj.bbox_3d,
           source: "objects_jsonl"
         });
@@ -525,8 +530,13 @@
         kv("points", row.pointCount ?? ""),
         kv("targets", row.targetCount ?? ""),
         kv("dominant ratio", row.dominantLabelRatio != null ? Number(row.dominantLabelRatio).toFixed(3) : ""),
+        kv("description", row.description || ""),
+        kv("description ratio", row.descriptionVoteRatio != null ? Number(row.descriptionVoteRatio).toFixed(3) : ""),
+        kv("identity hint", row.identityHint || ""),
+        kv("attributes", row.attributes && Object.keys(row.attributes).length ? JSON.stringify(row.attributes) : ""),
         kv("xyz", `${row.x.toFixed(3)}, ${row.y.toFixed(3)}, ${row.z.toFixed(3)}`),
-        kv("votes", row.labelVotes ? JSON.stringify(row.labelVotes) : "")
+        kv("votes", row.labelVotes ? JSON.stringify(row.labelVotes) : ""),
+        kv("description votes", row.descriptionVotes && Object.keys(row.descriptionVotes).length ? JSON.stringify(row.descriptionVotes) : "")
       ].join("");
     });
 
