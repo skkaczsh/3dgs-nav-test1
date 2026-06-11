@@ -19,6 +19,7 @@ import numpy as np
 
 
 SURFACE_LABELS = {"floor", "wall", "building", "road"}
+SURFACE_OBJECT_STATUSES = {"stable", "surface_consolidated"}
 SEMANTIC_NAMES = {
     0: "unknown",
     1: "other",
@@ -122,7 +123,7 @@ def load_surface_objects(path: Path, min_targets: int, min_points: int) -> list[
             if not line.strip():
                 continue
             obj = json.loads(line)
-            if obj.get("status") != "stable":
+            if obj.get("status") not in SURFACE_OBJECT_STATUSES:
                 continue
             if obj.get("semantic_label") not in SURFACE_LABELS:
                 continue
