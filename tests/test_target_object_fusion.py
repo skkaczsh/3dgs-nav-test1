@@ -263,6 +263,8 @@ def test_fuse_targets_uses_identity_gate_for_fine_object_labels():
     assert decisions[1]["action"] == "new_object"
     assert decisions[2]["action"] == "merge"
     assert finalized[0]["target_count"] == 2
+    for row in decisions:
+        json.dumps(row)
 
     obj = module.create_object(
         "obj_000001",

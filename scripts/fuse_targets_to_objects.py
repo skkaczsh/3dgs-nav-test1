@@ -303,7 +303,7 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
     use_identity_gate = (
         not bool(getattr(args, "disable_identity_gate", False))
         and target.get("label") in IDENTITY_GATE_LABELS
-        and (set(obj.get("label_votes", {}).keys()) & IDENTITY_GATE_LABELS)
+        and bool(set(obj.get("label_votes", {}).keys()) & IDENTITY_GATE_LABELS)
         and identity_sim is not None
     )
     identity_ok = (not use_identity_gate) or identity_sim >= identity_threshold
