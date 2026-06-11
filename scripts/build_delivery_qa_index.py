@@ -58,8 +58,9 @@ def render_markdown(package_dir: Path, package: dict[str, Any], validation: dict
         f"2. Load surface-first preview PLY: `{row_link(package_dir, role_map, 'surface_first_subcluster_preview_ply')}`.",
         "3. Compare against the full/stride object PLY listed in `large_files.json`.",
         f"4. Inspect surface-first XY preview: `{row_link(package_dir, role_map, 'surface_first_subcluster_xy_preview')}`.",
-        f"5. Inspect ConceptSeg accepted sheet: `{row_link(package_dir, role_map, 'conceptseg_instance_accepted_sheet')}`.",
-        f"6. Inspect old-route color preview: `{row_link(package_dir, role_map, 'old_route_color_smoke_preview')}`.",
+        f"5. Inspect residual surface-assignment preview: `{row_link(package_dir, role_map, 'residual_surface_assignment_xy_preview')}`.",
+        f"6. Inspect ConceptSeg accepted sheet: `{row_link(package_dir, role_map, 'conceptseg_instance_accepted_sheet')}`.",
+        f"7. Inspect old-route color preview: `{row_link(package_dir, role_map, 'old_route_color_smoke_preview')}`.",
         "",
         "## Key Metrics",
         "",
@@ -67,6 +68,8 @@ def render_markdown(package_dir: Path, package: dict[str, Any], validation: dict
         f"- object count: `{metrics.get('object_count')}`",
         f"- object ambiguous ratio: `{metrics.get('object_ambiguous_ratio')}`",
         f"- surface-first changed ratio: `{metrics.get('surface_first_changed_ratio')}`",
+        f"- residual surface assigned ratio: `{metrics.get('residual_surface_assigned_ratio')}`",
+        f"- residual surface unassigned points: `{metrics.get('residual_surface_unassigned_points')}`",
         f"- ConceptSeg accepted intersections: `{metrics.get('conceptseg_instance_accepted_candidates')}`",
         f"- ConceptSeg target status: `{metrics.get('conceptseg_instance_target_status_counts')}`",
         f"- old-route colored ratio: `{metrics.get('old_route_colored_ratio')}`",
@@ -79,6 +82,7 @@ def render_markdown(package_dir: Path, package: dict[str, Any], validation: dict
         "strict_output_validation",
         "target_object_qa",
         "surface_first_subcluster_report",
+        "residual_surface_assignment_report",
         "conceptseg_fine_object_alignment",
         "conceptseg_instance_intersection",
         "old_route_reference_validation",
@@ -111,6 +115,7 @@ def render_html(package_dir: Path, package: dict[str, Any], validation: dict[str
     visual_items = [
         ("Surface-first preview PLY", row_link(package_dir, role_map, "surface_first_subcluster_preview_ply")),
         ("Surface-first XY preview", row_link(package_dir, role_map, "surface_first_subcluster_xy_preview")),
+        ("Residual surface-assignment XY preview", row_link(package_dir, role_map, "residual_surface_assignment_xy_preview")),
         ("ConceptSeg accepted sheet", row_link(package_dir, role_map, "conceptseg_instance_accepted_sheet")),
         ("Old-route color preview", row_link(package_dir, role_map, "old_route_color_smoke_preview")),
         ("Large file index", "large_files.json"),
@@ -121,6 +126,7 @@ def render_html(package_dir: Path, package: dict[str, Any], validation: dict[str
         ("Strict output validation", row_link(package_dir, role_map, "strict_output_validation")),
         ("Target/object QA", row_link(package_dir, role_map, "target_object_qa")),
         ("Surface-first report", row_link(package_dir, role_map, "surface_first_subcluster_report")),
+        ("Residual surface assignment", row_link(package_dir, role_map, "residual_surface_assignment_report")),
         ("ConceptSeg alignment", row_link(package_dir, role_map, "conceptseg_fine_object_alignment")),
         ("ConceptSeg intersection", row_link(package_dir, role_map, "conceptseg_instance_intersection")),
         ("Old-route validation", row_link(package_dir, role_map, "old_route_reference_validation")),
@@ -135,6 +141,8 @@ def render_html(package_dir: Path, package: dict[str, Any], validation: dict[str
         ("Objects", metrics.get("object_count")),
         ("Object ambiguous ratio", metrics.get("object_ambiguous_ratio")),
         ("Surface-first changed ratio", metrics.get("surface_first_changed_ratio")),
+        ("Residual surface assigned ratio", metrics.get("residual_surface_assigned_ratio")),
+        ("Residual surface unassigned points", metrics.get("residual_surface_unassigned_points")),
         ("ConceptSeg accepted intersections", metrics.get("conceptseg_instance_accepted_candidates")),
         ("Old-route colored ratio", metrics.get("old_route_colored_ratio")),
     ]
@@ -159,6 +167,7 @@ def render_html(package_dir: Path, package: dict[str, Any], validation: dict[str
     <ol>
       <li>Open the semantic PLY viewer and load the surface-first preview PLY.</li>
       <li>Check whether floor/wall/building regions are coherent and not fragmented into fine-object colors.</li>
+      <li>Use residual surface-assignment evidence to distinguish surface-noise cleanup from unresolved fine-object residuals.</li>
       <li>Open the ConceptSeg accepted sheet; use it only as evidence for local fine-object refinements.</li>
       <li>Use the old-route color preview only as RGB sanity reference.</li>
     </ol>

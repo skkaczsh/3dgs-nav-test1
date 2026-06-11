@@ -53,6 +53,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     validation = read_json(args.output_validation)
     target_qa = read_json(args.target_object_qa)
     surface = read_json(args.surface_first_report)
+    residual_assignment = read_json(args.residual_assignment_report)
     concept = read_json(args.conceptseg_qa)
     route_decision = read_json(args.route_decision)
     concept_align = read_json(args.conceptseg_alignment)
@@ -76,6 +77,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         check_threshold("target_frame_ok_ratio", nested(target_qa, "frames", "ok_count", default=0) / max(nested(target_qa, "frames", "count", default=1), 1), 0.95, ">="),
         check_threshold("ambiguous_ratio", target_objects.get("ambiguous_ratio"), 0.35, "<="),
         check_threshold("surface_first_changed_ratio", surface.get("changed_ratio"), 0.0, ">="),
+        check_threshold("residual_surface_assigned_ratio", residual_assignment.get("assigned_ratio"), 0.0, ">="),
         check_threshold("conceptseg_items", concept.get("items"), 40, ">="),
         check_threshold("conceptseg_instance_targets", nested(concept_intersection, "target_status_counts", "has_intersection_candidate", default=0), 1, ">="),
         check_threshold("old_route_colored_ratio", old_route.get("colored_ratio"), 0.80, ">="),
@@ -100,6 +102,8 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         ),
         file_entry(args.surface_first_report, "surface_first_subcluster_report"),
         file_entry(args.surface_first_preview, "surface_first_subcluster_xy_preview"),
+        file_entry(args.residual_assignment_report, "residual_surface_assignment_report", required=True),
+        file_entry(args.residual_assignment_preview, "residual_surface_assignment_xy_preview", required=True),
         file_entry(args.conceptseg_qa, "conceptseg_problem40_structured_qa", required=False),
         file_entry(args.conceptseg_contact_sheet, "conceptseg_problem40_contact_sheet", required=False),
         file_entry(args.route_decision, "dense_semantic_route_decision", required=True),
@@ -144,6 +148,16 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             "object_ambiguous_ratio": target_objects.get("ambiguous_ratio"),
             "surface_first_changed_ratio": surface.get("changed_ratio"),
             "surface_first_after_counts": surface.get("after_counts", {}),
+            "residual_surface_assigned_ratio": residual_assignment.get("assigned_ratio"),
+            "residual_surface_assigned_points": residual_assignment.get("assigned_points"),
+            "residual_surface_unassigned_points": (
+                residual_assignment.get("residual_points", 0) - residual_assignment.get("assigned_points", 0)
+                if isinstance(residual_assignment.get("residual_points"), int)
+                and isinstance(residual_assignment.get("assigned_points"), int)
+                else None
+            ),
+            "residual_surface_by_label": residual_assignment.get("by_label", {}),
+            "residual_surface_assigned_by_label": residual_assignment.get("assigned_by_label", {}),
             "conceptseg_items": concept.get("items"),
             "conceptseg_mode_counts": concept.get("mode_counts", {}),
             "route_decision": nested(route_decision, "main_route", "decision"),
@@ -177,6 +191,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         ],
         "next_actions": [
             "Use surface-first subcluster PLY for visual QA of surface contamination.",
+            "Use residual surface assignment report to separate absorbable surface noise from unresolved fine residuals.",
             "Use v008 frame-target/tracklet/long-association artifacts for fine-object dataset evolution.",
             "Use reviewed long objects as the current fine-object object baseline.",
             "Keep ConceptSeg-R1 as constrained second-stage candidate generator.",
@@ -209,6 +224,8 @@ def render_markdown(manifest: dict[str, Any]) -> str:
         f"- object merge ratio: `{metrics.get('object_merge_ratio')}`",
         f"- object ambiguous ratio: `{metrics.get('object_ambiguous_ratio')}`",
         f"- surface-first changed ratio: `{metrics.get('surface_first_changed_ratio')}`",
+        f"- residual surface assigned ratio: `{metrics.get('residual_surface_assigned_ratio')}`",
+        f"- residual surface unassigned points: `{metrics.get('residual_surface_unassigned_points')}`",
         f"- ConceptSeg modes: `{metrics.get('conceptseg_mode_counts')}`",
         f"- route decision: `{metrics.get('route_decision')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
@@ -250,6 +267,8 @@ def main() -> None:
     parser.add_argument("--surface-first-report", type=Path, default=root / "server_surface_first_subcluster_qa_0000_0999/surface_first_subcluster_report.json")
     parser.add_argument("--surface-first-voxel-ply", type=Path, default=root / "server_surface_first_subcluster_qa_0000_0999/object_points_surface_first_subcluster_voxel004.ply")
     parser.add_argument("--surface-first-preview", type=Path, default=root / "server_surface_first_subcluster_qa_0000_0999/object_points_surface_first_subcluster_xy.png")
+    parser.add_argument("--residual-assignment-report", type=Path, default=root / "server_residual_surface_assignment_0000_0999/assignment_report.json")
+    parser.add_argument("--residual-assignment-preview", type=Path, default=root / "server_residual_surface_assignment_0000_0999/residual_surface_assigned_xy.png")
     parser.add_argument("--conceptseg-qa", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_structured_qa.json")
     parser.add_argument("--conceptseg-contact-sheet", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_contact_sheet.jpg")
     parser.add_argument("--route-decision", type=Path, default=root / "route_status_20260610/dense_semantic_route_decision_20260611.json")

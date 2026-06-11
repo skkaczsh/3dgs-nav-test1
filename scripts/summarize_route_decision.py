@@ -42,6 +42,8 @@ def write_markdown(summary: dict[str, Any], path: Path) -> None:
         f"- Object count: `{main['object_count']}`",
         f"- Object ambiguous ratio: `{main['object_ambiguous_ratio']:.4f}`",
         f"- Surface-first changed ratio: `{main['surface_first_changed_ratio']:.4f}`",
+        f"- Residual surface assignment ratio: `{main['residual_surface_assigned_ratio']:.4f}`",
+        f"- Residual surface unassigned points: `{main['residual_surface_unassigned_points']}`",
         "",
         "## ConceptSeg-R1 Evidence",
         "",
@@ -110,6 +112,8 @@ def main() -> None:
             "object_count": metrics.get("object_count"),
             "object_ambiguous_ratio": float(metrics.get("object_ambiguous_ratio", 0.0)),
             "surface_first_changed_ratio": float(metrics.get("surface_first_changed_ratio", 0.0)),
+            "residual_surface_assigned_ratio": float(metrics.get("residual_surface_assigned_ratio", 0.0)),
+            "residual_surface_unassigned_points": metrics.get("residual_surface_unassigned_points"),
         },
         "conceptseg_side_track": {
             "decision": "keep_as_conservative_fine_object_refinement_only",

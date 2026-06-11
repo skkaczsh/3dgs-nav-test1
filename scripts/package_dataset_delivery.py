@@ -126,6 +126,8 @@ def render_readme(package: dict) -> str:
         f"- target points: `{metrics.get('target_points')}`",
         f"- objects: `{metrics.get('object_count')}`",
         f"- surface-first changed ratio: `{metrics.get('surface_first_changed_ratio')}`",
+        f"- residual surface assigned ratio: `{metrics.get('residual_surface_assigned_ratio')}`",
+        f"- residual surface unassigned points: `{metrics.get('residual_surface_unassigned_points')}`",
         f"- fine targets / tracklets / reviewed objects: `{metrics.get('fine_targets')}` / `{metrics.get('fine_tracklets')}` / `{metrics.get('reviewed_output_objects')}`",
         f"- route decision: `{metrics.get('route_decision')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
