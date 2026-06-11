@@ -89,8 +89,9 @@ def suspicious_overlay_colors(label: str) -> set[str]:
 def strip_color_words(text: str, colors: set[str]) -> str:
     out = str(text or "")
     for color in sorted(colors, key=len, reverse=True):
-        out = re.sub(rf"\b{re.escape(color)}[- ]+", "", out, flags=re.I)
+        out = re.sub(rf"\b\w*{re.escape(color)}\w*[-/ ]*", "", out, flags=re.I)
         out = re.sub(rf"\b{re.escape(color)}\b", "", out, flags=re.I)
+    out = re.sub(r"/+", " ", out)
     out = re.sub(r"\s{2,}", " ", out)
     out = re.sub(r"\s+([,.;])", r"\1", out)
     return out.strip(" -_,")
@@ -102,7 +103,7 @@ def sanitize_overlay_color_leak(record: dict[str, Any]) -> dict[str, Any]:
     attrs = dict(record.get("attributes") or {})
     color_value = str(attrs.get("color", "")).strip().lower()
     leaked = False
-    if color_value in colors:
+    if any(re.search(rf"\b\w*{re.escape(color)}\w*\b", color_value, flags=re.I) for color in colors):
         attrs.pop("color", None)
         leaked = True
     description = strip_color_words(str(record.get("description", "")), colors)
