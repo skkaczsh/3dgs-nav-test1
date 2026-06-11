@@ -71,7 +71,7 @@ def next_increment_commands(train: dict[str, Any], status: str) -> list[str]:
             [
                 (
                     f"{direct} 'tmux new-session -Ad -s next_increment_sky_1000_1999 "
-                    "\"cd /root/epfs/new_route_scripts && python3 build_sky_masks_from_frames.py "
+                    "\"cd /root/epfs/new_route_scripts && /root/epfs/conda_envs/vlm_seg/bin/python build_sky_masks_from_frames.py "
                     "--frames-dir /root/epfs/new_route_stage1_skymask/frames "
                     "--output-dir /root/epfs/new_route_data/sky_masks_color "
                     "--start 1000 --end 1999 --skip-existing "
