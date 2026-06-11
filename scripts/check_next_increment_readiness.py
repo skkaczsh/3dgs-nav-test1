@@ -122,8 +122,10 @@ generated_ready=ratios['color_ply'] >= 0.95 and ratios['sam2_mask'] >= 0.95 and 
 status='ready_for_generation' if source_ready else 'missing_sources'
 if source_ready and camera_ready and sky_ready and generated_ready:
     status='ready_for_target_object_fusion'
-elif source_ready and (not camera_ready or not sky_ready):
-    status='needs_frame_or_sky_generation'
+elif source_ready and not camera_ready:
+    status='needs_frame_generation'
+elif source_ready and not sky_ready:
+    status='needs_sky_generation'
 elif source_ready:
     status='ready_for_color_sam_semantic_generation'
 
@@ -189,7 +191,8 @@ def check_remote(args: argparse.Namespace) -> dict[str, Any]:
     report["generated_at"] = datetime.now(timezone.utc).isoformat()
     report["passed"] = report.get("status") in {
         "ready_for_generation",
-        "needs_frame_or_sky_generation",
+        "needs_frame_generation",
+        "needs_sky_generation",
         "ready_for_color_sam_semantic_generation",
         "ready_for_target_object_fusion",
     }

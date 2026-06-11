@@ -56,12 +56,26 @@ def next_increment_commands(train: dict[str, Any], status: str) -> list[str]:
         "cd /Users/skkac/Work/SCAN/new_route",
         "python3 scripts/check_next_increment_readiness.py",
     ]
-    if status == "needs_frame_or_sky_generation":
+    if status == "needs_frame_generation":
         commands.extend(
             [
                 (
                     f"{direct} 'tmux new-session -Ad -s next_increment_1000_1999 "
                     "\"cd /root/epfs/new_route_scripts && python3 extract_frames.py --start 1000 --end 1999 --skip-existing --workers 32\"'"
+                ),
+                "python3 scripts/check_next_increment_readiness.py",
+            ]
+        )
+    elif status == "needs_sky_generation":
+        commands.extend(
+            [
+                (
+                    f"{direct} 'tmux new-session -Ad -s next_increment_sky_1000_1999 "
+                    "\"cd /root/epfs/new_route_scripts && python3 build_sky_masks_from_frames.py "
+                    "--frames-dir /root/epfs/new_route_stage1_skymask/frames "
+                    "--output-dir /root/epfs/new_route_data/sky_masks_color "
+                    "--start 1000 --end 1999 --skip-existing "
+                    "--report /root/epfs/new_route_data/sky_masks_color/sky_masks_1000_1999_report.json\"'"
                 ),
                 "python3 scripts/check_next_increment_readiness.py",
             ]
@@ -128,7 +142,8 @@ def make_queue(args: argparse.Namespace) -> dict[str, Any]:
         next_status = next_increment.get("status", "missing")
         next_generation_ready = next_status in {
             "ready_for_generation",
-            "needs_frame_or_sky_generation",
+            "needs_frame_generation",
+            "needs_sky_generation",
             "ready_for_color_sam_semantic_generation",
             "ready_for_target_object_fusion",
         }

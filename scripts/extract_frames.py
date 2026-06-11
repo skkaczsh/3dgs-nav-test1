@@ -184,6 +184,8 @@ def main():
     parser.add_argument("--skip-existing", action="store_true")
     parser.add_argument("--workers", type=int, default=32,
                         help="并发线程数 (默认: 32)")
+    parser.add_argument("--min-success-ratio", type=float, default=0.95,
+                        help="低于该成功率时退出非零，避免静默产生空缓存")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -191,6 +193,13 @@ def main():
     print("=" * 60)
     print(f"帧范围: {args.start} ~ {args.end} (共 {args.end - args.start + 1} 帧)")
     print(f"并发线程数: {args.workers}")
+
+    missing_videos = [path for path in VIDEO_FILES.values() if not os.path.exists(path)]
+    if missing_videos:
+        print("\n错误: 缺失视频文件:")
+        for path in missing_videos:
+            print(f"  - {path}")
+        sys.exit(2)
 
     # 加载位姿数据
     print("\n[1/4] 加载位姿数据...")
@@ -258,6 +267,8 @@ def main():
     print("\n  Cam0: 成功 {0[ok]}, 跳过 {0[skip]}, 错误 {0[err]}".format(_stats[0]))
     print("  Cam1: 成功 {0[ok]}, 跳过 {0[skip]}, 错误 {0[err]}".format(_stats[1]))
     print("  Cam2: 成功 {0[ok]}, 跳过 {0[skip]}, 错误 {0[err]}".format(_stats[2]))
+    ok_total = sum(_stats[cam_id]["ok"] + _stats[cam_id]["skip"] for cam_id in [0, 1, 2])
+    success_ratio = ok_total / max(_total_count, 1)
 
     for cam_id in [0, 1, 2]:
         deltas = _stats[cam_id]["deltas"]
@@ -268,15 +279,23 @@ def main():
     # 保存元数据
     meta_path = os.path.join(STAGE1_DIR, "frame_extraction_meta.txt")
     os.makedirs(os.path.dirname(meta_path), exist_ok=True)
+    compact_stats = {
+        cam_id: {key: _stats[cam_id][key] for key in ("ok", "skip", "err")}
+        for cam_id in [0, 1, 2]
+    }
     with open(meta_path, "w") as f:
         f.write(f"start_frame={args.start}\n")
         f.write(f"end_frame={args.end}\n")
         f.write(f"workers={args.workers}\n")
         f.write(f"video_start_unix={video_start_unix}\n")
         f.write(f"extracted={{0: {len(pose_data)}, 1: {len(pose_data)}, 2: {len(pose_data)}}}\n")
-        f.write(f"stats={dict(_stats)}\n")
+        f.write(f"stats={compact_stats}\n")
+        f.write(f"success_ratio={success_ratio:.6f}\n")
         f.write(f"elapsed_sec={elapsed:.1f}\n")
     print(f"\n[4/4] 元数据已保存: {meta_path}")
+    if success_ratio < args.min_success_ratio:
+        print(f"\n错误: 抽帧成功率 {success_ratio:.3f} < {args.min_success_ratio:.3f}")
+        sys.exit(3)
     print("\n✅ 步骤1完成!")
 
 

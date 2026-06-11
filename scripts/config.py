@@ -12,7 +12,8 @@ except ModuleNotFoundError:
 # ==================== 路径配置 ====================
 DATA_DIR = os.environ.get("SCAN_DATA_DIR", "/root/epfs/new_route_data")
 IMAGE_DIR = os.environ.get("SCAN_IMAGE_DIR", os.path.join(DATA_DIR, "calib"))
-VIDEO_DIR = os.environ.get("SCAN_VIDEO_DIR", IMAGE_DIR)
+DEFAULT_VIDEO_DIR = os.path.join(DATA_DIR, "video")
+VIDEO_DIR = os.environ.get("SCAN_VIDEO_DIR", DEFAULT_VIDEO_DIR if os.path.isdir(DEFAULT_VIDEO_DIR) else IMAGE_DIR)
 EXTRACTED_DIR = os.environ.get("SCAN_EXTRACTED_DIR", os.path.join(DATA_DIR, "ply"))
 STAGE1_DIR = os.environ.get("SCAN_STAGE1_DIR", "/root/epfs/new_route_stage1_skymask")
 
