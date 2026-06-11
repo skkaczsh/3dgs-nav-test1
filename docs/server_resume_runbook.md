@@ -163,6 +163,32 @@ bash scripts/run_server_semantic_completion_sharded.sh
 Set `PATCH_SCENE_PROMPTS=0` only when intentionally reproducing the older
 prompt baseline.
 
+For incremental `scan-vlm` catch-up runs, use:
+
+```bash
+bash scripts/run_remote_scan_vlm_semantic_extra.sh
+```
+
+This runner filters candidate SAM2 masks with `--min-sam-age-seconds` before
+Qwen work starts, then validates JSON only for the small set of VLM-extra
+candidates. Do not switch this back to an existence-only check: SAM mask JSON
+can be visible while it is still being written, which causes `run_eval.py` to
+fail with `JSONDecodeError`.
+
+After a target/object run, summarize coarse-label plus identity coverage:
+
+```bash
+python3 scripts/summarize_identity_enrichment.py \
+  --semantic-eval-dir /root/epfs/manifold_3dgs_project/processed/semantic_eval_new_route_1000_1999 \
+  --objects-jsonl /root/epfs/new_route_stage1_skymask/<target_object_run>/objects.jsonl \
+  --output-json /root/epfs/new_route_stage1_skymask/<target_object_run>/identity_enrichment_report.json \
+  --description-csv /root/epfs/new_route_stage1_skymask/<target_object_run>/identity_descriptions.csv
+```
+
+The expected semantic model is two-level: keep `label` constrained for
+statistics and rendering, and use `description`, `identity_hint`, and
+`attributes` for object identity and merge QA.
+
 ## Manual Review Fallback
 
 If Qwen remains unavailable, use the packaged human review bundle:
