@@ -215,6 +215,7 @@ def main() -> None:
     visual_acceptance = read_json(args.status_dir / "visual_acceptance_review_20260611.json")
     next_increment = read_json(args.status_dir / "next_increment_readiness_1000_1999.json")
     conceptseg = read_json(args.status_dir / "conceptseg_integration_plan_20260611.json")
+    qwen_readiness = read_json(args.status_dir / "qwen_endpoint_readiness_20260611.json")
     old_route = read_json(ROOT / "server_old_route_smoke/world_colorize_summary.json")
 
     report = {
@@ -223,6 +224,7 @@ def main() -> None:
         "visual_acceptance": visual_acceptance,
         "next_increment": next_increment,
         "conceptseg": conceptseg,
+        "qwen_endpoint_readiness": qwen_readiness,
         "old_route": {
             "passed": True,
             "colored_ratio": old_route.get("colored_ratio"),
