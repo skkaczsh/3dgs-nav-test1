@@ -19,6 +19,7 @@
 - Surface-first changed ratio: `0.0714`
 - Residual surface assignment ratio: `0.4618`
 - Residual surface unassigned points: `1609501`
+- Residual absorption sweep best ratio: `0.5576`
 
 ## ConceptSeg-R1 Evidence
 
@@ -51,11 +52,12 @@
 - Package validation: `/Users/skkac/Work/SCAN/dataset_delivery_0000_0999_validation.json`
 - Manifest validation: `/Users/skkac/Work/SCAN/route_status_20260610/dataset_delivery_manifest_0000_0999_validation.json`
 - Delivery acceptance: `/Users/skkac/Work/SCAN/route_status_20260610/delivery_acceptance_20260611.json`
-- Packaged files: `28`
+- Packaged files: `29`
 - Large referenced files: `3`
 - Included side-track evidence:
   - route decision JSON/Markdown
   - residual surface-assignment report and preview
+  - residual absorption parameter sweep
   - ConceptSeg fine-object alignment report
   - ConceptSeg instance-intersection report and accepted sheet
   - old-route reference validation

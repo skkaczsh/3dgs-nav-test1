@@ -128,6 +128,7 @@ def render_readme(package: dict) -> str:
         f"- surface-first changed ratio: `{metrics.get('surface_first_changed_ratio')}`",
         f"- residual surface assigned ratio: `{metrics.get('residual_surface_assigned_ratio')}`",
         f"- residual surface unassigned points: `{metrics.get('residual_surface_unassigned_points')}`",
+        f"- residual absorption sweep best ratio: `{metrics.get('residual_absorption_sweep_best_ratio')}`",
         f"- fine targets / tracklets / reviewed objects: `{metrics.get('fine_targets')}` / `{metrics.get('fine_tracklets')}` / `{metrics.get('reviewed_output_objects')}`",
         f"- route decision: `{metrics.get('route_decision')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",

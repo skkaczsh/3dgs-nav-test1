@@ -55,6 +55,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     object_pipeline_qa = read_json(args.object_pipeline_qa)
     surface = read_json(args.surface_first_report)
     residual_assignment = read_json(args.residual_assignment_report)
+    residual_sweep = read_json(args.residual_absorption_sweep)
     concept = read_json(args.conceptseg_qa)
     route_decision = read_json(args.route_decision)
     concept_align = read_json(args.conceptseg_alignment)
@@ -106,6 +107,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.surface_first_preview, "surface_first_subcluster_xy_preview"),
         file_entry(args.residual_assignment_report, "residual_surface_assignment_report", required=True),
         file_entry(args.residual_assignment_preview, "residual_surface_assignment_xy_preview", required=True),
+        file_entry(args.residual_absorption_sweep, "residual_absorption_sweep_report", required=True),
         file_entry(args.conceptseg_qa, "conceptseg_problem40_structured_qa", required=False),
         file_entry(args.conceptseg_contact_sheet, "conceptseg_problem40_contact_sheet", required=False),
         file_entry(args.route_decision, "dense_semantic_route_decision", required=True),
@@ -161,6 +163,21 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             ),
             "residual_surface_by_label": residual_assignment.get("by_label", {}),
             "residual_surface_assigned_by_label": residual_assignment.get("assigned_by_label", {}),
+            "residual_absorption_sweep_best_ratio": max(
+                (row.get("assigned_ratio", 0.0) for row in residual_sweep.get("configs", [])),
+                default=0.0,
+            ),
+            "residual_absorption_sweep_best_unassigned": (
+                sorted(
+                    max(
+                        residual_sweep.get("configs", []),
+                        key=lambda row: row.get("assigned_ratio", 0.0),
+                        default={},
+                    ).get("unassigned_by_label", {}).items(),
+                    key=lambda item: item[1],
+                    reverse=True,
+                )[:5]
+            ),
             "conceptseg_items": concept.get("items"),
             "conceptseg_mode_counts": concept.get("mode_counts", {}),
             "route_decision": nested(route_decision, "main_route", "decision"),
@@ -273,6 +290,7 @@ def main() -> None:
     parser.add_argument("--surface-first-preview", type=Path, default=root / "server_surface_first_subcluster_qa_0000_0999/object_points_surface_first_subcluster_xy.png")
     parser.add_argument("--residual-assignment-report", type=Path, default=root / "server_residual_surface_assignment_0000_0999/assignment_report.json")
     parser.add_argument("--residual-assignment-preview", type=Path, default=root / "server_residual_surface_assignment_0000_0999/residual_surface_assigned_xy.png")
+    parser.add_argument("--residual-absorption-sweep", type=Path, default=root / "server_residual_surface_assignment_0000_0999/residual_absorption_sweep_20260611.json")
     parser.add_argument("--conceptseg-qa", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_structured_qa.json")
     parser.add_argument("--conceptseg-contact-sheet", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_contact_sheet.jpg")
     parser.add_argument("--route-decision", type=Path, default=root / "route_status_20260610/dense_semantic_route_decision_20260611.json")
