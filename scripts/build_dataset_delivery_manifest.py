@@ -58,6 +58,9 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     residual_sweep = read_json(args.residual_absorption_sweep)
     residual_miss_reasons = read_json(args.residual_miss_reasons)
     residual_candidate_coverage = read_json(args.residual_candidate_coverage)
+    surface_seed_candidates = read_json(args.surface_seed_candidates)
+    surface_seed_promotion = read_json(args.surface_seed_promotion)
+    residual_candidate_coverage_augmented = read_json(args.residual_candidate_coverage_augmented)
     concept = read_json(args.conceptseg_qa)
     route_decision = read_json(args.route_decision)
     concept_align = read_json(args.conceptseg_alignment)
@@ -112,6 +115,9 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.residual_absorption_sweep, "residual_absorption_sweep_report", required=True),
         file_entry(args.residual_miss_reasons, "residual_surface_miss_reasons_report", required=True),
         file_entry(args.residual_candidate_coverage, "residual_candidate_surface_coverage_report", required=True),
+        file_entry(args.surface_seed_candidates, "surface_seed_candidates_report", required=True),
+        file_entry(args.surface_seed_promotion, "surface_seed_promotion_report", required=True),
+        file_entry(args.residual_candidate_coverage_augmented, "residual_candidate_surface_coverage_augmented_report", required=True),
         file_entry(args.conceptseg_qa, "conceptseg_problem40_structured_qa", required=False),
         file_entry(args.conceptseg_contact_sheet, "conceptseg_problem40_contact_sheet", required=False),
         file_entry(args.route_decision, "dense_semantic_route_decision", required=True),
@@ -193,6 +199,14 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
                 key=lambda row: row.get("matched_surface_ratio", 0.0),
                 default={},
             ).get("reason_counts", {}),
+            "surface_seed_candidate_count": surface_seed_candidates.get("candidate_count"),
+            "surface_seed_candidate_points": surface_seed_candidates.get("candidate_points"),
+            "surface_seed_promoted_count": surface_seed_promotion.get("promoted_count"),
+            "surface_seed_promoted_points": surface_seed_promotion.get("promoted_points"),
+            "residual_candidate_coverage_augmented_best_ratio": max(
+                (row.get("matched_surface_ratio", 0.0) for row in residual_candidate_coverage_augmented.get("configs", [])),
+                default=0.0,
+            ),
             "conceptseg_items": concept.get("items"),
             "conceptseg_mode_counts": concept.get("mode_counts", {}),
             "route_decision": nested(route_decision, "main_route", "decision"),
@@ -308,6 +322,9 @@ def main() -> None:
     parser.add_argument("--residual-absorption-sweep", type=Path, default=root / "server_residual_surface_assignment_0000_0999/residual_absorption_sweep_20260611.json")
     parser.add_argument("--residual-miss-reasons", type=Path, default=root / "server_residual_surface_assignment_0000_0999/residual_surface_miss_reasons_20260611.json")
     parser.add_argument("--residual-candidate-coverage", type=Path, default=root / "server_residual_surface_assignment_0000_0999/residual_candidate_surface_coverage_20260611.json")
+    parser.add_argument("--surface-seed-candidates", type=Path, default=root / "route_status_20260610/surface_seed_candidates_20260611.json")
+    parser.add_argument("--surface-seed-promotion", type=Path, default=root / "route_status_20260610/surface_seed_promotion_20260611.json")
+    parser.add_argument("--residual-candidate-coverage-augmented", type=Path, default=root / "route_status_20260610/residual_candidate_surface_coverage_augmented_20260611.json")
     parser.add_argument("--conceptseg-qa", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_structured_qa.json")
     parser.add_argument("--conceptseg-contact-sheet", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_contact_sheet.jpg")
     parser.add_argument("--route-decision", type=Path, default=root / "route_status_20260610/dense_semantic_route_decision_20260611.json")

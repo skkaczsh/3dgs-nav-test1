@@ -131,6 +131,8 @@ def render_readme(package: dict) -> str:
         f"- residual absorption sweep best ratio: `{metrics.get('residual_absorption_sweep_best_ratio')}`",
         f"- residual miss reasons: `{metrics.get('residual_surface_miss_reason_counts')}`",
         f"- residual candidate coverage best ratio: `{metrics.get('residual_candidate_coverage_best_ratio')}`",
+        f"- surface seed candidates/promoted points: `{metrics.get('surface_seed_candidate_points')}` / `{metrics.get('surface_seed_promoted_points')}`",
+        f"- surface seed augmented best ratio: `{metrics.get('residual_candidate_coverage_augmented_best_ratio')}`",
         f"- fine targets / tracklets / reviewed objects: `{metrics.get('fine_targets')}` / `{metrics.get('fine_tracklets')}` / `{metrics.get('reviewed_output_objects')}`",
         f"- route decision: `{metrics.get('route_decision')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
