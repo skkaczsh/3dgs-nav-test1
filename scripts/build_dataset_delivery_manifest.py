@@ -69,6 +69,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     route_decision = read_json(args.route_decision)
     release_status = read_json(args.release_status)
     infra_readiness = read_json(args.infra_readiness)
+    parallel_execution_queue = read_json(args.parallel_execution_queue)
     concept_align = read_json(args.conceptseg_alignment)
     concept_intersection = read_json(args.conceptseg_intersection)
     concept_integration = read_json(args.conceptseg_integration_plan)
@@ -150,6 +151,8 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.release_status_md, "dense_semantic_release_status_markdown", required=True),
         file_entry(args.infra_readiness, "infra_readiness", required=True),
         file_entry(args.infra_readiness_md, "infra_readiness_markdown", required=True),
+        file_entry(args.parallel_execution_queue, "parallel_execution_queue", required=True),
+        file_entry(args.parallel_execution_queue_md, "parallel_execution_queue_markdown", required=True),
         file_entry(args.conceptseg_alignment, "conceptseg_fine_object_alignment", required=False),
         file_entry(args.conceptseg_intersection, "conceptseg_instance_intersection", required=False),
         file_entry(args.conceptseg_instance_accepted_sheet, "conceptseg_instance_accepted_sheet", required=False),
@@ -273,6 +276,8 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
                 }
                 for server in infra_readiness.get("servers", [])
             ],
+            "parallel_queue_task_count": len(parallel_execution_queue.get("queue", [])),
+            "parallel_queue_gates": parallel_execution_queue.get("gates", {}),
             "conceptseg_decision": nested(route_decision, "conceptseg_side_track", "decision"),
             "conceptseg_fine_candidates": concept_align.get("item_count"),
             "conceptseg_semantically_discriminative_targets": concept_align.get("semantically_discriminative_target_count"),
@@ -367,6 +372,7 @@ def render_markdown(manifest: dict[str, Any]) -> str:
         f"- release status: `{metrics.get('release_status')}`",
         f"- release manual gate: `{metrics.get('release_manual_gate')}`",
         f"- infra readiness passed/all reachable/paths ok: `{metrics.get('infra_readiness_passed')}` / `{metrics.get('infra_all_reachable')}` / `{metrics.get('infra_all_required_paths_ok')}`",
+        f"- parallel queue tasks/gates: `{metrics.get('parallel_queue_task_count')}` / `{metrics.get('parallel_queue_gates')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
         f"- side-track ConceptSeg decision: `{metrics.get('side_track_conceptseg_decision')}`",
         f"- side-track ConceptSeg accepted target ratio: `{metrics.get('side_track_conceptseg_accepted_target_ratio')}`",
@@ -446,6 +452,8 @@ def main() -> None:
     parser.add_argument("--release-status-md", type=Path, default=root / "route_status_20260610/dense_semantic_release_status_20260611.md")
     parser.add_argument("--infra-readiness", type=Path, default=root / "route_status_20260610/infra_readiness_20260611.json")
     parser.add_argument("--infra-readiness-md", type=Path, default=root / "route_status_20260610/infra_readiness_20260611.md")
+    parser.add_argument("--parallel-execution-queue", type=Path, default=root / "route_status_20260610/parallel_execution_queue_20260611.json")
+    parser.add_argument("--parallel-execution-queue-md", type=Path, default=root / "route_status_20260610/parallel_execution_queue_20260611.md")
     parser.add_argument("--conceptseg-alignment", type=Path, default=root / "server_conceptseg_fine_object_alignment_v008/conceptseg_target_object_alignment_report.json")
     parser.add_argument("--conceptseg-intersection", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_intersection_report.json")
     parser.add_argument("--conceptseg-instance-accepted-sheet", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_accepted_sheet.jpg")

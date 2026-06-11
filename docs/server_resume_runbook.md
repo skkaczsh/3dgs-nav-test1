@@ -6,6 +6,7 @@ delivery verification.
 ## Current Connectivity
 
 - Latest verified route: `ssh -p 31909 root@10.0.8.114` for `scan-train`.
+- Latest verified route: `ssh -p 31079 root@10.0.8.114` for `scan-vlm`.
 - If an explicit `BindAddress` fails after a network change, omit it first and
   verify the direct SSH route before editing keys or scripts.
 - For repeated SSH work, use `tmux` on the remote host and avoid restarting
@@ -13,6 +14,28 @@ delivery verification.
 
 Do not rotate keys or change scripts just because a previous `BindAddress`
 stopped working.
+
+The local remote wrappers now support direct endpoints, so prefer this form
+while SSH aliases have stale `BindAddress` values:
+
+```bash
+SSH_HOST=10.0.8.114 SSH_PORT=31909 SSH_USER=root SERVER=scan-train \
+  bash scripts/run_remote_server_target_object_fusion.sh
+```
+
+Regenerate the current server/task queue before starting new work:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+
+python3 scripts/check_infra_readiness.py
+python3 scripts/prepare_parallel_execution_queue.py
+```
+
+This writes:
+
+- `/Users/skkac/Work/SCAN/route_status_20260610/infra_readiness_20260611.json`
+- `/Users/skkac/Work/SCAN/route_status_20260610/parallel_execution_queue_20260611.json`
 
 ## Offline Mode
 
@@ -199,15 +222,18 @@ Expected:
 
 Current ConceptSeg-R1 status:
 
-- Source/weights were prepared on `scan-train`
-- Smoke result was not strong enough to replace main SAM2+Qwen route
-- Continue only when it does not occupy main-route resources
+- Source/weights were prepared on `scan-train`.
+- The 90-item constrained run completed, but should remain review-only.
+- 3D refinement components are useful as conservative split/refine proposals,
+  not as dense semantic source.
+- Continue only when it does not occupy main-route resources.
 
 Next side-track action after server returns:
 
 ```bash
 # Inspect GPU and existing model files first.
-ssh scan-train 'nvidia-smi; ls -lah /root/epfs/model_side_tracks/ConceptSeg-R1'
+ssh -F /dev/null -p 31909 root@10.0.8.114 \
+  'nvidia-smi; ls -lah /root/epfs/model_side_tracks/ConceptSeg-R1'
 ```
 
 Do not promote ConceptSeg-R1 to main path unless it beats `sam2_prompt_v3_sky_label_merge_completion` on the same review artifacts.

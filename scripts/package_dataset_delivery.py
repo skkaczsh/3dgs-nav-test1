@@ -141,6 +141,8 @@ def render_readme(package: dict) -> str:
         f"- route decision: `{metrics.get('route_decision')}`",
         f"- release status: `{metrics.get('release_status')}`",
         f"- release manual gate: `{metrics.get('release_manual_gate')}`",
+        f"- infra readiness passed: `{metrics.get('infra_readiness_passed')}`",
+        f"- parallel queue tasks: `{metrics.get('parallel_queue_task_count')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
         f"- side-track ConceptSeg decision: `{metrics.get('side_track_conceptseg_decision')}`",
         f"- side-track ConceptSeg accepted target ratio: `{metrics.get('side_track_conceptseg_accepted_target_ratio')}`",

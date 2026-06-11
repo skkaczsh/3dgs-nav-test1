@@ -2,6 +2,9 @@
 set -euo pipefail
 
 SERVER="${SERVER:-scan-train}"
+SSH_HOST="${SSH_HOST:-}"
+SSH_PORT="${SSH_PORT:-}"
+SSH_USER="${SSH_USER:-root}"
 BIND_ADDRESS="${BIND_ADDRESS:-}"
 REMOTE_SCRIPT_DIR="${REMOTE_SCRIPT_DIR:-/root/epfs/new_route_scripts}"
 LOCAL_SCRIPT_DIR="${LOCAL_SCRIPT_DIR:-/Users/skkac/Work/SCAN/new_route/scripts}"
@@ -16,19 +19,33 @@ WORK_MODE="${WORK_MODE:-semantic-dir}"
 START_FRAME="${START_FRAME:-0}"
 END_FRAME="${END_FRAME:-999}"
 
-ssh_opts=()
+server_target="${SERVER}"
+scp_target="${SERVER}"
+ssh_cmd_opts=()
+scp_cmd_opts=()
+if [[ -n "${SSH_HOST}" ]]; then
+  ssh_cmd_opts+=("-F" "/dev/null")
+  scp_cmd_opts+=("-F" "/dev/null")
+  if [[ -n "${SSH_PORT}" ]]; then
+    ssh_cmd_opts+=("-p" "${SSH_PORT}")
+    scp_cmd_opts+=("-P" "${SSH_PORT}")
+  fi
+  server_target="${SSH_USER}@${SSH_HOST}"
+  scp_target="${SSH_USER}@${SSH_HOST}"
+fi
 if [[ -n "${BIND_ADDRESS}" ]]; then
-  ssh_opts+=("-o" "BindAddress=${BIND_ADDRESS}")
+  ssh_cmd_opts+=("-o" "BindAddress=${BIND_ADDRESS}")
+  scp_cmd_opts+=("-o" "BindAddress=${BIND_ADDRESS}")
 fi
 
-echo "[1/4] checking SSH connectivity: ${SERVER}"
-ssh "${ssh_opts[@]}" -o ConnectTimeout=8 "${SERVER}" 'hostname; date'
+echo "[1/4] checking SSH connectivity: ${server_target}"
+ssh "${ssh_cmd_opts[@]}" -o ConnectTimeout=8 "${server_target}" 'hostname; date'
 
-echo "[2/4] syncing scripts to ${SERVER}:${REMOTE_SCRIPT_DIR}"
-tar -C "${LOCAL_SCRIPT_DIR}" -cf - . | ssh "${ssh_opts[@]}" "${SERVER}" "mkdir -p '${REMOTE_SCRIPT_DIR}' && tar -C '${REMOTE_SCRIPT_DIR}' -xf -"
+echo "[2/4] syncing scripts to ${server_target}:${REMOTE_SCRIPT_DIR}"
+tar -C "${LOCAL_SCRIPT_DIR}" -cf - . | ssh "${ssh_cmd_opts[@]}" "${server_target}" "mkdir -p '${REMOTE_SCRIPT_DIR}' && tar -C '${REMOTE_SCRIPT_DIR}' -xf -"
 
 echo "[3/4] running target/object fusion on server"
-ssh "${ssh_opts[@]}" "${SERVER}" "cd '${REMOTE_SCRIPT_DIR}' && \
+ssh "${ssh_cmd_opts[@]}" "${server_target}" "cd '${REMOTE_SCRIPT_DIR}' && \
   SEMANTIC_EVAL_DIR='${SEMANTIC_EVAL_DIR}' \
   COMBO='${COMBO}' \
   OUTPUT_DIR='${REMOTE_OUTPUT_DIR}' \
@@ -40,8 +57,8 @@ ssh "${ssh_opts[@]}" "${SERVER}" "cd '${REMOTE_SCRIPT_DIR}' && \
 
 echo "[4/4] pulling fusion QA artifacts"
 mkdir -p "${LOCAL_OUTPUT_DIR}/reports" "${LOCAL_OUTPUT_DIR}/objects"
-scp "${ssh_opts[@]}" "${SERVER}:${REMOTE_OUTPUT_DIR}/reports/target_object_qa.json" "${LOCAL_OUTPUT_DIR}/reports/target_object_qa.json"
-scp "${ssh_opts[@]}" "${SERVER}:${REMOTE_OUTPUT_DIR}/objects/fusion_report.json" "${LOCAL_OUTPUT_DIR}/objects/fusion_report.json"
-scp "${ssh_opts[@]}" "${SERVER}:${REMOTE_OUTPUT_DIR}/objects/objects.jsonl" "${LOCAL_OUTPUT_DIR}/objects/objects.jsonl"
+scp "${scp_cmd_opts[@]}" "${scp_target}:${REMOTE_OUTPUT_DIR}/reports/target_object_qa.json" "${LOCAL_OUTPUT_DIR}/reports/target_object_qa.json"
+scp "${scp_cmd_opts[@]}" "${scp_target}:${REMOTE_OUTPUT_DIR}/objects/fusion_report.json" "${LOCAL_OUTPUT_DIR}/objects/fusion_report.json"
+scp "${scp_cmd_opts[@]}" "${scp_target}:${REMOTE_OUTPUT_DIR}/objects/objects.jsonl" "${LOCAL_OUTPUT_DIR}/objects/objects.jsonl"
 
 echo "target/object fusion QA: ${LOCAL_OUTPUT_DIR}/reports/target_object_qa.json"
