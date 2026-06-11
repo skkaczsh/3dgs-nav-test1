@@ -189,6 +189,19 @@ The expected semantic model is two-level: keep `label` constrained for
 statistics and rendering, and use `description`, `identity_hint`, and
 `attributes` for object identity and merge QA.
 
+For unattended catch-up while `scan-train` continues producing SAM masks, start
+the scan-vlm loop instead of manually re-running the one-shot command:
+
+```bash
+bash scripts/start_remote_scan_vlm_extra_loop.sh
+```
+
+It syncs `scripts/` to scan-vlm and starts a tmux session named
+`vlm_extra_loop_1000_1999`. Each cycle selects only stable SAM mask JSON files,
+validates the small VLM-extra candidate set, caps the batch size with
+`MAX_ITEMS_PER_CYCLE`, and then runs the same sharded semantic completion route.
+Use `MAX_CYCLES=1` for a dry operational check.
+
 ## Manual Review Fallback
 
 If Qwen remains unavailable, use the packaged human review bundle:
