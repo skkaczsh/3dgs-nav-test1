@@ -61,6 +61,8 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     surface_seed_candidates = read_json(args.surface_seed_candidates)
     surface_seed_promotion = read_json(args.surface_seed_promotion)
     residual_candidate_coverage_augmented = read_json(args.residual_candidate_coverage_augmented)
+    surface_fusion_bottleneck = read_json(args.surface_fusion_bottleneck)
+    surface_fusion_bottleneck_strict = read_json(args.surface_fusion_bottleneck_strict)
     concept = read_json(args.conceptseg_qa)
     route_decision = read_json(args.route_decision)
     concept_align = read_json(args.conceptseg_alignment)
@@ -118,6 +120,8 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.surface_seed_candidates, "surface_seed_candidates_report", required=True),
         file_entry(args.surface_seed_promotion, "surface_seed_promotion_report", required=True),
         file_entry(args.residual_candidate_coverage_augmented, "residual_candidate_surface_coverage_augmented_report", required=True),
+        file_entry(args.surface_fusion_bottleneck, "surface_target_fusion_bottleneck_report", required=True),
+        file_entry(args.surface_fusion_bottleneck_strict, "surface_target_fusion_bottleneck_strict_report", required=True),
         file_entry(args.conceptseg_qa, "conceptseg_problem40_structured_qa", required=False),
         file_entry(args.conceptseg_contact_sheet, "conceptseg_problem40_contact_sheet", required=False),
         file_entry(args.route_decision, "dense_semantic_route_decision", required=True),
@@ -207,6 +211,10 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
                 (row.get("matched_surface_ratio", 0.0) for row in residual_candidate_coverage_augmented.get("configs", [])),
                 default=0.0,
             ),
+            "surface_fusion_wall_points_base": nested(surface_fusion_bottleneck, "objects", "by_label", "wall", "point_count"),
+            "surface_fusion_wall_points_strict": nested(surface_fusion_bottleneck_strict, "objects", "by_label", "wall", "point_count"),
+            "surface_fusion_ambiguous_points_base": nested(surface_fusion_bottleneck, "objects", "by_label", "ambiguous", "point_count"),
+            "surface_fusion_ambiguous_points_strict": nested(surface_fusion_bottleneck_strict, "objects", "by_label", "ambiguous", "point_count"),
             "conceptseg_items": concept.get("items"),
             "conceptseg_mode_counts": concept.get("mode_counts", {}),
             "route_decision": nested(route_decision, "main_route", "decision"),
@@ -241,6 +249,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         "next_actions": [
             "Use surface-first subcluster PLY for visual QA of surface contamination.",
             "Use residual surface assignment report to separate absorbable surface noise from unresolved fine residuals.",
+            "Use strict surface-label fusion to prevent wall targets from being absorbed into floor objects.",
             "Use v008 frame-target/tracklet/long-association artifacts for fine-object dataset evolution.",
             "Use reviewed long objects as the current fine-object object baseline.",
             "Keep ConceptSeg-R1 as constrained second-stage candidate generator.",
@@ -275,6 +284,8 @@ def render_markdown(manifest: dict[str, Any]) -> str:
         f"- surface-first changed ratio: `{metrics.get('surface_first_changed_ratio')}`",
         f"- residual surface assigned ratio: `{metrics.get('residual_surface_assigned_ratio')}`",
         f"- residual surface unassigned points: `{metrics.get('residual_surface_unassigned_points')}`",
+        f"- surface fusion wall points base/strict: `{metrics.get('surface_fusion_wall_points_base')}` / `{metrics.get('surface_fusion_wall_points_strict')}`",
+        f"- surface fusion ambiguous points base/strict: `{metrics.get('surface_fusion_ambiguous_points_base')}` / `{metrics.get('surface_fusion_ambiguous_points_strict')}`",
         f"- ConceptSeg modes: `{metrics.get('conceptseg_mode_counts')}`",
         f"- route decision: `{metrics.get('route_decision')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
@@ -325,6 +336,8 @@ def main() -> None:
     parser.add_argument("--surface-seed-candidates", type=Path, default=root / "route_status_20260610/surface_seed_candidates_20260611.json")
     parser.add_argument("--surface-seed-promotion", type=Path, default=root / "route_status_20260610/surface_seed_promotion_20260611.json")
     parser.add_argument("--residual-candidate-coverage-augmented", type=Path, default=root / "route_status_20260610/residual_candidate_surface_coverage_augmented_20260611.json")
+    parser.add_argument("--surface-fusion-bottleneck", type=Path, default=root / "route_status_20260610/surface_target_fusion_bottleneck_20260611.json")
+    parser.add_argument("--surface-fusion-bottleneck-strict", type=Path, default=root / "route_status_20260610/surface_target_fusion_bottleneck_strict_20260611.json")
     parser.add_argument("--conceptseg-qa", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_structured_qa.json")
     parser.add_argument("--conceptseg-contact-sheet", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_contact_sheet.jpg")
     parser.add_argument("--route-decision", type=Path, default=root / "route_status_20260610/dense_semantic_route_decision_20260611.json")

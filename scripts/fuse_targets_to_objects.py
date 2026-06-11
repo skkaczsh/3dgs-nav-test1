@@ -16,6 +16,7 @@ from project_semantic import LABEL_COLORS, LABEL_NAMES
 
 
 SURFACE_PARENT_CLASSES = {"surface", "structure"}
+SURFACE_LABELS = {"floor", "wall", "building"}
 DEFAULT_MIN_MERGE_CONFIDENCE = 0.5
 
 
@@ -207,6 +208,10 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
     parent = target.get("parent_class", "other")
     obj_parents = set(obj.get("parent_class_votes", {}).keys())
     same_parent = parent in obj_parents
+    strict_surface_labels = bool(getattr(args, "strict_surface_labels", False))
+    target_is_surface_label = target.get("label") in SURFACE_LABELS
+    obj_surface_labels = set(obj.get("label_votes", {}).keys()) & SURFACE_LABELS
+    surface_cross_label = strict_surface_labels and target_is_surface_label and bool(obj_surface_labels) and not same_label
     near = centroid_dist <= args.centroid_distance or bbox_dist <= args.bbox_distance
     color_ok = color_dist <= args.color_distance
     normal_ok = normal_angle <= args.normal_angle
@@ -222,10 +227,10 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
     if same_label and near and color_ok and normal_ok and quality_ok:
         merge = True
         reason = "same_label_geometry_color"
-    elif overlap and (same_label or same_parent) and color_ok and not quality["mixed_blocks_merge"]:
+    elif overlap and (same_label or (same_parent and not surface_cross_label)) and color_ok and not quality["mixed_blocks_merge"]:
         merge = True
         reason = "point_overlap"
-    elif same_parent and parent in SURFACE_PARENT_CLASSES and near and color_ok and normal_ok and quality_ok:
+    elif same_parent and parent in SURFACE_PARENT_CLASSES and not surface_cross_label and near and color_ok and normal_ok and quality_ok:
         merge = True
         reason = "same_parent_surface_review"
     elif (same_label or same_parent) and near and color_ok and normal_ok and not quality_ok:
@@ -238,6 +243,7 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
         "normal_angle": normal_angle,
         "same_label": same_label,
         "same_parent": same_parent,
+        "surface_cross_label_blocked": surface_cross_label,
         "overlap": overlap,
         "target_confidence": quality["confidence"],
         "target_mixed": quality["mixed"],
@@ -404,6 +410,11 @@ def main() -> None:
     parser.add_argument("--active-zone-window", type=int, default=1)
     parser.add_argument("--spatial-cell-size", type=float, default=1.0)
     parser.add_argument("--fallback-zone-scan", action="store_true")
+    parser.add_argument(
+        "--strict-surface-labels",
+        action="store_true",
+        help="Do not merge floor/wall/building targets across labels via parent-class surface rules.",
+    )
     parser.add_argument("--write-ply", action="store_true")
     args = parser.parse_args()
 

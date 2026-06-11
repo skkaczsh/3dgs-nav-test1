@@ -23,6 +23,8 @@
 - Residual miss reasons: `no_candidate_cell=767620`, `label_incompatible=396654`, `plane_distance_failed=225349`, `color_distance_failed=147082`, `bbox_distance_failed=72796`
 - Residual candidate coverage best ratio: `0.6253`
 - Surface seed augmented best ratio: `0.6349`
+- Surface target/fusion bottleneck: base fusion absorbs wall targets into floor/ambiguous objects; only `38,248` wall object points remain from `391,427` wall target points.
+- Strict surface-label fusion test: wall object points recover to `391,427`, ambiguous object points drop from `704,054` to `174,874`; wall object count rises from `51` to `310`, so same-label wall/plane consolidation is still needed.
 
 ## ConceptSeg-R1 Evidence
 
@@ -47,6 +49,7 @@
 - Do not expand ConceptSeg to all frames; first integrate only accepted intersection candidates into fine-object split/refine QA.
 - Do not revive deprecated transforms.json/project_world_points semantic projection.
 - For main route, continue from object/residual refinement: stable surface layer first, then fine-object 3D connected components.
+- Replace broad cross-label surface-parent merges with strict surface labels for floor/wall/building, then run same-label plane/structure consolidation.
 - Before extending beyond 0-999 frames, validate the current reviewed package visually in the PLY viewer/CloudCompare.
 
 ## Delivery Package
@@ -64,6 +67,7 @@
   - residual surface miss-reason report
   - residual candidate surface coverage sweep
   - surface seed candidate/promotion diagnostics
+  - surface target/fusion bottleneck base and strict-surface A/B diagnostics
   - ConceptSeg fine-object alignment report
   - ConceptSeg instance-intersection report and accepted sheet
   - old-route reference validation

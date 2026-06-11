@@ -48,6 +48,8 @@ def write_markdown(summary: dict[str, Any], path: Path) -> None:
         f"- Residual miss reasons: `{main['residual_surface_miss_reason_counts']}`",
         f"- Residual candidate coverage best ratio: `{main['residual_candidate_coverage_best_ratio']:.4f}`",
         f"- Surface seed augmented best ratio: `{main['residual_candidate_coverage_augmented_best_ratio']:.4f}`",
+        f"- Surface fusion wall points base/strict: `{main['surface_fusion_wall_points_base']}` / `{main['surface_fusion_wall_points_strict']}`",
+        f"- Surface fusion ambiguous points base/strict: `{main['surface_fusion_ambiguous_points_base']}` / `{main['surface_fusion_ambiguous_points_strict']}`",
         "",
         "## ConceptSeg-R1 Evidence",
         "",
@@ -122,6 +124,10 @@ def main() -> None:
             "residual_surface_miss_reason_counts": metrics.get("residual_surface_miss_reason_counts", {}),
             "residual_candidate_coverage_best_ratio": float(metrics.get("residual_candidate_coverage_best_ratio", 0.0)),
             "residual_candidate_coverage_augmented_best_ratio": float(metrics.get("residual_candidate_coverage_augmented_best_ratio", 0.0)),
+            "surface_fusion_wall_points_base": metrics.get("surface_fusion_wall_points_base"),
+            "surface_fusion_wall_points_strict": metrics.get("surface_fusion_wall_points_strict"),
+            "surface_fusion_ambiguous_points_base": metrics.get("surface_fusion_ambiguous_points_base"),
+            "surface_fusion_ambiguous_points_strict": metrics.get("surface_fusion_ambiguous_points_strict"),
         },
         "conceptseg_side_track": {
             "decision": "keep_as_conservative_fine_object_refinement_only",
@@ -148,6 +154,7 @@ def main() -> None:
             "Do not expand ConceptSeg to all frames; first integrate only accepted intersection candidates into fine-object split/refine QA.",
             "Do not revive deprecated transforms.json/project_world_points semantic projection.",
             "For main route, continue from object/residual refinement: stable surface layer first, then fine-object 3D connected components.",
+            "Use strict surface-label fusion for floor/wall/building, then consolidate same-label planes/structures.",
             "Before extending beyond 0-999 frames, validate the current reviewed package visually in the PLY viewer/CloudCompare.",
         ],
     }
