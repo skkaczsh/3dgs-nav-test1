@@ -70,8 +70,8 @@ def next_increment_commands(train: dict[str, Any], status: str) -> list[str]:
         commands.extend(
             [
                 (
-                    f"{direct} 'for spec in 1000:1249 1250:1499 1500:1749 1750:1999; do "
-                    "s=${spec%:*}; e=${spec#*:}; name=next_sky_${s}_${e}; "
+                    f"{direct} 'for s in 1000 1100 1200 1300 1400 1500 1600 1700 1800 1900; do "
+                    "e=$((s+99)); [ \"$e\" -gt 1999 ] && e=1999; name=next_sky_${s}_${e}; "
                     "tmux new-session -Ad -s \"$name\" "
                     "\"cd /root/epfs/new_route_scripts && /root/epfs/conda_envs/vlm_seg/bin/python build_sky_masks_from_frames.py "
                     "--frames-dir /root/epfs/new_route_stage1_skymask/frames "
