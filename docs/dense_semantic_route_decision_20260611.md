@@ -93,14 +93,14 @@ Full `1000-1999` partial rerun with `VOXEL_SIZE=0.08`,
 - local QA copy:
   `/Users/skkac/Work/SCAN/server_target_object_fusion_1000_1999_surface024_fine012`
 - frames processed: `1000`
-- targets: `12806`
-- target points: `3572732`
-- small target residual points: `607185`
-- small residual ratio: `0.1453`
-- objects: `2205`
-- merge ratio: `0.8278`
-- ambiguous ratio: `0.0304`
-- identity relabel changed objects: `101 / 2205` (`0.0458`)
+- targets: `13010`
+- target points: `3722904`
+- small target residual points: `617915`
+- small residual ratio: `0.1423`
+- objects: `2196`
+- merge ratio: `0.8312`
+- ambiguous ratio: `0.0305`
+- identity relabel changed objects: `101 / 2196` (`0.0460`)
 - identity relabel reduced ambiguous objects from `67` to `7`
 - local preview PLY:
   `/Users/skkac/Work/SCAN/server_target_object_fusion_1000_1999_surface024_fine012/objects/object_points_identity_relabel_stride10.ply`
