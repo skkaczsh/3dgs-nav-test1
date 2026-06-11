@@ -450,6 +450,8 @@ def fuse_targets(targets: list[dict], args: argparse.Namespace) -> tuple[list[di
         best_idx = None
         best_meta = None
         best_dist = float("inf")
+        best_reject_meta = None
+        best_reject_dist = float("inf")
         current_zone = int(target["frame_id"]) // args.zone_size
         spatial_cell_size = float(getattr(args, "spatial_cell_size", 1.0))
         fallback_zone_scan = bool(getattr(args, "fallback_zone_scan", False))
@@ -473,6 +475,9 @@ def fuse_targets(targets: list[dict], args: argparse.Namespace) -> tuple[list[di
                 best_idx = idx
                 best_meta = meta
                 best_dist = meta["centroid_distance"]
+            elif not ok and meta["centroid_distance"] < best_reject_dist:
+                best_reject_meta = meta
+                best_reject_dist = meta["centroid_distance"]
         if best_idx is None:
             object_id = f"obj_{len(objects) + 1:06d}"
             objects.append(create_object(object_id, target))
@@ -482,7 +487,10 @@ def fuse_targets(targets: list[dict], args: argparse.Namespace) -> tuple[list[di
             object_cells.append(cells)
             for cell in cells:
                 objects_by_zone_cell[(current_zone, cell)].append(obj_idx)
-            decisions.append({"target_id": target["target_id"], "object_id": object_id, "action": "new_object"})
+            decision = {"target_id": target["target_id"], "object_id": object_id, "action": "new_object"}
+            if best_reject_meta is not None:
+                decision.update({f"nearest_{key}": value for key, value in best_reject_meta.items()})
+            decisions.append(decision)
         else:
             obj = objects[best_idx]
             update_object(obj, target)

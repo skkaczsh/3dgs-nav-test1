@@ -261,6 +261,7 @@ def test_fuse_targets_uses_identity_gate_for_fine_object_labels():
 
     assert len(finalized) == 2
     assert decisions[1]["action"] == "new_object"
+    assert decisions[1]["nearest_reason"] == "identity_gate"
     assert decisions[2]["action"] == "merge"
     assert finalized[0]["target_count"] == 2
     for row in decisions:
