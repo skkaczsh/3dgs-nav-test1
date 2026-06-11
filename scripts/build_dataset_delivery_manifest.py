@@ -54,7 +54,11 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     target_qa = read_json(args.target_object_qa)
     surface = read_json(args.surface_first_report)
     concept = read_json(args.conceptseg_qa)
+    route_decision = read_json(args.route_decision)
+    concept_align = read_json(args.conceptseg_alignment)
+    concept_intersection = read_json(args.conceptseg_intersection)
     old_route = read_json(args.old_route_summary)
+    old_route_validation = read_json(args.old_route_validation)
     fine_targets = read_json(args.fine_targets_report)
     fine_tracklets = read_json(args.fine_tracklet_report)
     long_assoc = read_json(args.long_assoc_report)
@@ -72,7 +76,9 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         check_threshold("ambiguous_ratio", target_objects.get("ambiguous_ratio"), 0.35, "<="),
         check_threshold("surface_first_changed_ratio", surface.get("changed_ratio"), 0.0, ">="),
         check_threshold("conceptseg_items", concept.get("items"), 40, ">="),
+        check_threshold("conceptseg_instance_targets", nested(concept_intersection, "target_status_counts", "has_intersection_candidate", default=0), 1, ">="),
         check_threshold("old_route_colored_ratio", old_route.get("colored_ratio"), 0.80, ">="),
+        check_threshold("old_route_reference_validation", 1.0 if old_route_validation.get("passed") else 0.0, 1.0, ">="),
         check_threshold("fine_targets", fine_targets.get("targets"), 3000, ">="),
         check_threshold("fine_tracklet_merge_ratio", fine_tracklets.get("merge_ratio"), 0.85, ">="),
         check_threshold("long_assoc_objects", long_assoc.get("objects"), 100, "<="),
@@ -94,8 +100,14 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.surface_first_preview, "surface_first_subcluster_xy_preview"),
         file_entry(args.conceptseg_qa, "conceptseg_problem40_structured_qa", required=False),
         file_entry(args.conceptseg_contact_sheet, "conceptseg_problem40_contact_sheet", required=False),
+        file_entry(args.route_decision, "dense_semantic_route_decision", required=True),
+        file_entry(args.route_decision_md, "dense_semantic_route_decision_markdown", required=True),
+        file_entry(args.conceptseg_alignment, "conceptseg_fine_object_alignment", required=False),
+        file_entry(args.conceptseg_intersection, "conceptseg_instance_intersection", required=False),
+        file_entry(args.conceptseg_instance_accepted_sheet, "conceptseg_instance_accepted_sheet", required=False),
         file_entry(args.old_route_summary, "old_route_color_smoke_summary", required=False),
         file_entry(args.old_route_preview, "old_route_color_smoke_preview", required=False),
+        file_entry(args.old_route_validation, "old_route_reference_validation", required=False),
         file_entry(args.fine_targets_report, "v008_fine_targets_report"),
         file_entry(args.fine_targets_jsonl, "v008_fine_targets_jsonl"),
         file_entry(args.fine_tracklet_report, "v008_fine_tracklet_report"),
@@ -131,7 +143,15 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             "surface_first_after_counts": surface.get("after_counts", {}),
             "conceptseg_items": concept.get("items"),
             "conceptseg_mode_counts": concept.get("mode_counts", {}),
+            "route_decision": nested(route_decision, "main_route", "decision"),
+            "conceptseg_decision": nested(route_decision, "conceptseg_side_track", "decision"),
+            "conceptseg_fine_candidates": concept_align.get("item_count"),
+            "conceptseg_semantically_discriminative_targets": concept_align.get("semantically_discriminative_target_count"),
+            "conceptseg_instance_accepted_candidates": concept_intersection.get("accepted_candidate_count"),
+            "conceptseg_instance_target_status_counts": concept_intersection.get("target_status_counts", {}),
+            "old_route_decision": nested(route_decision, "old_route_side_track", "decision"),
             "old_route_colored_ratio": old_route.get("colored_ratio"),
+            "old_route_reference_passed": old_route_validation.get("passed"),
             "fine_targets": fine_targets.get("targets"),
             "fine_target_points": fine_targets.get("target_points"),
             "fine_target_small_residual_points": fine_targets.get("small_residual_points"),
@@ -156,6 +176,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             "Use v008 frame-target/tracklet/long-association artifacts for fine-object dataset evolution.",
             "Use reviewed long objects as the current fine-object object baseline.",
             "Keep ConceptSeg-R1 as constrained second-stage candidate generator.",
+            "Use ConceptSeg-R1 only after strict instance-mask intersection; current accepted target coverage is low.",
             "Keep old route as visual color reference only.",
         ],
     }
@@ -185,7 +206,13 @@ def render_markdown(manifest: dict[str, Any]) -> str:
         f"- object ambiguous ratio: `{metrics.get('object_ambiguous_ratio')}`",
         f"- surface-first changed ratio: `{metrics.get('surface_first_changed_ratio')}`",
         f"- ConceptSeg modes: `{metrics.get('conceptseg_mode_counts')}`",
+        f"- route decision: `{metrics.get('route_decision')}`",
+        f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
+        f"- ConceptSeg instance accepted candidates: `{metrics.get('conceptseg_instance_accepted_candidates')}`",
+        f"- ConceptSeg instance target status: `{metrics.get('conceptseg_instance_target_status_counts')}`",
+        f"- old route decision: `{metrics.get('old_route_decision')}`",
         f"- old route colored ratio: `{metrics.get('old_route_colored_ratio')}`",
+        f"- old route reference passed: `{metrics.get('old_route_reference_passed')}`",
         f"- fine targets: `{metrics.get('fine_targets')}`",
         f"- fine tracklets: `{metrics.get('fine_tracklets')}`",
         f"- long-association objects: `{metrics.get('long_assoc_objects')}`",
@@ -220,8 +247,14 @@ def main() -> None:
     parser.add_argument("--surface-first-preview", type=Path, default=root / "server_surface_first_subcluster_qa_0000_0999/object_points_surface_first_subcluster_xy.png")
     parser.add_argument("--conceptseg-qa", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_structured_qa.json")
     parser.add_argument("--conceptseg-contact-sheet", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_contact_sheet.jpg")
+    parser.add_argument("--route-decision", type=Path, default=root / "route_status_20260610/dense_semantic_route_decision_20260611.json")
+    parser.add_argument("--route-decision-md", type=Path, default=root / "route_status_20260610/dense_semantic_route_decision_20260611.md")
+    parser.add_argument("--conceptseg-alignment", type=Path, default=root / "server_conceptseg_fine_object_alignment_v008/conceptseg_target_object_alignment_report.json")
+    parser.add_argument("--conceptseg-intersection", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_intersection_report.json")
+    parser.add_argument("--conceptseg-instance-accepted-sheet", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_accepted_sheet.jpg")
     parser.add_argument("--old-route-summary", type=Path, default=root / "server_old_route_smoke/world_colorize_summary.json")
     parser.add_argument("--old-route-preview", type=Path, default=root / "server_old_route_smoke/old_route_world_color_smoke_s8_v010_best_chroma_xy.png")
+    parser.add_argument("--old-route-validation", type=Path, default=root / "server_old_route_smoke/old_route_reference_validation.json")
     parser.add_argument("--fine-targets-report", type=Path, default=root / "server_frame_fine_target_object_v008/frame_fine_targets_0000_0999_v008_sweep/v0.16_m3/frame_fine_targets_report.json")
     parser.add_argument("--fine-targets-jsonl", type=Path, default=root / "server_frame_fine_target_object_v008/frame_fine_targets_0000_0999_v008_sweep/v0.16_m3/targets_all.jsonl")
     parser.add_argument("--fine-tracklet-report", type=Path, default=root / "server_frame_fine_long_assoc_v008/frame_fine_tracklets_0000_0999_v008_v016_m3_gap60_v2/tracklet_report.json")

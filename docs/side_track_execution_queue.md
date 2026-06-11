@@ -4,6 +4,8 @@ Context:
 
 - Main 0-999 dataset delivery manifest passed.
 - Dataset package exists at `/Users/skkac/Work/SCAN/dataset_delivery_0000_0999.tgz`.
+- Dataset package was refreshed on 2026-06-11 with route decision,
+  ConceptSeg fine-object intersection QA, and old-route reference validation.
 - Main route should remain the authoritative semantic route:
   `sam2_prompt_v3_sky_label_merge_completion` plus scanner-native projection.
 

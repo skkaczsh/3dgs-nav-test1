@@ -42,3 +42,16 @@
 - Do not revive deprecated transforms.json/project_world_points semantic projection.
 - For main route, continue from object/residual refinement: stable surface layer first, then fine-object 3D connected components.
 - Before extending beyond 0-999 frames, validate the current reviewed package visually in the PLY viewer/CloudCompare.
+
+## Delivery Package
+
+- Refreshed package: `/Users/skkac/Work/SCAN/dataset_delivery_0000_0999.tgz`
+- Package validation: `/Users/skkac/Work/SCAN/dataset_delivery_0000_0999_validation.json`
+- Manifest validation: `/Users/skkac/Work/SCAN/route_status_20260610/dataset_delivery_manifest_0000_0999_validation.json`
+- Packaged files: `24`
+- Large referenced files: `3`
+- Included side-track evidence:
+  - route decision JSON/Markdown
+  - ConceptSeg fine-object alignment report
+  - ConceptSeg instance-intersection report and accepted sheet
+  - old-route reference validation
