@@ -54,7 +54,7 @@ run_shards() {
   for shard_manifest in "${shard_dir}"/"${stage}"_*.json; do
     local shard_name
     shard_name="$(basename "${shard_manifest}" .json)"
-    python3 "$@" --manifest "${shard_manifest}" > "${LOG_DIR}/${shard_name}.log" 2>&1 &
+    PYTHONUNBUFFERED=1 python3 -u "$@" --manifest "${shard_manifest}" > "${LOG_DIR}/${shard_name}.log" 2>&1 &
     pids+=("$!")
   done
 
