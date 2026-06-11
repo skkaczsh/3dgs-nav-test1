@@ -203,6 +203,45 @@ stable SAM mask JSON files, validates the small VLM-extra candidate set, caps
 the batch size with `MAX_ITEMS_PER_CYCLE`, and then runs the same sharded
 semantic completion route. Use `MAX_CYCLES=1` for a dry operational check.
 
+When SAM2 mask generation is the bottleneck, prefer using `scan-train` GPU1 for
+a second SAM2 shard and let `scan-vlm` handle Qwen. The train-side Qwen server
+is optional while the scan-vlm loop is healthy. A safe operational pattern is:
+
+```bash
+# On scan-train. Stop only the train-side VLM loop/server; keep the main GPU0
+# SAM2 session running.
+tmux kill-session -t semantic_ready_loop_1000_1999 2>/dev/null || true
+pkill -f 'llama-server.*--port 8001' 2>/dev/null || true
+
+# Build a non-overlapping tail input directory from currently missing masks.
+python3 - <<'PY'
+from pathlib import Path
+inp = Path("/root/epfs/new_route_stage1_skymask/sam2_input_1000_1999")
+out = Path("/root/epfs/new_route_stage1_skymask/sam_masks_1000_1999_combined")
+stage = Path("/root/epfs/new_route_stage1_skymask/sam2_input_1000_1999_gpu1_tail")
+missing = sorted(p for p in inp.iterdir() if not (out / f"{p.stem}_sam_masks.json").exists())
+selected = missing[-650:]
+stage.mkdir(parents=True, exist_ok=True)
+for old in stage.glob("*.png"):
+    old.unlink()
+for p in selected:
+    (stage / p.name).symlink_to(p.resolve() if p.is_symlink() else p)
+print({"selected": len(selected), "first": selected[0].name if selected else None, "last": selected[-1].name if selected else None})
+PY
+
+tmux new-session -d -s sam2_1000_1999_gpu1_tail \
+  "cd /root/epfs/vlm_seg_project/two_phase_pipeline && \
+   CUDA_VISIBLE_DEVICES=1 ./run_with_env.sh pure_sam_mask_generator.py \
+   --images '/root/epfs/new_route_stage1_skymask/sam2_input_1000_1999_gpu1_tail/*.png' \
+   --output-dir '/root/epfs/new_route_stage1_skymask/sam_masks_1000_1999_combined' \
+   --workers 2 > /root/epfs/new_route_stage1_skymask/logs/sam2_1000_1999_gpu1_tail.log 2>&1"
+```
+
+Use a tail shard rather than the earliest missing files because the existing
+GPU0 SAM2 process advances in sorted order. This reduces the chance of two
+workers writing the same mask at the same time. The generator also checks
+`*_sam_done.flag` inside each worker, so accidental overlap is recoverable.
+
 ## Manual Review Fallback
 
 If Qwen remains unavailable, use the packaged human review bundle:
