@@ -4,9 +4,36 @@
 from __future__ import annotations
 
 import argparse
+from html.parser import HTMLParser
 import json
 import tarfile
 from pathlib import Path
+
+
+class LinkParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.links: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "a":
+            return
+        for key, value in attrs:
+            if key == "href" and value:
+                self.links.append(value)
+
+
+def validate_relative_links(base_dir: Path, html_path: Path) -> list[str]:
+    parser = LinkParser()
+    parser.feed(html_path.read_text(encoding="utf-8"))
+    missing: list[str] = []
+    for href in parser.links:
+        if href.startswith(("http://", "https://", "mailto:", "#", "/")):
+            continue
+        path = (base_dir / href).resolve()
+        if not path.exists():
+            missing.append(href)
+    return missing
 
 
 def main() -> None:
@@ -26,6 +53,9 @@ def main() -> None:
     for path in [package_manifest, large_files, readme, qa_index_md, qa_index_html]:
         if not path.exists() or path.stat().st_size <= 0:
             errors.append(f"missing or empty package file: {path}")
+    if qa_index_html.exists():
+        for href in validate_relative_links(args.package_dir, qa_index_html):
+            errors.append(f"qa_index.html has missing relative link: {href}")
 
     manifest = {}
     if package_manifest.exists():
