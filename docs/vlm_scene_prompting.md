@@ -29,6 +29,14 @@ The VLM should classify only the highlighted mask and return:
   "label": "railing",
   "parent_class": "structure",
   "confidence": 0.82,
+  "description": "yellow metal guardrail",
+  "identity_hint": "thin yellow guardrail along roof edge",
+  "attributes": {
+    "color": "yellow",
+    "material": "metal",
+    "shape": "thin linear barrier",
+    "function": "guardrail"
+  },
   "mixed": false,
   "is_large_surface": false,
   "can_merge_to_surface": false,
@@ -36,6 +44,12 @@ The VLM should classify only the highlighted mask and return:
   "reason": "thin continuous foreground metal structure along roof edge"
 }
 ```
+
+The `label` field is intentionally coarse and fixed. It is used for statistics,
+rendering, and point-level semantic IDs. Physical identity must be carried by
+`description`, `identity_hint`, and `attributes`; for example, `label=equipment`
+with `description=white HVAC outdoor unit`. Do not encode this identity by
+inventing labels such as `white_air_conditioner`.
 
 The fields `mixed`, `is_large_surface`, and `can_merge_to_surface` should be preserved on `Target` records when available. Object fusion should use them as quality signals rather than directly trusting every single mask label.
 

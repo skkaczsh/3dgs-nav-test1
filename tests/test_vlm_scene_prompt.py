@@ -29,6 +29,10 @@ def test_mask_label_prompt_contains_scene_taxonomy_and_strict_json():
     assert "dense point-level semantics" in prompt
     assert "large stable surface layers" in prompt
     assert "fine foreground targets" in prompt
+    assert "description" in prompt
+    assert "identity_hint" in prompt
+    assert "white HVAC outdoor unit" in prompt
+    assert "Never copy overlay colors" in prompt
 
 
 def test_merge_review_prompt_includes_candidate_metadata_and_failure_mode():
