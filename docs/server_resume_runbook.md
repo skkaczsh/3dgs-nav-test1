@@ -202,6 +202,10 @@ to `nohup` with a pid file under the logs directory. Each cycle selects only
 stable SAM mask JSON files, validates the small VLM-extra candidate set, caps
 the batch size with `MAX_ITEMS_PER_CYCLE`, and then runs the same sharded
 semantic completion route. Use `MAX_CYCLES=1` for a dry operational check.
+The loop defaults to `VALIDATE_EXTRA_SAM_JSON=0` because SAM mask JSON files are
+large; stability is guarded by `MIN_SAM_AGE_SECONDS`. Set
+`VALIDATE_EXTRA_SAM_JSON=1` only when debugging suspected truncated/corrupt mask
+files.
 
 When SAM2 mask generation is the bottleneck, prefer using `scan-train` GPU1 for
 a second SAM2 shard and let `scan-vlm` handle Qwen. The train-side Qwen server

@@ -25,6 +25,7 @@ SHARDS="${SHARDS:-4}"
 CHUNK_SIZE="${CHUNK_SIZE:-4}"
 MAX_TOKENS="${MAX_TOKENS:-4096}"
 PATCH_SCENE_PROMPTS="${PATCH_SCENE_PROMPTS:-1}"
+VALIDATE_EXTRA_SAM_JSON="${VALIDATE_EXTRA_SAM_JSON:-0}"
 
 mkdir -p "${LOG_DIR}" "${WORK_DIR}"
 
@@ -65,6 +66,7 @@ train = json.loads(Path("${TRAIN_MANIFEST}").read_text(encoding="utf-8")) if Pat
 train_ids = {x["image_id"] for x in train.get("items", [])}
 items = []
 invalid_sam = []
+validate_extra_sam_json = "${VALIDATE_EXTRA_SAM_JSON}" == "1"
 for item in ready.get("items", []):
     image_id = item["image_id"]
     if image_id in train_ids:
@@ -72,11 +74,12 @@ for item in ready.get("items", []):
     if (Path("${OUTPUT_DIR}") / "images" / image_id / "sam2_prompt_v3_sky_label_merge_completion" / "semantic.png").exists():
         continue
     sam_path = Path("${SAM_MASKS_DIR}") / f"{image_id}_sam_masks.json"
-    try:
-        json.loads(sam_path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        invalid_sam.append({"image_id": image_id, "path": str(sam_path), "error": repr(exc)})
-        continue
+    if validate_extra_sam_json:
+        try:
+            json.loads(sam_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            invalid_sam.append({"image_id": image_id, "path": str(sam_path), "error": repr(exc)})
+            continue
     items.append(item)
     if ${MAX_ITEMS_PER_CYCLE} > 0 and len(items) >= ${MAX_ITEMS_PER_CYCLE}:
         break
@@ -86,6 +89,7 @@ ready["filter_report"] = {
     "excluded_train_manifest": len(train_ids),
     "selected_vlm_extra": len(items),
     "max_items_per_cycle": ${MAX_ITEMS_PER_CYCLE},
+    "validate_extra_sam_json": validate_extra_sam_json,
     "invalid_sam_extra_candidates": len(invalid_sam),
     "invalid_sam_extra_samples": invalid_sam[:20],
 }
