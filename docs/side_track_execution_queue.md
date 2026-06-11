@@ -7,13 +7,13 @@ Context:
 - Main route should remain the authoritative semantic route:
   `sam2_prompt_v3_sky_label_merge_completion` plus scanner-native projection.
 
-## Server State Checked 2026-06-10
+## Server State Checked 2026-06-11
 
 `scan-train`:
 
 - GPUs: two 4090D cards.
 - observed memory/utilization:
-  - GPU0: `7676 / 49140 MiB`, utilization `15%`
+  - GPU0: `7676 / 49140 MiB`, utilization `17%`
   - GPU1: `23602 / 49140 MiB`, utilization `0%`
 - root filesystem: `35G / 50G` used.
 - EPFS: `100T / 108T` used.
@@ -34,6 +34,13 @@ Context:
    - Goal: determine whether ConceptSeg helps equipment/railing second-stage review.
    - Do not promote to main path unless it beats SAM2+Qwen on the same artifacts.
    - Use EPFS cache only.
+   - Status 2026-06-11:
+     - v008 constrained runlist package is built and validated with `90` items.
+     - 12-item smoke succeeded with stable constrained labels and no overlarge
+       broad-surface masks.
+     - Remaining `78` items are running in tmux session `conceptseg_fine_v008_full`.
+     - Output:
+       `/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full`.
 
 2. Old-route visual-reference expansion on `scan-train` only if GPU/CPU is idle.
    - Scope: color/reference comparison, not semantic source.

@@ -68,6 +68,55 @@ Smoke interpretation:
   semantic production. Keep it as a second-stage candidate generator for
   reviewed fine-object crops.
 
+Fine-object v008 constrained run:
+
+- Builder: `/Users/skkac/Work/SCAN/new_route/scripts/build_conceptseg_fine_object_runlist.py`
+- Validator: `/Users/skkac/Work/SCAN/new_route/scripts/validate_conceptseg_fine_object_runlist.py`
+- Runner: `/Users/skkac/Work/SCAN/new_route/scripts/run_server_conceptseg_fine_object_runlist.sh`
+- Local runlist package:
+  `/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008`
+- Server runlist package:
+  `/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008`
+- Runlist items: `90`
+- Prompts:
+  - `railing or thin metal guardrail`
+  - `rooftop equipment box or HVAC unit`
+  - `pipe or thin utility conduit`
+- Broad prompts intentionally excluded: `floor`, `wall`, `building facade`
+- 12-item smoke output:
+  - server:
+    `/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs`
+  - local:
+    `/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs`
+  - structured QA:
+    `/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs/conceptseg_fine_object_smoke_qa.json`
+  - contact sheet:
+    `/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs/conceptseg_fine_object_smoke_contact_sheet.jpg`
+- 12-item smoke result:
+  - `12 / 12` succeeded.
+  - all runs used MLLM mode.
+  - average red-overlay ratios:
+    - railing/guardrail: `0.0082`
+    - rooftop equipment/HVAC: `0.0039`
+    - pipe/conduit: `0.0066`
+  - answer stability:
+    - railing prompt returned `rail` or `guardrail`
+    - equipment prompt returned `HVAC` or `unit`
+    - pipe prompt returned `pipe`, `pipes`, `conduit`, or `cables`
+- Interpretation:
+  - The v008 fine-object smoke is better scoped than problem40 because it
+    avoids floor/wall prompts and uses reviewed fine-object representative
+    images.
+  - ConceptSeg-R1 is promising as a constrained fine-object candidate generator
+    with low broad-surface contamination on the reviewed samples.
+  - It should still be compared inside the existing target/object review
+    workflow, not promoted to a new dense semantic image source.
+- Full constrained run:
+  - started on `scan-train` in tmux session `conceptseg_fine_v008_full`
+  - command range: `START_INDEX=12 LIMIT=78`
+  - output:
+    `/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full`
+
 References:
 
 - Project page: `https://ntu-ai4x.github.io/ConceptSeg-R1/`
