@@ -139,6 +139,8 @@ def render_readme(package: dict) -> str:
         f"- hybrid surface consolidation objects input/output/reduced: `{metrics.get('surface_hybrid_consolidation_input_objects')}` / `{metrics.get('surface_hybrid_consolidation_output_objects')}` / `{metrics.get('surface_hybrid_consolidation_merged_reduction')}`",
         f"- fine targets / tracklets / reviewed objects: `{metrics.get('fine_targets')}` / `{metrics.get('fine_tracklets')}` / `{metrics.get('reviewed_output_objects')}`",
         f"- route decision: `{metrics.get('route_decision')}`",
+        f"- release status: `{metrics.get('release_status')}`",
+        f"- release manual gate: `{metrics.get('release_manual_gate')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
         f"- side-track ConceptSeg decision: `{metrics.get('side_track_conceptseg_decision')}`",
         f"- side-track ConceptSeg accepted target ratio: `{metrics.get('side_track_conceptseg_accepted_target_ratio')}`",

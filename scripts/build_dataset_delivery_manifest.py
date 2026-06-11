@@ -67,6 +67,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     surface_hybrid_consolidation = read_json(args.surface_hybrid_report)
     concept = read_json(args.conceptseg_qa)
     route_decision = read_json(args.route_decision)
+    release_status = read_json(args.release_status)
     concept_align = read_json(args.conceptseg_alignment)
     concept_intersection = read_json(args.conceptseg_intersection)
     concept_integration = read_json(args.conceptseg_integration_plan)
@@ -143,6 +144,8 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.conceptseg_contact_sheet, "conceptseg_problem40_contact_sheet", required=False),
         file_entry(args.route_decision, "dense_semantic_route_decision", required=True),
         file_entry(args.route_decision_md, "dense_semantic_route_decision_markdown", required=True),
+        file_entry(args.release_status, "dense_semantic_release_status", required=True),
+        file_entry(args.release_status_md, "dense_semantic_release_status_markdown", required=True),
         file_entry(args.conceptseg_alignment, "conceptseg_fine_object_alignment", required=False),
         file_entry(args.conceptseg_intersection, "conceptseg_instance_intersection", required=False),
         file_entry(args.conceptseg_instance_accepted_sheet, "conceptseg_instance_accepted_sheet", required=False),
@@ -250,6 +253,8 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             "conceptseg_items": concept.get("items"),
             "conceptseg_mode_counts": concept.get("mode_counts", {}),
             "route_decision": nested(route_decision, "main_route", "decision"),
+            "release_status": nested(release_status, "release", "status"),
+            "release_manual_gate": nested(release_status, "release", "manual_gate"),
             "conceptseg_decision": nested(route_decision, "conceptseg_side_track", "decision"),
             "conceptseg_fine_candidates": concept_align.get("item_count"),
             "conceptseg_semantically_discriminative_targets": concept_align.get("semantically_discriminative_target_count"),
@@ -340,6 +345,8 @@ def render_markdown(manifest: dict[str, Any]) -> str:
         f"- hybrid surface consolidation objects input/output/reduced: `{metrics.get('surface_hybrid_consolidation_input_objects')}` / `{metrics.get('surface_hybrid_consolidation_output_objects')}` / `{metrics.get('surface_hybrid_consolidation_merged_reduction')}`",
         f"- ConceptSeg modes: `{metrics.get('conceptseg_mode_counts')}`",
         f"- route decision: `{metrics.get('route_decision')}`",
+        f"- release status: `{metrics.get('release_status')}`",
+        f"- release manual gate: `{metrics.get('release_manual_gate')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
         f"- side-track ConceptSeg decision: `{metrics.get('side_track_conceptseg_decision')}`",
         f"- side-track ConceptSeg accepted target ratio: `{metrics.get('side_track_conceptseg_accepted_target_ratio')}`",
@@ -415,6 +422,8 @@ def main() -> None:
     parser.add_argument("--conceptseg-contact-sheet", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_contact_sheet.jpg")
     parser.add_argument("--route-decision", type=Path, default=root / "route_status_20260610/dense_semantic_route_decision_20260611.json")
     parser.add_argument("--route-decision-md", type=Path, default=root / "route_status_20260610/dense_semantic_route_decision_20260611.md")
+    parser.add_argument("--release-status", type=Path, default=root / "route_status_20260610/dense_semantic_release_status_20260611.json")
+    parser.add_argument("--release-status-md", type=Path, default=root / "route_status_20260610/dense_semantic_release_status_20260611.md")
     parser.add_argument("--conceptseg-alignment", type=Path, default=root / "server_conceptseg_fine_object_alignment_v008/conceptseg_target_object_alignment_report.json")
     parser.add_argument("--conceptseg-intersection", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_intersection_report.json")
     parser.add_argument("--conceptseg-instance-accepted-sheet", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_accepted_sheet.jpg")
