@@ -111,6 +111,37 @@ def test_target_connectivity_voxel_size_can_be_label_specific():
     assert module.connectivity_voxel_size("other", args) == 0.08
 
 
+def test_target_resume_report_must_cover_current_semantic_artifacts(tmp_path: Path):
+    module = load_module(SCRIPTS / "build_targets_from_masks.py", "build_targets_resume_for_repo_test")
+    base = tmp_path / "semantic"
+    combo = "sam2_prompt_v3_sky_label_merge_completion"
+    for cam in [0, 1]:
+        combo_dir = base / "images" / f"cam{cam}_001234" / combo
+        combo_dir.mkdir(parents=True)
+        (combo_dir / "instance.png").write_bytes(b"png")
+        (combo_dir / "labels.json").write_text("{}", encoding="utf-8")
+
+    available = module.semantic_artifacts_available(base, combo, 1234, [0, 1, 2])
+
+    assert available == 2
+    assert module.report_covers_available_artifacts(
+        {"semantic_artifacts_processed": 2},
+        available,
+    )
+    assert not module.report_covers_available_artifacts(
+        {"semantic_artifacts_processed": 1},
+        available,
+    )
+    assert module.report_covers_available_artifacts(
+        {"semantic_artifacts_expected": 3, "masks_missing_cameras": 1},
+        available,
+    )
+    assert not module.report_covers_available_artifacts(
+        {"semantic_artifacts_expected": 3, "masks_missing_cameras": 2},
+        available,
+    )
+
+
 def _target(
     target_id,
     frame_id,

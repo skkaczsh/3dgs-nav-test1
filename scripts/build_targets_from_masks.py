@@ -70,6 +70,27 @@ def artifact_dir(base: Path, combo: str, cam_id: int, frame_id: int) -> Path:
     return base / "images" / f"cam{cam_id}_{frame_id:06d}" / combo
 
 
+def semantic_artifacts_available(base: Path, combo: str, frame_id: int, cams: list[int]) -> int:
+    count = 0
+    for cam_id in cams:
+        combo_dir = artifact_dir(base, combo, cam_id, frame_id)
+        if (combo_dir / "instance.png").exists() and (combo_dir / "labels.json").exists():
+            count += 1
+    return count
+
+
+def report_covers_available_artifacts(report: dict, available: int) -> bool:
+    processed = report.get("semantic_artifacts_processed")
+    if processed is None:
+        total = report.get("semantic_artifacts_expected")
+        missing = report.get("masks_missing_cameras")
+        if total is not None and missing is not None:
+            processed = int(total) - int(missing)
+    if processed is None:
+        return False
+    return int(processed) >= int(available)
+
+
 def read_colored_ply(path: Path) -> tuple[np.ndarray, np.ndarray]:
     with path.open("rb") as f:
         header = []
@@ -359,7 +380,10 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
     ply_path = args.output_dir / "targets" / f"targets_frame_{frame_id:04d}.ply"
     residual_ply_path = args.output_dir / "residuals" / f"residuals_frame_{frame_id:04d}.ply"
     if args.resume and target_path.exists() and report_path.exists():
-        return json.loads(report_path.read_text(encoding="utf-8"))
+        previous_report = json.loads(report_path.read_text(encoding="utf-8"))
+        available = semantic_artifacts_available(args.semantic_eval_dir, args.combo, frame_id, args.cams)
+        if report_covers_available_artifacts(previous_report, available):
+            return previous_report
 
     color_path = args.color_dir / f"frame_{frame_id:04d}.ply"
     raw_path = Path(config.EXTRACTED_DIR) / f"section_{frame_id:04d}.ply"
@@ -498,6 +522,8 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
         "small_target_residual_label_counts": dict(residual_label_counts),
         "masks_seen": int(masks_seen),
         "masks_missing_cameras": int(masks_missing),
+        "semantic_artifacts_expected": int(len(args.cams)),
+        "semantic_artifacts_processed": int(len(args.cams) - masks_missing),
         "skipped_masks": dict(skipped_masks),
         "label_counts": dict(label_counts),
         "target_jsonl": str(target_path),
