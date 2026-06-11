@@ -69,6 +69,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     route_decision = read_json(args.route_decision)
     concept_align = read_json(args.conceptseg_alignment)
     concept_intersection = read_json(args.conceptseg_intersection)
+    side_track_readiness = read_json(args.side_track_readiness)
     old_route = read_json(args.old_route_summary)
     old_route_validation = read_json(args.old_route_validation)
     delivery_acceptance = read_json(args.delivery_acceptance)
@@ -143,6 +144,8 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.conceptseg_alignment, "conceptseg_fine_object_alignment", required=False),
         file_entry(args.conceptseg_intersection, "conceptseg_instance_intersection", required=False),
         file_entry(args.conceptseg_instance_accepted_sheet, "conceptseg_instance_accepted_sheet", required=False),
+        file_entry(args.side_track_readiness, "side_track_readiness", required=True),
+        file_entry(args.side_track_readiness_md, "side_track_readiness_markdown", required=True),
         file_entry(args.old_route_summary, "old_route_color_smoke_summary", required=False),
         file_entry(args.old_route_preview, "old_route_color_smoke_preview", required=False),
         file_entry(args.old_route_validation, "old_route_reference_validation", required=False),
@@ -243,6 +246,9 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             "conceptseg_semantically_discriminative_targets": concept_align.get("semantically_discriminative_target_count"),
             "conceptseg_instance_accepted_candidates": concept_intersection.get("accepted_candidate_count"),
             "conceptseg_instance_target_status_counts": concept_intersection.get("target_status_counts", {}),
+            "side_track_conceptseg_decision": nested(side_track_readiness, "conceptseg_r1", "decision"),
+            "side_track_conceptseg_accepted_target_ratio": nested(side_track_readiness, "conceptseg_r1", "accepted_target_ratio"),
+            "side_track_old_route_decision": nested(side_track_readiness, "old_route", "decision"),
             "old_route_decision": nested(route_decision, "old_route_side_track", "decision"),
             "old_route_colored_ratio": old_route.get("colored_ratio"),
             "old_route_reference_passed": old_route_validation.get("passed"),
@@ -314,8 +320,11 @@ def render_markdown(manifest: dict[str, Any]) -> str:
         f"- ConceptSeg modes: `{metrics.get('conceptseg_mode_counts')}`",
         f"- route decision: `{metrics.get('route_decision')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
+        f"- side-track ConceptSeg decision: `{metrics.get('side_track_conceptseg_decision')}`",
+        f"- side-track ConceptSeg accepted target ratio: `{metrics.get('side_track_conceptseg_accepted_target_ratio')}`",
         f"- ConceptSeg instance accepted candidates: `{metrics.get('conceptseg_instance_accepted_candidates')}`",
         f"- ConceptSeg instance target status: `{metrics.get('conceptseg_instance_target_status_counts')}`",
+        f"- side-track old route decision: `{metrics.get('side_track_old_route_decision')}`",
         f"- old route decision: `{metrics.get('old_route_decision')}`",
         f"- old route colored ratio: `{metrics.get('old_route_colored_ratio')}`",
         f"- old route reference passed: `{metrics.get('old_route_reference_passed')}`",
@@ -382,6 +391,8 @@ def main() -> None:
     parser.add_argument("--conceptseg-alignment", type=Path, default=root / "server_conceptseg_fine_object_alignment_v008/conceptseg_target_object_alignment_report.json")
     parser.add_argument("--conceptseg-intersection", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_intersection_report.json")
     parser.add_argument("--conceptseg-instance-accepted-sheet", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_accepted_sheet.jpg")
+    parser.add_argument("--side-track-readiness", type=Path, default=root / "route_status_20260610/side_track_readiness_20260611.json")
+    parser.add_argument("--side-track-readiness-md", type=Path, default=root / "route_status_20260610/side_track_readiness_20260611.md")
     parser.add_argument("--old-route-summary", type=Path, default=root / "server_old_route_smoke/world_colorize_summary.json")
     parser.add_argument("--old-route-preview", type=Path, default=root / "server_old_route_smoke/old_route_world_color_smoke_s8_v010_best_chroma_xy.png")
     parser.add_argument("--old-route-validation", type=Path, default=root / "server_old_route_smoke/old_route_reference_validation.json")
