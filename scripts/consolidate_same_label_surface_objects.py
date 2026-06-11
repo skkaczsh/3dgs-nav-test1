@@ -127,6 +127,34 @@ def compatible(a: dict[str, Any], b: dict[str, Any], args: argparse.Namespace) -
     }
 
 
+def default_label_args(args: argparse.Namespace) -> argparse.Namespace:
+    return argparse.Namespace(
+        min_points=args.min_points,
+        max_bbox_gap=args.max_bbox_gap,
+        max_centroid_distance=args.max_centroid_distance,
+        max_normal_angle=args.max_normal_angle,
+        max_plane_distance=args.max_plane_distance,
+        max_color_distance=args.max_color_distance,
+    )
+
+
+def parse_label_config(text: str, fallback: argparse.Namespace) -> tuple[str, argparse.Namespace]:
+    values = {}
+    for part in text.split(","):
+        key, value = part.split("=", 1)
+        values[key.strip()] = value.strip()
+    if "label" not in values:
+        raise ValueError(f"label config missing label=: {text}")
+    return values["label"], argparse.Namespace(
+        min_points=int(values.get("min_points", values.get("min", fallback.min_points))),
+        max_bbox_gap=float(values.get("bbox", values.get("max_bbox_gap", fallback.max_bbox_gap))),
+        max_centroid_distance=float(values.get("centroid", values.get("max_centroid_distance", fallback.max_centroid_distance))),
+        max_normal_angle=float(values.get("normal", values.get("max_normal_angle", fallback.max_normal_angle))),
+        max_plane_distance=float(values.get("plane", values.get("max_plane_distance", fallback.max_plane_distance))),
+        max_color_distance=float(values.get("color", values.get("max_color_distance", fallback.max_color_distance))),
+    )
+
+
 def merge_group(group_id: str, members: list[dict[str, Any]]) -> dict[str, Any]:
     label = members[0].get("semantic_label", "unknown")
     point_total = sum(int(o.get("point_count", 0)) for o in members)
@@ -184,20 +212,27 @@ def consolidate(objects: list[dict[str, Any]], labels: set[str], args: argparse.
     report_by_label = {}
     by_label: dict[str, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
     passthrough = []
+    fallback_args = default_label_args(args)
+    label_args = {label: fallback_args for label in labels}
+    for config_text in getattr(args, "label_config", []) or []:
+        label, parsed = parse_label_config(config_text, fallback_args)
+        label_args[label] = parsed
     for idx, obj in enumerate(objects):
         label = str(obj.get("semantic_label", "unknown"))
-        if label in labels and int(obj.get("point_count", 0)) >= args.min_points:
+        threshold = label_args.get(label, fallback_args).min_points
+        if label in labels and int(obj.get("point_count", 0)) >= threshold:
             by_label[label].append((idx, obj))
         else:
             passthrough.append(obj)
 
     for label, rows in sorted(by_label.items()):
+        params = label_args.get(label, fallback_args)
         dsu = DSU(len(rows))
         edge_count = 0
         merge_examples = []
         for i in range(len(rows)):
             for j in range(i + 1, len(rows)):
-                ok, meta = compatible(rows[i][1], rows[j][1], args)
+                ok, meta = compatible(rows[i][1], rows[j][1], params)
                 if ok:
                     if dsu.union(i, j):
                         edge_count += 1
@@ -232,6 +267,7 @@ def consolidate(objects: list[dict[str, Any]], labels: set[str], args: argparse.
             "largest_group_source_objects": max((len(g) for g in groups.values()), default=0),
             "largest_group_points": max((sum(int(o.get("point_count", 0)) for o in g) for g in groups.values()), default=0),
             "merge_examples": merge_examples,
+            "params": vars(params),
         }
 
     for obj in passthrough:
@@ -262,6 +298,7 @@ def consolidate(objects: list[dict[str, Any]], labels: set[str], args: argparse.
             "max_normal_angle": args.max_normal_angle,
             "max_plane_distance": args.max_plane_distance,
             "max_color_distance": args.max_color_distance,
+            "label_config": getattr(args, "label_config", []) or [],
         },
     }
     return out_rows, {"report": report, "mappings": mappings}
@@ -280,6 +317,12 @@ def main() -> None:
     parser.add_argument("--max-normal-angle", type=float, default=15.0)
     parser.add_argument("--max-plane-distance", type=float, default=0.20)
     parser.add_argument("--max-color-distance", type=float, default=65.0)
+    parser.add_argument(
+        "--label-config",
+        action="append",
+        default=[],
+        help="Per-label params, e.g. label=floor,min_points=200,bbox=0.2,centroid=0.7,normal=8,plane=0.1,color=45",
+    )
     args = parser.parse_args()
 
     objects = load_jsonl(args.objects_jsonl)
