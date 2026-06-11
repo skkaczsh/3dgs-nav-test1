@@ -188,6 +188,7 @@ def merge_group(group_id: str, members: list[dict[str, Any]]) -> dict[str, Any]:
     color = [x / weight_total for x in color]
     normal = normalize(normal)
     return {
+        "object_id": group_id,
         "consolidated_object_id": group_id,
         "semantic_label": label,
         "status": "surface_consolidated" if len(members) > 1 else members[0].get("status", "single_target"),
@@ -272,6 +273,7 @@ def consolidate(objects: list[dict[str, Any]], labels: set[str], args: argparse.
 
     for obj in passthrough:
         out_rows.append({
+            "object_id": f"pass_{obj.get('object_id', '')}",
             "consolidated_object_id": f"pass_{obj.get('object_id', '')}",
             "semantic_label": obj.get("semantic_label", "unknown"),
             "status": obj.get("status", "unknown"),
