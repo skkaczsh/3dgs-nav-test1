@@ -33,6 +33,7 @@ REMOTE_SCRIPT = r'''
 import csv
 import datetime
 import json
+import re
 import socket
 import subprocess
 from pathlib import Path
@@ -82,6 +83,37 @@ for combo in combos:
     counts[combo] = len(list((out / "images").glob(f"cam*_*/{combo}/semantic.png")))
 counts["label_records"] = len(list((out / "images").glob("cam*_*/sam2_prompt_v3_sky_label_merge_completion/label_records.json")))
 
+
+def parse_log_stats(log_roots):
+    stats = {}
+    for root in log_roots:
+        root = Path(root)
+        if not root.exists():
+            continue
+        for path in sorted(root.glob("*.log")):
+            key = path.stem
+            row = stats.setdefault(key, {"lines": 0, "parse_true": 0, "parse_false": 0, "last_nonempty": ""})
+            try:
+                for line in path.read_text(errors="replace").splitlines():
+                    text = line.strip()
+                    if not text:
+                        continue
+                    row["lines"] += 1
+                    row["last_nonempty"] = text[-240:]
+                    if re.search(r"\bparse=True\b", text):
+                        row["parse_true"] += 1
+                    if re.search(r"\bparse=False\b", text):
+                        row["parse_false"] += 1
+            except OSError as exc:
+                row["last_nonempty"] = f"read_error: {exc}"
+    return stats
+
+
+log_stats = parse_log_stats([
+    out / "_sharded_work" / "logs",
+    out / "_sharded_work_vlm_extra" / "logs",
+])
+
 print(json.dumps({
     "hostname": socket.gethostname(),
     "date_utc": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
@@ -89,6 +121,7 @@ print(json.dumps({
     "processes": processes.stdout.splitlines() if processes.returncode == 0 else [],
     "gpu": gpu,
     "counts": counts,
+    "log_stats": log_stats,
 }, ensure_ascii=False))
 '''
 
@@ -131,6 +164,18 @@ def render_markdown(report: dict[str, Any]) -> str:
         counts = server.get("counts", {})
         if counts:
             lines.append("- counts: `" + json.dumps(counts, ensure_ascii=False) + "`")
+        log_stats = server.get("log_stats") or {}
+        if log_stats:
+            sam2_true = sum(v.get("parse_true", 0) for k, v in log_stats.items() if k.startswith("sam2_qwen"))
+            sam2_false = sum(v.get("parse_false", 0) for k, v in log_stats.items() if k.startswith("sam2_qwen"))
+            lines.append(f"- sam2_qwen parse stats: `true={sam2_true}, false={sam2_false}`")
+            active_logs = {
+                k: v.get("last_nonempty", "")
+                for k, v in sorted(log_stats.items())
+                if v.get("last_nonempty") and (k.startswith("review") or k.startswith("completion") or k.startswith("sam2_qwen"))
+            }
+            for key, value in list(active_logs.items())[:12]:
+                lines.append(f"- log {key}: `{value}`")
         gpu = server.get("gpu", [])
         for row in gpu:
             lines.append(
