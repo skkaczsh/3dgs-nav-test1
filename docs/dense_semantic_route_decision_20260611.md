@@ -26,6 +26,42 @@
 - Surface target/fusion bottleneck: base fusion absorbs wall targets into floor/ambiguous objects; only `38,248` wall object points remain from `391,427` wall target points.
 - Strict surface-label fusion test: wall object points recover to `391,427`, ambiguous object points drop from `704,054` to `174,874`; wall object count rises from `51` to `310`, so same-label wall/plane consolidation is still needed.
 
+## 1000-1999 Partial Increment
+
+- Remote semantic production is still running; as of `2026-06-11T12:08Z`,
+  `sam2_prompt_v3_sky_label_merge_completion` and `label_records` are
+  `1375 / 3000`.
+- A partial target/object fusion was run on the currently available
+  `1000-1999` semantic directory using `WORK_MODE=semantic-dir`.
+- Output:
+  `/root/epfs/new_route_stage1_skymask/target_object_fusion_1000_1999_partial`
+  and local QA copy:
+  `/Users/skkac/Work/SCAN/server_target_object_fusion_1000_1999_partial`.
+- Target/object QA:
+  - frames processed: `1000`
+  - targets: `11951`
+  - target points: `2394103`
+  - small target residual points: `1551092`
+  - small residual ratio: `0.3932`
+  - objects: `2080`
+  - merge ratio: `0.8260`
+  - ambiguous ratio: `0.0327`
+  - object identity enrichment ratio: `0.9966`
+- Identity-description relabel QA:
+  - script: `scripts/relabel_objects_from_identity.py`
+  - changed objects: `94 / 2080` (`0.0452`)
+  - ambiguous objects reduced from `68` to `4`
+  - railing objects increased from `124` to `153`
+  - pipe objects increased from `48` to `58`
+  - local preview PLY:
+    `/Users/skkac/Work/SCAN/server_target_object_fusion_1000_1999_partial/objects/object_points_identity_relabel_stride10.ply`
+
+Current interpretation: the two-level label model is useful. Coarse labels
+remain noisy, but `description`/`identity_hint` can safely correct a narrow set
+of obvious object-level mistakes such as `equipment -> railing` for guardrails
+and `ambiguous -> building/floor/pipe` when the identity text is clear. This
+should remain a post-fusion QA variant until visual acceptance confirms it.
+
 ## ConceptSeg-R1 Evidence
 
 - Candidate runs: `90`
