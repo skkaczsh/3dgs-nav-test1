@@ -38,9 +38,15 @@ Context:
      - v008 constrained runlist package is built and validated with `90` items.
      - 12-item smoke succeeded with stable constrained labels and no overlarge
        broad-surface masks.
-     - Remaining `78` items are running in tmux session `conceptseg_fine_v008_full`.
-     - Output:
+     - Remaining `78` items completed successfully; combined result is
+       `90 / 90` successful ConceptSeg runs.
+     - Server output:
        `/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full`.
+     - Local merged QA:
+       `/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/conceptseg_fine_object_all_qa.json`.
+     - Next action: compare these constrained masks only inside the existing
+       target/object review workflow. Do not promote them to dense semantic
+       image generation.
 
 2. Old-route visual-reference expansion on `scan-train` only if GPU/CPU is idle.
    - Scope: color/reference comparison, not semantic source.

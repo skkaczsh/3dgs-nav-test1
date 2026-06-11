@@ -112,10 +112,33 @@ Fine-object v008 constrained run:
   - It should still be compared inside the existing target/object review
     workflow, not promoted to a new dense semantic image source.
 - Full constrained run:
-  - started on `scan-train` in tmux session `conceptseg_fine_v008_full`
-  - command range: `START_INDEX=12 LIMIT=78`
+  - completed on `scan-train`
+  - command range: `START_INDEX=12 LIMIT=78`, combined with the first
+    12-item smoke for `90` total items
   - output:
     `/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full`
+  - local merged report:
+    `/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/report.json`
+  - local merged QA:
+    `/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/conceptseg_fine_object_all_qa.json`
+  - local review sheet:
+    `/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/conceptseg_fine_object_all_review_sheet.jpg`
+  - result: `90 / 90` succeeded, all using MLLM mode.
+  - answer counts:
+    - pipe/conduit prompt: `pipe=24`, `pipes=1`, `conduit=2`,
+      `cables=2`, `pole=1`
+    - railing/guardrail prompt: `guardrail=16`, `rail=7`,
+      `fence=5`, `railing=1`, `nonexistent=1`
+    - equipment/HVAC prompt: `HVAC=18`, `unit=7`, `HVAC unit=1`,
+      `aircon=1`, `duct=2`, `red box=1`
+  - average red-overlay ratios:
+    - pipe/conduit: `0.0229`, overlarge `0 / 30`
+    - railing/guardrail: `0.0702`, overlarge `2 / 30`
+    - equipment/HVAC: `0.0139`, overlarge `0 / 30`
+  - two overlarge cases were railing/fence-like structures rather than broad
+    floor/wall pollution. Treat them as target-level candidates that still need
+    3D connected-component and mask-intersection filtering before point-level
+    fusion.
 
 References:
 
