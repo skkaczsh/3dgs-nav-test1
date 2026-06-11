@@ -68,6 +68,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     concept = read_json(args.conceptseg_qa)
     route_decision = read_json(args.route_decision)
     release_status = read_json(args.release_status)
+    infra_readiness = read_json(args.infra_readiness)
     concept_align = read_json(args.conceptseg_alignment)
     concept_intersection = read_json(args.conceptseg_intersection)
     concept_integration = read_json(args.conceptseg_integration_plan)
@@ -98,6 +99,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         check_threshold("old_route_colored_ratio", old_route.get("colored_ratio"), 0.80, ">="),
         check_threshold("old_route_reference_validation", 1.0 if old_route_validation.get("passed") else 0.0, 1.0, ">="),
         check_threshold("delivery_acceptance", 1.0 if delivery_acceptance.get("passed") else 0.0, 1.0, ">="),
+        check_threshold("infra_readiness", 1.0 if infra_readiness.get("passed") else 0.0, 1.0, ">="),
         check_threshold("fine_targets", fine_targets.get("targets"), 3000, ">="),
         check_threshold("fine_tracklet_merge_ratio", fine_tracklets.get("merge_ratio"), 0.85, ">="),
         check_threshold("long_assoc_objects", long_assoc.get("objects"), 100, "<="),
@@ -146,6 +148,8 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.route_decision_md, "dense_semantic_route_decision_markdown", required=True),
         file_entry(args.release_status, "dense_semantic_release_status", required=True),
         file_entry(args.release_status_md, "dense_semantic_release_status_markdown", required=True),
+        file_entry(args.infra_readiness, "infra_readiness", required=True),
+        file_entry(args.infra_readiness_md, "infra_readiness_markdown", required=True),
         file_entry(args.conceptseg_alignment, "conceptseg_fine_object_alignment", required=False),
         file_entry(args.conceptseg_intersection, "conceptseg_instance_intersection", required=False),
         file_entry(args.conceptseg_instance_accepted_sheet, "conceptseg_instance_accepted_sheet", required=False),
@@ -255,6 +259,20 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             "route_decision": nested(route_decision, "main_route", "decision"),
             "release_status": nested(release_status, "release", "status"),
             "release_manual_gate": nested(release_status, "release", "manual_gate"),
+            "infra_readiness_passed": infra_readiness.get("passed"),
+            "infra_all_reachable": infra_readiness.get("all_reachable"),
+            "infra_all_required_paths_ok": infra_readiness.get("all_required_paths_ok"),
+            "infra_local_delivery_artifacts_ok": infra_readiness.get("local_delivery_artifacts_ok"),
+            "infra_servers": [
+                {
+                    "name": server.get("name"),
+                    "reachable": server.get("reachable"),
+                    "role": server.get("role"),
+                    "gpus": server.get("gpus", []),
+                    "disk": server.get("disk", []),
+                }
+                for server in infra_readiness.get("servers", [])
+            ],
             "conceptseg_decision": nested(route_decision, "conceptseg_side_track", "decision"),
             "conceptseg_fine_candidates": concept_align.get("item_count"),
             "conceptseg_semantically_discriminative_targets": concept_align.get("semantically_discriminative_target_count"),
@@ -310,6 +328,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             "Use ConceptSeg integration plan as review-only split/refine candidates; do not overwrite dense labels automatically.",
             "Use ConceptSeg 3D refinement components as visual QA proposals only; current accepted component coverage is small.",
             "Keep old route as visual color reference only.",
+            "Use the infra readiness report before launching more 1000+ frame or model side-track jobs.",
         ],
     }
     return manifest
@@ -347,6 +366,7 @@ def render_markdown(manifest: dict[str, Any]) -> str:
         f"- route decision: `{metrics.get('route_decision')}`",
         f"- release status: `{metrics.get('release_status')}`",
         f"- release manual gate: `{metrics.get('release_manual_gate')}`",
+        f"- infra readiness passed/all reachable/paths ok: `{metrics.get('infra_readiness_passed')}` / `{metrics.get('infra_all_reachable')}` / `{metrics.get('infra_all_required_paths_ok')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
         f"- side-track ConceptSeg decision: `{metrics.get('side_track_conceptseg_decision')}`",
         f"- side-track ConceptSeg accepted target ratio: `{metrics.get('side_track_conceptseg_accepted_target_ratio')}`",
@@ -424,6 +444,8 @@ def main() -> None:
     parser.add_argument("--route-decision-md", type=Path, default=root / "route_status_20260610/dense_semantic_route_decision_20260611.md")
     parser.add_argument("--release-status", type=Path, default=root / "route_status_20260610/dense_semantic_release_status_20260611.json")
     parser.add_argument("--release-status-md", type=Path, default=root / "route_status_20260610/dense_semantic_release_status_20260611.md")
+    parser.add_argument("--infra-readiness", type=Path, default=root / "route_status_20260610/infra_readiness_20260611.json")
+    parser.add_argument("--infra-readiness-md", type=Path, default=root / "route_status_20260610/infra_readiness_20260611.md")
     parser.add_argument("--conceptseg-alignment", type=Path, default=root / "server_conceptseg_fine_object_alignment_v008/conceptseg_target_object_alignment_report.json")
     parser.add_argument("--conceptseg-intersection", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_intersection_report.json")
     parser.add_argument("--conceptseg-instance-accepted-sheet", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_accepted_sheet.jpg")
