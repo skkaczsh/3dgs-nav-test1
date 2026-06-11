@@ -157,6 +157,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.parallel_execution_queue_md, "parallel_execution_queue_markdown", required=True),
         file_entry(args.visual_acceptance, "visual_acceptance_review", required=True),
         file_entry(args.visual_acceptance_md, "visual_acceptance_review_markdown", required=True),
+        file_entry(args.visual_acceptance_html, "visual_acceptance_review_html", required=True),
         file_entry(args.visual_acceptance_validation, "visual_acceptance_review_validation", required=True),
         file_entry(args.conceptseg_alignment, "conceptseg_fine_object_alignment", required=False),
         file_entry(args.conceptseg_intersection, "conceptseg_instance_intersection", required=False),
@@ -466,6 +467,7 @@ def main() -> None:
     parser.add_argument("--parallel-execution-queue-md", type=Path, default=root / "route_status_20260610/parallel_execution_queue_20260611.md")
     parser.add_argument("--visual-acceptance", type=Path, default=root / "route_status_20260610/visual_acceptance_review_20260611.json")
     parser.add_argument("--visual-acceptance-md", type=Path, default=root / "route_status_20260610/visual_acceptance_review_20260611.md")
+    parser.add_argument("--visual-acceptance-html", type=Path, default=root / "route_status_20260610/visual_acceptance_review_20260611.html")
     parser.add_argument("--visual-acceptance-validation", type=Path, default=root / "route_status_20260610/visual_acceptance_review_20260611_validation.json")
     parser.add_argument("--conceptseg-alignment", type=Path, default=root / "server_conceptseg_fine_object_alignment_v008/conceptseg_target_object_alignment_report.json")
     parser.add_argument("--conceptseg-intersection", type=Path, default=root / "server_conceptseg_instance_intersection_v008/conceptseg_instance_intersection_report.json")
