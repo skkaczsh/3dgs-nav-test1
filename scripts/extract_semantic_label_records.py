@@ -63,11 +63,62 @@ ALLOWED = {
     "unknown",
 }
 
+ALWAYS_SUSPICIOUS_OVERLAY_COLORS = {"purple", "magenta", "cyan", "teal", "pink"}
+SURFACE_SUSPICIOUS_OVERLAY_COLORS = ALWAYS_SUSPICIOUS_OVERLAY_COLORS | {
+    "yellow",
+    "blue",
+    "green",
+    "red",
+    "orange",
+}
+SURFACE_LABELS = {"floor", "road", "wall", "building", "ceiling"}
+
 
 def normalize_label(value: Any) -> str:
     label = str(value or "other").strip().lower()
     label = LABEL_ALIASES.get(label, label)
     return label if label in ALLOWED else "other"
+
+
+def suspicious_overlay_colors(label: str) -> set[str]:
+    if label in SURFACE_LABELS:
+        return SURFACE_SUSPICIOUS_OVERLAY_COLORS
+    return ALWAYS_SUSPICIOUS_OVERLAY_COLORS
+
+
+def strip_color_words(text: str, colors: set[str]) -> str:
+    out = str(text or "")
+    for color in sorted(colors, key=len, reverse=True):
+        out = re.sub(rf"\b{re.escape(color)}[- ]+", "", out, flags=re.I)
+        out = re.sub(rf"\b{re.escape(color)}\b", "", out, flags=re.I)
+    out = re.sub(r"\s{2,}", " ", out)
+    out = re.sub(r"\s+([,.;])", r"\1", out)
+    return out.strip(" -_,")
+
+
+def sanitize_overlay_color_leak(record: dict[str, Any]) -> dict[str, Any]:
+    label = normalize_label(record.get("label", "other"))
+    colors = suspicious_overlay_colors(label)
+    attrs = dict(record.get("attributes") or {})
+    color_value = str(attrs.get("color", "")).strip().lower()
+    leaked = False
+    if color_value in colors:
+        attrs.pop("color", None)
+        leaked = True
+    description = strip_color_words(str(record.get("description", "")), colors)
+    identity_hint = strip_color_words(str(record.get("identity_hint", "")), colors)
+    if description != str(record.get("description", "")) or identity_hint != str(record.get("identity_hint", "")):
+        leaked = True
+    clean = {
+        **record,
+        "label": label,
+        "description": description,
+        "identity_hint": identity_hint,
+        "attributes": attrs,
+    }
+    if leaked:
+        clean["identity_sanitized"] = "overlay_color"
+    return clean
 
 
 def normalize_record(value: Any) -> dict[str, Any]:
@@ -79,20 +130,20 @@ def normalize_record(value: Any) -> dict[str, Any]:
             confidence = float(value.get("confidence", 1.0))
         except (TypeError, ValueError):
             confidence = 1.0
-        return {
+        return sanitize_overlay_color_leak({
             "label": normalize_label(value.get("label", "other")),
             "confidence": max(0.0, min(1.0, confidence)),
             "description": str(value.get("description", "")).strip(),
             "identity_hint": str(value.get("identity_hint", "")).strip(),
             "attributes": {str(k): str(v).strip() for k, v in attrs.items() if str(v).strip()},
-        }
-    return {
+        })
+    return sanitize_overlay_color_leak({
         "label": normalize_label(value),
         "confidence": 1.0,
         "description": "",
         "identity_hint": "",
         "attributes": {},
-    }
+    })
 
 
 def parse_raw_items(raw: str) -> dict[int, dict[str, Any]]:
