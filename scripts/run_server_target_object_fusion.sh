@@ -10,6 +10,8 @@ OUTPUT_DIR="${OUTPUT_DIR:-/root/epfs/new_route_stage1_skymask/target_object_fusi
 START_FRAME="${START_FRAME:-0}"
 END_FRAME="${END_FRAME:-999}"
 VOXEL_SIZE="${VOXEL_SIZE:-0.08}"
+SURFACE_VOXEL_SIZE="${SURFACE_VOXEL_SIZE:-}"
+FINE_VOXEL_SIZE="${FINE_VOXEL_SIZE:-}"
 MIN_TARGET_POINTS="${MIN_TARGET_POINTS:-20}"
 MIN_MERGE_CONFIDENCE="${MIN_MERGE_CONFIDENCE:-0.5}"
 WORK_MODE="${WORK_MODE:-range}"
@@ -27,6 +29,13 @@ frame_args=(--start "${START_FRAME}" --end "${END_FRAME}")
 if [[ "${WORK_MODE}" == "semantic-dir" ]]; then
   frame_args+=(--frames-from-semantic-dir)
 fi
+connectivity_args=(--voxel-size "${VOXEL_SIZE}")
+if [[ -n "${SURFACE_VOXEL_SIZE}" ]]; then
+  connectivity_args+=(--surface-voxel-size "${SURFACE_VOXEL_SIZE}")
+fi
+if [[ -n "${FINE_VOXEL_SIZE}" ]]; then
+  connectivity_args+=(--fine-voxel-size "${FINE_VOXEL_SIZE}")
+fi
 
 python3 "${SCRIPT_DIR}/build_targets_from_masks.py" \
   --semantic-eval-dir "${SEMANTIC_EVAL_DIR}" \
@@ -34,7 +43,7 @@ python3 "${SCRIPT_DIR}/build_targets_from_masks.py" \
   --color-dir "${COLOR_DIR}" \
   --output-dir "${OUTPUT_DIR}" \
   "${frame_args[@]}" \
-  --voxel-size "${VOXEL_SIZE}" \
+  "${connectivity_args[@]}" \
   --min-target-points "${MIN_TARGET_POINTS}" \
   --resume \
   --write-ply

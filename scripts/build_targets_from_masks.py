@@ -29,6 +29,8 @@ from project_semantic import LABEL_COLORS, LABEL_NAMES, zbuffer_visible_indices
 
 LABEL_IDS = {v: k for k, v in LABEL_NAMES.items()}
 SKIP_LABELS = {"sky", "ignore"}
+SURFACE_CONNECTIVITY_LABELS = {"floor", "road", "wall", "building", "ceiling"}
+FINE_CONNECTIVITY_LABELS = {"equipment", "railing", "pipe", "furniture"}
 PARENT_CLASSES = {
     "floor": "surface",
     "wall": "surface",
@@ -343,6 +345,14 @@ def load_labels(path: Path) -> dict[int, str]:
     return {mask_id: record["label"] for mask_id, record in load_label_records(path).items()}
 
 
+def connectivity_voxel_size(label: str, args: argparse.Namespace) -> float:
+    if label in SURFACE_CONNECTIVITY_LABELS and args.surface_voxel_size is not None:
+        return float(args.surface_voxel_size)
+    if label in FINE_CONNECTIVITY_LABELS and args.fine_voxel_size is not None:
+        return float(args.fine_voxel_size)
+    return float(args.voxel_size)
+
+
 def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
     target_path = args.output_dir / "targets" / f"targets_frame_{frame_id:04d}.jsonl"
     report_path = args.output_dir / "reports" / f"targets_frame_{frame_id:04d}_report.json"
@@ -414,8 +424,11 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
             selected = point_idx[instance_ids == mask_id]
             if len(selected) == 0:
                 continue
-            comps, residual = connected_components(points[selected], args.voxel_size, args.min_target_points)
+            voxel_size = connectivity_voxel_size(label, args)
+            comps, residual = connected_components(points[selected], voxel_size, args.min_target_points)
             residual_points += int(residual.sum())
+            if np.any(residual):
+                residual_label_counts[label] += int(residual.sum())
             if args.write_residual_ply and np.any(residual):
                 residual_idx = selected[residual]
                 residual_rows.append(
@@ -429,7 +442,6 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
                         "colors": colors[residual_idx],
                     }
                 )
-                residual_label_counts[label] += int(residual.sum())
             for comp_id, comp_local in enumerate(comps):
                 global_idx = selected[comp_local]
                 target_id = f"t_{frame_id:04d}_cam{cam_id}_m{mask_id:04d}_c{comp_id:02d}"
@@ -448,6 +460,7 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
                     "semantic_id": label_to_id(label),
                     "parent_class": PARENT_CLASSES.get(label, "other"),
                     "confidence": float(label_record["confidence"]),
+                    "connectivity_voxel_size": float(voxel_size),
                     "description": label_record["description"],
                     "identity_hint": label_record["identity_hint"],
                     "attributes": label_record["attributes"],
@@ -509,6 +522,8 @@ def main() -> None:
     parser.add_argument("--frames-from-semantic-dir", action="store_true")
     parser.add_argument("--cams", type=int, nargs="+", default=[0, 1, 2])
     parser.add_argument("--voxel-size", type=float, default=0.08)
+    parser.add_argument("--surface-voxel-size", type=float, default=None)
+    parser.add_argument("--fine-voxel-size", type=float, default=None)
     parser.add_argument("--min-target-points", type=int, default=20)
     parser.add_argument("--min-depth", type=float, default=0.1)
     parser.add_argument("--zbuffer-visible", action="store_true", default=True)

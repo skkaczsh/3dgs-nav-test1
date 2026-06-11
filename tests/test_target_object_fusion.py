@@ -96,6 +96,21 @@ def test_target_label_loader_accepts_item_list_schema(tmp_path: Path):
     assert records[4]["confidence"] == 1.0
 
 
+def test_target_connectivity_voxel_size_can_be_label_specific():
+    module = load_module(SCRIPTS / "build_targets_from_masks.py", "build_targets_connectivity_for_repo_test")
+    args = type("Args", (), {
+        "voxel_size": 0.08,
+        "surface_voxel_size": 0.24,
+        "fine_voxel_size": 0.12,
+    })()
+
+    assert module.connectivity_voxel_size("floor", args) == 0.24
+    assert module.connectivity_voxel_size("building", args) == 0.24
+    assert module.connectivity_voxel_size("equipment", args) == 0.12
+    assert module.connectivity_voxel_size("railing", args) == 0.12
+    assert module.connectivity_voxel_size("other", args) == 0.08
+
+
 def _target(
     target_id,
     frame_id,
@@ -787,6 +802,10 @@ def test_server_target_object_runner_exposes_merge_confidence_gate():
     assert "MIN_MERGE_CONFIDENCE" in script
     assert "--min-merge-confidence" in script
     assert '"${MIN_MERGE_CONFIDENCE}"' in script
+    assert "SURFACE_VOXEL_SIZE" in script
+    assert "--surface-voxel-size" in script
+    assert "FINE_VOXEL_SIZE" in script
+    assert "--fine-voxel-size" in script
 
 
 def test_semantic_completion_runner_shards_merge_stage():
