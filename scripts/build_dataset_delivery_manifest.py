@@ -52,6 +52,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
     readiness = read_json(args.dataset_readiness)
     validation = read_json(args.output_validation)
     target_qa = read_json(args.target_object_qa)
+    object_pipeline_qa = read_json(args.object_pipeline_qa)
     surface = read_json(args.surface_first_report)
     residual_assignment = read_json(args.residual_assignment_report)
     concept = read_json(args.conceptseg_qa)
@@ -92,6 +93,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.dataset_readiness, "dataset_readiness_report"),
         file_entry(args.output_validation, "strict_output_validation"),
         file_entry(args.target_object_qa, "target_object_qa"),
+        file_entry(args.object_pipeline_qa, "object_pipeline_qa_summary"),
         file_entry(args.objects_jsonl, "target_object_objects_jsonl"),
         file_entry(args.object_points_ply, "target_object_full_ply"),
         file_entry(args.object_points_stride_ply, "target_object_preview_ply"),
@@ -146,6 +148,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
             "object_count": target_objects.get("count"),
             "object_merge_ratio": target_objects.get("merge_ratio"),
             "object_ambiguous_ratio": target_objects.get("ambiguous_ratio"),
+            "object_pipeline_recommendations": object_pipeline_qa.get("recommendations", []),
             "surface_first_changed_ratio": surface.get("changed_ratio"),
             "surface_first_after_counts": surface.get("after_counts", {}),
             "residual_surface_assigned_ratio": residual_assignment.get("assigned_ratio"),
@@ -261,6 +264,7 @@ def main() -> None:
     parser.add_argument("--dataset-readiness", type=Path, default=root / "route_status_20260610/server_dataset_readiness_0000_0999.json")
     parser.add_argument("--output-validation", type=Path, default=root / "route_status_20260610/server_resume_output_validation.json")
     parser.add_argument("--target-object-qa", type=Path, default=root / "server_resume_target_object_fusion_0000_0999/reports/target_object_qa.json")
+    parser.add_argument("--object-pipeline-qa", type=Path, default=root / "route_status_20260610/object_pipeline_qa_summary_latest.json")
     parser.add_argument("--objects-jsonl", type=Path, default=root / "server_resume_target_object_fusion_0000_0999/objects/objects.jsonl")
     parser.add_argument("--object-points-ply", type=Path, default=root / "server_resume_target_object_fusion_0000_0999/objects/object_points_latest.ply")
     parser.add_argument("--object-points-stride-ply", type=Path, default=root / "server_resume_target_object_fusion_0000_0999/objects/object_points_latest_stride10.ply")
