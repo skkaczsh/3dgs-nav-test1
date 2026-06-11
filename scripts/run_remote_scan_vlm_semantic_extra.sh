@@ -18,6 +18,7 @@ SAM_MASKS_DIR="${SAM_MASKS_DIR:-/root/epfs/new_route_stage1_skymask/sam_masks_${
 OUTPUT_DIR="${OUTPUT_DIR:-/root/epfs/manifold_3dgs_project/processed/semantic_eval_new_route_${START}_${END}}"
 LOG_DIR="${LOG_DIR:-/root/epfs/new_route_stage1_skymask/logs}"
 SESSION_NAME="${SESSION_NAME:-semantic_vlm_extra_${START}_${END}}"
+MIN_SAM_AGE_SECONDS="${MIN_SAM_AGE_SECONDS:-30}"
 
 ssh_target="${SSH_USER}@${SSH_HOST}"
 ssh_opts=(-F /dev/null -p "${SSH_PORT}")
@@ -36,13 +37,21 @@ ssh "${ssh_opts[@]}" "${ssh_target}" \
   OUTPUT_DIR="${OUTPUT_DIR}" \
   LOG_DIR="${LOG_DIR}" \
   SESSION_NAME="${SESSION_NAME}" \
+  MIN_SAM_AGE_SECONDS="${MIN_SAM_AGE_SECONDS}" \
   REMOTE_SCRIPT_DIR="${REMOTE_SCRIPT_DIR}" \
   'bash -s' <<'REMOTE'
 set -euo pipefail
 cd "${REMOTE_SCRIPT_DIR}"
 
 python3 make_new_route_semantic_manifest.py --start "${START}" --end "${END}" --count 0 --output "${FULL_MANIFEST}" --require-sky-mask >"${LOG_DIR}/vlm_make_manifest.log"
-python3 filter_semantic_manifest_ready.py --manifest "${FULL_MANIFEST}" --sam-masks-dir "${SAM_MASKS_DIR}" --output "${READY_ALL}" --require-sky >"${LOG_DIR}/vlm_ready_all_filter.log"
+python3 filter_semantic_manifest_ready.py \
+  --manifest "${FULL_MANIFEST}" \
+  --sam-masks-dir "${SAM_MASKS_DIR}" \
+  --output "${READY_ALL}" \
+  --require-sky \
+  --validate-sam-json \
+  --min-sam-age-seconds "${MIN_SAM_AGE_SECONDS}" \
+  >"${LOG_DIR}/vlm_ready_all_filter.log"
 python3 - <<PY
 import json
 from pathlib import Path
