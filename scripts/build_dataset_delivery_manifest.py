@@ -122,6 +122,9 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         file_entry(args.residual_candidate_coverage_augmented, "residual_candidate_surface_coverage_augmented_report", required=True),
         file_entry(args.surface_fusion_bottleneck, "surface_target_fusion_bottleneck_report", required=True),
         file_entry(args.surface_fusion_bottleneck_strict, "surface_target_fusion_bottleneck_strict_report", required=True),
+        file_entry(args.strict_surface_stride_ply, "strict_surface_fusion_preview_ply", required=True),
+        file_entry(args.strict_surface_preview, "strict_surface_fusion_xy_preview", required=True),
+        file_entry(args.strict_surface_fusion_report, "strict_surface_fusion_report", required=True),
         file_entry(args.conceptseg_qa, "conceptseg_problem40_structured_qa", required=False),
         file_entry(args.conceptseg_contact_sheet, "conceptseg_problem40_contact_sheet", required=False),
         file_entry(args.route_decision, "dense_semantic_route_decision", required=True),
@@ -243,6 +246,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, Any]:
         "file_failures": file_failures,
         "files": files,
         "recommended_viewer_inputs": [
+            str(args.strict_surface_stride_ply),
             str(args.surface_first_voxel_ply),
             str(args.object_points_stride_ply),
         ],
@@ -338,6 +342,9 @@ def main() -> None:
     parser.add_argument("--residual-candidate-coverage-augmented", type=Path, default=root / "route_status_20260610/residual_candidate_surface_coverage_augmented_20260611.json")
     parser.add_argument("--surface-fusion-bottleneck", type=Path, default=root / "route_status_20260610/surface_target_fusion_bottleneck_20260611.json")
     parser.add_argument("--surface-fusion-bottleneck-strict", type=Path, default=root / "route_status_20260610/surface_target_fusion_bottleneck_strict_20260611.json")
+    parser.add_argument("--strict-surface-stride-ply", type=Path, default=root / "server_strict_surface_fusion_0000_0999/objects/object_points_strict_surface_stride10.ply")
+    parser.add_argument("--strict-surface-preview", type=Path, default=root / "server_strict_surface_fusion_0000_0999/objects/object_points_strict_surface_stride10_xy.png")
+    parser.add_argument("--strict-surface-fusion-report", type=Path, default=root / "server_strict_surface_fusion_0000_0999/objects/fusion_report.json")
     parser.add_argument("--conceptseg-qa", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_structured_qa.json")
     parser.add_argument("--conceptseg-contact-sheet", type=Path, default=root / "server_conceptseg_problem40/conceptseg_problem40_contact_sheet.jpg")
     parser.add_argument("--route-decision", type=Path, default=root / "route_status_20260610/dense_semantic_route_decision_20260611.json")

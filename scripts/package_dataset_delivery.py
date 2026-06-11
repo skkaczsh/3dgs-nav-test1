@@ -133,6 +133,8 @@ def render_readme(package: dict) -> str:
         f"- residual candidate coverage best ratio: `{metrics.get('residual_candidate_coverage_best_ratio')}`",
         f"- surface seed candidates/promoted points: `{metrics.get('surface_seed_candidate_points')}` / `{metrics.get('surface_seed_promoted_points')}`",
         f"- surface seed augmented best ratio: `{metrics.get('residual_candidate_coverage_augmented_best_ratio')}`",
+        f"- surface fusion wall points base/strict: `{metrics.get('surface_fusion_wall_points_base')}` / `{metrics.get('surface_fusion_wall_points_strict')}`",
+        f"- surface fusion ambiguous points base/strict: `{metrics.get('surface_fusion_ambiguous_points_base')}` / `{metrics.get('surface_fusion_ambiguous_points_strict')}`",
         f"- fine targets / tracklets / reviewed objects: `{metrics.get('fine_targets')}` / `{metrics.get('fine_tracklets')}` / `{metrics.get('reviewed_output_objects')}`",
         f"- route decision: `{metrics.get('route_decision')}`",
         f"- ConceptSeg decision: `{metrics.get('conceptseg_decision')}`",
