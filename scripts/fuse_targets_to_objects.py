@@ -77,9 +77,10 @@ def target_quality(target: dict, min_merge_confidence: float = DEFAULT_MIN_MERGE
 def load_targets(inputs: list[Path]) -> list[dict]:
     rows = []
     for path in inputs:
-        files = sorted(path.glob("targets_frame_*.jsonl")) if path.is_dir() else [path]
+        from_directory = path.is_dir()
+        files = sorted(path.glob("targets_frame_*.jsonl")) if from_directory else [path]
         for file_path in files:
-            if file_path.name == "targets_all.jsonl":
+            if from_directory and file_path.name == "targets_all.jsonl":
                 continue
             with file_path.open("r", encoding="utf-8") as f:
                 for line in f:
