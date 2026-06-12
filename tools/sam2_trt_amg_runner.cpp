@@ -22,6 +22,7 @@
 #include <limits>
 #include <memory>
 #include <numeric>
+#include <sstream>
 #include <random>
 #include <stdexcept>
 #include <string>
@@ -203,6 +204,7 @@ struct Args {
   int crop_n_layers = 1;
   float crop_overlap_ratio = 512.0f / 1500.0f;
   std::string output_mode = "binary_mask";
+  bool write_trace = false;
   bool skip_existing = true;
 };
 
@@ -218,6 +220,26 @@ struct Candidate {
   int point_index = 0;
   int mask_index = 0;
   int crop_area = 0;
+};
+
+struct CropTrace {
+  int crop_index = 0;
+  int x0 = 0;
+  int y0 = 0;
+  int x1 = 0;
+  int y1 = 0;
+  int raw_candidates = 0;
+  int after_within_crop_nms = 0;
+  int dropped_near_crop_edge = 0;
+  int after_crop_edge_filter = 0;
+};
+
+struct ImageTrace {
+  int crop_boxes = 0;
+  int before_cross_crop_nms = 0;
+  int after_cross_crop_nms = 0;
+  int after_overlap_resolution = 0;
+  std::vector<CropTrace> crops;
 };
 
 std::string basename(const std::string& path) {
@@ -511,9 +533,54 @@ void save_visuals(const cv::Mat& bgr, const std::vector<Candidate>& masks,
   cv::imwrite(numbered_path, numbered);
 }
 
+void save_trace_json(const std::string& path, const std::string& image_name,
+                     const ImageTrace& trace) {
+  std::ofstream out(path);
+  if (!out) {
+    throw std::runtime_error("failed to write " + path);
+  }
+  int raw_total = 0;
+  int within_total = 0;
+  int edge_drop_total = 0;
+  int edge_keep_total = 0;
+  for (const auto& crop : trace.crops) {
+    raw_total += crop.raw_candidates;
+    within_total += crop.after_within_crop_nms;
+    edge_drop_total += crop.dropped_near_crop_edge;
+    edge_keep_total += crop.after_crop_edge_filter;
+  }
+  out << "{\n";
+  out << "  \"image_name\": \"" << image_name << "\",\n";
+  out << "  \"crop_boxes\": " << trace.crop_boxes << ",\n";
+  out << "  \"totals\": {\n";
+  out << "    \"raw_candidates\": " << raw_total << ",\n";
+  out << "    \"after_within_crop_nms\": " << within_total << ",\n";
+  out << "    \"dropped_near_crop_edge\": " << edge_drop_total << ",\n";
+  out << "    \"after_crop_edge_filter\": " << edge_keep_total << ",\n";
+  out << "    \"before_cross_crop_nms\": " << trace.before_cross_crop_nms << ",\n";
+  out << "    \"after_cross_crop_nms\": " << trace.after_cross_crop_nms << ",\n";
+  out << "    \"after_overlap_resolution\": " << trace.after_overlap_resolution << "\n";
+  out << "  },\n";
+  out << "  \"crops\": [\n";
+  for (size_t i = 0; i < trace.crops.size(); ++i) {
+    const auto& crop = trace.crops[i];
+    out << "    {";
+    out << "\"crop_index\": " << crop.crop_index << ", ";
+    out << "\"box\": [" << crop.x0 << ", " << crop.y0 << ", " << crop.x1 << ", " << crop.y1 << "], ";
+    out << "\"raw_candidates\": " << crop.raw_candidates << ", ";
+    out << "\"after_within_crop_nms\": " << crop.after_within_crop_nms << ", ";
+    out << "\"dropped_near_crop_edge\": " << crop.dropped_near_crop_edge << ", ";
+    out << "\"after_crop_edge_filter\": " << crop.after_crop_edge_filter;
+    out << "}" << (i + 1 == trace.crops.size() ? "\n" : ",\n");
+  }
+  out << "  ]\n";
+  out << "}\n";
+}
+
 std::vector<Candidate> generate_candidates_for_crop(TrtEngine& encoder, TrtEngine& decoder,
                                                     cudaStream_t stream, const cv::Mat& bgr,
-                                                    const Args& args) {
+                                                    const Args& args,
+                                                    CropTrace* trace = nullptr) {
   const int h = bgr.rows;
   const int w = bgr.cols;
   auto input = preprocess_image(bgr);
@@ -603,7 +670,13 @@ std::vector<Candidate> generate_candidates_for_crop(TrtEngine& encoder, TrtEngin
       }
     }
   }
+  if (trace != nullptr) {
+    trace->raw_candidates = static_cast<int>(candidates.size());
+  }
   candidates = nms(std::move(candidates), args.box_nms_thresh);
+  if (trace != nullptr) {
+    trace->after_within_crop_nms = static_cast<int>(candidates.size());
+  }
   return candidates;
 }
 
@@ -677,26 +750,53 @@ Candidate uncrop_candidate(const Candidate& c, const std::array<int, 4>& crop, i
 
 std::vector<Candidate> generate_masks_for_image(TrtEngine& encoder, TrtEngine& decoder,
                                                 cudaStream_t stream, const cv::Mat& bgr,
-                                                const Args& args) {
+                                                const Args& args,
+                                                ImageTrace* trace = nullptr) {
   const int h = bgr.rows;
   const int w = bgr.cols;
   std::vector<Candidate> all;
   const auto crop_boxes = generate_crop_boxes(h, w, args);
-  for (const auto& crop : crop_boxes) {
+  if (trace != nullptr) {
+    trace->crop_boxes = static_cast<int>(crop_boxes.size());
+    trace->crops.clear();
+  }
+  for (size_t crop_index = 0; crop_index < crop_boxes.size(); ++crop_index) {
+    const auto& crop = crop_boxes[crop_index];
+    CropTrace crop_trace;
+    crop_trace.crop_index = static_cast<int>(crop_index);
+    crop_trace.x0 = crop[0];
+    crop_trace.y0 = crop[1];
+    crop_trace.x1 = crop[2];
+    crop_trace.y1 = crop[3];
     const cv::Rect rect(crop[0], crop[1], crop[2] - crop[0], crop[3] - crop[1]);
     cv::Mat cropped = bgr(rect).clone();
-    auto crop_candidates = generate_candidates_for_crop(encoder, decoder, stream, cropped, args);
+    auto crop_candidates = generate_candidates_for_crop(
+        encoder, decoder, stream, cropped, args, trace != nullptr ? &crop_trace : nullptr);
     for (const auto& c : crop_candidates) {
       if (near_crop_edge(c, crop, h, w)) {
+        crop_trace.dropped_near_crop_edge += 1;
         continue;
       }
       all.push_back(uncrop_candidate(c, crop, h, w));
+      crop_trace.after_crop_edge_filter += 1;
     }
+    if (trace != nullptr) {
+      trace->crops.push_back(crop_trace);
+    }
+  }
+  if (trace != nullptr) {
+    trace->before_cross_crop_nms = static_cast<int>(all.size());
   }
   if (crop_boxes.size() > 1) {
     all = nms_by_crop_preference(std::move(all), args.crop_nms_thresh);
   }
+  if (trace != nullptr) {
+    trace->after_cross_crop_nms = static_cast<int>(all.size());
+  }
   all = resolve_overlaps(std::move(all), h, w, args.min_mask_area);
+  if (trace != nullptr) {
+    trace->after_overlap_resolution = static_cast<int>(all.size());
+  }
   std::sort(all.begin(), all.end(), [](const Candidate& a, const Candidate& b) {
     return a.area > b.area;
   });
@@ -741,6 +841,8 @@ Args parse_args(int argc, char** argv) {
       args.crop_n_layers = std::stoi(need_value(a));
     } else if (a == "--output-mode") {
       args.output_mode = need_value(a);
+    } else if (a == "--write-trace") {
+      args.write_trace = true;
     } else if (a == "--overwrite") {
       args.skip_existing = false;
     } else {
@@ -794,7 +896,9 @@ int main(int argc, char** argv) {
         if (bgr.empty()) {
           throw std::runtime_error("failed to read image");
         }
-        auto masks = generate_masks_for_image(encoder, decoder, stream, bgr, args);
+        ImageTrace trace;
+        auto masks = generate_masks_for_image(
+            encoder, decoder, stream, bgr, args, args.write_trace ? &trace : nullptr);
         if (masks.empty()) {
           std::cout << "{\"image\":\"" << img_name << "\",\"status\":\"no_masks\"}\n";
           failed += 1;
@@ -804,6 +908,9 @@ int main(int argc, char** argv) {
                      (out_dir / (img_name + "_numbered.png")).string());
         save_json(json_path, img_name, basename(image_path), masks, bgr.rows, bgr.cols,
                   args.output_mode);
+        if (args.write_trace) {
+          save_trace_json((out_dir / (img_name + "_trace.json")).string(), img_name, trace);
+        }
         std::ofstream flag(done_path);
         flag << "{\"processed\":true,\"num_masks\":" << masks.size() << "}\n";
         ok += 1;

@@ -409,3 +409,56 @@ large sweep. The next concrete implementation target is to add parity traces
 for per-crop candidate counts, crop-edge drops, within-crop NMS keeps, and
 cross-crop NMS keeps, then adjust the C++ crop path until the 50-image
 diagnosis no longer shows large unmatched candidate area.
+
+## C++ Trace Runner
+
+The C++ runner supports `--write-trace`. It writes
+`{image_id}_trace.json` next to mask artifacts with:
+
+- per-crop `raw_candidates`
+- `after_within_crop_nms`
+- `dropped_near_crop_edge`
+- `after_crop_edge_filter`
+- image-level `before_cross_crop_nms`
+- `after_cross_crop_nms`
+- `after_overlap_resolution`
+
+`summarize_sam2_trt_traces.py` aggregates these trace files.
+
+Trace smoke on `cam0_002000` and `cam0_002001`:
+
+- mean raw candidates: `3590.5`
+- mean after within-crop NMS: `110.5`
+- mean after crop-edge filter: `81.5`
+- mean after cross-crop NMS: `49.5`
+- mean after overlap resolution: `34.0`
+- within-crop NMS keep ratio: `0.0308`
+- crop-edge drop ratio: `0.2624`
+- cross-crop NMS keep ratio: `0.6074`
+- overlap-resolution keep ratio: `0.6869`
+
+Worst over-coverage trace on `cam0_002005`, `cam0_002039`, and
+`cam0_002045`:
+
+- mean raw candidates: `2588.0`
+- mean after within-crop NMS: `105.0`
+- mean after crop-edge filter: `83.7`
+- mean after cross-crop NMS: `48.3`
+- mean after overlap resolution: `33.3`
+- within-crop NMS keep ratio: `0.0406`
+- crop-edge drop ratio: `0.2032`
+- cross-crop NMS keep ratio: `0.5777`
+- overlap-resolution keep ratio: `0.6897`
+
+This trace does not show a single count-level explosion in one crop or one NMS
+stage. The worst frames look similar to ordinary frames by stage counts. The
+next parity task should therefore compare crop-level boxes and mask shapes
+against Python SAM2, especially:
+
+- whether C++ coordinates use the same transformed point grid as
+  `SAM2ImagePredictor._transforms.transform_coords`
+- whether C++ bilinear upsample and thresholding match SAM2 logits handling
+- whether C++ box IoU/NMS uses the same `xyxy` coordinate convention as
+  `torchvision.ops.batched_nms`
+- whether C++ cross-crop NMS should run before or after full uncrop exactly as
+  Python `MaskData` does
