@@ -731,6 +731,12 @@ Args parse_args(int argc, char** argv) {
       args.pred_iou_thresh = std::stof(need_value(a));
     } else if (a == "--stability-score-thresh") {
       args.stability_score_thresh = std::stof(need_value(a));
+    } else if (a == "--box-nms-thresh") {
+      args.box_nms_thresh = std::stof(need_value(a));
+    } else if (a == "--crop-nms-thresh") {
+      args.crop_nms_thresh = std::stof(need_value(a));
+    } else if (a == "--min-mask-area") {
+      args.min_mask_area = std::stoi(need_value(a));
     } else if (a == "--crop-n-layers") {
       args.crop_n_layers = std::stoi(need_value(a));
     } else if (a == "--output-mode") {

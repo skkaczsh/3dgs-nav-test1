@@ -124,6 +124,7 @@ CUDA_VISIBLE_DEVICES=0 /root/epfs/sam2_tensorrt/bin/sam2_trt_amg_runner \
   --images "/root/epfs/new_route_stage1_skymask/sam2_input_2000_2999/cam0_00200[0-4].png" \
   --output-dir /root/epfs/sam2_tensorrt/sam_masks_candidate_smoke5 \
   --crop-n-layers 1 \
+  --crop-nms-thresh 0.65 \
   --overwrite
 ```
 
@@ -205,6 +206,19 @@ the TensorRT AMG candidate is more permissive than the Python baseline. The
 worst observed frame was `cam0_002005`, where candidate coverage was `+0.2083`
 above baseline. Next tuning should focus on crop/candidate NMS and overlap
 resolution rather than encoder/decoder export.
+
+NMS sweep result on `cam0_002000` to `cam0_002009`:
+
+- default `box=0.7,crop=0.7,pred=0.7`: coverage delta `+0.0285`,
+  matched IoU `0.9534`, unmatched candidate `5.8`.
+- `box=0.7,crop=0.65,pred=0.7`: coverage delta `+0.0283`,
+  matched IoU `0.9539`, unmatched candidate `5.2`.
+- raising `pred_iou_thresh` to `0.75` or `0.8` further reduces coverage delta,
+  but increases unmatched baseline masks, so it is not the default candidate.
+
+Benchmark launcher default is therefore `box=0.7,crop=0.65,pred=0.7`. The C++
+runner itself still defaults to SAM2-like `crop_nms_thresh=0.7`; pass explicit
+parameters for benchmarks and promotion tests.
 
 The high matched IoU means the TensorRT encoder/decoder path is numerically
 close enough for a larger side benchmark. With bool-list output, runtime is

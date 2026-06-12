@@ -61,6 +61,9 @@ Promotion gates:
 - Candidate coverage should not systematically exceed the Python baseline by a
   large margin; the current 20-image RLE benchmark is `+0.0499`, with a worst
   frame at `+0.2083`, so NMS/overlap tuning is still required before promotion.
+- Current benchmark candidate uses `box_nms=0.7,crop_nms=0.65,pred_iou=0.7`;
+  higher `pred_iou` settings reduce overcoverage but increase unmatched
+  baseline masks on the 10-image sweep.
 - Downstream target/object label distribution does not degrade.
 - Output filenames and JSON schema remain compatible with the existing
   `sam_masks_1000_1999_combined` consumers.

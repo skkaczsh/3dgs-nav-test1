@@ -9,6 +9,11 @@ REPORT_DIR="${REPORT_DIR:-/root/epfs/sam2_tensorrt/reports}"
 RUNNER="${RUNNER:-/root/epfs/sam2_tensorrt/bin/sam2_trt_amg_runner}"
 RUNNER_SRC="${RUNNER_SRC:-/root/epfs/new_route_tools/sam2_trt_amg_runner.cpp}"
 OUTPUT_MODE="${OUTPUT_MODE:-uncompressed_rle}"
+PRED_IOU_THRESH="${PRED_IOU_THRESH:-0.7}"
+STABILITY_SCORE_THRESH="${STABILITY_SCORE_THRESH:-0.92}"
+BOX_NMS_THRESH="${BOX_NMS_THRESH:-0.7}"
+CROP_NMS_THRESH="${CROP_NMS_THRESH:-0.65}"
+MIN_MASK_AREA="${MIN_MASK_AREA:-500}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 mkdir -p "${CANDIDATE_DIR}" "${REPORT_DIR}"
@@ -23,6 +28,11 @@ CUDA_VISIBLE_DEVICES="${GPU_ID}" "${RUNNER}" \
   --output-dir "${CANDIDATE_DIR}" \
   --crop-n-layers 1 \
   --output-mode "${OUTPUT_MODE}" \
+  --pred-iou-thresh "${PRED_IOU_THRESH}" \
+  --stability-score-thresh "${STABILITY_SCORE_THRESH}" \
+  --box-nms-thresh "${BOX_NMS_THRESH}" \
+  --crop-nms-thresh "${CROP_NMS_THRESH}" \
+  --min-mask-area "${MIN_MASK_AREA}" \
   --overwrite
 
 MANIFEST="${REPORT_DIR}/sam2_trt_benchmark_manifest.json"
