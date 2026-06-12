@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -160,20 +161,26 @@ def section(text: str, begin: str, end: str) -> str:
     return text.split(begin, 1)[1].split(end, 1)[0].strip()
 
 
-def check_server(server: Server, timeout: int) -> dict[str, Any]:
+def check_server(server: Server, timeout: int, bind_address: str = "") -> dict[str, Any]:
     cmd = [
         "ssh",
         "-F",
         "/dev/null",
         "-o",
+        "BatchMode=yes",
+        "-o",
         f"ConnectTimeout={min(timeout, 10)}",
         "-o",
         "StrictHostKeyChecking=no",
+    ]
+    if bind_address:
+        cmd.extend(["-o", f"BindAddress={bind_address}"])
+    cmd.extend([
         "-p",
         str(server.port),
         f"root@{server.host}",
         remote_script(server),
-    ]
+    ])
     result = run(cmd, timeout=timeout)
     stdout = result["stdout"]
     path_rows = []
@@ -187,6 +194,7 @@ def check_server(server: Server, timeout: int) -> dict[str, Any]:
         "name": server.name,
         "role": server.role,
         "endpoint": {"host": server.host, "port": server.port, "ssh": f"root@{server.host}:{server.port}"},
+        "bind_address": bind_address,
         "reachable": result["passed"],
         "hostname": stdout.split("HOSTNAME ", 1)[1].splitlines()[0] if "HOSTNAME " in stdout else "",
         "date_utc": stdout.split("DATE_UTC ", 1)[1].splitlines()[0] if "DATE_UTC " in stdout else "",
@@ -257,6 +265,7 @@ def render_markdown(report: dict[str, Any]) -> str:
                 "",
                 f"- role: `{server['role']}`",
                 f"- endpoint: `ssh -F /dev/null -p {server['endpoint']['port']} root@{server['endpoint']['host']}`",
+                f"- bind address: `{server.get('bind_address') or ''}`",
                 f"- reachable: `{server['reachable']}`",
                 f"- hostname: `{server.get('hostname')}`",
                 f"- GPU: `{gpu_text}`",
@@ -271,11 +280,12 @@ def render_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def build_report(timeout: int) -> dict[str, Any]:
-    servers = [check_server(server, timeout) for server in SERVERS]
+def build_report(timeout: int, bind_address: str = "") -> dict[str, Any]:
+    servers = [check_server(server, timeout, bind_address=bind_address) for server in SERVERS]
     local_artifacts = local_artifact_rows()
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "bind_address": bind_address,
         "servers": servers,
         "local_delivery_artifacts": local_artifacts,
         "all_reachable": all(server["reachable"] for server in servers),
@@ -295,9 +305,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", type=Path, default=ROOT / "route_status_20260610")
     parser.add_argument("--timeout", type=int, default=30)
+    parser.add_argument("--bind-address", default=os.environ.get("BIND_ADDRESS", ""))
     args = parser.parse_args()
 
-    report = build_report(args.timeout)
+    report = build_report(args.timeout, bind_address=args.bind_address)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     json_path = args.output_dir / "infra_readiness_20260611.json"
     md_path = args.output_dir / "infra_readiness_20260611.md"

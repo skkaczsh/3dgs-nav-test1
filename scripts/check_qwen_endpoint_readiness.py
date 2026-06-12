@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -93,21 +94,28 @@ print(json.dumps(result, ensure_ascii=False, indent=2))
 '''
 
 
-def check_server(server: dict[str, Any], max_tokens: int, timeout: int) -> dict[str, Any]:
+def check_server(server: dict[str, Any], max_tokens: int, timeout: int, bind_address: str = "") -> dict[str, Any]:
     cmd = [
         "ssh",
         "-F",
         "/dev/null",
         "-o",
+        "BatchMode=yes",
+        "-o",
         "ConnectTimeout=8",
+    ]
+    if bind_address:
+        cmd.extend(["-o", f"BindAddress={bind_address}"])
+    cmd.extend([
         "-p",
         str(server["port"]),
         f"root@{server['host']}",
         f"python3 - <<'PY'\n{remote_script(server['expected'], max_tokens, timeout)}\nPY",
-    ]
+    ])
     result = run(cmd, timeout=timeout + 20)
     row = {
         "name": server["name"],
+        "bind_address": bind_address,
         "endpoint": {
             "ssh": f"ssh -F /dev/null -p {server['port']} root@{server['host']}",
             "models": "http://127.0.0.1:8001/v1/models",
@@ -157,14 +165,16 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--max-tokens", type=int, default=1024)
     parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--bind-address", default=os.environ.get("BIND_ADDRESS", ""))
     parser.add_argument("--output", type=Path, default=ROOT / "route_status_20260610/qwen_endpoint_readiness_20260611.json")
     parser.add_argument("--markdown", type=Path, default=ROOT / "route_status_20260610/qwen_endpoint_readiness_20260611.md")
     args = parser.parse_args()
 
-    servers = [check_server(server, args.max_tokens, args.timeout) for server in SERVERS]
+    servers = [check_server(server, args.max_tokens, args.timeout, bind_address=args.bind_address) for server in SERVERS]
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "max_tokens": args.max_tokens,
+        "bind_address": args.bind_address,
         "passed": all(row.get("passed") for row in servers),
         "servers": servers,
         "interpretation": {

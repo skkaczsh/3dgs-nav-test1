@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -44,21 +45,25 @@ def run(cmd: list[str], timeout: int = 15) -> dict[str, Any]:
     }
 
 
-def ssh_json(host: str, port: int, script: str, timeout: int = 20) -> dict[str, Any]:
-    result = run(
-        [
-            "ssh",
-            "-F",
-            "/dev/null",
-            "-o",
-            "ConnectTimeout=8",
-            "-p",
-            str(port),
-            f"root@{host}",
-            f"python3 - <<'PY'\n{script}\nPY",
-        ],
-        timeout=timeout,
-    )
+def ssh_json(host: str, port: int, script: str, timeout: int = 20, bind_address: str = "") -> dict[str, Any]:
+    cmd = [
+        "ssh",
+        "-F",
+        "/dev/null",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=8",
+    ]
+    if bind_address:
+        cmd.extend(["-o", f"BindAddress={bind_address}"])
+    cmd.extend([
+        "-p",
+        str(port),
+        f"root@{host}",
+        f"python3 - <<'PY'\n{script}\nPY",
+    ])
+    result = run(cmd, timeout=timeout)
     if not result["passed"]:
         return {"reachable": False, "stderr": result["stderr"][-2000:]}
     try:
@@ -69,7 +74,7 @@ def ssh_json(host: str, port: int, script: str, timeout: int = 20) -> dict[str, 
     return data
 
 
-def remote_status(host: str, port: int) -> dict[str, Any]:
+def remote_status(host: str, port: int, bind_address: str = "") -> dict[str, Any]:
     return ssh_json(
         host,
         port,
@@ -139,6 +144,7 @@ print(json.dumps({
     "color_preflight_1000_1002": color_rows,
 }, indent=2))
 ''',
+        bind_address=bind_address,
     )
 
 
@@ -209,6 +215,7 @@ def main() -> None:
     parser.add_argument("--status-dir", type=Path, default=ROOT / "route_status_20260610")
     parser.add_argument("--output", type=Path, default=ROOT / "route_status_20260610/active_route_progress_20260611.json")
     parser.add_argument("--markdown", type=Path, default=ROOT / "route_status_20260610/active_route_progress_20260611.md")
+    parser.add_argument("--bind-address", default=os.environ.get("BIND_ADDRESS", ""))
     args = parser.parse_args()
 
     route_decision = read_json(args.status_dir / "dense_semantic_route_decision_20260611.json")
@@ -232,8 +239,9 @@ def main() -> None:
             "sample_mode": old_route.get("sample_mode"),
             "fusion_mode": old_route.get("fusion_mode"),
         },
-        "scan_train": remote_status("10.0.8.114", 31909),
-        "scan_vlm": remote_status("10.0.8.114", 31079),
+        "bind_address": args.bind_address,
+        "scan_train": remote_status("10.0.8.114", 31909, bind_address=args.bind_address),
+        "scan_vlm": remote_status("10.0.8.114", 31079, bind_address=args.bind_address),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
