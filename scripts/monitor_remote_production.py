@@ -117,7 +117,17 @@ def parse_log_stats(log_roots):
         for path in sorted(root.glob("*.log")):
             work_dir = path.parent.parent.name
             key = f"{work_dir}/{path.stem}"
-            row = stats.setdefault(key, {"lines": 0, "parse_true": 0, "parse_false": 0, "last_nonempty": ""})
+            row = stats.setdefault(
+                key,
+                {
+                    "lines": 0,
+                    "parse_true": 0,
+                    "parse_false": 0,
+                    "last_nonempty": "",
+                    "mtime": path.stat().st_mtime,
+                },
+            )
+            row["mtime"] = max(row.get("mtime", 0), path.stat().st_mtime)
             try:
                 for line in path.read_text(errors="replace").splitlines():
                     text = line.strip()
@@ -198,8 +208,8 @@ def render_markdown(report: dict[str, Any]) -> str:
             sam2_true = sum(v.get("parse_true", 0) for k, v in log_stats.items() if k.split("/")[-1].startswith("sam2_qwen"))
             sam2_false = sum(v.get("parse_false", 0) for k, v in log_stats.items() if k.split("/")[-1].startswith("sam2_qwen"))
             lines.append(f"- sam2_qwen parse stats: `true={sam2_true}, false={sam2_false}`")
-            active_logs = {
-                k: v.get("last_nonempty", "")
+            active_logs = [
+                (k, v.get("last_nonempty", ""), v.get("mtime", 0))
                 for k, v in sorted(log_stats.items())
                 if v.get("last_nonempty")
                 and (
@@ -207,8 +217,8 @@ def render_markdown(report: dict[str, Any]) -> str:
                     or k.split("/")[-1].startswith("completion")
                     or k.split("/")[-1].startswith("sam2_qwen")
                 )
-            }
-            for key, value in list(active_logs.items())[:12]:
+            ]
+            for key, value, _ in sorted(active_logs, key=lambda item: item[2], reverse=True)[:12]:
                 lines.append(f"- log {key}: `{value}`")
         gpu = server.get("gpu", [])
         for row in gpu:
