@@ -16,6 +16,9 @@ def test_target_refresh_loop_uses_label_records_delta_and_identity_preview():
     assert "FINE_VOXEL_SIZE" in text
     assert "relabel_objects_from_identity.py" in text
     assert "stride_ascii_ply.py" in text
+    assert "LOCK_DIR" in text
+    assert "skip: lock held" in text
+    assert "state remains" in text
 
 
 def test_remote_target_refresh_loop_starts_tmux_and_syncs_scripts():

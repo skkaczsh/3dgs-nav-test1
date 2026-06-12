@@ -12,6 +12,7 @@ COLOR_DIR="${COLOR_DIR:-/root/epfs/new_route_stage1_skymask/output}"
 LOG_DIR="${LOG_DIR:-/root/epfs/new_route_stage1_skymask/logs}"
 STATE_FILE="${STATE_FILE:-${LOG_DIR}/target_object_refresh_${START}_${END}.state}"
 PID_FILE="${PID_FILE:-${LOG_DIR}/target_object_refresh_${START}_${END}.pid}"
+LOCK_DIR="${LOCK_DIR:-${LOG_DIR}/target_object_refresh_${START}_${END}.lock}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-900}"
 MAX_CYCLES="${MAX_CYCLES:-0}"
 MIN_COMPLETION_DELTA="${MIN_COMPLETION_DELTA:-60}"
@@ -42,31 +43,38 @@ read_state() {
 }
 
 run_refresh() {
-  echo "[refresh] target/object fusion output=${TARGET_OUTPUT_DIR}"
-  SEMANTIC_EVAL_DIR="${SEMANTIC_EVAL_DIR}" \
-  COMBO="${COMBO}" \
-  COLOR_DIR="${COLOR_DIR}" \
-  OUTPUT_DIR="${TARGET_OUTPUT_DIR}" \
-  START_FRAME="${START}" \
-  END_FRAME="${END}" \
-  WORK_MODE="semantic-dir" \
-  VOXEL_SIZE="${VOXEL_SIZE}" \
-  SURFACE_VOXEL_SIZE="${SURFACE_VOXEL_SIZE}" \
-  FINE_VOXEL_SIZE="${FINE_VOXEL_SIZE}" \
-  MIN_MERGE_CONFIDENCE="${MIN_MERGE_CONFIDENCE}" \
-  bash "${SCRIPT_DIR}/run_server_target_object_fusion.sh"
+  if ! mkdir "${LOCK_DIR}" 2>/dev/null; then
+    echo "[refresh] skip: lock held at ${LOCK_DIR}"
+    return 75
+  fi
+  (
+    trap 'rm -rf "${LOCK_DIR}"' EXIT
+    echo "[refresh] target/object fusion output=${TARGET_OUTPUT_DIR}"
+    SEMANTIC_EVAL_DIR="${SEMANTIC_EVAL_DIR}" \
+    COMBO="${COMBO}" \
+    COLOR_DIR="${COLOR_DIR}" \
+    OUTPUT_DIR="${TARGET_OUTPUT_DIR}" \
+    START_FRAME="${START}" \
+    END_FRAME="${END}" \
+    WORK_MODE="semantic-dir" \
+    VOXEL_SIZE="${VOXEL_SIZE}" \
+    SURFACE_VOXEL_SIZE="${SURFACE_VOXEL_SIZE}" \
+    FINE_VOXEL_SIZE="${FINE_VOXEL_SIZE}" \
+    MIN_MERGE_CONFIDENCE="${MIN_MERGE_CONFIDENCE}" \
+    bash "${SCRIPT_DIR}/run_server_target_object_fusion.sh"
 
-  python3 "${SCRIPT_DIR}/relabel_objects_from_identity.py" \
-    --objects-jsonl "${TARGET_OUTPUT_DIR}/objects/objects.jsonl" \
-    --output-jsonl "${TARGET_OUTPUT_DIR}/objects/objects_identity_relabel.jsonl" \
-    --report "${TARGET_OUTPUT_DIR}/reports/identity_relabel_report.json" \
-    --input-ply "${TARGET_OUTPUT_DIR}/objects/object_centroids.ply" \
-    --output-ply "${TARGET_OUTPUT_DIR}/objects/object_points_identity_relabel.ply"
+    python3 "${SCRIPT_DIR}/relabel_objects_from_identity.py" \
+      --objects-jsonl "${TARGET_OUTPUT_DIR}/objects/objects.jsonl" \
+      --output-jsonl "${TARGET_OUTPUT_DIR}/objects/objects_identity_relabel.jsonl" \
+      --report "${TARGET_OUTPUT_DIR}/reports/identity_relabel_report.json" \
+      --input-ply "${TARGET_OUTPUT_DIR}/objects/object_centroids.ply" \
+      --output-ply "${TARGET_OUTPUT_DIR}/objects/object_points_identity_relabel.ply"
 
-  python3 "${SCRIPT_DIR}/stride_ascii_ply.py" \
-    "${TARGET_OUTPUT_DIR}/objects/object_points_identity_relabel.ply" \
-    "${TARGET_OUTPUT_DIR}/objects/object_points_identity_relabel_stride${STRIDE}.ply" \
-    --stride "${STRIDE}"
+    python3 "${SCRIPT_DIR}/stride_ascii_ply.py" \
+      "${TARGET_OUTPUT_DIR}/objects/object_points_identity_relabel.ply" \
+      "${TARGET_OUTPUT_DIR}/objects/object_points_identity_relabel_stride${STRIDE}.ply" \
+      --stride "${STRIDE}"
+  )
 }
 
 cycle=0
@@ -83,9 +91,12 @@ while true; do
     write_state "${current_count}"
     echo "[cycle ${cycle}] initialized state without refresh"
   elif [[ "${delta}" -ge "${MIN_COMPLETION_DELTA}" || "${RUN_ON_FIRST}" == "1" ]]; then
-    run_refresh
-    write_state "${current_count}"
-    RUN_ON_FIRST=0
+    if run_refresh; then
+      write_state "${current_count}"
+      RUN_ON_FIRST=0
+    else
+      echo "[cycle ${cycle}] refresh skipped or failed; state remains ${last_count}"
+    fi
   else
     echo "[cycle ${cycle}] skip refresh"
   fi
