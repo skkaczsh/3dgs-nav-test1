@@ -134,6 +134,12 @@ The runner writes Python-compatible artifact names and schema:
 - `{image_id}_numbered.png`
 - `{image_id}_sam_done.flag`
 
+For candidate benchmarks, use `--output-mode uncompressed_rle`. The comparison
+tool can read both the original bool-list `binary_mask` schema and the
+uncompressed RLE schema, while RLE avoids hundreds of MB of JSON per image.
+Use `--output-mode binary_mask` only when testing exact compatibility with
+legacy consumers that directly expect a 2D bool list in `segmentation`.
+
 Current implementation coverage:
 
 - SAM2 image preprocessing: resize to `1024x1024`, RGB, ImageNet mean/std.
@@ -144,14 +150,14 @@ Current implementation coverage:
 - predicted IoU, stability score, area filtering.
 - crop-edge filtering, box NMS, crop NMS, overlap resolution.
 - JSON/overlay/numbered PNG/flag output compatible with downstream consumers.
+- `binary_mask` and `uncompressed_rle` JSON output modes.
 
 Current gaps:
 
 - It has not yet implemented small-region hole/island cleanup equivalent to
   SAM2's CUDA connected-components postprocess.
-- It emits the same bool-list JSON schema as the Python generator, which is
-  compatible but very large. RLE output plus a compatibility converter is the
-  next performance fix.
+- Some downstream scripts still assume bool-list `segmentation`; those should
+  be updated before promoting RLE artifacts into the main semantic pipeline.
 - It is not promoted to the main mask directory until a 20-50 image benchmark
   passes the promotion gates below.
 
@@ -168,9 +174,23 @@ Verified smoke comparison against Python SAM2 on `cam0_002000` to
 - mean unmatched baseline masks: `3.6`
 - elapsed wall time: `95.9 s` for 5 images with compatible bool-list JSON.
 
+Verified RLE benchmark on `cam0_002000` to `cam0_002009`:
+
+- images: `10`
+- mean baseline masks: `22.9`
+- mean candidate masks: `25.5`
+- mean baseline coverage: `0.7005`
+- mean candidate coverage: `0.7290`
+- mean coverage delta: `+0.0285`
+- mean matched IoU: `0.9534`
+- mean unmatched baseline masks: `3.2`
+- mean unmatched candidate masks: `5.8`
+- candidate output directory size including PNG previews: `34 MB`
+
 The high matched IoU means the TensorRT encoder/decoder path is numerically
-close enough for a larger side benchmark. The current runtime is dominated by
-CPU mask upsample/postprocess and large JSON writes, not by TensorRT kernels.
+close enough for a larger side benchmark. With bool-list output, runtime is
+dominated by CPU mask upsample/postprocess and very large JSON writes. RLE
+removes the JSON-size bottleneck for candidate benchmarks.
 
 ## Notes
 

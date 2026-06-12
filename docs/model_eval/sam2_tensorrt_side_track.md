@@ -28,8 +28,9 @@ Candidate implementations:
 
 - Current path: ONNX to TensorRT engines plus a small C++ runtime runner under
   EPFS.
-- Remaining work: optimize CPU post-processing/JSON output, add small-region
-  cleanup parity, and run 20-50 image side-by-side quality benchmark.
+- Remaining work: update downstream consumers for RLE if we want compressed
+  production artifacts, optimize CPU post-processing, and run a 20-50 image
+  side-by-side quality benchmark.
 - Fallback path: Torch-TensorRT with `torch.export` and Dynamo compile if ONNX
   runner completion becomes uneconomical.
 

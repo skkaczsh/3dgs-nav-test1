@@ -8,6 +8,7 @@ CANDIDATE_DIR="${CANDIDATE_DIR:-/root/epfs/sam2_tensorrt/sam_masks_candidate_ben
 REPORT_DIR="${REPORT_DIR:-/root/epfs/sam2_tensorrt/reports}"
 RUNNER="${RUNNER:-/root/epfs/sam2_tensorrt/bin/sam2_trt_amg_runner}"
 RUNNER_SRC="${RUNNER_SRC:-/root/epfs/new_route_tools/sam2_trt_amg_runner.cpp}"
+OUTPUT_MODE="${OUTPUT_MODE:-uncompressed_rle}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 mkdir -p "${CANDIDATE_DIR}" "${REPORT_DIR}"
@@ -21,6 +22,7 @@ CUDA_VISIBLE_DEVICES="${GPU_ID}" "${RUNNER}" \
   --images "${IMAGE_GLOB}" \
   --output-dir "${CANDIDATE_DIR}" \
   --crop-n-layers 1 \
+  --output-mode "${OUTPUT_MODE}" \
   --overwrite
 
 MANIFEST="${REPORT_DIR}/sam2_trt_benchmark_manifest.json"

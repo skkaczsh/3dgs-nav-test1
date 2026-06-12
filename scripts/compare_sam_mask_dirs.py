@@ -55,7 +55,20 @@ def infer_image_ids(baseline_dir: Path, candidate_dir: Path) -> list[str]:
 
 
 def mask_array(mask: dict) -> np.ndarray:
-    arr = np.asarray(mask.get("segmentation"), dtype=bool)
+    segmentation = mask.get("segmentation")
+    if isinstance(segmentation, dict) and "counts" in segmentation and "size" in segmentation:
+        h, w = segmentation["size"]
+        flat = np.empty(int(h) * int(w), dtype=bool)
+        idx = 0
+        parity = False
+        for count in segmentation["counts"]:
+            next_idx = idx + int(count)
+            flat[idx:next_idx] = parity
+            idx = next_idx
+            parity = not parity
+        arr = flat.reshape(int(w), int(h)).T
+    else:
+        arr = np.asarray(segmentation, dtype=bool)
     if arr.ndim != 2:
         raise ValueError(f"segmentation must be 2D, got shape={arr.shape}")
     return arr
@@ -245,4 +258,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

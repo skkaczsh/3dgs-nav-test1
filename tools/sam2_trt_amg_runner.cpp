@@ -1,10 +1,9 @@
 // SAM2 TensorRT automatic-mask runner, production-compatible first cut.
 //
 // This runner writes the same artifact names and JSON schema as
-// pure_sam_mask_generator.py. It implements the full-image AMG point grid
-// path with TensorRT encoder/point-decoder engines. Crop layers are deliberately
-// not enabled yet; keep Python SAM2 as production default until side-by-side
-// quality comparison passes.
+// pure_sam_mask_generator.py. It implements the AMG point grid path with
+// TensorRT encoder/point-decoder engines. Keep Python SAM2 as production
+// default until side-by-side quality comparison passes.
 
 #include <NvInfer.h>
 #include <cuda_runtime_api.h>
@@ -203,6 +202,7 @@ struct Args {
   float crop_nms_thresh = 0.7f;
   int crop_n_layers = 1;
   float crop_overlap_ratio = 512.0f / 1500.0f;
+  std::string output_mode = "binary_mask";
   bool skip_existing = true;
 };
 
@@ -379,9 +379,41 @@ std::vector<Candidate> resolve_overlaps(std::vector<Candidate> masks, int h, int
   return out;
 }
 
+std::vector<int> encode_uncompressed_rle(const std::vector<uint8_t>& mask, int h, int w) {
+  std::vector<int> counts;
+  bool previous = false;
+  int run = 0;
+  bool first = true;
+  for (int x = 0; x < w; ++x) {
+    for (int y = 0; y < h; ++y) {
+      const bool value = mask[static_cast<size_t>(y * w + x)] != 0;
+      if (first) {
+        if (value) {
+          counts.push_back(0);
+          previous = true;
+        } else {
+          previous = false;
+        }
+        run = 1;
+        first = false;
+      } else if (value == previous) {
+        run += 1;
+      } else {
+        counts.push_back(run);
+        run = 1;
+        previous = value;
+      }
+    }
+  }
+  if (!first) {
+    counts.push_back(run);
+  }
+  return counts;
+}
+
 void save_json(const std::string& path, const std::string& image_name,
                const std::string& original_image, const std::vector<Candidate>& masks,
-               int h, int w) {
+               int h, int w, const std::string& output_mode) {
   std::ofstream out(path);
   if (!out) {
     throw std::runtime_error("failed to write " + path);
@@ -399,18 +431,30 @@ void save_json(const std::string& path, const std::string& image_name,
   for (size_t i = 0; i < masks.size(); ++i) {
     const auto& m = masks[i];
     out << "    {\n";
-    out << "      \"segmentation\": [\n";
-    for (int y = 0; y < h; ++y) {
-      out << "        [";
-      for (int x = 0; x < w; ++x) {
-        if (x != 0) {
+    if (output_mode == "uncompressed_rle") {
+      const auto counts = encode_uncompressed_rle(m.mask, h, w);
+      out << "      \"segmentation\": {\"size\": [" << h << ", " << w << "], \"counts\": [";
+      for (size_t j = 0; j < counts.size(); ++j) {
+        if (j != 0) {
           out << ", ";
         }
-        out << (m.mask[static_cast<size_t>(y * w + x)] ? "true" : "false");
+        out << counts[j];
       }
-      out << "]" << (y + 1 == h ? "\n" : ",\n");
+      out << "]},\n";
+    } else {
+      out << "      \"segmentation\": [\n";
+      for (int y = 0; y < h; ++y) {
+        out << "        [";
+        for (int x = 0; x < w; ++x) {
+          if (x != 0) {
+            out << ", ";
+          }
+          out << (m.mask[static_cast<size_t>(y * w + x)] ? "true" : "false");
+        }
+        out << "]" << (y + 1 == h ? "\n" : ",\n");
+      }
+      out << "      ],\n";
     }
-    out << "      ],\n";
     out << "      \"bbox\": [" << m.x0 << ", " << m.y0 << ", " << (m.x1 - m.x0 + 1)
         << ", " << (m.y1 - m.y0 + 1) << "],\n";
     out << "      \"area\": " << m.area << ",\n";
@@ -689,6 +733,8 @@ Args parse_args(int argc, char** argv) {
       args.stability_score_thresh = std::stof(need_value(a));
     } else if (a == "--crop-n-layers") {
       args.crop_n_layers = std::stoi(need_value(a));
+    } else if (a == "--output-mode") {
+      args.output_mode = need_value(a);
     } else if (a == "--overwrite") {
       args.skip_existing = false;
     } else {
@@ -700,6 +746,9 @@ Args parse_args(int argc, char** argv) {
   }
   if (args.points_per_batch != kDecoderBatch) {
     throw std::runtime_error("this build expects --points-per-batch 64 to match decoder engine");
+  }
+  if (args.output_mode != "binary_mask" && args.output_mode != "uncompressed_rle") {
+    throw std::runtime_error("--output-mode must be binary_mask or uncompressed_rle");
   }
   return args;
 }
@@ -747,7 +796,8 @@ int main(int argc, char** argv) {
         }
         save_visuals(bgr, masks, (out_dir / (img_name + "_sam_masks.png")).string(),
                      (out_dir / (img_name + "_numbered.png")).string());
-        save_json(json_path, img_name, basename(image_path), masks, bgr.rows, bgr.cols);
+        save_json(json_path, img_name, basename(image_path), masks, bgr.rows, bgr.cols,
+                  args.output_mode);
         std::ofstream flag(done_path);
         flag << "{\"processed\":true,\"num_masks\":" << masks.size() << "}\n";
         ok += 1;
