@@ -856,6 +856,16 @@ def test_semantic_completion_runner_can_skip_sam2_stage():
     assert "run_shards sam2_qwen" in script
 
 
+def test_downstream_eager_launcher_waits_and_skips_sam2():
+    script = (SCRIPTS / "start_remote_semantic_downstream_eager_1000_1999.sh").read_text(encoding="utf-8")
+
+    assert "BindAddress=${BIND_ADDRESS}" in script
+    assert "FOLLOWUP=1 requires WAIT_FOR_SESSION" in script
+    assert "while tmux has-session -t '${WAIT_FOR_SESSION}'" in script
+    assert "SKIP_SAM2_QWEN=1" in script
+    assert "tmux new-session -d -s" in script
+
+
 def test_dataset_readiness_runner_uses_combined_sam_masks():
     script = (SCRIPTS / "run_server_dataset_readiness.sh").read_text(encoding="utf-8")
     qa_script = (SCRIPTS / "qa_dataset_readiness.py").read_text(encoding="utf-8")
