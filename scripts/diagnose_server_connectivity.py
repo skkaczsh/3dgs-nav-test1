@@ -45,11 +45,19 @@ def ssh_config(host: str) -> dict:
     return cfg
 
 
-def tcp_check(hostname: str, port: int, timeout: float) -> dict:
-    result = {"hostname": hostname, "port": port, "reachable": False, "error": ""}
+def tcp_check(hostname: str, port: int, timeout: float, source_address: str = "") -> dict:
+    result = {
+        "hostname": hostname,
+        "port": port,
+        "source_address": source_address,
+        "reachable": False,
+        "error": "",
+    }
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(timeout)
     try:
+        if source_address:
+            sock.bind((source_address, 0))
         sock.connect((hostname, port))
         result["reachable"] = True
     except OSError as exc:
@@ -74,7 +82,7 @@ def parse_endpoint(value: str) -> dict:
     return {"name": name, "hostname": hostname, "port": port}
 
 
-def diagnose(hosts: list[str], direct_endpoints: Sequence[dict], timeout: float) -> dict:
+def diagnose(hosts: list[str], direct_endpoints: Sequence[dict], timeout: float, source_address: str = "") -> dict:
     ipv4 = local_ipv4()
     local_addresses = {row["address"] for row in ipv4}
     host_reports = []
@@ -83,7 +91,11 @@ def diagnose(hosts: list[str], direct_endpoints: Sequence[dict], timeout: float)
         hostname = cfg.get("hostname", "")
         port = int(cfg.get("port", "22"))
         bind = cfg.get("bindaddress", "")
-        tcp = tcp_check(hostname, port, timeout) if hostname else {"reachable": False, "error": "missing hostname"}
+        tcp = (
+            tcp_check(hostname, port, timeout, source_address=source_address)
+            if hostname
+            else {"reachable": False, "error": "missing hostname"}
+        )
         host_reports.append(
             {
                 "host": host,
@@ -95,12 +107,14 @@ def diagnose(hosts: list[str], direct_endpoints: Sequence[dict], timeout: float)
     direct_reports = [
         {
             "name": row["name"],
-            "tcp": tcp_check(row["hostname"], row["port"], timeout),
+            "tcp": tcp_check(row["hostname"], row["port"], timeout, source_address=source_address),
         }
         for row in direct_endpoints
     ]
     return {
         "local_ipv4": ipv4,
+        "source_address": source_address,
+        "source_address_present_locally": (not source_address) or source_address in local_addresses,
         "hosts": host_reports,
         "direct_endpoints": direct_reports,
         "all_hosts_reachable": all(row["tcp"]["reachable"] for row in host_reports),
@@ -124,10 +138,15 @@ def main() -> None:
         help="Direct TCP endpoints as NAME=HOST:PORT. Defaults to the two scan server forwarded SSH ports.",
     )
     parser.add_argument("--timeout", type=float, default=5.0)
+    parser.add_argument(
+        "--source-address",
+        default="",
+        help="Optional local source address to bind TCP checks to, e.g. Wi-Fi IP 192.168.100.119.",
+    )
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
 
-    report = diagnose(args.hosts, args.direct_endpoints, args.timeout)
+    report = diagnose(args.hosts, args.direct_endpoints, args.timeout, source_address=args.source_address)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

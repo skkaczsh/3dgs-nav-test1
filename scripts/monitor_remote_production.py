@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,7 +15,13 @@ from typing import Any
 ROOT = Path("/Users/skkac/Work/SCAN")
 
 
-def run_ssh_python(port: int, script: str, timeout: int = 20, connect_timeout: int = 6) -> dict[str, Any]:
+def run_ssh_python(
+    port: int,
+    script: str,
+    timeout: int = 20,
+    connect_timeout: int = 6,
+    bind_address: str = "",
+) -> dict[str, Any]:
     cmd = [
         "ssh",
         "-F",
@@ -23,12 +30,16 @@ def run_ssh_python(port: int, script: str, timeout: int = 20, connect_timeout: i
         "BatchMode=yes",
         "-o",
         f"ConnectTimeout={connect_timeout}",
+    ]
+    if bind_address:
+        cmd.extend(["-o", f"BindAddress={bind_address}"])
+    cmd.extend([
         "-p",
         str(port),
         "root@10.0.8.114",
         "python3",
         "-",
-    ]
+    ])
     try:
         proc = subprocess.run(cmd, input=script, text=True, capture_output=True, timeout=timeout, check=False)
     except subprocess.TimeoutExpired as exc:
@@ -139,11 +150,16 @@ print(json.dumps({
 '''
 
 
-def collect() -> dict[str, Any]:
+def collect(bind_address: str = "") -> dict[str, Any]:
     servers = []
     for name, port in [("scan-train", 31909), ("scan-vlm", 31079)]:
-        result = run_ssh_python(port, REMOTE_SCRIPT)
-        row: dict[str, Any] = {"name": name, "port": port, "reachable": result["passed"]}
+        result = run_ssh_python(port, REMOTE_SCRIPT, bind_address=bind_address)
+        row: dict[str, Any] = {
+            "name": name,
+            "port": port,
+            "bind_address": bind_address,
+            "reachable": result["passed"],
+        }
         if result["passed"]:
             try:
                 row.update(json.loads(result["stdout"]))
@@ -156,6 +172,7 @@ def collect() -> dict[str, Any]:
         servers.append(row)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "bind_address": bind_address,
         "range": {"start": 1000, "end": 1999, "images": 3000},
         "servers": servers,
     }
@@ -166,6 +183,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         "# Remote Production Monitor",
         "",
         f"- generated at: `{report.get('generated_at')}`",
+        f"- bind address: `{report.get('bind_address') or ''}`",
         f"- range: `{report.get('range')}`",
         "",
     ]
@@ -211,9 +229,14 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, default=ROOT / "route_status_20260610/remote_production_monitor_20260611.json")
     parser.add_argument("--markdown", type=Path, default=ROOT / "route_status_20260610/remote_production_monitor_20260611.md")
+    parser.add_argument(
+        "--bind-address",
+        default=os.environ.get("BIND_ADDRESS", ""),
+        help="Optional local source address for SSH, for example the Wi-Fi IP when Ethernet has the default route.",
+    )
     args = parser.parse_args()
 
-    report = collect()
+    report = collect(bind_address=args.bind_address)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     args.markdown.write_text(render_markdown(report), encoding="utf-8")
