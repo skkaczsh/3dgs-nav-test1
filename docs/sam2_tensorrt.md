@@ -265,6 +265,34 @@ fixed. Next parity work should compare per-mask geometry on worst frames, with
 focus on low-resolution mask upsampling, bbox edge tests, and crop boundary
 handling rather than further threshold sweeps.
 
+For worst-frame visual inspection, generate union-level extra/missing overlays:
+
+```bash
+/root/epfs/conda_envs/vlm_seg/bin/python \
+  /root/epfs/new_route_scripts/visualize_sam_mask_diff.py \
+  --baseline-dir /root/epfs/new_route_stage1_skymask/sam_masks_2000_2999_combined \
+  --candidate-dir /root/epfs/new_route_stage1_skymask/sam_masks_2000_2999_trt_candidate_rle50_edgefirst \
+  --image-dir /root/epfs/new_route_stage1_skymask/sam2_input_2000_2999 \
+  --output-dir /root/epfs/sam2_tensorrt/reports/mask_diff_worst_edgefirst \
+  --image-id cam0_002039 \
+  --image-id cam0_002045 \
+  --image-id cam0_002005
+```
+
+Color convention: gray means both baseline and candidate cover the pixel,
+magenta means candidate-only extra, and yellow means baseline-only missing.
+The worst frames show very low missing ratios but large candidate-only regions:
+
+- `cam0_002039`: extra `36.55%`, missing `0.09%`.
+- `cam0_002045`: extra `27.26%`, missing `0.37%`.
+- `cam0_002005`: extra `20.91%`, missing `0.12%`.
+
+Visual inspection shows a mixed picture: many extra pixels are plausible large
+surface coverage, while some lie on scene boundaries or background structures.
+Treat Python parity as a regression guard, not as ground truth. A C++ production
+promotion still needs downstream validation with skymask, VLM labels, and point
+projection quality.
+
 ## Notes
 
 - C++ TensorRT is pinned to CUDA 11.8 because `/usr/local/cuda` points to
