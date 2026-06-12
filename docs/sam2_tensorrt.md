@@ -58,3 +58,30 @@ Expected evidence:
 - `pycuda` is intentionally not required. It failed to build against the
   current container CUDA header layout and is not needed for the C++ path.
 
+## Accuracy Comparison Gate
+
+There is not yet a SAM2 model engine or C++ SAM2 runner in this repository.
+The current verified C++/TensorRT artifact is only the base toolchain plus a
+tiny ONNX smoke model. Therefore, a real SAM2 C++ vs Python mask-quality
+comparison cannot be claimed yet.
+
+Once a C++/TensorRT SAM2 runner exists, compare it against the current Python
+baseline with:
+
+```bash
+python3 compare_sam_mask_dirs.py \
+  --baseline-dir /root/epfs/new_route_stage1_skymask/sam_masks_2000_2999_combined \
+  --candidate-dir /root/epfs/sam2_tensorrt/sam_masks_candidate \
+  --manifest /root/epfs/new_route_stage1_skymask/semantic_manifest_2000_2999.json \
+  --limit 50 \
+  --json-output /root/epfs/sam2_tensorrt/reports/python_vs_trt_masks.json \
+  --csv-output /root/epfs/sam2_tensorrt/reports/python_vs_trt_masks.csv
+```
+
+Promotion criteria for replacing the Python SAM2 generator:
+
+- mean matched-mask IoU should be high on the validation sample.
+- coverage delta should be small, especially on ground/wall/railing frames.
+- unmatched baseline masks should not concentrate on thin objects such as
+  railings, pipes, edges, or equipment handles.
+- downstream semantic label records and target/object fusion should not regress.
