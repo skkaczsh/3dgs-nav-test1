@@ -69,6 +69,7 @@ def build_status(args: argparse.Namespace) -> dict[str, Any]:
         "target_root": str(args.target_root),
         "ply": file_info(args.ply),
         "objects_jsonl": file_info(args.objects_jsonl),
+        "xy_preview": file_info(args.xy_preview),
         "target_qa": file_info(args.target_qa),
         "identity_report": file_info(args.identity_report),
         "frames": target_qa.get("frames", {}),
@@ -122,6 +123,8 @@ def render_markdown(status: dict[str, Any]) -> str:
         f"- PLY: `{local['ply']['path']}`",
         f"- PLY exists/bytes/mtime: `{local['ply']['exists']}` / `{local['ply']['bytes']}` / `{local['ply']['mtime_utc']}`",
         f"- objects JSONL: `{local['objects_jsonl']['path']}`",
+        f"- XY preview: `{local['xy_preview']['path']}`",
+        f"- XY preview exists/bytes/mtime: `{local['xy_preview']['exists']}` / `{local['xy_preview']['bytes']}` / `{local['xy_preview']['mtime_utc']}`",
         f"- frames ok/missing: `{frames.get('ok_count')}` / `{frames.get('missing_or_failed_count')}`",
         f"- frame count: `{frames.get('count')}`",
         f"- objects: `{objects.get('count')}`",
@@ -151,6 +154,7 @@ def main() -> None:
     parser.add_argument("--target-root", type=Path, default=target_root)
     parser.add_argument("--ply", type=Path, default=target_root / "objects/object_points_identity_relabel_stride10.ply")
     parser.add_argument("--objects-jsonl", type=Path, default=target_root / "objects/objects_identity_relabel.jsonl")
+    parser.add_argument("--xy-preview", type=Path, default=target_root / "previews/object_points_identity_relabel_stride10_xy.png")
     parser.add_argument("--target-qa", type=Path, default=target_root / "reports/target_object_qa.json")
     parser.add_argument("--identity-report", type=Path, default=target_root / "reports/identity_relabel_report.json")
     parser.add_argument("--remote-monitor", type=Path, default=root / "route_status_20260610/remote_production_monitor_20260611.json")
