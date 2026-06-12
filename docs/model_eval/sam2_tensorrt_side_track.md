@@ -58,6 +58,9 @@ Promotion gates:
 - Runtime improvement is material on end-to-end mask generation, not just model
   forward time.
 - Mask coverage and thin-object recall do not regress.
+- Candidate coverage should not systematically exceed the Python baseline by a
+  large margin; the current 20-image RLE benchmark is `+0.0499`, with a worst
+  frame at `+0.2083`, so NMS/overlap tuning is still required before promotion.
 - Downstream target/object label distribution does not degrade.
 - Output filenames and JSON schema remain compatible with the existing
   `sam_masks_1000_1999_combined` consumers.

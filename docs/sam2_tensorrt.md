@@ -187,6 +187,25 @@ Verified RLE benchmark on `cam0_002000` to `cam0_002009`:
 - mean unmatched candidate masks: `5.8`
 - candidate output directory size including PNG previews: `34 MB`
 
+Verified RLE benchmark on `cam0_002000` to `cam0_002019`:
+
+- images: `20`
+- mean baseline masks: `27.6`
+- mean candidate masks: `31.9`
+- mean baseline coverage: `0.6659`
+- mean candidate coverage: `0.7158`
+- mean coverage delta: `+0.0499`
+- mean matched IoU: `0.9469`
+- mean unmatched baseline masks: `3.2`
+- mean unmatched candidate masks: `7.5`
+- candidate output directory size including PNG previews: `65 MB`
+
+The 20-image benchmark confirms model-level alignment, but it also shows that
+the TensorRT AMG candidate is more permissive than the Python baseline. The
+worst observed frame was `cam0_002005`, where candidate coverage was `+0.2083`
+above baseline. Next tuning should focus on crop/candidate NMS and overlap
+resolution rather than encoder/decoder export.
+
 The high matched IoU means the TensorRT encoder/decoder path is numerically
 close enough for a larger side benchmark. With bool-list output, runtime is
 dominated by CPU mask upsample/postprocess and very large JSON writes. RLE
