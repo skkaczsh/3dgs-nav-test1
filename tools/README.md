@@ -8,7 +8,7 @@ Run:
 
 ```bash
 cd /Users/skkac/Work/SCAN/new_route
-python3 -m http.server 8765
+bash scripts/start_semantic_ply_viewer.sh
 ```
 
 Open:
@@ -26,6 +26,8 @@ Supported drag-and-drop inputs:
 Useful local files:
 
 ```text
+/Users/skkac/Work/SCAN/server_target_object_fusion_1000_1999_surface024_fine012/objects/object_points_identity_relabel_stride10.ply
+/Users/skkac/Work/SCAN/server_target_object_fusion_1000_1999_surface024_fine012/objects/objects_identity_relabel.jsonl
 /Users/skkac/Work/SCAN/server_resume_target_object_fusion_0000_0999/objects/objects.jsonl
 /Users/skkac/Work/SCAN/server_target_object_existing_completion_0000_0999/object_points.ply
 ```
