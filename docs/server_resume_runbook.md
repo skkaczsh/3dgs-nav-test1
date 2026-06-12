@@ -246,6 +246,24 @@ GPU0 SAM2 process advances in sorted order. This reduces the chance of two
 workers writing the same mask at the same time. The generator also checks
 `*_sam_done.flag` inside each worker, so accidental overlap is recoverable.
 
+When connectivity returns after an offline period, first pull the latest
+1000-1999 target/object artifacts without rerunning server computation:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+bash scripts/pull_increment_1000_1999_target_results.sh
+```
+
+The pull script checks the remote `label_records` count, target refresh state,
+and target/object file metadata, then syncs the relabeled PLY, objects JSONL,
+and reports into:
+
+- `/Users/skkac/Work/SCAN/server_target_object_fusion_1000_1999_surface024_fine012`
+- `/Users/skkac/Work/SCAN/route_status_20260610/increment_1000_1999_status_20260612.md`
+
+Use this before deciding whether to manually trigger a target refresh. Do not
+replace the local viewer artifact from stale remote state.
+
 ## Manual Review Fallback
 
 If Qwen remains unavailable, use the packaged human review bundle:
