@@ -225,6 +225,46 @@ close enough for a larger side benchmark. With bool-list output, runtime is
 dominated by CPU mask upsample/postprocess and very large JSON writes. RLE
 removes the JSON-size bottleneck for candidate benchmarks.
 
+## Python AMG Trace Parity
+
+Use the official Python SAM2 trace runner when C++ output drifts from the
+Python baseline:
+
+```bash
+CUDA_VISIBLE_DEVICES=1 /root/epfs/conda_envs/vlm_seg/bin/python \
+  /root/epfs/new_route_scripts/trace_python_sam2_amg.py \
+  --images "/root/epfs/sam2_tensorrt/trace_worst3_input/*.png" \
+  --output-dir /root/epfs/sam2_tensorrt/python_trace_worst3 \
+  --crop-n-layers 1 \
+  --crop-nms-thresh 0.7
+```
+
+The `cam0_002005`, `cam0_002039`, `cam0_002045` worst-frame trace showed that
+the final mask count is already close between Python and C++:
+
+- Python official + project overlap resolution: mean final masks `33.3`.
+- C++ trace before any edge-order experiment: mean final masks `33.3`.
+
+Therefore the current promotion blocker is not a count-level failure. The
+remaining production issue is mask geometry/coverage parity: the C++ candidate
+keeps high matched-mask IoU, but systematically over-covers some frames.
+
+An experiment moving crop-edge filtering before within-crop NMS, matching the
+official Python order, was tested on the 50-image gate. It did not improve the
+promotion metrics:
+
+- status: `fail`
+- mean matched IoU: `0.9474`
+- mean coverage delta: `+0.0883`
+- mean unmatched baseline masks: `5.56`
+- mean unmatched candidate masks: `9.22`
+- worst frame: `cam0_002039`, coverage delta `+0.3646`
+
+Do not promote the C++ runner over Python SAM2 until the coverage drift is
+fixed. Next parity work should compare per-mask geometry on worst frames, with
+focus on low-resolution mask upsampling, bbox edge tests, and crop boundary
+handling rather than further threshold sweeps.
+
 ## Notes
 
 - C++ TensorRT is pinned to CUDA 11.8 because `/usr/local/cuda` points to
