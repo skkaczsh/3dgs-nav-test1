@@ -14,8 +14,21 @@ from typing import Any
 ROOT = Path("/Users/skkac/Work/SCAN")
 
 
-def run_ssh_python(port: int, script: str, timeout: int = 20) -> dict[str, Any]:
-    cmd = ["ssh", "-F", "/dev/null", "-p", str(port), "root@10.0.8.114", "python3", "-"]
+def run_ssh_python(port: int, script: str, timeout: int = 20, connect_timeout: int = 6) -> dict[str, Any]:
+    cmd = [
+        "ssh",
+        "-F",
+        "/dev/null",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        f"ConnectTimeout={connect_timeout}",
+        "-p",
+        str(port),
+        "root@10.0.8.114",
+        "python3",
+        "-",
+    ]
     try:
         proc = subprocess.run(cmd, input=script, text=True, capture_output=True, timeout=timeout, check=False)
     except subprocess.TimeoutExpired as exc:
