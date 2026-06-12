@@ -293,6 +293,40 @@ Treat Python parity as a regression guard, not as ground truth. A C++ production
 promotion still needs downstream validation with skymask, VLM labels, and point
 projection quality.
 
+## Downstream Semantic Smoke
+
+Use the downstream smoke runner to validate that a C++/TensorRT mask directory
+can be consumed by the existing semantic route:
+
+```bash
+cd /root/epfs/new_route_scripts
+MANIFEST=/root/epfs/new_route_stage1_skymask/semantic_manifest_2000_2999.json \
+SAM_MASK_SOURCE=/root/epfs/new_route_stage1_skymask/sam_masks_2000_2999_trt_candidate_rle50 \
+OUTPUT_DIR=/root/epfs/sam2_tensorrt/semantic_eval_rle50_default_downstream10_cam0 \
+FILTER_PREFIX=cam0_ \
+LIMIT=10 \
+SHARDS=4 \
+CHUNK_SIZE=4 \
+VLM_ENDPOINT=http://localhost:8001/v1/chat/completions \
+bash ./run_server_sam2_trt_semantic_smoke.sh
+```
+
+Verified on scan-vlm with Qwen `-np 4`:
+
+- linked C++ RLE masks: `10/10`
+- `sam2_qwen`: `10/10`
+- `sam2_sky_label_merge_qwen_review`: `10/10`
+- `sam2_prompt_v3_sky_label_merge`: `10/10`
+- `sam2_prompt_v3_sky_label_merge_completion`: `10/10`
+- completion label records: `145`
+- top completion labels: `equipment=61`, `floor=42`, `building=20`,
+  `ignore=20`, `pipe=1`, `railing=1`
+
+This proves the C++ RLE artifacts are operationally compatible with the current
+semantic pipeline. It does not yet prove semantic quality is better than the
+Python SAM2 route; the high `equipment` count and large-surface coverage need
+visual QA and point-projection QA before promotion.
+
 ## Notes
 
 - C++ TensorRT is pinned to CUDA 11.8 because `/usr/local/cuda` points to
