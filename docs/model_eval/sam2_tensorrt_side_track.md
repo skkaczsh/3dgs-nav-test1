@@ -16,6 +16,9 @@ Current decision:
   automatic mask generation pipeline.
 - Encoder and point-decoder ONNX export now work, and both subgraphs build FP16
   TensorRT engines that execute from a C++ runtime smoke runner.
+- A first C++ AMG runner now writes Python-compatible mask artifacts for
+  full-image plus `crop_n_layers=1` testing. It is not yet promoted to main
+  production.
 - Treat it as an optimization side track, not a model-quality fix.
 - The expected bottleneck must be measured end to end. Python mask generation,
   crop/point sampling, JSON I/O, Qwen review, and target/object fusion can
@@ -25,8 +28,8 @@ Candidate implementations:
 
 - Current path: ONNX to TensorRT engines plus a small C++ runtime runner under
   EPFS.
-- Remaining work: implement dense AMG point-grid/crop/mask filtering/NMS/RLE
-  around the TensorRT encoder and point decoder.
+- Remaining work: optimize CPU post-processing/JSON output, add small-region
+  cleanup parity, and run 20-50 image side-by-side quality benchmark.
 - Fallback path: Torch-TensorRT with `torch.export` and Dynamo compile if ONNX
   runner completion becomes uneconomical.
 

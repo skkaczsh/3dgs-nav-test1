@@ -100,6 +100,78 @@ Current trtexec smoke performance on scan-train GPU0:
 - encoder: about `53 qps`, mean GPU compute about `18.8 ms`
 - decoder batch 64: about `84 qps`, mean GPU compute about `11.8 ms`
 
+## C++ AMG Runner
+
+The current production-shaped runner is:
+
+- source: `tools/sam2_trt_amg_runner.cpp`
+- remote binary:
+  `/root/epfs/sam2_tensorrt/bin/sam2_trt_amg_runner`
+
+Build it on scan-train with:
+
+```bash
+cd /root/epfs/new_route_scripts
+SRC=/root/epfs/new_route_tools/sam2_trt_amg_runner.cpp \
+OUT=/root/epfs/sam2_tensorrt/bin/sam2_trt_amg_runner \
+./build_sam2_tensorrt_runner.sh
+```
+
+Run an isolated candidate sample:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 /root/epfs/sam2_tensorrt/bin/sam2_trt_amg_runner \
+  --images "/root/epfs/new_route_stage1_skymask/sam2_input_2000_2999/cam0_00200[0-4].png" \
+  --output-dir /root/epfs/sam2_tensorrt/sam_masks_candidate_smoke5 \
+  --crop-n-layers 1 \
+  --overwrite
+```
+
+The runner writes Python-compatible artifact names and schema:
+
+- `{image_id}_sam_masks.json`
+- `{image_id}_sam_masks.png`
+- `{image_id}_numbered.png`
+- `{image_id}_sam_done.flag`
+
+Current implementation coverage:
+
+- SAM2 image preprocessing: resize to `1024x1024`, RGB, ImageNet mean/std.
+- full-image and `crop_n_layers=1` crop boxes.
+- `points_per_side=32`, `points_per_batch=64`.
+- TensorRT encoder and point decoder execution.
+- bilinear mask upsample to original image size.
+- predicted IoU, stability score, area filtering.
+- crop-edge filtering, box NMS, crop NMS, overlap resolution.
+- JSON/overlay/numbered PNG/flag output compatible with downstream consumers.
+
+Current gaps:
+
+- It has not yet implemented small-region hole/island cleanup equivalent to
+  SAM2's CUDA connected-components postprocess.
+- It emits the same bool-list JSON schema as the Python generator, which is
+  compatible but very large. RLE output plus a compatibility converter is the
+  next performance fix.
+- It is not promoted to the main mask directory until a 20-50 image benchmark
+  passes the promotion gates below.
+
+Verified smoke comparison against Python SAM2 on `cam0_002000` to
+`cam0_002004`:
+
+- images: `5`
+- mean baseline masks: `30.4`
+- mean candidate masks: `32.8`
+- mean baseline coverage: `0.8062`
+- mean candidate coverage: `0.8120`
+- mean coverage delta: `+0.0058`
+- mean matched IoU: `0.9663`
+- mean unmatched baseline masks: `3.6`
+- elapsed wall time: `95.9 s` for 5 images with compatible bool-list JSON.
+
+The high matched IoU means the TensorRT encoder/decoder path is numerically
+close enough for a larger side benchmark. The current runtime is dominated by
+CPU mask upsample/postprocess and large JSON writes, not by TensorRT kernels.
+
 ## Notes
 
 - C++ TensorRT is pinned to CUDA 11.8 because `/usr/local/cuda` points to
@@ -111,12 +183,11 @@ Current trtexec smoke performance on scan-train GPU0:
 
 ## Accuracy Comparison Gate
 
-There are now SAM2 encoder/point-decoder TensorRT engines and a C++ smoke
-runner. This is still not a full replacement for the Python dense automatic
-mask generator because AMG point-grid sampling, crop logic, mask thresholding,
-NMS/RLE, and JSON output compatibility are not implemented in C++ yet.
-Therefore, a real SAM2 C++ vs Python mask-quality comparison cannot be claimed
-until the TensorRT path writes compatible `*_sam_masks.json` artifacts.
+There are now SAM2 encoder/point-decoder TensorRT engines, a C++ smoke runner,
+and a production-shaped C++ AMG runner that writes compatible
+`*_sam_masks.json` artifacts. This is still a side-track candidate until the
+larger benchmark proves that thin-object recall and downstream target/object
+quality do not regress.
 
 Once the C++/TensorRT AMG runner writes candidate masks, compare it against the
 current Python baseline with:
