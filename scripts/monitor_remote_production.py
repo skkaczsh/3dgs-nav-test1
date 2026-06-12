@@ -195,13 +195,18 @@ def render_markdown(report: dict[str, Any]) -> str:
             lines.append("- counts: `" + json.dumps(counts, ensure_ascii=False) + "`")
         log_stats = server.get("log_stats") or {}
         if log_stats:
-            sam2_true = sum(v.get("parse_true", 0) for k, v in log_stats.items() if k.startswith("sam2_qwen"))
-            sam2_false = sum(v.get("parse_false", 0) for k, v in log_stats.items() if k.startswith("sam2_qwen"))
+            sam2_true = sum(v.get("parse_true", 0) for k, v in log_stats.items() if k.split("/")[-1].startswith("sam2_qwen"))
+            sam2_false = sum(v.get("parse_false", 0) for k, v in log_stats.items() if k.split("/")[-1].startswith("sam2_qwen"))
             lines.append(f"- sam2_qwen parse stats: `true={sam2_true}, false={sam2_false}`")
             active_logs = {
                 k: v.get("last_nonempty", "")
                 for k, v in sorted(log_stats.items())
-                if v.get("last_nonempty") and (k.startswith("review") or k.startswith("completion") or k.startswith("sam2_qwen"))
+                if v.get("last_nonempty")
+                and (
+                    k.split("/")[-1].startswith("review")
+                    or k.split("/")[-1].startswith("completion")
+                    or k.split("/")[-1].startswith("sam2_qwen")
+                )
             }
             for key, value in list(active_logs.items())[:12]:
                 lines.append(f"- log {key}: `{value}`")
