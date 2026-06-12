@@ -26,6 +26,7 @@ MAX_TOKENS="${MAX_TOKENS:-4096}"
 SHARDS="${SHARDS:-4}"
 WORK_DIR="${WORK_DIR:-${OUTPUT_DIR}/_sharded_work}"
 LOG_DIR="${LOG_DIR:-${WORK_DIR}/logs}"
+SKIP_SAM2_QWEN="${SKIP_SAM2_QWEN:-0}"
 
 mkdir -p "${SAM_MASKS_DIR}" "${OUTPUT_DIR}" "${WORK_DIR}" "${LOG_DIR}"
 
@@ -97,22 +98,26 @@ dst.write_text(json.dumps({"items": items}, ensure_ascii=False, indent=2), encod
 print(f"wrote={dst} items={len(items)}")
 PY
 
-echo "[2/5] Running missing sam2_qwen with ${SHARDS} shards"
-SAM2_MISSING="${WORK_DIR}/missing_sam2_qwen.json"
-python3 "${SCRIPT_DIR}/filter_missing_semantic_manifest.py" \
-  --manifest "${BASE_MANIFEST}" \
-  --output-dir "${OUTPUT_DIR}" \
-  --combo sam2_qwen \
-  --output "${SAM2_MISSING}" \
-  > "${LOG_DIR}/missing_sam2_qwen.json"
-run_shards sam2_qwen "${SAM2_MISSING}" "${RUN_EVAL}" \
-  --output-dir "${OUTPUT_DIR}" \
-  --sam-masks-dir "${SAM_MASKS_DIR}" \
-  --vlm-endpoint "${VLM_ENDPOINT}" \
-  --vlm-model "${VLM_MODEL}" \
-  --vlm-chunk-size "${CHUNK_SIZE}" \
-  --vlm-max-tokens "${MAX_TOKENS}" \
-  --combos sam2_qwen
+if [[ "${SKIP_SAM2_QWEN}" == "1" ]]; then
+  echo "[2/5] SKIP_SAM2_QWEN=1; using existing sam2_qwen artifacts as downstream sources"
+else
+  echo "[2/5] Running missing sam2_qwen with ${SHARDS} shards"
+  SAM2_MISSING="${WORK_DIR}/missing_sam2_qwen.json"
+  python3 "${SCRIPT_DIR}/filter_missing_semantic_manifest.py" \
+    --manifest "${BASE_MANIFEST}" \
+    --output-dir "${OUTPUT_DIR}" \
+    --combo sam2_qwen \
+    --output "${SAM2_MISSING}" \
+    > "${LOG_DIR}/missing_sam2_qwen.json"
+  run_shards sam2_qwen "${SAM2_MISSING}" "${RUN_EVAL}" \
+    --output-dir "${OUTPUT_DIR}" \
+    --sam-masks-dir "${SAM_MASKS_DIR}" \
+    --vlm-endpoint "${VLM_ENDPOINT}" \
+    --vlm-model "${VLM_MODEL}" \
+    --vlm-chunk-size "${CHUNK_SIZE}" \
+    --vlm-max-tokens "${MAX_TOKENS}" \
+    --combos sam2_qwen
+fi
 
 echo "[3/5] Merging missing adjacent SAM2 labels with ${SHARDS} shards"
 MERGE_MISSING="${WORK_DIR}/missing_sam2_sky_label_merge_qwen_review.json"

@@ -848,6 +848,14 @@ def test_semantic_completion_runner_shards_merge_stage():
     assert "run_shards merge" in script
 
 
+def test_semantic_completion_runner_can_skip_sam2_stage():
+    script = (SCRIPTS / "run_server_semantic_completion_sharded.sh").read_text(encoding="utf-8")
+
+    assert "SKIP_SAM2_QWEN" in script
+    assert "using existing sam2_qwen artifacts as downstream sources" in script
+    assert "run_shards sam2_qwen" in script
+
+
 def test_dataset_readiness_runner_uses_combined_sam_masks():
     script = (SCRIPTS / "run_server_dataset_readiness.sh").read_text(encoding="utf-8")
     qa_script = (SCRIPTS / "qa_dataset_readiness.py").read_text(encoding="utf-8")
