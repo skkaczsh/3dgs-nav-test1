@@ -14,7 +14,11 @@ server state as authority when numbers differ.
 
 ## Server Layout
 
-- SSH option for both servers: `ssh -o BindAddress=192.168.100.113`.
+- Prefer direct endpoints while local SSH aliases contain stale bind addresses:
+  `scan-train = root@10.0.8.114 -p 31909`, `scan-vlm = root@10.0.8.114 -p
+  31079`.
+- On the 2026-06-12 local network, bind traffic to Wi-Fi with
+  `BIND_ADDRESS=192.168.100.119` / `ssh -o BindAddress=192.168.100.119`.
 - `scan-vlm`
   - Qwen VL: `localhost:8001`, `-np 4`.
   - Split A semantic runner.
@@ -133,7 +137,7 @@ Expected:
 Refresh semantic split progress:
 
 ```bash
-ssh -o BindAddress=192.168.100.113 scan-vlm 'python3 /root/epfs/new_route_scripts/qa_semantic_splits.py \
+ssh -F /dev/null -o BindAddress=192.168.100.119 -p 31079 root@10.0.8.114 'python3 /root/epfs/new_route_scripts/qa_semantic_splits.py \
   --split a /root/epfs/new_route_stage1_skymask/semantic_manifest_ready_a_current.json /root/epfs/manifold_3dgs_project/processed/semantic_eval_new_route_0000_0999_a \
   --split b /root/epfs/new_route_stage1_skymask/semantic_manifest_ready_b_current.json /root/epfs/manifold_3dgs_project/processed/semantic_eval_new_route_0000_0999_b \
   --split c /root/epfs/new_route_stage1_skymask/semantic_manifest_ready_c_current.json /root/epfs/manifold_3dgs_project/processed/semantic_eval_new_route_0000_0999_c \
@@ -144,11 +148,11 @@ ssh -o BindAddress=192.168.100.113 scan-vlm 'python3 /root/epfs/new_route_script
 Check scan-train runners:
 
 ```bash
-ssh -o BindAddress=192.168.100.113 scan-train 'ps -p 38162,38163,37840,38004,36685 -o pid,etime,pcpu,stat,cmd || true; pstree -ap 38162; pstree -ap 38163; nvidia-smi'
+ssh -F /dev/null -o BindAddress=192.168.100.119 -p 31909 root@10.0.8.114 'tmux ls || true; nvidia-smi'
 ```
 
 Check scan-vlm watcher:
 
 ```bash
-ssh -o BindAddress=192.168.100.113 scan-vlm 'ps -p 14227,14007,13816 -o pid,etime,pcpu,stat,cmd || true; tail -n 20 /root/epfs/new_route_stage1_skymask/logs/watch_semantic_to_fusion.log'
+ssh -F /dev/null -o BindAddress=192.168.100.119 -p 31079 root@10.0.8.114 'pgrep -af "run_server_semantic_completion_sharded|llama-server" || true; nvidia-smi'
 ```

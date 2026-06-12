@@ -7,6 +7,9 @@ delivery verification.
 
 - Latest verified route: `ssh -p 31909 root@10.0.8.114` for `scan-train`.
 - Latest verified route: `ssh -p 31079 root@10.0.8.114` for `scan-vlm`.
+- On the 2026-06-12 local network, the default route to `10.0.8.114` used the
+  wired adapter. Bind SSH traffic to Wi-Fi with `BIND_ADDRESS=192.168.100.119`
+  or `ssh -o BindAddress=192.168.100.119 ...`.
 - If an explicit `BindAddress` fails after a network change, omit it first and
   verify the direct SSH route before editing keys or scripts.
 - For repeated SSH work, use `tmux` on the remote host and avoid restarting
@@ -40,6 +43,7 @@ keys or restarting remote sessions:
 
 ```bash
 python3 scripts/diagnose_server_connectivity.py \
+  --source-address 192.168.100.119 \
   --timeout 3 \
   --output /Users/skkac/Work/SCAN/route_status_20260610/server_connectivity_diagnosis_20260612.json
 ```
@@ -127,9 +131,9 @@ Run after server connectivity returns:
 ```bash
 cd /Users/skkac/Work/SCAN/new_route
 
-# If the old bind address is active again, omit BIND_ADDRESS.
-# If using the current wlan address, set BIND_ADDRESS=192.168.0.3.
-BIND_ADDRESS=192.168.0.3 \
+# If the current Wi-Fi address changes, rerun diagnose_server_connectivity.py
+# and replace BIND_ADDRESS.
+BIND_ADDRESS=192.168.100.119 \
 SERVER=scan-train \
 CONCURRENCY=4 \
 bash scripts/resume_server_qwen_review.sh
@@ -175,6 +179,37 @@ bash scripts/run_server_semantic_completion_sharded.sh
 
 Set `PATCH_SCENE_PROMPTS=0` only when intentionally reproducing the older
 prompt baseline.
+
+For the current 1000-1999 increment, use the split launcher so the two servers
+do not write the same semantic artifacts:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+
+BIND_ADDRESS=192.168.100.119 \
+START=1000 \
+END=1999 \
+SPLIT_FRAME=1500 \
+START_QWEN=0 \
+bash scripts/start_remote_semantic_completion_split_1000_1999.sh
+```
+
+This maps the 3000-item three-camera manifest as:
+
+- `scan-train`: frames `1000-1499`, manifest indices `0-1499`, session
+  `semantic_completion_1000_1999_head`.
+- `scan-vlm`: frames `1500-1999`, manifest indices `1500-2999`, nohup/tmux
+  session `semantic_completion_1000_1999_tail_vlm`.
+
+Set `START_QWEN=1` only after confirming no active runner is using the current
+Qwen endpoints. The default leaves existing `localhost:8001` servers untouched
+to avoid interrupting in-flight requests.
+
+The target/object refresh loop for 1000-1999 is intentionally coarse-grained:
+it checks every `SLEEP_SECONDS=900` and refreshes only when
+`label_records - state >= MIN_COMPLETION_DELTA`, default `60`. Use
+`BIND_ADDRESS=192.168.100.119 bash scripts/pull_increment_1000_1999_target_results.sh`
+after the refresh state advances.
 
 For incremental `scan-vlm` catch-up runs, use:
 

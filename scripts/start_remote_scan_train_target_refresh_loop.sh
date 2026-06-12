@@ -4,6 +4,8 @@ set -euo pipefail
 SSH_HOST="${SSH_HOST:-10.0.8.114}"
 SSH_PORT="${SSH_PORT:-31909}"
 SSH_USER="${SSH_USER:-root}"
+BIND_ADDRESS="${BIND_ADDRESS:-}"
+CONNECT_TIMEOUT="${CONNECT_TIMEOUT:-8}"
 LOCAL_SCRIPT_DIR="${LOCAL_SCRIPT_DIR:-/Users/skkac/Work/SCAN/new_route/scripts}"
 REMOTE_SCRIPT_DIR="${REMOTE_SCRIPT_DIR:-/root/epfs/new_route_scripts}"
 TAR_BIN="${TAR_BIN:-bsdtar}"
@@ -19,7 +21,10 @@ MIN_COMPLETION_DELTA="${MIN_COMPLETION_DELTA:-60}"
 RUN_ON_FIRST="${RUN_ON_FIRST:-0}"
 
 ssh_target="${SSH_USER}@${SSH_HOST}"
-ssh_opts=(-F /dev/null -p "${SSH_PORT}")
+ssh_opts=(-F /dev/null -o BatchMode=yes -o "ConnectTimeout=${CONNECT_TIMEOUT}" -p "${SSH_PORT}")
+if [[ -n "${BIND_ADDRESS}" ]]; then
+  ssh_opts+=("-o" "BindAddress=${BIND_ADDRESS}")
+fi
 
 COPYFILE_DISABLE=1 "${TAR_BIN}" --no-xattrs -C "${LOCAL_SCRIPT_DIR}" --exclude='__pycache__' --exclude='._*' -cf - . \
   | ssh "${ssh_opts[@]}" "${ssh_target}" "mkdir -p '${REMOTE_SCRIPT_DIR}' && tar -C '${REMOTE_SCRIPT_DIR}' -xf - && chmod +x '${REMOTE_SCRIPT_DIR}'/*.sh"
