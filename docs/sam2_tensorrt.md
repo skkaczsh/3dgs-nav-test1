@@ -262,3 +262,50 @@ Promotion criteria for replacing the Python SAM2 generator:
 - unmatched baseline masks should not concentrate on thin objects such as
   railings, pipes, edges, or equipment handles.
 - downstream semantic label records and target/object fusion should not regress.
+
+## Production Candidate Runner
+
+Use `run_server_sam2_trt_production.sh` for production-shaped candidate output.
+It writes `uncompressed_rle` JSON by default and patches
+`semantic_eval/run_eval.py` with `patch_semantic_eval_rle_masks.py` so the
+existing VLM, merge, completion, and artifact-writing path can decode compact
+RLE masks. This avoids duplicating the current hundreds-of-GB bool-list SAM2
+mask cache.
+
+Example 20-image validation run:
+
+```bash
+START=2000 END=2999 \
+IMAGE_GLOB='/root/epfs/new_route_stage1_skymask/sam2_input_2000_2999/cam0_0020[0-1][0-9].png' \
+OUTPUT_DIR=/root/epfs/new_route_stage1_skymask/sam_masks_2000_2999_trt_candidate_20 \
+REPORT_DIR=/root/epfs/sam2_tensorrt/reports/production_2000_2999_20 \
+BASELINE_DIR=/root/epfs/new_route_stage1_skymask/sam_masks_2000_2999_combined \
+bash run_server_sam2_trt_production.sh
+```
+
+The script runs:
+
+- Optional semantic-eval RLE loader patch when `OUTPUT_MODE=uncompressed_rle`.
+- C++ TensorRT AMG candidate generation.
+- Candidate manifest generation.
+- Optional baseline comparison when `BASELINE_DIR` is set.
+- `gate_sam2_trt_promotion.py`, which fails nonzero if the candidate exceeds
+  configured drift thresholds.
+
+Default promotion gate thresholds:
+
+- `mean_matched_iou >= 0.93`
+- `abs(mean_coverage_delta) <= 0.06`
+- `abs(row coverage_delta) <= 0.25`
+- `mean_unmatched_baseline_masks <= 4.0`
+- `mean_unmatched_candidate_masks <= 8.0`
+
+If the gate passes, the candidate directory is eligible for downstream
+semantic-eval smoke testing. It still should not replace
+`sam_masks_${START}_${END}_combined` until target/object QA on the same frame
+range is at least neutral against the Python baseline.
+
+Set `OUTPUT_MODE=binary_mask` only for strict legacy compatibility checks. That
+mode is disk-expensive: observed Python baseline bool-list masks are already
+hundreds of MB per image, and the full `2000-2999` combined cache is hundreds of
+GB.
