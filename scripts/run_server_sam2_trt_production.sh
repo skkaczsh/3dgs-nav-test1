@@ -77,15 +77,15 @@ CUDA_VISIBLE_DEVICES="${GPU_ID}" "${RUNNER}" "${runner_args[@]}" \
   2>"${REPORT_DIR}/sam2_trt_runner.stderr.log"
 
 echo "[2/4] writing production manifest"
-python3 - "${INPUT_DIR}" "${OUTPUT_DIR}" "${REPORT_DIR}/sam2_trt_production_manifest.json" <<'PY'
+python3 - "${IMAGE_GLOB}" "${OUTPUT_DIR}" "${REPORT_DIR}/sam2_trt_production_manifest.json" <<'PY'
+import glob
 import json
 import sys
 from pathlib import Path
 
-input_dir = Path(sys.argv[1])
 output_dir = Path(sys.argv[2])
 manifest = Path(sys.argv[3])
-images = sorted(input_dir.glob("*.png"))
+images = [Path(p) for p in sorted(glob.glob(sys.argv[1]))]
 items = []
 missing = []
 for image in images:
@@ -95,7 +95,7 @@ for image in images:
     else:
         missing.append(image_id)
 report = {
-    "input_dir": str(input_dir),
+    "image_glob": sys.argv[1],
     "output_dir": str(output_dir),
     "images": len(images),
     "candidate_masks": len(items),

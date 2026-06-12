@@ -309,3 +309,35 @@ Set `OUTPUT_MODE=binary_mask` only for strict legacy compatibility checks. That
 mode is disk-expensive: observed Python baseline bool-list masks are already
 hundreds of MB per image, and the full `2000-2999` combined cache is hundreds of
 GB.
+
+Verified production-shaped RLE smoke on `cam0_002000` to `cam0_002009`:
+
+- candidate dir:
+  `/root/epfs/new_route_stage1_skymask/sam_masks_2000_2999_trt_candidate_rle10`
+- output size: `34 MB` for 10 images.
+- gate status: `pass`
+- mean matched IoU: `0.9539`
+- mean coverage delta: `+0.0283`
+- mean unmatched baseline masks: `3.1`
+- mean unmatched candidate masks: `5.2`
+- downstream RLE smoke:
+  `/root/epfs/sam2_tensorrt/semantic_eval_rle_smoke10`, two images reached
+  `sam2_qwen` artifact generation through `semantic_eval/run_eval.py`.
+
+Verified wider production-shaped RLE test on `cam0_002000` to `cam0_002049`:
+
+- candidate dir:
+  `/root/epfs/new_route_stage1_skymask/sam_masks_2000_2999_trt_candidate_rle50`
+- output size: `168 MB` for 50 images.
+- gate status: `fail`
+- mean matched IoU: `0.9474`
+- mean coverage delta: `+0.0841`
+- mean unmatched baseline masks: `5.54`
+- mean unmatched candidate masks: `9.08`
+- worst coverage delta: `+0.3646` on `cam0_002039`.
+
+Interpretation: TensorRT encoder/decoder alignment is acceptable, but the C++
+AMG postprocessing is still too permissive on a wider sample. Keep Python SAM2
+as the production mask source until stricter C++ AMG parameters or postprocess
+parity reduce over-coverage. A stricter 50-image run with
+`PRED_IOU_THRESH=0.75` is the next candidate to evaluate.
