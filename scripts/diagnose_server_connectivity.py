@@ -8,6 +8,7 @@ import json
 import socket
 import subprocess
 from pathlib import Path
+from typing import Sequence
 
 
 def run(cmd: list[str], timeout: float = 10.0) -> tuple[int, str, str]:
@@ -58,7 +59,22 @@ def tcp_check(hostname: str, port: int, timeout: float) -> dict:
     return result
 
 
-def diagnose(hosts: list[str], timeout: float) -> dict:
+def parse_endpoint(value: str) -> dict:
+    name, _, endpoint = value.partition("=")
+    if not endpoint:
+        name = value
+        endpoint = value
+    hostname, _, port_text = endpoint.rpartition(":")
+    if not hostname or not port_text:
+        raise argparse.ArgumentTypeError(f"endpoint must be NAME=HOST:PORT or HOST:PORT, got {value!r}")
+    try:
+        port = int(port_text)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"invalid endpoint port in {value!r}") from exc
+    return {"name": name, "hostname": hostname, "port": port}
+
+
+def diagnose(hosts: list[str], direct_endpoints: Sequence[dict], timeout: float) -> dict:
     ipv4 = local_ipv4()
     local_addresses = {row["address"] for row in ipv4}
     host_reports = []
@@ -76,21 +92,42 @@ def diagnose(hosts: list[str], timeout: float) -> dict:
                 "bind_address_present_locally": (not bind) or bind in local_addresses,
             }
         )
+    direct_reports = [
+        {
+            "name": row["name"],
+            "tcp": tcp_check(row["hostname"], row["port"], timeout),
+        }
+        for row in direct_endpoints
+    ]
     return {
         "local_ipv4": ipv4,
         "hosts": host_reports,
-        "all_reachable": all(row["tcp"]["reachable"] for row in host_reports),
+        "direct_endpoints": direct_reports,
+        "all_hosts_reachable": all(row["tcp"]["reachable"] for row in host_reports),
+        "all_direct_endpoints_reachable": all(row["tcp"]["reachable"] for row in direct_reports),
+        "all_reachable": all(row["tcp"]["reachable"] for row in host_reports)
+        and all(row["tcp"]["reachable"] for row in direct_reports),
     }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--hosts", nargs="+", default=["scan-train", "scan-vlm"])
+    parser.add_argument(
+        "--direct-endpoints",
+        nargs="+",
+        type=parse_endpoint,
+        default=[
+            {"name": "scan-train-direct", "hostname": "10.0.8.114", "port": 31909},
+            {"name": "scan-vlm-direct", "hostname": "10.0.8.114", "port": 31079},
+        ],
+        help="Direct TCP endpoints as NAME=HOST:PORT. Defaults to the two scan server forwarded SSH ports.",
+    )
     parser.add_argument("--timeout", type=float, default=5.0)
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
 
-    report = diagnose(args.hosts, args.timeout)
+    report = diagnose(args.hosts, args.direct_endpoints, args.timeout)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -35,6 +35,19 @@ python3 scripts/check_next_increment_readiness.py
 python3 scripts/prepare_parallel_execution_queue.py
 ```
 
+When server connectivity is unclear, run the diagnostic before changing SSH
+keys or restarting remote sessions:
+
+```bash
+python3 scripts/diagnose_server_connectivity.py \
+  --timeout 3 \
+  --output /Users/skkac/Work/SCAN/route_status_20260610/server_connectivity_diagnosis_20260612.json
+```
+
+The report compares SSH aliases with direct `10.0.8.114` TCP endpoints. If a
+configured `BindAddress` is stale but the direct endpoints are also timed out,
+treat it as a network/routing issue rather than a key or script issue.
+
 This writes:
 
 - `/Users/skkac/Work/SCAN/route_status_20260610/infra_readiness_20260611.json`
