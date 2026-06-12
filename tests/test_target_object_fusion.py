@@ -1,3 +1,4 @@
+import argparse
 import importlib.util
 import json
 import sys
@@ -1116,13 +1117,60 @@ def test_diagnose_server_connectivity_marks_missing_bind(monkeypatch):
         return 1, "", "unexpected"
 
     monkeypatch.setattr(module, "run", fake_run)
-    monkeypatch.setattr(module, "tcp_check", lambda hostname, port, timeout: {"hostname": hostname, "port": port, "reachable": False, "error": "timeout"})
+    monkeypatch.setattr(
+        module,
+        "tcp_check",
+        lambda hostname, port, timeout, source_address="": {
+            "hostname": hostname,
+            "port": port,
+            "reachable": False,
+            "error": "timeout",
+        },
+    )
 
-    report = module.diagnose(["scan-train"], timeout=1.0)
+    report = module.diagnose(["scan-train"], [], timeout=1.0)
 
     assert report["all_reachable"] is False
     assert report["hosts"][0]["bind_address_present_locally"] is False
     assert report["hosts"][0]["tcp"]["error"] == "timeout"
+
+
+def test_check_next_increment_readiness_uses_bind_address(monkeypatch):
+    module = load_module(SCRIPTS / "check_next_increment_readiness.py", "next_increment_readiness_for_repo_test")
+    seen = {}
+
+    def fake_run(cmd, timeout):
+        seen["cmd"] = cmd
+        return {
+            "passed": True,
+            "stdout": json.dumps(
+                {
+                    "status": "ready_for_target_object_fusion",
+                    "ratios": {},
+                    "missing_samples": {},
+                }
+            ),
+            "stderr": "",
+            "returncode": 0,
+        }
+
+    monkeypatch.setattr(module, "run", fake_run)
+    args = argparse.Namespace(
+        host="10.0.8.114",
+        port=31909,
+        user="root",
+        bind_address="192.168.100.119",
+        start=1000,
+        end=1999,
+        combo="sam2_prompt_v3_sky_label_merge_completion",
+        timeout=30,
+    )
+
+    report = module.check_remote(args)
+
+    assert report["passed"] is True
+    assert "BindAddress=192.168.100.119" in seen["cmd"]
+    assert report["ssh"]["bind_address"] == "192.168.100.119"
 
 
 def test_summarize_route_status_renders_blocker_and_side_tracks(tmp_path):

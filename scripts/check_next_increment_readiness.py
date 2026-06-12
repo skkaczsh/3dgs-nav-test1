@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -173,11 +174,15 @@ def check_remote(args: argparse.Namespace) -> dict[str, Any]:
         "/dev/null",
         "-o",
         f"ConnectTimeout={min(args.timeout, 10)}",
+    ]
+    if args.bind_address:
+        cmd.extend(["-o", f"BindAddress={args.bind_address}"])
+    cmd.extend([
         "-p",
         str(args.port),
         f"{args.user}@{args.host}",
         f"python3 - <<'PY'\n{remote_python(args.start, args.end, args.combo)}\nPY",
-    ]
+    ])
     result = run(cmd, args.timeout)
     if not result["passed"]:
         return {
@@ -196,7 +201,12 @@ def check_remote(args: argparse.Namespace) -> dict[str, Any]:
         "ready_for_color_sam_semantic_generation",
         "ready_for_target_object_fusion",
     }
-    report["ssh"] = {"host": args.host, "port": args.port, "user": args.user}
+    report["ssh"] = {
+        "host": args.host,
+        "port": args.port,
+        "user": args.user,
+        "bind_address": args.bind_address,
+    }
     return report
 
 
@@ -228,6 +238,7 @@ def main() -> None:
     parser.add_argument("--host", default="10.0.8.114")
     parser.add_argument("--port", type=int, default=31909)
     parser.add_argument("--user", default="root")
+    parser.add_argument("--bind-address", default=os.environ.get("BIND_ADDRESS"))
     parser.add_argument("--start", type=int, default=1000)
     parser.add_argument("--end", type=int, default=1999)
     parser.add_argument("--combo", default="sam2_prompt_v3_sky_label_merge_completion")

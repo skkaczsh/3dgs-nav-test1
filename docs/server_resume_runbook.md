@@ -22,7 +22,8 @@ The local remote wrappers now support direct endpoints, so prefer this form
 while SSH aliases have stale `BindAddress` values:
 
 ```bash
-SSH_HOST=10.0.8.114 SSH_PORT=31909 SSH_USER=root SERVER=scan-train \
+BIND_ADDRESS=192.168.100.119 \
+  SSH_HOST=10.0.8.114 SSH_PORT=31909 SSH_USER=root SERVER=scan-train \
   bash scripts/run_remote_server_target_object_fusion.sh
 ```
 
@@ -31,10 +32,10 @@ Regenerate the current server/task queue before starting new work:
 ```bash
 cd /Users/skkac/Work/SCAN/new_route
 
-python3 scripts/check_infra_readiness.py
+BIND_ADDRESS=192.168.100.119 python3 scripts/check_infra_readiness.py
 python3 scripts/prepare_visual_acceptance_review.py
 python3 scripts/validate_visual_acceptance_review.py
-python3 scripts/check_next_increment_readiness.py
+BIND_ADDRESS=192.168.100.119 python3 scripts/check_next_increment_readiness.py
 python3 scripts/prepare_parallel_execution_queue.py
 ```
 
