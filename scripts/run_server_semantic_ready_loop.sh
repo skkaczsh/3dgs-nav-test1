@@ -22,6 +22,10 @@ WAIT_SESSION="${WAIT_SESSION:-semantic_${START}_${END}_ready}"
 
 mkdir -p "${LOG_DIR}"
 
+log() {
+  printf '[%s] %s\n' "$(date '+%F %T')" "$*"
+}
+
 count_items() {
   python3 - "$1" <<'PY'
 import json
@@ -37,7 +41,7 @@ count_completion() {
 }
 
 while tmux has-session -t "${WAIT_SESSION}" 2>/dev/null; do
-  echo "[wait] existing semantic session still running: ${WAIT_SESSION}"
+  log "[wait] existing semantic session still running: ${WAIT_SESSION}"
   sleep 30
 done
 
@@ -58,31 +62,33 @@ while true; do
 
   ready_count="$(count_items "${READY_MANIFEST}")"
   done_count="$(count_completion)"
-  echo "[cycle ${cycle}] ready=${ready_count} completed=${done_count}"
+  log "[cycle ${cycle}] ready=${ready_count} completed=${done_count}"
 
   if [[ "${ready_count}" -gt "${done_count}" ]]; then
-    MANIFEST="${READY_MANIFEST}" \
-    OUTPUT_DIR="${OUTPUT_DIR}" \
-    SAM_MASKS_DIR="${LINKED_SAM_DIR}" \
-    EXISTING_SAM_DIR="${SAM_MASKS_DIR}" \
-    PART0="${SAM_MASKS_DIR}" \
-    PART1="${SAM_MASKS_DIR}" \
-    START_INDEX=0 \
-    END_INDEX="${ready_count}" \
-    SHARDS="${SHARDS}" \
-    CHUNK_SIZE="${CHUNK_SIZE}" \
-    MAX_TOKENS="${MAX_TOKENS}" \
-    PATCH_SCENE_PROMPTS="${PATCH_SCENE_PROMPTS}" \
-    bash "${SCRIPT_DIR}/run_server_semantic_completion_sharded.sh"
+    if ! MANIFEST="${READY_MANIFEST}" \
+      OUTPUT_DIR="${OUTPUT_DIR}" \
+      SAM_MASKS_DIR="${LINKED_SAM_DIR}" \
+      EXISTING_SAM_DIR="${SAM_MASKS_DIR}" \
+      PART0="${SAM_MASKS_DIR}" \
+      PART1="${SAM_MASKS_DIR}" \
+      START_INDEX=0 \
+      END_INDEX="${ready_count}" \
+      SHARDS="${SHARDS}" \
+      CHUNK_SIZE="${CHUNK_SIZE}" \
+      MAX_TOKENS="${MAX_TOKENS}" \
+      PATCH_SCENE_PROMPTS="${PATCH_SCENE_PROMPTS}" \
+      bash "${SCRIPT_DIR}/run_server_semantic_completion_sharded.sh"; then
+      log "[error] semantic completion child failed; will retry after sleep"
+    fi
   fi
 
   done_count="$(count_completion)"
   if [[ "${done_count}" -ge "$(((END - START + 1) * 3))" ]]; then
-    echo "[done] all semantic images completed: ${done_count}"
+    log "[done] all semantic images completed: ${done_count}"
     break
   fi
   if [[ "${MAX_CYCLES}" -gt 0 && "${cycle}" -ge "${MAX_CYCLES}" ]]; then
-    echo "[stop] reached MAX_CYCLES=${MAX_CYCLES}"
+    log "[stop] reached MAX_CYCLES=${MAX_CYCLES}"
     break
   fi
   sleep "${SLEEP_SECONDS}"
