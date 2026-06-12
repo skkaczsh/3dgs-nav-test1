@@ -336,8 +336,26 @@ Verified wider production-shaped RLE test on `cam0_002000` to `cam0_002049`:
 - mean unmatched candidate masks: `9.08`
 - worst coverage delta: `+0.3646` on `cam0_002039`.
 
+Additional 50-image tuning results:
+
+- `PRED_IOU_THRESH=0.75`:
+  - gate status: `fail`
+  - mean matched IoU: `0.9479`
+  - mean coverage delta: `+0.0764`
+  - mean unmatched baseline masks: `6.38`
+  - mean unmatched candidate masks: `8.48`
+  - worst coverage delta: `+0.3536` on `cam0_002039`
+- `CROP_N_LAYERS=0`:
+  - gate status: `fail`
+  - mean matched IoU: `0.9352`
+  - mean coverage delta: `-0.0104`
+  - mean unmatched baseline masks: `12.6`
+  - mean unmatched candidate masks: `2.74`
+
 Interpretation: TensorRT encoder/decoder alignment is acceptable, but the C++
-AMG postprocessing is still too permissive on a wider sample. Keep Python SAM2
-as the production mask source until stricter C++ AMG parameters or postprocess
-parity reduce over-coverage. A stricter 50-image run with
-`PRED_IOU_THRESH=0.75` is the next candidate to evaluate.
+AMG postprocessing is not production-equivalent yet. Raising `pred_iou_thresh`
+reduces over-coverage only slightly and increases missed baseline masks. Turning
+off crops removes most mean over-coverage but misses too many masks. Therefore
+the next production task is crop/uncrop/NMS parity with Python SAM2 AMG, not
+more blind threshold sweeps. Keep Python SAM2 as the production mask source
+until C++ postprocessing parity passes the 50-image promotion gate.
