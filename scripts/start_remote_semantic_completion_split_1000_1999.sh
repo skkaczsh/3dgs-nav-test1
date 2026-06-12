@@ -27,6 +27,7 @@ MAX_TOKENS="${MAX_TOKENS:-4096}"
 QWEN_PORT="${QWEN_PORT:-8001}"
 QWEN_PARALLEL="${QWEN_PARALLEL:-4}"
 START_QWEN="${START_QWEN:-0}"
+STOP_VLM_EXTRA_LOOP="${STOP_VLM_EXTRA_LOOP:-1}"
 PATCH_SCENE_PROMPTS_HEAD="${PATCH_SCENE_PROMPTS_HEAD:-1}"
 PATCH_SCENE_PROMPTS_TAIL="${PATCH_SCENE_PROMPTS_TAIL:-0}"
 
@@ -142,6 +143,25 @@ echo "started_pid=$(cat "${PID_FILE}")"
 REMOTE
 }
 
+stop_vlm_extra_loop() {
+  ssh_opts_for_port "${VLM_PORT}"
+  ssh "${SSH_OPTS[@]}" "${ssh_target}" 'bash -s' <<'REMOTE'
+set -euo pipefail
+mapfile -t pids < <(pgrep -f '[r]un_server_vlm_extra_loop.sh|[_]sharded_work_vlm_extra' || true)
+if [[ "${#pids[@]}" -eq 0 ]]; then
+  echo "vlm_extra_loop=not_running"
+  exit 0
+fi
+echo "stopping_vlm_extra_loop=${pids[*]}"
+kill "${pids[@]}" 2>/dev/null || true
+sleep 5
+mapfile -t remaining < <(pgrep -f '[r]un_server_vlm_extra_loop.sh|[_]sharded_work_vlm_extra' || true)
+if [[ "${#remaining[@]}" -gt 0 ]]; then
+  kill -9 "${remaining[@]}" 2>/dev/null || true
+fi
+REMOTE
+}
+
 echo "[1/4] syncing scripts to scan-train and scan-vlm"
 sync_scripts "${TRAIN_PORT}"
 sync_scripts "${VLM_PORT}"
@@ -157,6 +177,11 @@ if [[ "${START_QWEN}" == "1" ]]; then
   start_qwen "${VLM_PORT}" 0 "scan_vlm"
 else
   echo "[2/4] leaving existing Qwen endpoints untouched; set START_QWEN=1 for a fresh launch"
+fi
+
+if [[ "${STOP_VLM_EXTRA_LOOP}" == "1" ]]; then
+  echo "[2/post] stopping old scan-vlm extra loop before split tail starts"
+  stop_vlm_extra_loop
 fi
 
 echo "[3/4] starting scan-train head runner ${START}-$((SPLIT_FRAME - 1))"

@@ -205,6 +205,13 @@ Set `START_QWEN=1` only after confirming no active runner is using the current
 Qwen endpoints. The default leaves existing `localhost:8001` servers untouched
 to avoid interrupting in-flight requests.
 
+The split launcher defaults to `STOP_VLM_EXTRA_LOOP=1`, because the older
+`run_server_vlm_extra_loop.sh` also uses scan-vlm `localhost:8001` with four
+clients. Running both the extra loop and the split tail runner oversubscribes
+the Qwen `-np 4` endpoint and can produce long stalls or HTTP 503s. The extra
+loop wrapper now refuses to start while a sharded completion runner is active
+unless `ALLOW_WITH_SPLIT_RUNNER=1` is explicitly set.
+
 The target/object refresh loop for 1000-1999 is intentionally coarse-grained:
 it checks every `SLEEP_SECONDS=900` and refreshes only when
 `label_records - state >= MIN_COMPLETION_DELTA`, default `60`. Use

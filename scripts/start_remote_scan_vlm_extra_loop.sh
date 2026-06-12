@@ -19,6 +19,7 @@ SLEEP_SECONDS="${SLEEP_SECONDS:-180}"
 MAX_CYCLES="${MAX_CYCLES:-0}"
 MAX_ITEMS_PER_CYCLE="${MAX_ITEMS_PER_CYCLE:-24}"
 MIN_SAM_AGE_SECONDS="${MIN_SAM_AGE_SECONDS:-30}"
+ALLOW_WITH_SPLIT_RUNNER="${ALLOW_WITH_SPLIT_RUNNER:-0}"
 
 ssh_target="${SSH_USER}@${SSH_HOST}"
 ssh_opts=(-F /dev/null -o BatchMode=yes -o "ConnectTimeout=${CONNECT_TIMEOUT}" -p "${SSH_PORT}")
@@ -39,10 +40,16 @@ ssh "${ssh_opts[@]}" "${ssh_target}" \
   MAX_CYCLES="${MAX_CYCLES}" \
   MAX_ITEMS_PER_CYCLE="${MAX_ITEMS_PER_CYCLE}" \
   MIN_SAM_AGE_SECONDS="${MIN_SAM_AGE_SECONDS}" \
+  ALLOW_WITH_SPLIT_RUNNER="${ALLOW_WITH_SPLIT_RUNNER}" \
   REMOTE_SCRIPT_DIR="${REMOTE_SCRIPT_DIR}" \
   'bash -s' <<'REMOTE'
 set -euo pipefail
 mkdir -p "${LOG_DIR}"
+if [[ "${ALLOW_WITH_SPLIT_RUNNER}" != "1" ]] && pgrep -f '[r]un_server_semantic_completion_sharded.sh|[_]sharded_work_vlm_tail' >/dev/null 2>&1; then
+  echo "refusing_to_start_vlm_extra_loop=split_runner_active"
+  echo "set ALLOW_WITH_SPLIT_RUNNER=1 only after confirming Qwen capacity and non-overlapping outputs"
+  exit 2
+fi
 if command -v tmux >/dev/null 2>&1; then
   if tmux has-session -t "${SESSION_NAME}" 2>/dev/null; then
     echo "already_running_session=${SESSION_NAME}"
