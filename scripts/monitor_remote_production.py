@@ -133,10 +133,7 @@ def parse_log_stats(log_roots):
     return stats
 
 
-log_stats = parse_log_stats([
-    out / "_sharded_work" / "logs",
-    out / "_sharded_work_vlm_extra" / "logs",
-])
+log_stats = parse_log_stats(sorted(out.glob("_sharded_work*/logs")))
 
 print(json.dumps({
     "hostname": socket.gethostname(),
