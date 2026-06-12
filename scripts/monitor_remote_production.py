@@ -115,7 +115,8 @@ def parse_log_stats(log_roots):
         if not root.exists():
             continue
         for path in sorted(root.glob("*.log")):
-            key = path.stem
+            work_dir = path.parent.parent.name
+            key = f"{work_dir}/{path.stem}"
             row = stats.setdefault(key, {"lines": 0, "parse_true": 0, "parse_false": 0, "last_nonempty": ""})
             try:
                 for line in path.read_text(errors="replace").splitlines():
