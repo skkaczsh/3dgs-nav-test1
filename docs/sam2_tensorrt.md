@@ -359,3 +359,53 @@ off crops removes most mean over-coverage but misses too many masks. Therefore
 the next production task is crop/uncrop/NMS parity with Python SAM2 AMG, not
 more blind threshold sweeps. Keep Python SAM2 as the production mask source
 until C++ postprocessing parity passes the 50-image promotion gate.
+
+## Parity Diagnosis
+
+`analyze_sam_mask_parity.py` adds a failure diagnosis layer on top of the
+promotion gate. It reports union extra/missing pixels and unmatched-mask area
+distributions.
+
+Default 50-image RLE candidate:
+
+- mean coverage delta: `+0.0841`
+- mean extra pixel ratio: `0.0948`
+- mean missing pixel ratio: `0.0108`
+- mean union IoU: `0.8553`
+- mean unmatched baseline area ratio: `0.0624`
+- mean unmatched candidate area ratio: `0.1847`
+- worst extra-pixel rows include `cam0_002039`, `cam0_002045`,
+  `cam0_002038`, `cam0_002027`, and `cam0_002035`.
+
+`CROP_N_LAYERS=0` 50-image candidate:
+
+- mean coverage delta: `-0.0104`
+- mean extra pixel ratio: `0.0217`
+- mean missing pixel ratio: `0.0321`
+- mean union IoU: `0.9165`
+- mean unmatched baseline area ratio: `0.0513`
+- mean unmatched candidate area ratio: `0.0189`
+
+This isolates the primary failure:
+
+- Full crop mode creates too much extra candidate area.
+- No-crop mode removes most extra area but misses too many baseline masks.
+- The target is not "disable crops"; it is Python SAM2 crop parity.
+
+Relevant Python SAM2 ordering in
+`sam2/automatic_mask_generator.py`:
+
+1. For each crop, run point-grid batches through `SAM2ImagePredictor`.
+2. Filter by predicted IoU and stability.
+3. Threshold logits, compute boxes, and drop boxes near crop edges.
+4. Compress crop masks to RLE and return to original image frame.
+5. Run within-crop box NMS scored by `iou_preds`.
+6. Run cross-crop box NMS scored by `1 / crop_box_area`.
+7. In this project wrapper, run project-level overlap resolution by
+   `predicted_iou * stability_score`.
+
+The C++ runner should be changed against that ordered checklist before another
+large sweep. The next concrete implementation target is to add parity traces
+for per-crop candidate counts, crop-edge drops, within-crop NMS keeps, and
+cross-crop NMS keeps, then adjust the C++ crop path until the 50-image
+diagnosis no longer shows large unmatched candidate area.
