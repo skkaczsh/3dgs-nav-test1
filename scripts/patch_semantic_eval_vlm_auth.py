@@ -57,6 +57,11 @@ def vlm_post(requests_module, endpoint: str, payload: dict, timeout: int):
     retries = int(os.environ.get("VLM_RETRIES", "2"))
     sleep_base = float(os.environ.get("VLM_RETRY_SLEEP", "5"))
     retry_statuses = {429, 500, 502, 503, 504}
+    extra_statuses = os.environ.get("VLM_RETRY_STATUS_CODES", "")
+    for raw_status in extra_statuses.split(","):
+        raw_status = raw_status.strip()
+        if raw_status:
+            retry_statuses.add(int(raw_status))
     last_exc = None
     for attempt in range(retries + 1):
         try:
@@ -106,7 +111,9 @@ def patch_text(text: str) -> tuple[str, bool]:
         use_idx = text.find("apply_vlm_payload_options(payload)")
         needs_payload_helper = apply_idx == -1 or (use_idx != -1 and apply_idx > use_idx)
         needs_post_helper = post_idx == -1
-    if "def vlm_post(" in text and "VLM HTTP" not in text:
+    if "def vlm_post(" in text and (
+        "VLM HTTP" not in text or "VLM_RETRY_STATUS_CODES" not in text
+    ):
         updated, count = re.subn(
             r"\n\ndef vlm_post\(requests_module, endpoint: str, payload: dict, timeout: int\):.*?raise RuntimeError\(\"VLM request failed without response\"\)",
             POST_HELPER,
