@@ -16,6 +16,8 @@ SAM_MASKS_DIR="${SAM_MASKS_DIR:-/root/epfs/new_route_stage1_skymask/sam_masks_00
 EXISTING_SAM_DIR="${EXISTING_SAM_DIR:-/root/epfs/manifold_3dgs_project/processed/sam_masks}"
 PART0="${PART0:-/root/epfs/new_route_stage1_skymask/sam_masks_0000_0999_part0}"
 PART1="${PART1:-/root/epfs/new_route_stage1_skymask/sam_masks_0000_0999_part1}"
+SAM_SOURCE_DIRS="${SAM_SOURCE_DIRS:-}"
+REQUIRE_SAM_JSON="${REQUIRE_SAM_JSON:-0}"
 
 VLM_ENDPOINT="${VLM_ENDPOINT:-http://localhost:8001/v1/chat/completions}"
 VLM_MODEL="${VLM_MODEL:-Qwen3.6-35B-A3B-Q4_K_M}"
@@ -23,6 +25,7 @@ START_INDEX="${START_INDEX:-0}"
 END_INDEX="${END_INDEX:-3000}"
 CHUNK_SIZE="${CHUNK_SIZE:-10}"
 MAX_TOKENS="${MAX_TOKENS:-4096}"
+VLM_TIMEOUT="${VLM_TIMEOUT:-180}"
 SHARDS="${SHARDS:-4}"
 WORK_DIR="${WORK_DIR:-${OUTPUT_DIR}/_sharded_work}"
 LOG_DIR="${LOG_DIR:-${WORK_DIR}/logs}"
@@ -72,12 +75,32 @@ run_shards() {
 }
 
 echo "[1/5] Linking SAM2 masks into ${SAM_MASKS_DIR}"
+source_args=()
+if [[ -n "${SAM_SOURCE_DIRS}" ]]; then
+  IFS=':' read -r -a source_dirs <<< "${SAM_SOURCE_DIRS}"
+  for source_dir in "${source_dirs[@]}"; do
+    if [[ -n "${source_dir}" ]]; then
+      source_args+=(--source-dir "${source_dir}")
+    fi
+  done
+else
+  # Prefer new-route/generated SAM2 masks over legacy processed/sam_masks. The
+  # legacy directory may be in a different image coordinate system.
+  source_args+=(--source-dir "${PART0}")
+  source_args+=(--source-dir "${PART1}")
+  if [[ -n "${EXISTING_SAM_DIR}" ]]; then
+    source_args+=(--source-dir "${EXISTING_SAM_DIR}")
+  fi
+fi
+require_json_args=()
+if [[ "${REQUIRE_SAM_JSON}" == "1" ]]; then
+  require_json_args+=(--require-json)
+fi
 python3 "${SCRIPT_DIR}/link_sam_masks_by_manifest.py" \
   --manifest "${MANIFEST}" \
   --output-dir "${SAM_MASKS_DIR}" \
-  --source-dir "${EXISTING_SAM_DIR}" \
-  --source-dir "${PART0}" \
-  --source-dir "${PART1}" \
+  "${source_args[@]}" \
+  "${require_json_args[@]}" \
   --start-index "${START_INDEX}" \
   --end-index "${END_INDEX}" \
   --report "${SAM_MASKS_DIR}/link_report_${START_INDEX}_${END_INDEX}.json"
@@ -114,6 +137,7 @@ else
     --sam-masks-dir "${SAM_MASKS_DIR}" \
     --vlm-endpoint "${VLM_ENDPOINT}" \
     --vlm-model "${VLM_MODEL}" \
+    --vlm-timeout "${VLM_TIMEOUT}" \
     --vlm-chunk-size "${CHUNK_SIZE}" \
     --vlm-max-tokens "${MAX_TOKENS}" \
     --combos sam2_qwen
@@ -148,6 +172,7 @@ run_shards review "${REVIEW_MISSING}" "${REVIEW_SCRIPT}" \
   --output-combo sam2_prompt_v3_sky_label_merge \
   --vlm-endpoint "${VLM_ENDPOINT}" \
   --vlm-model "${VLM_MODEL}" \
+  --vlm-timeout "${VLM_TIMEOUT}" \
   --vlm-max-tokens "${MAX_TOKENS}"
 
 echo "[4/post] Extracting structured review label records"
@@ -172,6 +197,7 @@ run_shards completion "${COMPLETION_MISSING}" "${COMPLETION_SCRIPT}" \
   --output-combo sam2_prompt_v3_sky_label_merge_completion \
   --vlm-endpoint "${VLM_ENDPOINT}" \
   --vlm-model "${VLM_MODEL}" \
+  --vlm-timeout "${VLM_TIMEOUT}" \
   --vlm-max-tokens "${MAX_TOKENS}"
 
 echo "[post] Extracting structured label records"
