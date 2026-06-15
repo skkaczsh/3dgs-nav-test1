@@ -330,6 +330,10 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
     target_is_surface_label = target.get("label") in SURFACE_LABELS
     obj_surface_labels = set(obj.get("label_votes", {}).keys()) & SURFACE_LABELS
     surface_cross_label = strict_surface_labels and target_is_surface_label and bool(obj_surface_labels) and not same_label
+    surface_same_label = same_label and target_is_surface_label and bool(obj_surface_labels)
+    surface_near = centroid_dist <= args.surface_centroid_distance or bbox_dist <= args.surface_bbox_distance
+    surface_color_ok = color_dist <= args.surface_color_distance
+    surface_normal_ok = normal_angle <= args.surface_normal_angle
     near = centroid_dist <= args.centroid_distance or bbox_dist <= args.bbox_distance
     color_ok = color_dist <= args.color_distance
     normal_ok = normal_angle <= args.normal_angle
@@ -345,6 +349,9 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
     if same_label and near and color_ok and normal_ok and quality_ok and identity_ok:
         merge = True
         reason = "same_label_geometry_color"
+    elif surface_same_label and surface_near and surface_color_ok and surface_normal_ok and quality_ok:
+        merge = True
+        reason = "same_surface_label_relaxed"
     elif overlap and (same_label or (same_parent and not surface_cross_label)) and color_ok and not quality["mixed_blocks_merge"] and identity_ok:
         merge = True
         reason = "point_overlap"
@@ -367,6 +374,8 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
         "identity_gate_used": use_identity_gate,
         "identity_ok": identity_ok,
         "surface_cross_label_blocked": surface_cross_label,
+        "surface_same_label": surface_same_label,
+        "surface_near": surface_near,
         "overlap": overlap,
         "target_confidence": quality["confidence"],
         "target_mixed": quality["mixed"],
@@ -564,6 +573,10 @@ def main() -> None:
     parser.add_argument("--bbox-distance", type=float, default=0.35)
     parser.add_argument("--color-distance", type=float, default=70.0)
     parser.add_argument("--normal-angle", type=float, default=25.0)
+    parser.add_argument("--surface-centroid-distance", type=float, default=0.8)
+    parser.add_argument("--surface-bbox-distance", type=float, default=0.65)
+    parser.add_argument("--surface-color-distance", type=float, default=95.0)
+    parser.add_argument("--surface-normal-angle", type=float, default=18.0)
     parser.add_argument("--min-merge-confidence", type=float, default=0.5)
     parser.add_argument("--identity-similarity-threshold", type=float, default=0.2)
     parser.add_argument("--disable-identity-gate", action="store_true")

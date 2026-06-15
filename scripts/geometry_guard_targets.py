@@ -17,6 +17,7 @@ from pathlib import Path
 
 
 SURFACE_LABELS = {"floor", "wall", "building", "ceiling", "road"}
+FINE_LABELS = {"equipment", "railing", "pipe", "other"}
 FLOOR_TEXT = {"floor", "ground", "landing", "stair", "stairs", "step", "steps", "tread", "tiled floor", "roof surface", "rooftop floor"}
 WALL_TEXT = {"wall", "vertical", "facade", "panel", "paneling", "parapet"}
 CEILING_TEXT = {"ceiling", "overhead", "underside", "roof underside"}
@@ -45,6 +46,23 @@ def planarity(target: dict) -> float:
         return 0.0
 
 
+def cluster_size(target: dict) -> int:
+    try:
+        return int(target.get("cluster_size") or len(target.get("point_indices") or []))
+    except (TypeError, ValueError):
+        return 0
+
+
+def bbox_extent(target: dict) -> list[float]:
+    bbox = target.get("bbox_3d") or {}
+    try:
+        bmin = [float(x) for x in bbox.get("min", [0.0, 0.0, 0.0])]
+        bmax = [float(x) for x in bbox.get("max", [0.0, 0.0, 0.0])]
+        return [max(0.0, hi - lo) for lo, hi in zip(bmin, bmax)]
+    except (TypeError, ValueError):
+        return [0.0, 0.0, 0.0]
+
+
 def text_blob(target: dict) -> str:
     chunks = [
         target.get("description", ""),
@@ -57,8 +75,35 @@ def text_blob(target: dict) -> str:
     return norm(" ".join(str(x) for x in chunks if x))
 
 
+def relabel_large_planar_fine_target(target: dict, args: argparse.Namespace) -> tuple[str, str] | None:
+    label = str(target.get("label") or "unknown")
+    if label not in FINE_LABELS:
+        return None
+    size = cluster_size(target)
+    extents = sorted(bbox_extent(target), reverse=True)
+    max_extent = extents[0] if extents else 0.0
+    second_extent = extents[1] if len(extents) > 1 else 0.0
+    z = normal_abs_z(target)
+    pl = planarity(target)
+    if (
+        size < args.fine_surface_min_points
+        or max_extent < args.fine_surface_min_extent
+        or second_extent < args.fine_surface_min_second_extent
+        or pl < args.fine_surface_min_planarity
+    ):
+        return None
+    if z >= args.floor_normal_z:
+        return "floor", f"{label}_large_planar_floor"
+    if z <= args.wall_normal_z:
+        return "wall", f"{label}_large_planar_wall"
+    return "building", f"{label}_large_planar_building"
+
+
 def relabel_target(target: dict, args: argparse.Namespace) -> tuple[str, str]:
     label = str(target.get("label") or "unknown")
+    fine_override = relabel_large_planar_fine_target(target, args)
+    if fine_override is not None:
+        return fine_override
     if label not in SURFACE_LABELS:
         return label, "non_surface_passthrough"
 
@@ -170,6 +215,10 @@ def main() -> None:
     parser.add_argument("--floor-normal-z", type=float, default=0.72)
     parser.add_argument("--wall-normal-z", type=float, default=0.40)
     parser.add_argument("--min-planarity", type=float, default=0.12)
+    parser.add_argument("--fine-surface-min-points", type=int, default=500)
+    parser.add_argument("--fine-surface-min-extent", type=float, default=1.2)
+    parser.add_argument("--fine-surface-min-second-extent", type=float, default=0.45)
+    parser.add_argument("--fine-surface-min-planarity", type=float, default=0.10)
     args = parser.parse_args()
 
     files = iter_target_files(args.input_targets)
