@@ -327,6 +327,52 @@ semantic pipeline. It does not yet prove semantic quality is better than the
 Python SAM2 route; the high `equipment` count and large-surface coverage need
 visual QA and point-projection QA before promotion.
 
+The 50-frame cam0 smoke was also verified on scan-vlm:
+
+```bash
+cd /root/epfs/new_route_scripts
+MANIFEST=/root/epfs/new_route_stage1_skymask/semantic_manifest_2000_2999.json \
+SAM_MASK_SOURCE=/root/epfs/new_route_stage1_skymask/sam_masks_2000_2999_trt_candidate_rle50 \
+OUTPUT_DIR=/root/epfs/sam2_tensorrt/semantic_eval_rle50_default_downstream50_cam0 \
+FILTER_PREFIX=cam0_ \
+LIMIT=50 \
+SHARDS=4 \
+CHUNK_SIZE=4 \
+VLM_ENDPOINT=http://localhost:8001/v1/chat/completions \
+bash ./run_server_sam2_trt_semantic_smoke.sh
+```
+
+Summary report:
+`/root/epfs/sam2_tensorrt/reports/trt50_semantic_smoke_summary.json`.
+
+Results:
+
+- linked C++ RLE masks: `50/50`
+- `sam2_qwen`: `50/50`
+- `sam2_sky_label_merge_qwen_review`: `50/50`
+- `sam2_prompt_v3_sky_label_merge`: `50/50`
+- `sam2_prompt_v3_sky_label_merge_completion`: `50/50`
+- completion label records: `1352`
+- mean label records per frame: `27.04`
+- top completion labels: `equipment=668`, `floor=281`, `ignore=197`,
+  `wall=121`, `pipe=44`, `building=40`, `railing=1`
+- parse failures from shard logs:
+  - `sam2_qwen`: `5/50` false
+  - prompt-v3 review: `0/50` false
+  - completion: `0/50` false
+
+Interpretation:
+
+- The C++/TensorRT route is operationally production-shaped: compact RLE masks
+  are consumed by the full semantic pipeline and produce complete artifacts.
+- It is not ready to replace Python SAM2 as the default semantic source. The
+  high mask coverage inflates the number of labeled regions and strongly biases
+  labels toward `equipment`; thin-object recall remains weak (`railing=1`).
+- Treat the current C++ runner as a high-coverage candidate for downstream
+  experiments. Promotion requires point-projection QA and a better stage split,
+  likely large-surface-first plus residual object review, not a pure Python
+  parity gate.
+
 ## Notes
 
 - C++ TensorRT is pinned to CUDA 11.8 because `/usr/local/cuda` points to
