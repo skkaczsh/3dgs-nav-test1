@@ -24,6 +24,8 @@ VLM_MODEL="${VLM_MODEL:-Qwen3.6-35B-A3B-Q4_K_M}"
 START_INDEX="${START_INDEX:-0}"
 END_INDEX="${END_INDEX:-3000}"
 CHUNK_SIZE="${CHUNK_SIZE:-10}"
+REVIEW_CHUNK_SIZE="${REVIEW_CHUNK_SIZE:-4}"
+COMPLETION_CHUNK_SIZE="${COMPLETION_CHUNK_SIZE:-6}"
 MAX_TOKENS="${MAX_TOKENS:-4096}"
 VLM_TIMEOUT="${VLM_TIMEOUT:-180}"
 SHARDS="${SHARDS:-4}"
@@ -44,6 +46,20 @@ run_shards() {
   local stage="$1"
   local missing_manifest="$2"
   shift 2
+  local missing_count
+  missing_count="$(python3 - <<'PY' "${missing_manifest}"
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+print(len(json.loads(path.read_text(encoding="utf-8")).get("items", [])))
+PY
+)"
+  if [[ "${missing_count}" == "0" ]]; then
+    echo "stage ${stage}: no missing items; skipping"
+    return 0
+  fi
   local shard_dir="${WORK_DIR}/${stage}_shards"
   rm -rf "${shard_dir}"
   mkdir -p "${shard_dir}"
@@ -173,7 +189,8 @@ run_shards review "${REVIEW_MISSING}" "${REVIEW_SCRIPT}" \
   --vlm-endpoint "${VLM_ENDPOINT}" \
   --vlm-model "${VLM_MODEL}" \
   --vlm-timeout "${VLM_TIMEOUT}" \
-  --vlm-max-tokens "${MAX_TOKENS}"
+  --vlm-max-tokens "${MAX_TOKENS}" \
+  --chunk-size "${REVIEW_CHUNK_SIZE}"
 
 echo "[4/post] Extracting structured review label records"
 python3 "${SCRIPT_DIR}/extract_semantic_label_records.py" \
@@ -198,7 +215,8 @@ run_shards completion "${COMPLETION_MISSING}" "${COMPLETION_SCRIPT}" \
   --vlm-endpoint "${VLM_ENDPOINT}" \
   --vlm-model "${VLM_MODEL}" \
   --vlm-timeout "${VLM_TIMEOUT}" \
-  --vlm-max-tokens "${MAX_TOKENS}"
+  --vlm-max-tokens "${MAX_TOKENS}" \
+  --chunk-size "${COMPLETION_CHUNK_SIZE}"
 
 echo "[post] Extracting structured label records"
 python3 "${SCRIPT_DIR}/extract_semantic_label_records.py" \

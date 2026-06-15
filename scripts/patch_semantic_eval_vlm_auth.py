@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 
@@ -50,6 +51,7 @@ POST_HELPER = '''
 
 def vlm_post(requests_module, endpoint: str, payload: dict, timeout: int):
     import os
+    import sys
     import time
 
     retries = int(os.environ.get("VLM_RETRIES", "2"))
@@ -64,6 +66,9 @@ def vlm_post(requests_module, endpoint: str, payload: dict, timeout: int):
                 headers=vlm_headers(),
                 timeout=timeout,
             )
+            if response.status_code >= 400:
+                body = response.text[:2000].replace("\\\\n", " ")
+                print(f"VLM HTTP {response.status_code}: {body}", file=sys.stderr, flush=True)
             if response.status_code not in retry_statuses or attempt >= retries:
                 return response
             time.sleep(sleep_base * (attempt + 1))
@@ -101,6 +106,17 @@ def patch_text(text: str) -> tuple[str, bool]:
         use_idx = text.find("apply_vlm_payload_options(payload)")
         needs_payload_helper = apply_idx == -1 or (use_idx != -1 and apply_idx > use_idx)
         needs_post_helper = post_idx == -1
+    if "def vlm_post(" in text and "VLM HTTP" not in text:
+        updated, count = re.subn(
+            r"\n\ndef vlm_post\(requests_module, endpoint: str, payload: dict, timeout: int\):.*?raise RuntimeError\(\"VLM request failed without response\"\)",
+            POST_HELPER,
+            text,
+            count=1,
+            flags=re.S,
+        )
+        if count == 1:
+            text = updated
+            changed = True
     if "def vlm_headers()" in text and needs_payload_helper:
         marker = "\n\ndef normalize_label"
         if marker not in text:
