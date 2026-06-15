@@ -315,11 +315,35 @@ def normalize_label_record(value) -> dict:
         attributes = value.get("attributes", {})
         if not isinstance(attributes, dict):
             attributes = {}
+        freeform_label = str(
+            value.get("freeform_label")
+            or value.get("object_name")
+            or value.get("identity")
+            or ""
+        ).strip()
+        description = str(value.get("description", "")).strip()
+        identity_hint = str(value.get("identity_hint", "")).strip()
+        identity_text = str(value.get("identity_text", "")).strip()
+        if not identity_text:
+            identity_text = " ".join(
+                chunk
+                for chunk in [
+                    freeform_label,
+                    identity_hint,
+                    description,
+                    str(attributes.get("function", "")).strip(),
+                    str(attributes.get("shape", "")).strip(),
+                ]
+                if chunk
+            )
         return {
             "label": label,
+            "raw_label": str(value.get("raw_label", value.get("label", ""))).strip(),
+            "freeform_label": freeform_label,
             "confidence": max(0.0, min(1.0, confidence)),
-            "description": str(value.get("description", "")).strip(),
-            "identity_hint": str(value.get("identity_hint", "")).strip(),
+            "description": description,
+            "identity_hint": identity_hint,
+            "identity_text": " ".join(identity_text.split()),
             "attributes": {str(k): str(v).strip() for k, v in attributes.items() if str(v).strip()},
             "mixed": bool(value.get("mixed", False)),
             "is_large_surface": bool(value.get("is_large_surface", False)),
@@ -329,9 +353,12 @@ def normalize_label_record(value) -> dict:
         }
     return {
         "label": str(value),
+        "raw_label": str(value),
+        "freeform_label": "",
         "confidence": 1.0,
         "description": "",
         "identity_hint": "",
+        "identity_text": "",
         "attributes": {},
         "mixed": False,
         "is_large_surface": False,
@@ -485,8 +512,11 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
                     "parent_class": PARENT_CLASSES.get(label, "other"),
                     "confidence": float(label_record["confidence"]),
                     "connectivity_voxel_size": float(voxel_size),
+                    "raw_label": label_record.get("raw_label", label),
+                    "freeform_label": label_record.get("freeform_label", ""),
                     "description": label_record["description"],
                     "identity_hint": label_record["identity_hint"],
+                    "identity_text": label_record.get("identity_text", ""),
                     "attributes": label_record["attributes"],
                     "vlm_mixed": bool(label_record["mixed"]),
                     "vlm_is_large_surface": bool(label_record["is_large_surface"]),

@@ -108,13 +108,19 @@ def sanitize_overlay_color_leak(record: dict[str, Any]) -> dict[str, Any]:
         leaked = True
     description = strip_color_words(str(record.get("description", "")), colors)
     identity_hint = strip_color_words(str(record.get("identity_hint", "")), colors)
-    if description != str(record.get("description", "")) or identity_hint != str(record.get("identity_hint", "")):
+    freeform_label = strip_color_words(str(record.get("freeform_label", "")), colors)
+    if (
+        description != str(record.get("description", ""))
+        or identity_hint != str(record.get("identity_hint", ""))
+        or freeform_label != str(record.get("freeform_label", ""))
+    ):
         leaked = True
     clean = {
         **record,
         "label": label,
         "description": description,
         "identity_hint": identity_hint,
+        "freeform_label": freeform_label,
         "attributes": attrs,
     }
     if leaked:
@@ -131,20 +137,52 @@ def normalize_record(value: Any) -> dict[str, Any]:
             confidence = float(value.get("confidence", 1.0))
         except (TypeError, ValueError):
             confidence = 1.0
-        return sanitize_overlay_color_leak({
+        raw_label = str(value.get("label", "")).strip()
+        freeform_label = str(
+            value.get("freeform_label")
+            or value.get("object_name")
+            or value.get("identity")
+            or value.get("name")
+            or ""
+        ).strip()
+        record = sanitize_overlay_color_leak({
             "label": normalize_label(value.get("label", "other")),
+            "raw_label": raw_label,
+            "freeform_label": freeform_label,
             "confidence": max(0.0, min(1.0, confidence)),
             "description": str(value.get("description", "")).strip(),
             "identity_hint": str(value.get("identity_hint", "")).strip(),
             "attributes": {str(k): str(v).strip() for k, v in attrs.items() if str(v).strip()},
         })
-    return sanitize_overlay_color_leak({
+        record["identity_text"] = build_identity_text(record)
+        return record
+    record = sanitize_overlay_color_leak({
         "label": normalize_label(value),
+        "raw_label": str(value or "").strip(),
+        "freeform_label": "",
         "confidence": 1.0,
         "description": "",
         "identity_hint": "",
         "attributes": {},
     })
+    record["identity_text"] = build_identity_text(record)
+    return record
+
+
+def build_identity_text(record: dict[str, Any]) -> str:
+    chunks = [
+        str(record.get("freeform_label", "")),
+        str(record.get("identity_hint", "")),
+        str(record.get("description", "")),
+    ]
+    attrs = record.get("attributes") or {}
+    if isinstance(attrs, dict):
+        for key in ("function", "shape", "material", "color"):
+            value = str(attrs.get(key, "")).strip()
+            if value:
+                chunks.append(value)
+    text = " ".join(chunk.strip() for chunk in chunks if chunk and chunk.strip())
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def parse_raw_items(raw: str) -> dict[int, dict[str, Any]]:

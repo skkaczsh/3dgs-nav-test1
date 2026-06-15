@@ -18,7 +18,7 @@ from pathlib import Path
 REVIEW_PROMPT = r'''
 /no_think
 You are reviewing merged SAM2 masks for a rooftop MANIFOLD/Mid360 scan.
-Sky has already been handled by SkyMask. Classify only the numbered regions.
+Sky has already been handled by SkyMask. Describe and classify only the numbered regions.
 
 Scene constraints:
 1. A high ratio of large horizontal roof/floor surface is expected.
@@ -31,12 +31,14 @@ Scene constraints:
 7. equipment is for rooftop boxes, cabinets, HVAC-like units, sensors, antennas, machinery, fixtures, and compact devices.
 8. pipe is for pipes, cables, conduits, cable trays, or long utility lines if visible.
 9. Thin railings/equipment often touch floor-like light brown/gray roof pixels. Prefer the thin-object label when the highlighted mask follows the thin foreground structure.
-10. Keep label coarse and fixed, but add a short description and identity_hint for the physical instance when visible.
-    Examples: label equipment + description "white HVAC outdoor unit"; label pipe + description "thin gray conduit"; label railing + description "yellow metal guardrail".
-11. Numbered mask overlays may use artificial palette colors. Never use overlay/highlight colors in description, identity_hint, or attributes.
-12. Describe color/material only from the underlying original RGB image. If the real color/material is uncertain, leave that attribute empty.
-13. If one mask mixes a large surface and a thin object, choose the dominant physical object; use other only when no reliable dominant object exists.
-14. Invalid black borders, lens edges, and unusable regions should be ignore.
+10. The fixed label is only a coarse routing hint for legacy PLY colors. It is acceptable to use label=other when the taxonomy is too coarse.
+11. The important output is the free-text physical identity. Always provide specific description, identity_hint, and freeform_label when visible.
+    Examples: label other + freeform_label "white HVAC outdoor unit"; label other + freeform_label "thin gray conduit"; label railing + freeform_label "yellow metal guardrail".
+    Prefer an identity phrase that could remain stable across multiple frames of the same object.
+12. Numbered mask overlays may use artificial palette colors. Never use overlay/highlight colors in description, identity_hint, freeform_label, or attributes.
+13. Describe color/material only from the underlying original RGB image. If the real color/material is uncertain, leave that attribute empty.
+14. If one mask mixes a large surface and a thin object, choose the dominant physical object and set mixed=true.
+15. Invalid black borders, lens edges, and unusable regions should be ignore.
 
 Point-cloud semantic goal:
 1. This is mask-level evidence for dense point-cloud semantics, not a generic image caption.
@@ -44,11 +46,11 @@ Point-cloud semantic goal:
 3. railing, pipe, and equipment are fine foreground targets. Do not absorb them into floor only because their mask touches roof pixels.
 4. Prefer ignore for sky/background/invalid regions that should not create valid point-cloud objects.
 
-Allowed English labels only:
+Allowed coarse English labels only:
 floor, road, wall, building, railing, equipment, pipe, tree, grass, car, person, other, ignore
 
 Return valid JSON only. No explanation. No Markdown.
-{"items":[{"mask_id":"1","label":"equipment","confidence":0.90,"description":"white HVAC outdoor unit","identity_hint":"white rectangular HVAC unit on rooftop","attributes":{"color":"white","material":"metal","shape":"rectangular box","function":"HVAC outdoor unit"}}]}
+{"items":[{"mask_id":"1","label":"other","freeform_label":"white HVAC outdoor unit","confidence":0.90,"description":"white rectangular outdoor air-conditioning unit on the rooftop","identity_hint":"white rectangular HVAC unit beside the parapet","attributes":{"color":"white","material":"metal","shape":"rectangular box","function":"HVAC outdoor unit"},"mixed":false,"reason":"the highlighted region covers a compact rooftop machine rather than a broad surface"}]}
 '''.strip()
 
 
@@ -68,11 +70,12 @@ Scene constraints:
 7. equipment is for rooftop boxes, cabinets, HVAC-like units, sensors, antennas, machinery, fixtures, and compact devices.
 8. pipe is for pipes, cables, conduits, cable trays, or long utility lines if visible.
 9. Panoramic/fisheye perspective can distort geometry. Large gray/brown regions near the lower half or image center are still likely floor unless clearly vertical or a fine object.
-10. Keep label coarse and fixed, but add a short description and identity_hint for the physical instance when visible.
-    Examples: label equipment + description "white HVAC outdoor unit"; label pipe + description "thin gray conduit"; label railing + description "yellow metal guardrail".
-11. Numbered mask overlays may use artificial palette colors. Never use overlay/highlight colors in description, identity_hint, or attributes.
-12. Describe color/material only from the underlying original RGB image. If the real color/material is uncertain, leave that attribute empty.
-13. Use ignore only for invalid border/lens artifacts. Use other for valid but uncertain scene content.
+10. The fixed label is only a coarse routing hint for legacy PLY colors. It is acceptable to use label=other when the taxonomy is too coarse.
+11. The important output is the free-text physical identity. Always provide specific description, identity_hint, and freeform_label when visible.
+    Examples: label floor + freeform_label "large gray rooftop floor surface"; label other + freeform_label "white HVAC outdoor unit"; label pipe + freeform_label "thin gray conduit".
+12. Numbered mask overlays may use artificial palette colors. Never use overlay/highlight colors in description, identity_hint, freeform_label, or attributes.
+13. Describe color/material only from the underlying original RGB image. If the real color/material is uncertain, leave that attribute empty.
+14. Use ignore only for invalid border/lens artifacts. Use other for valid but uncertain scene content.
 
 Point-cloud semantic goal:
 1. This completion fills non-sky semantic gaps for dense point-cloud projection.
@@ -80,11 +83,11 @@ Point-cloud semantic goal:
 3. railing, pipe, and equipment are fine foreground targets. Preserve them when a numbered region follows a thin/compact physical object.
 4. Do not create valid semantics for sky/background/invalid image regions.
 
-Allowed English labels only:
+Allowed coarse English labels only:
 floor, road, wall, building, railing, equipment, pipe, tree, grass, car, person, other, ignore
 
 Return valid JSON only. No explanation. No Markdown.
-{"items":[{"mask_id":"1","label":"floor","confidence":0.90,"description":"large gray rooftop floor surface","identity_hint":"broad horizontal roof surface","attributes":{"color":"gray","material":"concrete","shape":"large horizontal plane","function":"walkable roof surface"}}]}
+{"items":[{"mask_id":"1","label":"floor","freeform_label":"large gray rooftop floor surface","confidence":0.90,"description":"broad gray horizontal concrete roof surface","identity_hint":"continuous walkable rooftop floor plane","attributes":{"color":"gray","material":"concrete","shape":"large horizontal plane","function":"walkable roof surface"},"mixed":false,"reason":"the highlighted unknown region is a broad horizontal roof plane"}]}
 '''.strip()
 
 

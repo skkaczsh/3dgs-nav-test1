@@ -117,7 +117,16 @@ def object_number(object_id: str) -> int:
 
 
 def primary_identity_text(obj: dict) -> str:
-    return norm(" ".join([str(obj.get("description", "")), str(obj.get("identity_hint", ""))]))
+    return norm(
+        " ".join(
+            [
+                str(obj.get("object_identity", "")),
+                str(obj.get("dominant_freeform_label", "")),
+                str(obj.get("description", "")),
+                str(obj.get("identity_hint", "")),
+            ]
+        )
+    )
 
 
 def secondary_identity_text(obj: dict) -> str:
@@ -133,7 +142,12 @@ def secondary_identity_text(obj: dict) -> str:
     secondary = norm(" ".join(chunks))
     if secondary:
         return secondary
-    return norm(" ".join(str(desc) for desc in (obj.get("description_votes") or {}).keys()))
+    return norm(
+        " ".join(
+            [str(desc) for desc in (obj.get("description_votes") or {}).keys()]
+            + [str(desc) for desc in (obj.get("freeform_label_votes") or {}).keys()]
+        )
+    )
 
 
 def infer_from_text(text: str) -> tuple[str | None, str]:
@@ -209,6 +223,7 @@ def relabel_object(obj: dict) -> tuple[dict, dict]:
         "reason": reason,
         "changed": False,
         "description": out.get("description", ""),
+        "object_identity": out.get("object_identity", ""),
         "label_votes": out.get("label_votes", {}),
     }
     if inferred and should_apply(current, inferred, out):

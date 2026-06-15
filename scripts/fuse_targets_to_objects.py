@@ -50,7 +50,13 @@ def target_vote_weight(target: dict) -> float:
 
 
 def target_description(target: dict) -> str:
-    return str(target.get("description") or target.get("identity_hint") or "").strip()
+    return str(
+        target.get("identity_text")
+        or target.get("freeform_label")
+        or target.get("identity_hint")
+        or target.get("description")
+        or ""
+    ).strip()
 
 
 def identity_terms(text: str) -> set[str]:
@@ -195,6 +201,10 @@ def create_object(object_id: str, target: dict) -> dict:
     return {
         "object_id": object_id,
         "semantic_label": target["label"],
+        "raw_label_votes": {str(target.get("raw_label", target["label"])): int(target.get("cluster_size", 1))},
+        "freeform_label_votes": {
+            str(target.get("freeform_label", "")).strip(): float(vote_weight)
+        } if str(target.get("freeform_label", "")).strip() else {},
         "status": "single_target",
         "targets": [target["target_id"]],
         "target_count": 1,
@@ -206,6 +216,7 @@ def create_object(object_id: str, target: dict) -> dict:
         "label_votes": {target["label"]: int(target.get("cluster_size", 1))},
         "label_vote_weights": {target["label"]: float(vote_weight)},
         "description": target_description(target),
+        "object_identity": target_description(target),
         "description_votes": description_votes,
         "attribute_votes": attribute_votes,
         "parent_class_votes": {target.get("parent_class", "other"): 1},
@@ -252,6 +263,14 @@ def update_object(obj: dict, target: dict) -> None:
 
     obj["label_votes"][target["label"]] = int(obj["label_votes"].get(target["label"], 0) + new_count)
     obj["label_vote_weights"][target["label"]] = float(obj["label_vote_weights"].get(target["label"], 0.0) + target_vote_weight(target))
+    raw_label = str(target.get("raw_label", target["label"])).strip()
+    if raw_label:
+        obj.setdefault("raw_label_votes", {})[raw_label] = int(obj.setdefault("raw_label_votes", {}).get(raw_label, 0) + new_count)
+    freeform_label = str(target.get("freeform_label", "")).strip()
+    if freeform_label:
+        obj.setdefault("freeform_label_votes", {})[freeform_label] = float(
+            obj.setdefault("freeform_label_votes", {}).get(freeform_label, 0.0) + target_vote_weight(target)
+        )
     update_description_votes(obj.setdefault("description_votes", {}), target)
     merge_attribute_votes(obj.setdefault("attribute_votes", {}), target)
     parent = target.get("parent_class", "other")
@@ -377,7 +396,19 @@ def finalize_object(obj: dict) -> dict:
     if description_votes:
         description, weight = description_votes.most_common(1)[0]
         out["description"] = description
+        out["object_identity"] = description
         out["description_vote_ratio"] = float(weight / max(sum(description_votes.values()), 1.0))
+    freeform_votes = Counter(out.get("freeform_label_votes", {}))
+    if freeform_votes:
+        freeform, weight = freeform_votes.most_common(1)[0]
+        out["dominant_freeform_label"] = freeform
+        out["freeform_label_vote_ratio"] = float(weight / max(sum(freeform_votes.values()), 1.0))
+        out.setdefault("object_identity", freeform)
+    raw_votes = Counter(out.get("raw_label_votes", {}))
+    if raw_votes:
+        raw, weight = raw_votes.most_common(1)[0]
+        out["dominant_raw_label"] = raw
+        out["raw_label_vote_ratio"] = float(weight / max(sum(raw_votes.values()), 1.0))
     attr_summary = {}
     for key, values in (out.get("attribute_votes") or {}).items():
         value_votes = Counter(values)
