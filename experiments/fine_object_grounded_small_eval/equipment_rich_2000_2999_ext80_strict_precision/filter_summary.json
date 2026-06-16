@@ -1,0 +1,18 @@
+{
+  "input_summary": "/root/epfs/new_route_stage1_skymask/equipment_rich_grounded_eval_2000_2999_ext80_run/outputs/summary.json",
+  "review_mapping": "",
+  "equipment_filter_mode": "strict_precision",
+  "accepted_count": 34,
+  "rejected_count": 278,
+  "accepted_by_focus": {
+    "equipment": 34
+  },
+  "rejected_by_reason": {
+    "phrase_too_weak": 62,
+    "low_score": 146,
+    "phrase_too_broad": 49,
+    "oversized_mask": 14,
+    "tiny_mask": 6,
+    "oversized_box": 1
+  }
+}

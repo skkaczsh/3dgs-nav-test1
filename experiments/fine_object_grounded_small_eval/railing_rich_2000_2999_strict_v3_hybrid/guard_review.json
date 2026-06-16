@@ -1,0 +1,173 @@
+{
+  "accepted_report": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_refined_thin_v3_hybrid/accepted_report.json",
+  "accepted_ply": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_refined_thin_v3_hybrid/accepted_points.ply",
+  "output_status_ply": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_refined_thin_v3_hybrid/guard_status.ply",
+  "output_filtered_ply": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_refined_thin_v3_hybrid/guarded_points.ply",
+  "output_accepted_report": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_refined_thin_v3_hybrid/guarded_accepted_report.json",
+  "params": {
+    "long_xy_span": 4.0,
+    "large_xy_span": 4.0,
+    "large_span": 6.0,
+    "tall_z_span": 2.5,
+    "large_points": 5000,
+    "linear_threshold": 0.9,
+    "planar_threshold": 0.55,
+    "equipment_demote_large_span": 3.0,
+    "equipment_demote_long_xy": 1.8,
+    "equipment_demote_planar_xy": 1.6,
+    "equipment_demote_aspect_xy": 4.0,
+    "equipment_linear_demote": 0.82,
+    "equipment_planar_demote": 0.3,
+    "equipment_review_large_points": 350,
+    "equipment_review_xy": 1.15,
+    "equipment_review_z": 1.5,
+    "linear_object_min_extent": 0.45,
+    "linear_object_min_linearity": 0.78,
+    "linear_object_max_mid_extent": 0.45,
+    "linear_object_max_thickness": 0.35,
+    "linear_object_surface_planarity": 0.18
+  },
+  "candidate_count": 7,
+  "input_points": 127,
+  "kept_points": 34,
+  "kept_candidate_count": 4,
+  "action_counts": {
+    "demote_surface_like_railing": 1,
+    "keep_linear_railing": 4,
+    "review_ambiguous_railing": 2
+  },
+  "point_counts": {
+    "demote_surface_like_railing": 85,
+    "keep_linear_railing": 34,
+    "review_ambiguous_railing": 8
+  },
+  "candidates": [
+    {
+      "candidate_id": 300002,
+      "focus": "railing",
+      "source_type": "grounded_detector_mask",
+      "source_cluster": 300002,
+      "subcluster": -1,
+      "points": 85,
+      "span_x": 1.8129081726074219,
+      "span_y": 5.767464637756348,
+      "span_z": 5.158246040344238,
+      "linearity": 0.5307646069726852,
+      "planarity": 0.46865132935089443,
+      "strict_action": "demote_surface_like_railing",
+      "strict_status": 3,
+      "reasons": [
+        "broad_planar_blob",
+        "thick_surface_blob"
+      ]
+    },
+    {
+      "candidate_id": 300003,
+      "focus": "railing",
+      "source_type": "grounded_detector_mask",
+      "source_cluster": 300003,
+      "subcluster": -1,
+      "points": 16,
+      "span_x": 0.8266696929931641,
+      "span_y": 8.040684700012207,
+      "span_z": 2.9780001640319824,
+      "linearity": 0.9279679643214442,
+      "planarity": 0.07004455000998636,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 300005,
+      "focus": "railing",
+      "source_type": "grounded_detector_mask",
+      "source_cluster": 300005,
+      "subcluster": -1,
+      "points": 9,
+      "span_x": 2.377918243408203,
+      "span_y": 2.403449058532715,
+      "span_z": 2.25197172164917,
+      "linearity": 0.9931961741646593,
+      "planarity": 0.006802763653134215,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 300006,
+      "focus": "railing",
+      "source_type": "grounded_detector_mask",
+      "source_cluster": 300006,
+      "subcluster": -1,
+      "points": 5,
+      "span_x": 0.13869810104370117,
+      "span_y": 0.963465690612793,
+      "span_z": 0.5350909233093262,
+      "linearity": 0.9987826755269088,
+      "planarity": 0.0011449843273586672,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 300007,
+      "focus": "railing",
+      "source_type": "grounded_detector_mask",
+      "source_cluster": 300007,
+      "subcluster": -1,
+      "points": 5,
+      "span_x": 0.048717498779296875,
+      "span_y": 0.24656009674072266,
+      "span_z": 0.13733911514282227,
+      "linearity": 0.9913688407182603,
+      "planarity": 0.008294716083536834,
+      "strict_action": "review_ambiguous_railing",
+      "strict_status": 2,
+      "reasons": [
+        "weak_linearity"
+      ]
+    },
+    {
+      "candidate_id": 300004,
+      "focus": "railing",
+      "source_type": "grounded_detector_mask",
+      "source_cluster": 300004,
+      "subcluster": -1,
+      "points": 4,
+      "span_x": 0.36062097549438477,
+      "span_y": 3.213411331176758,
+      "span_z": 1.2089769840240479,
+      "linearity": 0.9981566494478984,
+      "planarity": 0.0009767451747637102,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 300001,
+      "focus": "railing",
+      "source_type": "grounded_detector_mask",
+      "source_cluster": 300001,
+      "subcluster": -1,
+      "points": 3,
+      "span_x": 0.008771896362304688,
+      "span_y": 0.015047073364257812,
+      "span_z": 0.005863189697265625,
+      "linearity": 0.935179360398507,
+      "planarity": 0.06482062123535494,
+      "strict_action": "review_ambiguous_railing",
+      "strict_status": 2,
+      "reasons": [
+        "weak_linearity"
+      ]
+    }
+  ]
+}

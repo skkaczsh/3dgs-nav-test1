@@ -1,0 +1,29 @@
+{
+  "targets": "/root/epfs/new_route_stage1_skymask/equipment_rich_grounded_eval_2000_2999_ext80_strict_precision/votes/frame_targets",
+  "output_dir": "/root/epfs/new_route_stage1_skymask/equipment_rich_grounded_eval_2000_2999_ext80_strict_precision/votes/global_votes",
+  "voxel_count": 857,
+  "object_count": 35,
+  "status_counts": {
+    "stable": 16,
+    "single_voxel": 19
+  },
+  "label_counts": {
+    "equipment": 857
+  },
+  "params": {
+    "targets": "/root/epfs/new_route_stage1_skymask/equipment_rich_grounded_eval_2000_2999_ext80_strict_precision/votes/frame_targets",
+    "output_dir": "/root/epfs/new_route_stage1_skymask/equipment_rich_grounded_eval_2000_2999_ext80_strict_precision/votes/global_votes",
+    "voxel_size": 0.06,
+    "object_voxel_size": 0.16,
+    "min_voxel_points": 1,
+    "min_object_voxels": 8,
+    "min_label_purity": 0.55,
+    "min_vote_confidence": 0.2,
+    "max_size_weight": 30.0,
+    "color_mode": "semantic",
+    "skip_labels": [
+      "ignore",
+      "sky"
+    ]
+  }
+}

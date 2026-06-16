@@ -1,0 +1,179 @@
+{
+  "strict_review_json": "",
+  "accepted_report_json": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_refined_thin_v3_hybrid/guarded_accepted_report.json",
+  "strict_filtered_ply": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_refined_thin_v3_hybrid/guarded_points.ply",
+  "output_objects_jsonl": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/fused_refined_thin_v3_hybrid/fine_objects.jsonl",
+  "output_decisions_jsonl": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/fused_refined_thin_v3_hybrid/fine_object_decisions.jsonl",
+  "output_ply": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/fused_refined_thin_v3_hybrid/fine_object_points.ply",
+  "params": {
+    "centroid_distance": 0.9,
+    "cross_source_centroid_distance": 0.45,
+    "bbox_distance": 0.25,
+    "color_distance": 45.0
+  },
+  "candidate_count": 4,
+  "fine_object_count": 4,
+  "point_count": 34,
+  "merge_count": 0,
+  "status_counts": {
+    "single_fine_candidate": 4
+  },
+  "top_objects": [
+    {
+      "fine_object_id": "fine_obj_0001",
+      "candidate_ids": [
+        300003
+      ],
+      "candidate_count": 1,
+      "point_count": 16,
+      "bbox_3d": {
+        "min": [
+          -9.317168235778809,
+          7.113636016845703,
+          -5.543024063110352
+        ],
+        "max": [
+          -8.490498542785645,
+          15.15432071685791,
+          -2.565023899078369
+        ]
+      },
+      "centroid": [
+        -8.87708568572998,
+        11.875568389892578,
+        -3.7678728103637695
+      ],
+      "mean_visual_color": [
+        46.3125,
+        47.8125,
+        48.875
+      ],
+      "linearity_mean": 0.9279679643214442,
+      "planarity_mean": 0.07004455000998636,
+      "source_types": {
+        "grounded_detector_mask": 1
+      },
+      "source_clusters": {
+        "300003": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0003",
+      "candidate_ids": [
+        300005
+      ],
+      "candidate_count": 1,
+      "point_count": 9,
+      "bbox_3d": {
+        "min": [
+          -10.771678924560547,
+          12.359390258789062,
+          -6.723918914794922
+        ],
+        "max": [
+          -8.393760681152344,
+          14.762839317321777,
+          -4.471947193145752
+        ]
+      },
+      "centroid": [
+        -8.6717529296875,
+        12.785322189331055,
+        -4.805936336517334
+      ],
+      "mean_visual_color": [
+        137.3333282470703,
+        131.44444274902344,
+        136.0
+      ],
+      "linearity_mean": 0.9931961741646593,
+      "planarity_mean": 0.006802763653134215,
+      "source_types": {
+        "grounded_detector_mask": 1
+      },
+      "source_clusters": {
+        "300005": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0004",
+      "candidate_ids": [
+        300006
+      ],
+      "candidate_count": 1,
+      "point_count": 5,
+      "bbox_3d": {
+        "min": [
+          -6.916719913482666,
+          12.992403030395508,
+          -5.211050987243652
+        ],
+        "max": [
+          -6.778021812438965,
+          13.9558687210083,
+          -4.675960063934326
+        ]
+      },
+      "centroid": [
+        -6.846676826477051,
+        13.366508483886719,
+        -4.893226623535156
+      ],
+      "mean_visual_color": [
+        37.79999923706055,
+        32.79999923706055,
+        30.799999237060547
+      ],
+      "linearity_mean": 0.9987826755269088,
+      "planarity_mean": 0.0011449843273586672,
+      "source_types": {
+        "grounded_detector_mask": 1
+      },
+      "source_clusters": {
+        "300006": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0002",
+      "candidate_ids": [
+        300004
+      ],
+      "candidate_count": 1,
+      "point_count": 4,
+      "bbox_3d": {
+        "min": [
+          -7.284121036529541,
+          14.140386581420898,
+          -2.665138006210327
+        ],
+        "max": [
+          -6.923500061035156,
+          17.353797912597656,
+          -1.4561610221862793
+        ]
+      },
+      "centroid": [
+        -7.145679473876953,
+        15.903188705444336,
+        -2.151550769805908
+      ],
+      "mean_visual_color": [
+        98.25,
+        94.25,
+        93.75
+      ],
+      "linearity_mean": 0.9981566494478984,
+      "planarity_mean": 0.0009767451747637102,
+      "source_types": {
+        "grounded_detector_mask": 1
+      },
+      "source_clusters": {
+        "300004": 1
+      },
+      "status": "single_fine_candidate"
+    }
+  ]
+}

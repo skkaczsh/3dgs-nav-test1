@@ -1,0 +1,128 @@
+{
+  "accepted_jsonl": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/filtered/accepted_detections.jsonl",
+  "output_jsonl": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/refined_thin_structure_v3_hybrid/accepted_detections_refined.jsonl",
+  "items": 10,
+  "ok": 10,
+  "mode_counts": {
+    "skeleton_band": 10
+  },
+  "mean_area_ratio": 0.15787983435268918,
+  "rows": [
+    {
+      "index": 0,
+      "sample_id": "cam0_002640",
+      "status": "ok",
+      "original_area": 46479,
+      "refined_area": 7103,
+      "area_ratio": 0.1528217044256546,
+      "skeleton_px": 1223,
+      "mode": "skeleton_band",
+      "component_count": 12
+    },
+    {
+      "index": 1,
+      "sample_id": "cam2_002670",
+      "status": "ok",
+      "original_area": 99525,
+      "refined_area": 7412,
+      "area_ratio": 0.07447375031399146,
+      "skeleton_px": 1277,
+      "mode": "skeleton_band",
+      "component_count": 5
+    },
+    {
+      "index": 2,
+      "sample_id": "cam2_002840",
+      "status": "ok",
+      "original_area": 115305,
+      "refined_area": 10109,
+      "area_ratio": 0.08767182689389012,
+      "skeleton_px": 1917,
+      "mode": "skeleton_band",
+      "component_count": 46
+    },
+    {
+      "index": 3,
+      "sample_id": "cam1_002480",
+      "status": "ok",
+      "original_area": 32421,
+      "refined_area": 7314,
+      "area_ratio": 0.22559452206902933,
+      "skeleton_px": 1193,
+      "mode": "skeleton_band",
+      "component_count": 66
+    },
+    {
+      "index": 4,
+      "sample_id": "cam0_002780",
+      "status": "ok",
+      "original_area": 58946,
+      "refined_area": 8982,
+      "area_ratio": 0.15237675160316222,
+      "skeleton_px": 1495,
+      "mode": "skeleton_band",
+      "component_count": 124
+    },
+    {
+      "index": 5,
+      "sample_id": "cam0_002820",
+      "status": "ok",
+      "original_area": 23447,
+      "refined_area": 6618,
+      "area_ratio": 0.2822535932102188,
+      "skeleton_px": 1166,
+      "mode": "skeleton_band",
+      "component_count": 1
+    },
+    {
+      "index": 6,
+      "sample_id": "cam0_002800",
+      "status": "ok",
+      "original_area": 47200,
+      "refined_area": 6524,
+      "area_ratio": 0.13822033898305086,
+      "skeleton_px": 1106,
+      "mode": "skeleton_band",
+      "component_count": 61
+    },
+    {
+      "index": 7,
+      "sample_id": "cam0_002920",
+      "status": "ok",
+      "original_area": 56332,
+      "refined_area": 7746,
+      "area_ratio": 0.13750621316480863,
+      "skeleton_px": 1301,
+      "mode": "skeleton_band",
+      "component_count": 43
+    },
+    {
+      "index": 8,
+      "sample_id": "cam1_002620",
+      "status": "ok",
+      "original_area": 13578,
+      "refined_area": 2860,
+      "area_ratio": 0.21063485049344527,
+      "skeleton_px": 487,
+      "mode": "skeleton_band",
+      "component_count": 3
+    },
+    {
+      "index": 9,
+      "sample_id": "cam0_002430",
+      "status": "ok",
+      "original_area": 22227,
+      "refined_area": 2606,
+      "area_ratio": 0.11724479236964053,
+      "skeleton_px": 409,
+      "mode": "skeleton_band",
+      "component_count": 24
+    }
+  ],
+  "params": {
+    "dilate_px": 3,
+    "min_component_px": 12,
+    "min_component_aspect": 2.2,
+    "fallback_keep_topk": 3
+  }
+}
