@@ -10,6 +10,8 @@ This folder holds the minimal server-side validation assets for
 - `run_tvp_manifest_inference.py`
   - raw manifest runner that parses `<|ref|>...<|box|>` and `<|point|>...`
     outputs.
+- `../scripts/run_tvp_text_label_eval.py`
+  - closed-vocabulary crop/text benchmark runner for the same TVP candidates.
 
 ## 2026-06-16 smoke result
 
@@ -99,14 +101,70 @@ Interpretation:
 - therefore TVP is not just a bad dense-semantic fit; it is also not currently
   a reliable fine-object proposal source for this project
 
+## 2026-06-16 independent crop-level closed-vocabulary benchmark
+
+The primitive-output runs above answer one question only: does TVP emit usable
+boxes or points on our rooftop data? The answer is still no.
+
+To separate that from pure object recognition, the same candidate set was then
+tested as an independent crop-level closed-vocabulary benchmark using
+`run_tvp_text_label_eval.py`.
+
+Server artifacts:
+
+- manifest:
+  `/root/epfs/model_side_tracks/tvp/tvp_candidate_manifest_10.json`
+- cropped-label eval dir:
+  `/root/epfs/model_side_tracks/tvp/tvp_text_eval_v001`
+- outputs:
+  - `/root/epfs/model_side_tracks/tvp/tvp_text_eval_v001/predictions.jsonl`
+  - `/root/epfs/model_side_tracks/tvp/tvp_text_eval_v001/report.json`
+  - `/root/epfs/model_side_tracks/tvp/tvp_text_eval_v001/crops`
+
+Benchmark prompt:
+
+- `Choose one label for the cropped rooftop object: railing, pipe, equipment, none. Return one label only.`
+
+Important audit note:
+
+- the current server `report.json` records `accuracy = 0.3`
+- that file was generated before the truth-label precedence was fixed
+- the old runner resolved truth from `source_label` first
+- in this manifest, all 10 `source_label` values are the coarse upstream label
+  `equipment`
+- therefore the raw `report.json` measures only `predicted label vs coarse
+  source bucket`, not the intended per-crop fine label
+
+Corrected interpretation against the intended benchmark target
+(`answer_class` / `concept_class`):
+
+- sample count: `10`
+- class mix: `3 railing`, `5 pipe`, `2 equipment`
+- exact accuracy: `0.2` (`2 / 10`)
+- predictions used only two labels: `railing` and `equipment`
+- confusion:
+  - `railing`: `1 railing`, `2 equipment`
+  - `pipe`: `5 railing`, `0 pipe`
+  - `equipment`: `1 equipment`, `1 railing`
+
+Interpretation:
+
+- the crop-level prompt does make TVP emit a class word consistently
+- but the discrimination is too weak to be operationally useful
+- the most obvious failure mode is systematic `pipe -> railing`
+- so even under the friendliest setting for TVP in this repo
+  (`bbox crop + closed vocab + no primitive parsing`), it still does not clear
+  the bar for a dependable rooftop fine-object recognizer
+
 ## Interpretation
 
 At the moment TVP is not a drop-in replacement for the dense semantic route.
 
 - It is a visual-primitive model for box/point reasoning, not dense mask
   generation.
-- On our current rooftop railing sample, it does not yet produce usable
-  primitives.
+- On our rooftop candidate set, it does not yet produce usable primitives.
+- Even after removing the primitive requirement and forcing a closed vocabulary
+  on cropped targets, it reaches only `20%` fine-label accuracy.
 - The most reasonable role for TVP remains a proposal / spatial-anchor
   side-track, not the main 2D dense segmentation path.
 
@@ -134,14 +192,16 @@ Current stop condition is now satisfied:
 
 - `tvp_opd_bboxcrop_6.jsonl`: `sum_boxes = 0`, `sum_points = 0`
 - `tvp_sftbox_bboxcrop_6.jsonl`: `sum_boxes = 0`, `sum_points = 0`
+- `tvp_text_eval_v001`: corrected crop-level closed-vocab accuracy = `0.2`
 
 Therefore:
 
 1. TVP is not compatible as a direct dense semantic source for the current
    `semantic.png -> project_semantic.py` route.
 2. TVP is not worth further pursuit as an automatic proposal side-track on the
-   current rooftop dataset unless a separate NLP-to-region or box-to-mask
-   subsystem is introduced.
+   current rooftop dataset unless the task itself changes materially
+   (for example: new model family, targeted fine-tune, or a separate
+   NLP-to-region / box-to-mask subsystem).
 3. This side-track should be treated as closed for the current project goal.
 
 ## Engineering note
@@ -149,6 +209,14 @@ Therefore:
 The server runner now supports a persistent snapshot directory via
 `--download-dir` / `TVP_DOWNLOAD_DIR` so model weights no longer spill into
 `/tmp`.
+
+The text-label runner now resolves ground truth in the right order for this
+side-track:
+
+- default truth precedence:
+  `answer_class -> concept_class -> source_label`
+- emitted rows now also record:
+  `truth_field`, `answer_class`, and `concept_class`
 
 The manifest builder now also supports prompt variants:
 
