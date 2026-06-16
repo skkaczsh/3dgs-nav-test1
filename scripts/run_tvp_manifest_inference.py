@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 import tempfile
@@ -26,6 +27,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--model-path", required=True)
     parser.add_argument("--output-jsonl", type=Path, required=True)
+    parser.add_argument("--download-dir", type=Path, default=None)
     parser.add_argument("--max-samples", type=int, default=10)
     parser.add_argument("--max-new-tokens", type=int, default=256)
     parser.add_argument("--device", default="cuda:0")
@@ -90,7 +92,10 @@ def main() -> None:
 
     model_path = args.model_path
     if "://" not in model_path and not Path(model_path).exists() and "/" in model_path:
-        local_dir = Path(tempfile.gettempdir()) / ("tvp_" + model_path.replace("/", "__"))
+        base_download_dir = args.download_dir or (
+            Path(os.environ["TVP_DOWNLOAD_DIR"]) if os.environ.get("TVP_DOWNLOAD_DIR") else Path(tempfile.gettempdir())
+        )
+        local_dir = base_download_dir / ("tvp_" + model_path.replace("/", "__"))
         local_dir.mkdir(parents=True, exist_ok=True)
         model_path = snapshot_download(repo_id=model_path, local_dir=str(local_dir), local_dir_use_symlinks=False)
 

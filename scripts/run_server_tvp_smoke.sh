@@ -10,10 +10,12 @@ DEVICE="${DEVICE:-cuda:0}"
 MAX_SAMPLES="${MAX_SAMPLES:-1}"
 MAX_NEW_TOKENS="${MAX_NEW_TOKENS:-256}"
 LOAD_IN_4BIT="${LOAD_IN_4BIT:-1}"
+TVP_DOWNLOAD_DIR="${TVP_DOWNLOAD_DIR:-/root/epfs/model_side_tracks/tvp/hf_cache}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 export HF_HUB_ENABLE_HF_TRANSFER=1
+mkdir -p "$TVP_DOWNLOAD_DIR"
 
 ARGS=(
   "$SCRIPT_DIR/run_tvp_manifest_inference.py"
@@ -21,6 +23,7 @@ ARGS=(
   --manifest "$MANIFEST"
   --model-path "$MODEL_PATH"
   --output-jsonl "$OUTPUT_JSONL"
+  --download-dir "$TVP_DOWNLOAD_DIR"
   --max-samples "$MAX_SAMPLES"
   --max-new-tokens "$MAX_NEW_TOKENS"
   --device "$DEVICE"
