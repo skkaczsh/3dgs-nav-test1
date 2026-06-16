@@ -158,20 +158,74 @@ Interpretation:
   observability: almost half of the 2D-accepted detections do not survive
   projection with points.
 
+### Equipment extension on real tail frames
+
+A wider server-side extension was then run on the same `2000-2999` tail
+segment using a rebuilt `equipment-rich` manifest instead of the earlier
+12-sample set.
+
+Source:
+
+- manifest:
+  `/root/epfs/new_route_stage1_skymask/equipment_rich_grounded_eval_2000_2999_ext80/manifest.json`
+- run root:
+  `/root/epfs/new_route_stage1_skymask/equipment_rich_grounded_eval_2000_2999_ext80_run`
+- promoted votes:
+  `/root/epfs/new_route_stage1_skymask/equipment_rich_grounded_eval_2000_2999_ext80_votes`
+
+Summary:
+
+- manifest samples: `80`
+- accepted 2D detections: `37`
+- rejected 2D detections: `273`
+- projected 3D candidates: `28`
+- accepted 3D points: `3480`
+- fused fine objects: `21`
+- merge count: `7`
+
+Promoted vote result:
+
+- frame-level fine targets: `49`
+- frame target kept points: `3252`
+- small residual points: `228`
+- global semantic vote voxels: `1124`
+- global vote objects: `38`
+- global vote status:
+  - `stable = 19`
+  - `single_voxel = 19`
+
+Interpretation:
+
+- `equipment/HVAC` is no longer the weakest grounded branch once widened to
+  real tail imagery; it survives projection much better than the earlier
+  12-sample result suggested.
+- However, that gain comes with a familiar failure mode: broad prompt drift.
+  Several accepted image-level detections still correspond to very large
+  masks driven by weak phrases such as `outdoor unit` or `unit`.
+- In other words, the branch can now produce enough 3D evidence to matter,
+  but its main bottleneck is semantic precision, not raw 3D visibility.
+- Therefore the next improvement for `equipment/HVAC` should be stricter
+  phrase gating and surface-aware rejection, not simply scaling sample count
+  further.
+
 ## Comparison
 
 Current ranking for grounded fine-object transferability on real tail samples:
 
-1. `pipe`: best precision / cleanest projection
-2. `railing`: better than before, but still recall-limited and fragmented
-3. `equipment/HVAC`: detector can fire, but 3D survival is weak and broad-mask
-   risk remains
+1. `pipe`: best precision / cleanest projection, but still weak on cross-frame
+   consolidation once widened
+2. `equipment/HVAC`: now has materially better 3D survival on the extended
+   tail batch, but semantic drift from broad phrases remains the main risk
+3. `railing`: still the hardest branch because recall and geometric continuity
+   both remain fragile
 
 ## Immediate implication
 
 For the next server-side extension of the main route:
 
-- `pipe` should be the first grounded fine-object class promoted from small
-  sample into a larger tail batch.
-- `equipment/HVAC` still needs stricter 2D guards and likely depth/surface
-  rejection before it is worth widening.
+- `pipe` remains the cleanest candidate for precision-first thin-object
+  promotion, but it needs better object persistence before it scales.
+- `equipment/HVAC` is now worth keeping in the promoted branch, but only with
+  tighter phrase guards and large-surface rejection.
+- `railing` still should not be widened again until we improve either the
+  2D detector proposal quality or the post-projection continuity logic.
