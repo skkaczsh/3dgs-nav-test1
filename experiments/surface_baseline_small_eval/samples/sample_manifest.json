@@ -1,0 +1,57 @@
+{
+  "source": {
+    "remote_root": "/root/epfs/manifold_3dgs_project/processed/semantic_eval_mimo25_identity_tail_2000_2999_s10/images",
+    "baseline_combo": "sam2_prompt_v3_sky_label_merge_completion"
+  },
+  "selection_principle": "Small representative sample for large-surface stability only. Prefer frames that stress rooftop floor, wall/building separation, sky boundary, and a few hard mixed scenes.",
+  "samples": [
+    {
+      "image_id": "cam0_002000",
+      "rationale": "rooftop floor plus building with medium sky"
+    },
+    {
+      "image_id": "cam0_002010",
+      "rationale": "building-wall-floor mixture with high sky ratio"
+    },
+    {
+      "image_id": "cam0_002020",
+      "rationale": "floor-dominant rooftop with almost no sky"
+    },
+    {
+      "image_id": "cam0_002040",
+      "rationale": "wall-floor split without sky distraction"
+    },
+    {
+      "image_id": "cam0_002100",
+      "rationale": "hard building-wall-floor confusion case"
+    },
+    {
+      "image_id": "cam0_002130",
+      "rationale": "balanced building-wall-floor scene"
+    },
+    {
+      "image_id": "cam1_002010",
+      "rationale": "extreme sky-heavy frame with sparse non-sky structure"
+    },
+    {
+      "image_id": "cam1_002080",
+      "rationale": "cluttered building-wall-floor scene"
+    },
+    {
+      "image_id": "cam1_002220",
+      "rationale": "wall-dominant corridor-like view"
+    },
+    {
+      "image_id": "cam2_002000",
+      "rationale": "wall-floor split with visible horizon"
+    },
+    {
+      "image_id": "cam2_002010",
+      "rationale": "floor-only baseline label with large sky band"
+    },
+    {
+      "image_id": "cam2_002050",
+      "rationale": "complex building-wall-floor mix without sky"
+    }
+  ]
+}

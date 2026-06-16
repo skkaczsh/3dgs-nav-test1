@@ -1,0 +1,4 @@
+__pycache__/
+outputs_*/
+samples/*
+!samples/sample_manifest.json
