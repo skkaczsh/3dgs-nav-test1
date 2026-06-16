@@ -1,0 +1,655 @@
+{
+  "experiment": "fine_object_grounded_small_eval",
+  "remote": {
+    "host": "root@10.0.8.114",
+    "port": "31909",
+    "project_dir": "/root/epfs/vlm_seg_project",
+    "python": "/root/epfs/conda_envs/vlm_seg/bin/python",
+    "tmp_dir": "/root/epfs/vlm_seg_project/tmp_fine_object_grounded_small_eval"
+  },
+  "prompt_terms": [
+    "railing",
+    "guardrail",
+    "handrail",
+    "metal fence",
+    "pipe",
+    "cable",
+    "HVAC outdoor unit"
+  ],
+  "prompt_text": "railing . guardrail . handrail . metal fence . pipe . cable . HVAC outdoor unit",
+  "samples": [
+    {
+      "id": "review_001__a0",
+      "rel": "review_001/a0",
+      "focus": [
+        "hvac",
+        "equipment"
+      ],
+      "image": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_001/a0/image.png",
+      "overlay": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_001/a0/overlay.png",
+      "instance": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_001/a0/instance.png",
+      "semantic": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_001/a0/semantic.png",
+      "label_counts": {
+        "floor": 3,
+        "equipment": 18
+      },
+      "prompt_terms": [
+        "HVAC outdoor unit",
+        "outdoor unit",
+        "air conditioning unit"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "hvac",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        },
+        {
+          "focus": "equipment",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review_002__a0",
+      "rel": "review_002/a0",
+      "focus": [
+        "railing",
+        "equipment"
+      ],
+      "image": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_002/a0/image.png",
+      "overlay": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_002/a0/overlay.png",
+      "instance": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_002/a0/instance.png",
+      "semantic": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_002/a0/semantic.png",
+      "label_counts": {
+        "floor": 6,
+        "railing": 1,
+        "equipment": 16,
+        "other": 6
+      },
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail",
+        "metal fence",
+        "HVAC outdoor unit",
+        "outdoor unit",
+        "air conditioning unit"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail",
+            "metal fence"
+          ]
+        },
+        {
+          "focus": "equipment",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review_002__a1",
+      "rel": "review_002/a1",
+      "focus": [
+        "railing",
+        "equipment"
+      ],
+      "image": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_002/a1/image.png",
+      "overlay": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_002/a1/overlay.png",
+      "instance": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_002/a1/instance.png",
+      "semantic": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_002/a1/semantic.png",
+      "label_counts": {
+        "building": 5,
+        "floor": 3,
+        "railing": 1,
+        "equipment": 6,
+        "other": 1
+      },
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail",
+        "metal fence",
+        "HVAC outdoor unit",
+        "outdoor unit",
+        "air conditioning unit"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail",
+            "metal fence"
+          ]
+        },
+        {
+          "focus": "equipment",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review_002__b0",
+      "rel": "review_002/b0",
+      "focus": [
+        "railing",
+        "equipment"
+      ],
+      "image": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_002/b0/image.png",
+      "overlay": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_002/b0/overlay.png",
+      "instance": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_002/b0/instance.png",
+      "semantic": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_002/b0/semantic.png",
+      "label_counts": {
+        "floor": 2,
+        "railing": 1,
+        "wall": 1,
+        "equipment": 12
+      },
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail",
+        "metal fence",
+        "HVAC outdoor unit",
+        "outdoor unit",
+        "air conditioning unit"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail",
+            "metal fence"
+          ]
+        },
+        {
+          "focus": "equipment",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review_003__a0",
+      "rel": "review_003/a0",
+      "focus": [
+        "railing",
+        "equipment"
+      ],
+      "image": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_003/a0/image.png",
+      "overlay": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_003/a0/overlay.png",
+      "instance": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_003/a0/instance.png",
+      "semantic": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_003/a0/semantic.png",
+      "label_counts": {
+        "floor": 1,
+        "railing": 1,
+        "building": 4,
+        "equipment": 6
+      },
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail",
+        "metal fence",
+        "HVAC outdoor unit",
+        "outdoor unit",
+        "air conditioning unit"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail",
+            "metal fence"
+          ]
+        },
+        {
+          "focus": "equipment",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review_003__b0",
+      "rel": "review_003/b0",
+      "focus": [
+        "railing",
+        "equipment"
+      ],
+      "image": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_003/b0/image.png",
+      "overlay": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_003/b0/overlay.png",
+      "instance": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_003/b0/instance.png",
+      "semantic": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_003/b0/semantic.png",
+      "label_counts": {
+        "floor": 1,
+        "railing": 1,
+        "building": 1,
+        "equipment": 8
+      },
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail",
+        "metal fence",
+        "HVAC outdoor unit",
+        "outdoor unit",
+        "air conditioning unit"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail",
+            "metal fence"
+          ]
+        },
+        {
+          "focus": "equipment",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review_003__b1",
+      "rel": "review_003/b1",
+      "focus": [
+        "railing",
+        "equipment"
+      ],
+      "image": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_003/b1/image.png",
+      "overlay": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_003/b1/overlay.png",
+      "instance": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_003/b1/instance.png",
+      "semantic": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_003/b1/semantic.png",
+      "label_counts": {
+        "floor": 1,
+        "railing": 1,
+        "building": 1,
+        "equipment": 8
+      },
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail",
+        "metal fence",
+        "HVAC outdoor unit",
+        "outdoor unit",
+        "air conditioning unit"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail",
+            "metal fence"
+          ]
+        },
+        {
+          "focus": "equipment",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review_004__b0",
+      "rel": "review_004/b0",
+      "focus": [
+        "railing",
+        "equipment"
+      ],
+      "image": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_004/b0/image.png",
+      "overlay": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_004/b0/overlay.png",
+      "instance": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_004/b0/instance.png",
+      "semantic": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_004/b0/semantic.png",
+      "label_counts": {
+        "equipment": 12,
+        "railing": 10,
+        "floor": 1
+      },
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail",
+        "metal fence",
+        "HVAC outdoor unit",
+        "outdoor unit",
+        "air conditioning unit"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail",
+            "metal fence"
+          ]
+        },
+        {
+          "focus": "equipment",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review_005__a1",
+      "rel": "review_005/a1",
+      "focus": [
+        "railing",
+        "equipment"
+      ],
+      "image": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_005/a1/image.png",
+      "overlay": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_005/a1/overlay.png",
+      "instance": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_005/a1/instance.png",
+      "semantic": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_005/a1/semantic.png",
+      "label_counts": {
+        "floor": 5,
+        "building": 4,
+        "equipment": 12,
+        "railing": 1
+      },
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail",
+        "metal fence",
+        "HVAC outdoor unit",
+        "outdoor unit",
+        "air conditioning unit"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail",
+            "metal fence"
+          ]
+        },
+        {
+          "focus": "equipment",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review_005__b1",
+      "rel": "review_005/b1",
+      "focus": [
+        "railing",
+        "equipment"
+      ],
+      "image": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_005/b1/image.png",
+      "overlay": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_005/b1/overlay.png",
+      "instance": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_005/b1/instance.png",
+      "semantic": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_005/b1/semantic.png",
+      "label_counts": {
+        "building": 2,
+        "other": 5,
+        "equipment": 4,
+        "railing": 1,
+        "floor": 4
+      },
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail",
+        "metal fence",
+        "HVAC outdoor unit",
+        "outdoor unit",
+        "air conditioning unit"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail",
+            "metal fence"
+          ]
+        },
+        {
+          "focus": "equipment",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review_006__a0",
+      "rel": "review_006/a0",
+      "focus": [
+        "pipe",
+        "equipment"
+      ],
+      "image": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/a0/image.png",
+      "overlay": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/a0/overlay.png",
+      "instance": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/a0/instance.png",
+      "semantic": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/a0/semantic.png",
+      "label_counts": {
+        "floor": 12,
+        "equipment": 22,
+        "wall": 1,
+        "building": 3,
+        "other": 1
+      },
+      "prompt_terms": [
+        "pipe",
+        "cable",
+        "HVAC outdoor unit",
+        "outdoor unit",
+        "air conditioning unit"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "pipe",
+          "terms": [
+            "pipe",
+            "cable"
+          ]
+        },
+        {
+          "focus": "equipment",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review_006__a1",
+      "rel": "review_006/a1",
+      "focus": [
+        "pipe",
+        "equipment"
+      ],
+      "image": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/a1/image.png",
+      "overlay": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/a1/overlay.png",
+      "instance": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/a1/instance.png",
+      "semantic": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/a1/semantic.png",
+      "label_counts": {
+        "wall": 1,
+        "equipment": 14,
+        "floor": 12,
+        "building": 15,
+        "other": 5
+      },
+      "prompt_terms": [
+        "pipe",
+        "cable",
+        "HVAC outdoor unit",
+        "outdoor unit",
+        "air conditioning unit"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "pipe",
+          "terms": [
+            "pipe",
+            "cable"
+          ]
+        },
+        {
+          "focus": "equipment",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review_008__a0",
+      "rel": "review_008/a0",
+      "focus": [
+        "railing",
+        "equipment"
+      ],
+      "image": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_008/a0/image.png",
+      "overlay": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_008/a0/overlay.png",
+      "instance": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_008/a0/instance.png",
+      "semantic": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_008/a0/semantic.png",
+      "label_counts": {
+        "floor": 1,
+        "railing": 1,
+        "equipment": 5,
+        "building": 2,
+        "other": 2
+      },
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail",
+        "metal fence",
+        "HVAC outdoor unit",
+        "outdoor unit",
+        "air conditioning unit"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail",
+            "metal fence"
+          ]
+        },
+        {
+          "focus": "equipment",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review_008__b0",
+      "rel": "review_008/b0",
+      "focus": [
+        "railing",
+        "equipment"
+      ],
+      "image": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_008/b0/image.png",
+      "overlay": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_008/b0/overlay.png",
+      "instance": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_008/b0/instance.png",
+      "semantic": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_008/b0/semantic.png",
+      "label_counts": {
+        "floor": 1,
+        "railing": 1,
+        "equipment": 11,
+        "building": 1
+      },
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail",
+        "metal fence",
+        "HVAC outdoor unit",
+        "outdoor unit",
+        "air conditioning unit"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail",
+            "metal fence"
+          ]
+        },
+        {
+          "focus": "equipment",
+          "terms": [
+            "HVAC outdoor unit",
+            "outdoor unit",
+            "air conditioning unit"
+          ]
+        }
+      ]
+    }
+  ]
+}
