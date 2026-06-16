@@ -192,18 +192,21 @@ def vote_ratio(obj: dict[str, Any], label: str) -> float:
     return float(votes.get(label, 0.0) / max(total, 1e-9))
 
 
-def choose_label(obj: dict[str, Any], geom: dict[str, Any]) -> tuple[str, str]:
+def choose_label(obj: dict[str, Any], geom: dict[str, Any], context: dict[str, Any] | None = None) -> tuple[str, str]:
     original = str(obj.get("semantic_label") or "unknown")
     text = combined_text(obj)
     hits = text_hits(text)
     label_votes = normalize_votes(obj.get("label_votes"))
     dom_label, _, dom_ratio = dominant(label_votes, original)
     ratios = {name: weighted_text_ratio(obj, name) for name in TERM_PATTERNS}
+    context = context or {}
 
     # Fine object protection comes first. Large planar objects are allowed to
     # stay surface-like unless the text is explicitly fine-object oriented.
     if "railing" in hits and (
-        ratios["railing"] >= 0.18 or vote_ratio(obj, "railing") >= 0.08 or (geom["is_linear"] and ratios["railing"] >= 0.04)
+        ratios["railing"] >= 0.18
+        or vote_ratio(obj, "railing") >= 0.08
+        or (geom["linearity"] >= 0.84 and ratios["railing"] >= 0.015 and geom["max_extent"] >= 0.6)
     ):
         return "railing", "text_or_linear_railing_guard"
     if "pipe" in hits and (
@@ -220,6 +223,8 @@ def choose_label(obj: dict[str, Any], geom: dict[str, Any]) -> tuple[str, str]:
     # Explicit ceiling text should override floor when geometry is horizontal.
     if "ceiling" in hits and geom["is_horizontal"]:
         return "ceiling", "text_ceiling_horizontal"
+    if context.get("height_layer_ceiling") and geom["is_horizontal"] and original in SURFACE_LABELS | {"floor", "wall"}:
+        return "ceiling", "height_layer_ceiling"
 
     # Surface relabeling: use free text plus PCA orientation to resolve common
     # floor/wall inversions caused by forcing VLM into a finite label set.
@@ -237,6 +242,68 @@ def choose_label(obj: dict[str, Any], geom: dict[str, Any]) -> tuple[str, str]:
     if dom_ratio >= 0.8:
         return dom_label, "dominant_vote_high_confidence"
     return original, "kept_original_ambiguous"
+
+
+def xy_overlap_ratio(a: dict[str, Any], b: dict[str, Any]) -> float:
+    amin = np.array(a["bbox_3d"]["min"][:2], dtype=np.float64)
+    amax = np.array(a["bbox_3d"]["max"][:2], dtype=np.float64)
+    bmin = np.array(b["bbox_3d"]["min"][:2], dtype=np.float64)
+    bmax = np.array(b["bbox_3d"]["max"][:2], dtype=np.float64)
+    inter = np.maximum(0.0, np.minimum(amax, bmax) - np.maximum(amin, bmin))
+    inter_area = float(inter[0] * inter[1])
+    a_area = float(np.prod(np.maximum(amax - amin, 1e-6)))
+    b_area = float(np.prod(np.maximum(bmax - bmin, 1e-6)))
+    return inter_area / max(min(a_area, b_area), 1e-9)
+
+
+def build_height_layer_context(
+    objects: list[dict[str, Any]],
+    geoms: dict[int, dict[str, Any]],
+    args: argparse.Namespace,
+) -> dict[int, dict[str, Any]]:
+    if not bool(getattr(args, "enable_height_layer_ceiling", False)):
+        return {}
+    candidates: dict[int, dict[str, Any]] = {}
+    horizontal = []
+    for obj in objects:
+        obj_num = int(obj.get("object_number") or 0)
+        geom = geoms.get(obj_num, {})
+        label = str(obj.get("semantic_label") or "unknown")
+        if not geom.get("is_horizontal") or label in FINE_LABELS:
+            continue
+        horizontal.append(obj)
+    for upper in horizontal:
+        upper_num = int(upper.get("object_number") or 0)
+        upper_z = float(upper.get("centroid", [0, 0, 0])[2])
+        upper_text = combined_text(upper)
+        text_support = bool(
+            TERM_PATTERNS["ceiling"].search(upper_text)
+            or re.search(r"\b(interior|indoor|roof panel|metal roof|underside|overhead)\b", upper_text, re.I)
+        )
+        for lower in horizontal:
+            if lower is upper:
+                continue
+            lower_z = float(lower.get("centroid", [0, 0, 0])[2])
+            dz = upper_z - lower_z
+            if dz < args.ceiling_min_z_gap or dz > args.ceiling_max_z_gap:
+                continue
+            if xy_overlap_ratio(upper, lower) < args.ceiling_min_xy_overlap:
+                continue
+            lower_label = str(lower.get("semantic_label") or "unknown")
+            if lower_label not in {"floor", "other", "ambiguous", "wall"}:
+                continue
+            # Without any text support, only convert small/medium upper layers;
+            # large roof decks are too easy to misclassify as ceilings.
+            if not text_support and int(upper.get("voxel_count") or 0) > args.ceiling_max_no_text_voxels:
+                continue
+            candidates[upper_num] = {
+                "height_layer_ceiling": True,
+                "height_layer_lower_object": int(lower.get("object_number") or 0),
+                "height_layer_z_gap": float(dz),
+                "height_layer_xy_overlap": float(xy_overlap_ratio(upper, lower)),
+            }
+            break
+    return candidates
 
 
 def first_existing(*values: Any) -> Any:
@@ -261,22 +328,32 @@ def load_voxel_groups(voxels_path: Path) -> tuple[dict[int, list[np.ndarray]], C
     return groups, voxel_labels
 
 
-def refine_objects(objects: list[dict[str, Any]], groups: dict[int, list[np.ndarray]]) -> tuple[list[dict[str, Any]], dict[int, str], dict[str, Any]]:
+def refine_objects(
+    objects: list[dict[str, Any]],
+    groups: dict[int, list[np.ndarray]],
+    args: argparse.Namespace,
+) -> tuple[list[dict[str, Any]], dict[int, str], dict[str, Any]]:
     refined: list[dict[str, Any]] = []
     label_by_object: dict[int, str] = {}
     reason_counts: Counter[str] = Counter()
     object_label_before: Counter[str] = Counter()
     object_label_after: Counter[str] = Counter()
     changed: list[dict[str, Any]] = []
-
+    geoms: dict[int, dict[str, Any]] = {}
     for obj in objects:
         obj_num = int(obj.get("object_number") or 0)
         points = np.array(groups.get(obj_num, []), dtype=np.float64)
         if points.ndim != 2 or points.shape[1:] != (3,):
             points = np.empty((0, 3), dtype=np.float64)
-        geom = geometry_stats(points, obj.get("bbox_3d"))
+        geoms[obj_num] = geometry_stats(points, obj.get("bbox_3d"))
+    height_context = build_height_layer_context(objects, geoms, args)
+
+    for obj in objects:
+        obj_num = int(obj.get("object_number") or 0)
+        geom = geoms[obj_num]
         original = str(obj.get("semantic_label") or "unknown")
-        new_label, reason = choose_label(obj, geom)
+        context = height_context.get(obj_num, {})
+        new_label, reason = choose_label(obj, geom, context)
 
         out = dict(obj)
         out["object_id"] = f"global_obj_{obj_num:06d}" if obj_num else str(obj.get("object_id") or "")
@@ -285,6 +362,8 @@ def refine_objects(objects: list[dict[str, Any]], groups: dict[int, list[np.ndar
         out["refined_from"] = original
         out["refine_reason"] = reason
         out["geometry_stats"] = geom
+        if context:
+            out["height_layer_context"] = context
         out["display_identity"] = first_existing(obj.get("display_identity"), obj.get("identity_hint"), obj.get("description"), new_label)
         out["description"] = first_existing(obj.get("description"), obj.get("display_identity"), new_label)
         if original != new_label:
@@ -307,6 +386,7 @@ def refine_objects(objects: list[dict[str, Any]], groups: dict[int, list[np.ndar
     report = {
         "object_count": len(objects),
         "changed_count": len(changed),
+        "height_layer_ceiling_candidates": len(height_context),
         "reason_counts": dict(reason_counts),
         "object_label_counts_before": dict(object_label_before),
         "object_label_counts_after": dict(object_label_after),
@@ -376,12 +456,17 @@ def main() -> None:
     parser.add_argument("--objects-jsonl", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--min-voxel-points", type=int, default=1)
+    parser.add_argument("--enable-height-layer-ceiling", action="store_true")
+    parser.add_argument("--ceiling-min-z-gap", type=float, default=1.4)
+    parser.add_argument("--ceiling-max-z-gap", type=float, default=4.0)
+    parser.add_argument("--ceiling-min-xy-overlap", type=float, default=0.20)
+    parser.add_argument("--ceiling-max-no-text-voxels", type=int, default=80)
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     groups, voxel_label_before = load_voxel_groups(args.voxels_jsonl)
     objects = load_jsonl(args.objects_jsonl)
-    refined, label_by_object, report = refine_objects(objects, groups)
+    refined, label_by_object, report = refine_objects(objects, groups, args)
     voxel_label_after = write_refined_voxel_ply(
         args.voxels_jsonl,
         args.output_dir / "global_semantic_voxels_refined.ply",
