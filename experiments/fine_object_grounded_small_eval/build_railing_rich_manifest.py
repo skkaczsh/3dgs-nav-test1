@@ -18,6 +18,9 @@ RAILING_TERMS = {
     "围栏",
 }
 
+STRICT_TERMS = ["railing", "guardrail", "handrail"]
+WITH_FENCE_TERMS = ["railing", "guardrail", "handrail", "metal fence"]
+
 
 def parse_image_dir_name(name: str) -> tuple[int, int] | None:
     if not name.startswith("cam"):
@@ -78,6 +81,7 @@ def railing_score(labels: list[str]) -> tuple[int, int]:
 
 def build_manifest(args: argparse.Namespace) -> dict:
     root = args.semantic_eval_dir
+    terms = WITH_FENCE_TERMS if args.include_metal_fence else STRICT_TERMS
     samples = []
     for image_dir in sorted((root / "images").glob("cam*_*")):
         parsed = parse_image_dir_name(image_dir.name)
@@ -109,11 +113,11 @@ def build_manifest(args: argparse.Namespace) -> dict:
                 "cam": cam,
                 "frame": frame,
                 "label_counts": label_counts,
-                "prompt_terms": ["railing", "guardrail", "handrail", "metal fence"],
+                "prompt_terms": terms,
                 "prompt_groups": [
                     {
                         "focus": "railing",
-                        "terms": ["railing", "guardrail", "handrail", "metal fence"],
+                        "terms": terms,
                     }
                 ],
                 "railing_exact_count": exact,
@@ -137,8 +141,9 @@ def build_manifest(args: argparse.Namespace) -> dict:
         "experiment": "fine_object_grounded_railing_rich_eval",
         "semantic_eval_dir": str(root),
         "combo": args.combo,
-        "prompt_terms": ["railing", "guardrail", "handrail", "metal fence"],
-        "prompt_text": " . ".join(["railing", "guardrail", "handrail", "metal fence"]),
+        "prompt_variant": "with_fence" if args.include_metal_fence else "strict",
+        "prompt_terms": terms,
+        "prompt_text": " . ".join(terms),
         "samples": samples,
     }
 
@@ -148,6 +153,7 @@ def main() -> None:
     parser.add_argument("--semantic-eval-dir", type=Path, required=True)
     parser.add_argument("--combo", default="sam2_prompt_v3_sky_label_merge_completion")
     parser.add_argument("--limit", type=int, default=12)
+    parser.add_argument("--include-metal-fence", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 

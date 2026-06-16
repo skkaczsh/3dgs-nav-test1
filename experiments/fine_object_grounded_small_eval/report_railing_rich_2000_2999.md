@@ -86,3 +86,32 @@ Do not broaden this branch yet. Tighten the railing candidate stage first:
 4. for accepted masks, add a thin-structure guard using mask skeleton length or
    width profile before point projection
 
+## Strict prompt A/B
+
+After the first run, the same `12` samples were re-run with a stricter prompt:
+
+- strict:
+  `railing / guardrail / handrail`
+- removed:
+  `metal fence`
+
+Comparison:
+
+| variant | detections | median mask area ratio | max mask area ratio | problematic |
+| --- | ---: | ---: | ---: | ---: |
+| with `metal fence` | `36` | `0.0541` | `0.5974` | `26` |
+| strict no-fence | `30` | `0.0507` | `0.5976` | `20` |
+
+Interpretation:
+
+- removing `metal fence` reduces the total number of noisy detections
+- the most obvious broad surface-swallowing cases become less frequent
+- but one severe large-surface failure still remains, so phrase cleanup alone
+  is not sufficient
+
+Therefore the next tightening step should combine:
+
+1. strict positive prompt by default
+2. fallback `metal fence` only when strict prompt returns no useful candidate
+3. geometric rejection on low aspect-ratio / high area-ratio masks before 3D
+   projection
