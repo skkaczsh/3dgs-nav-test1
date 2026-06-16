@@ -106,6 +106,7 @@ Local evidence:
 
 - `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/project_detector_box_growth.py`
 - `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/railing_rich_2000_2999_box_growth_v1`
+- `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/railing_rich_2000_2999_box_growth_v2_tight`
 
 ### Quantitative comparison
 
@@ -122,6 +123,11 @@ Same 10-image rich sample:
   - kept points after guard: `942`
   - kept candidates after guard: `6`
   - fused `point_count = 942`
+- box-growth `v2_tight`
+  - projected accepted points before guard: `1545`
+  - kept points after guard: `814`
+  - kept candidates after guard: `7`
+  - fused `point_count = 814`
 
 ### Interpretation
 
@@ -139,13 +145,16 @@ What improved:
 What still did not improve enough:
 
 - object fusion is still fragmented
-- all six survivors remain `single_fine_candidate`
-- two large expanded candidates were still demoted as surface-like, so the
-  branch still needs a tighter grow rule
+- all survivors remain `single_fine_candidate`
+- even the tighter variant still leaves one large expanded candidate to demote
 
 Practical conclusion:
 
 - this branch is strictly better than pure thin-mask tuning
+- the tighter setting is the better default:
+  - it drops kept points from `942` to `814`
+  - but reduces demoted surface-like growth from `2` candidates to `1`
+  - and increases kept candidates from `6` to `7`
 - the correct next step for `railing` is now:
   - keep detector-box constrained growth
   - tighten growth acceptance

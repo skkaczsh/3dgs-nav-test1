@@ -1,0 +1,207 @@
+[
+  {
+    "sample_id": "cam0_002640",
+    "candidate_id": 400001,
+    "frame": 2640,
+    "cam": 0,
+    "focus": "railing",
+    "status": "ok",
+    "projected_points": 115,
+    "seed_points": 61,
+    "box_points": 1045,
+    "candidate_box_points": 131,
+    "growth_gain": 1.8852459016393444,
+    "point_ratio": 0.0075217476617175745,
+    "depth_range": [
+      0.4352191931541924,
+      5.102238014935319
+    ],
+    "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v2_tight/cam0_002640_railing_grown_projected.ply",
+    "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam0_002640/masks/01_railing_guardrail_handrail.png",
+    "grounding_score": 0.3118126392364502,
+    "mask_area_ratio": 0.022414641203703702
+  },
+  {
+    "sample_id": "cam2_002670",
+    "candidate_id": 400002,
+    "frame": 2670,
+    "cam": 2,
+    "focus": "railing",
+    "status": "ok",
+    "projected_points": 711,
+    "seed_points": 587,
+    "box_points": 1194,
+    "candidate_box_points": 855,
+    "growth_gain": 1.211243611584327,
+    "point_ratio": 0.02866010964205095,
+    "depth_range": [
+      2.066488752003485,
+      8.061175563099749
+    ],
+    "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v2_tight/cam2_002670_railing_grown_projected.ply",
+    "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam2_002670/masks/02_railing_guardrail_handrail.png",
+    "grounding_score": 0.20296698808670044,
+    "mask_area_ratio": 0.04799623842592592
+  },
+  {
+    "sample_id": "cam2_002840",
+    "candidate_id": 400003,
+    "frame": 2840,
+    "cam": 2,
+    "focus": "railing",
+    "status": "ok",
+    "projected_points": 397,
+    "seed_points": 295,
+    "box_points": 891,
+    "candidate_box_points": 425,
+    "growth_gain": 1.3457627118644069,
+    "point_ratio": 0.027474048442906573,
+    "depth_range": [
+      1.535876824710348,
+      5.920897884488406
+    ],
+    "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v2_tight/cam2_002840_railing_grown_projected.ply",
+    "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam2_002840/masks/02_railing_guardrail_handrail.png",
+    "grounding_score": 0.21770355105400085,
+    "mask_area_ratio": 0.05560619212962963
+  },
+  {
+    "sample_id": "cam1_002480",
+    "candidate_id": 400004,
+    "frame": 2480,
+    "cam": 1,
+    "focus": "railing",
+    "status": "ok",
+    "projected_points": 23,
+    "seed_points": 8,
+    "box_points": 788,
+    "candidate_box_points": 70,
+    "growth_gain": 2.875,
+    "point_ratio": 0.0016178953292065278,
+    "depth_range": [
+      1.1675094990440817,
+      4.9643173477895175
+    ],
+    "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v2_tight/cam1_002480_railing_grown_projected.ply",
+    "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam1_002480/masks/01_railing_railing_guardrail_handrail.png",
+    "grounding_score": 0.3057987093925476,
+    "mask_area_ratio": 0.015635127314814815
+  },
+  {
+    "sample_id": "cam0_002780",
+    "candidate_id": 400005,
+    "frame": 2780,
+    "cam": 0,
+    "focus": "railing",
+    "status": "ok",
+    "projected_points": 82,
+    "seed_points": 34,
+    "box_points": 3953,
+    "candidate_box_points": 129,
+    "growth_gain": 2.411764705882353,
+    "point_ratio": 0.0029429709650791373,
+    "depth_range": [
+      0.6096973206250713,
+      4.140769431602486
+    ],
+    "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v2_tight/cam0_002780_railing_grown_projected.ply",
+    "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam0_002780/masks/00_railing_guardrail_handrail.png",
+    "grounding_score": 0.4305115044116974,
+    "mask_area_ratio": 0.028426890432098766
+  },
+  {
+    "sample_id": "cam0_002820",
+    "candidate_id": 400006,
+    "frame": 2820,
+    "cam": 0,
+    "focus": "railing",
+    "status": "ok",
+    "projected_points": 56,
+    "seed_points": 20,
+    "box_points": 556,
+    "candidate_box_points": 60,
+    "growth_gain": 2.8,
+    "point_ratio": 0.0036288232244686366,
+    "depth_range": [
+      1.4069901093430182,
+      3.86218261813653
+    ],
+    "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v2_tight/cam0_002820_railing_grown_projected.ply",
+    "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam0_002820/masks/01_railing_railing_guardrail_handrail.png",
+    "grounding_score": 0.2926284074783325,
+    "mask_area_ratio": 0.011307388117283951
+  },
+  {
+    "sample_id": "cam0_002800",
+    "candidate_id": 400007,
+    "frame": 2800,
+    "cam": 0,
+    "focus": "railing",
+    "status": "ok",
+    "projected_points": 60,
+    "seed_points": 34,
+    "box_points": 1189,
+    "candidate_box_points": 82,
+    "growth_gain": 1.7647058823529411,
+    "point_ratio": 0.004793097938967887,
+    "depth_range": [
+      0.7748705969277023,
+      3.4788644506784947
+    ],
+    "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v2_tight/cam0_002800_railing_grown_projected.ply",
+    "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam0_002800/masks/00_railing_railing_guardrail_handrail.png",
+    "grounding_score": 0.37646737694740295,
+    "mask_area_ratio": 0.022762345679012346
+  },
+  {
+    "sample_id": "cam0_002920",
+    "candidate_id": 400008,
+    "frame": 2920,
+    "cam": 0,
+    "focus": "railing",
+    "status": "ok",
+    "projected_points": 81,
+    "seed_points": 32,
+    "box_points": 2960,
+    "candidate_box_points": 132,
+    "growth_gain": 2.53125,
+    "point_ratio": 0.003070158814388053,
+    "depth_range": [
+      0.6872341697741491,
+      3.6025702331416776
+    ],
+    "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v2_tight/cam0_002920_railing_grown_projected.ply",
+    "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam0_002920/masks/00_railing_railing_guardrail_handrail.png",
+    "grounding_score": 0.4224238097667694,
+    "mask_area_ratio": 0.02716628086419753
+  },
+  {
+    "sample_id": "cam1_002620",
+    "candidate_id": 400009,
+    "frame": 2620,
+    "cam": 1,
+    "focus": "railing",
+    "status": "ok",
+    "projected_points": 20,
+    "seed_points": 8,
+    "box_points": 147,
+    "candidate_box_points": 33,
+    "growth_gain": 2.5,
+    "point_ratio": 0.0007630093087135663,
+    "depth_range": [
+      2.1807363695880935,
+      4.031283789072495
+    ],
+    "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v2_tight/cam1_002620_railing_grown_projected.ply",
+    "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam1_002620/masks/02_railing_railing_guardrail_handrail.png",
+    "grounding_score": 0.22611042857170105,
+    "mask_area_ratio": 0.006548032407407408
+  },
+  {
+    "sample_id": "cam0_002430",
+    "status": "mask_no_points",
+    "frame": 2430,
+    "cam": 0,
+    "focus": "railing"
+  }
+]
