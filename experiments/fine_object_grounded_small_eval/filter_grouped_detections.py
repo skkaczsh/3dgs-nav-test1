@@ -67,14 +67,26 @@ def accept_detection(det: dict) -> tuple[bool, str]:
     if focus in {"equipment", "hvac"}:
         if score < 0.35:
             return False, "low_score"
-        if area_ratio < 0.001:
+        if area_ratio < 0.002:
             return False, "tiny_mask"
-        if area_ratio > 0.08:
+        if area_ratio > 0.05:
             return False, "oversized_mask"
-        if box_area_ratio > 0.14:
+        if box_area_ratio > 0.08:
             return False, "oversized_box"
-        if not any(word in phrase for word in ("hvac", "outdoor", "air", "unit", "conditioning")):
+        normalized = " ".join(phrase.split())
+        weak_phrases = {"air", "unit", "unit unit"}
+        if normalized in weak_phrases:
+            return False, "phrase_too_weak"
+        strong_phrase = (
+            "air conditioning" in normalized
+            or "hvac" in normalized
+            or "outdoor unit" in normalized
+            or ("conditioning" in normalized and "unit" in normalized)
+        )
+        if not strong_phrase:
             return False, "phrase_mismatch"
+        if aspect > 2.2:
+            return False, "too_elongated"
         return True, "accepted"
 
     return False, "unsupported_focus"
