@@ -617,3 +617,94 @@ It should be a support-preserving branch focused on:
 - candidate-region projection
 - 3D geometry growth from thin seeds
 - cross-view accumulation before fusion
+
+## 4. Global Color-Assisted Matching Prototype
+
+A prototype matcher was added to test the user's proposal:
+
+- first keep the validated per-frame projection route
+- then use global colored semantic voxels/objects as an additional association
+  prior for frame-level targets
+
+Prototype script:
+
+- `/Users/skkac/Work/SCAN/new_route/scripts/match_targets_to_global_color_objects.py`
+
+Scoring inputs:
+
+- exact voxel overlap
+- relaxed voxel-neighborhood support
+- centroid distance
+- bbox distance
+- mean RGB distance
+- same-label bonus
+
+### Results
+
+1. Same-source sanity check
+
+Using:
+
+- targets:
+  `.../railing_rich_grounded_eval_2000_2999_strict_v2/promoted_guard_focus_v1/frame_targets/targets_all.jsonl`
+- global votes:
+  `.../railing_rich_grounded_eval_2000_2999_strict_v2/promoted_guard_focus_v1/global_votes/*`
+
+Result:
+
+- `match_count = 14 / 14`
+- many targets achieved strong exact overlap or near-perfect centroid agreement
+
+Interpretation:
+
+- the matcher itself is valid
+- when target generation and global aggregation come from the same source
+  branch, it can reliably re-attach frame targets to global objects
+
+2. Cross-run transfer check
+
+Using:
+
+- targets:
+  `.../raw_adjacent_railing_2760_2860_run/tracklet_pipeline/frame_targets/targets_all.jsonl`
+- global votes:
+  `.../railing_rich_grounded_eval_2000_2999_strict_v2/promoted_guard_focus_v1/global_votes/*`
+
+Exact-overlap only:
+
+- `match_count = 0 / 47`
+
+With relaxed support (`neighbor_radius_voxels = 5`):
+
+- `match_count = 3 / 47`
+- `best_match.support_overlap_ratio > 0` for `8 / 47`
+
+Interpretation:
+
+- there is some geometric/color association signal
+- but hard voxel overlap does not transfer across different sparse sampling
+  runs, even when frame ranges overlap
+- relaxed support helps a little, but does not turn a different target branch
+  into a drop-in compatible global reference
+
+### Practical Conclusion
+
+Global color-assisted matching is useful, but only in a narrow role:
+
+- as an extra association prior inside the same validated production branch
+- to stabilize `Target -> Object` attachment
+- to provide another cue beyond bbox continuity
+
+It is not a fix for:
+
+- wrong mask coverage
+- wrong target geometry
+- semantically polluted global objects
+- cross-branch inconsistencies between separately generated sparse target sets
+
+So if this route is promoted, the next correct version is:
+
+1. build global colored support from the same target branch
+2. use local target geometry + global color/object evidence jointly
+3. do not use global semantic voxels from a different sparse branch as a hard
+   reference

@@ -38,6 +38,9 @@ def main() -> None:
     parser.add_argument("--box-grow-depth-edge-threshold", type=float, default=0.0)
     parser.add_argument("--box-grow-seed-depth-window-px", type=int, default=0)
     parser.add_argument("--box-grow-seed-depth-threshold", type=float, default=0.0)
+    parser.add_argument("--box-grow-seed-depth-focus", dest="box_grow_seed_depth_focuses", action="append", default=[])
+    parser.add_argument("--box-grow-seed-depth-min-minrect-aspect", type=float, default=0.0)
+    parser.add_argument("--box-grow-seed-depth-max-mask-fill-ratio", type=float, default=1.0)
     parser.add_argument("--box-grow-voxel-size", type=float, default=0.08)
     parser.add_argument("--box-grow-min-component-points", type=int, default=8)
     parser.add_argument("--target-voxel-size", type=float, default=0.08)
@@ -69,6 +72,10 @@ def main() -> None:
     remote_box_growth = f"{remote_output}/box_growth"
     remote_fused = f"{remote_output}/fused"
     remote_tracklets = f"{remote_output}/tracklet_pipeline"
+    seed_depth_focus_args = ""
+    if args.box_grow_seed_depth_focuses:
+        joined = " ".join(shlex.quote(focus) for focus in args.box_grow_seed_depth_focuses)
+        seed_depth_focus_args = f"--seed-depth-focuses {joined}"
 
     run(
         [
@@ -126,6 +133,9 @@ export TRANSFORMERS_OFFLINE=1
   --depth-edge-threshold {args.box_grow_depth_edge_threshold} \
   --seed-depth-window-px {args.box_grow_seed_depth_window_px} \
   --seed-depth-threshold {args.box_grow_seed_depth_threshold} \
+  {seed_depth_focus_args} \
+  --seed-depth-min-minrect-aspect {args.box_grow_seed_depth_min_minrect_aspect} \
+  --seed-depth-max-mask-fill-ratio {args.box_grow_seed_depth_max_mask_fill_ratio} \
   --voxel-size {args.box_grow_voxel_size} \
   --min-component-points {args.box_grow_min_component_points}
 if [ -f {shlex.quote(remote_box_growth)}/accepted_points.ply ]; then

@@ -712,6 +712,186 @@ def test_box_growth_seed_depth_guard_rejects_points_behind_seed_surface():
     assert filtered == 1
 
 
+def test_box_growth_seed_depth_guard_can_be_gated_by_focus_and_shape():
+    module = load_module(
+        EXPERIMENTS / "project_detector_box_growth.py",
+        "project_detector_box_growth_seed_depth_gate_for_repo_test",
+    )
+    args = argparse.Namespace(
+        seed_depth_focuses=["railing"],
+        seed_depth_min_minrect_aspect=5.0,
+        seed_depth_max_mask_fill_ratio=0.2,
+    )
+    railing_row = {
+        "focus": "railing",
+        "minrect_aspect_ratio": 8.0,
+        "mask_bbox_fill_ratio": 0.12,
+    }
+    wall_row = {
+        "focus": "wall",
+        "minrect_aspect_ratio": 8.0,
+        "mask_bbox_fill_ratio": 0.12,
+    }
+    stubby_row = {
+        "focus": "railing",
+        "minrect_aspect_ratio": 2.0,
+        "mask_bbox_fill_ratio": 0.12,
+    }
+    dense_row = {
+        "focus": "railing",
+        "minrect_aspect_ratio": 8.0,
+        "mask_bbox_fill_ratio": 0.5,
+    }
+
+    assert module.should_apply_seed_depth_guard(railing_row, args) is True
+    assert module.should_apply_seed_depth_guard(wall_row, args) is False
+    assert module.should_apply_seed_depth_guard(stubby_row, args) is False
+    assert module.should_apply_seed_depth_guard(dense_row, args) is False
+
+
+def test_match_targets_to_global_color_objects_prefers_overlap():
+    module = load_module(
+        SCRIPTS / "match_targets_to_global_color_objects.py",
+        "match_targets_to_global_color_objects_for_repo_test",
+    )
+    args = type(
+        "Args",
+        (),
+        {
+            "voxel_size": 0.06,
+            "overlap_weight": 3.0,
+            "neighbor_radius_voxels": 0,
+            "centroid_penalty": 0.4,
+            "bbox_penalty": 0.4,
+            "color_penalty": 0.8,
+            "label_bonus": 0.3,
+        },
+    )()
+    target = {
+        "label": "railing",
+        "centroid": [0.02, 0.0, 0.0],
+        "bbox_3d": {"min": [0.0, -0.01, -0.01], "max": [0.05, 0.01, 0.01]},
+        "mean_color": [220, 210, 40],
+    }
+    target_keys = {(0, 0, 0), (1, 0, 0)}
+    good_obj = {
+        "object_id": "global_obj_000001",
+        "object_number": 1,
+        "semantic_label": "railing",
+        "display_identity": "yellow railing",
+        "centroid": [0.02, 0.0, 0.0],
+        "bbox_3d": {"min": [0.0, -0.02, -0.02], "max": [0.08, 0.02, 0.02]},
+    }
+    bad_obj = {
+        "object_id": "global_obj_000002",
+        "object_number": 2,
+        "semantic_label": "wall",
+        "display_identity": "wall",
+        "centroid": [2.0, 0.0, 0.0],
+        "bbox_3d": {"min": [1.8, -0.2, -0.2], "max": [2.2, 0.2, 0.2]},
+    }
+    good_voxels = [
+        {"key": [0, 0, 0], "mean_color": [220, 210, 40], "object_number": 1},
+        {"key": [1, 0, 0], "mean_color": [218, 205, 45], "object_number": 1},
+    ]
+    bad_voxels = [
+        {"key": [30, 0, 0], "mean_color": [150, 150, 150], "object_number": 2},
+    ]
+
+    good = module.score_match(target, target_keys, good_obj, good_voxels, args)
+    bad = module.score_match(target, target_keys, bad_obj, bad_voxels, args)
+
+    assert good["overlap_ratio"] == 1.0
+    assert bad["overlap_ratio"] == 0.0
+    assert good["score"] > bad["score"]
+
+
+def test_match_targets_to_global_color_objects_keeps_near_candidate_without_overlap():
+    module = load_module(
+        SCRIPTS / "match_targets_to_global_color_objects.py",
+        "match_targets_to_global_color_objects_near_for_repo_test",
+    )
+    args = type(
+        "Args",
+        (),
+        {
+            "voxel_size": 0.06,
+            "overlap_weight": 3.0,
+            "neighbor_radius_voxels": 0,
+            "centroid_penalty": 0.4,
+            "bbox_penalty": 0.4,
+            "color_penalty": 0.8,
+            "label_bonus": 0.3,
+        },
+    )()
+    target = {
+        "label": "equipment",
+        "centroid": [0.1, 0.1, 0.0],
+        "bbox_3d": {"min": [0.0, 0.0, -0.1], "max": [0.2, 0.2, 0.1]},
+        "mean_color": [180, 180, 180],
+    }
+    target_keys = {(1, 1, 0)}
+    near_obj = {
+        "object_id": "global_obj_000010",
+        "object_number": 10,
+        "semantic_label": "equipment",
+        "display_identity": "hvac unit",
+        "centroid": [0.2, 0.1, 0.0],
+        "bbox_3d": {"min": [0.1, 0.0, -0.1], "max": [0.3, 0.2, 0.1]},
+    }
+    near_voxels = [{"key": [5, 5, 0], "mean_color": [175, 176, 178], "object_number": 10}]
+
+    scored = module.score_match(target, target_keys, near_obj, near_voxels, args)
+
+    assert scored["overlap_ratio"] == 0.0
+    assert scored["support_overlap_ratio"] == 0.0
+    assert scored["centroid_distance"] < 0.2
+    assert scored["same_label"] is True
+
+
+def test_match_targets_to_global_color_objects_support_overlap_can_use_neighbor_radius():
+    module = load_module(
+        SCRIPTS / "match_targets_to_global_color_objects.py",
+        "match_targets_to_global_color_objects_support_for_repo_test",
+    )
+    args = type(
+        "Args",
+        (),
+        {
+            "voxel_size": 0.06,
+            "overlap_weight": 3.0,
+            "neighbor_radius_voxels": 1,
+            "centroid_penalty": 0.4,
+            "bbox_penalty": 0.4,
+            "color_penalty": 0.8,
+            "label_bonus": 0.3,
+        },
+    )()
+    target = {
+        "label": "railing",
+        "centroid": [0.02, 0.0, 0.0],
+        "bbox_3d": {"min": [0.0, -0.01, -0.01], "max": [0.05, 0.01, 0.01]},
+        "mean_color": [220, 210, 40],
+    }
+    target_keys = {(0, 0, 0), (1, 0, 0)}
+    near_obj = {
+        "object_id": "global_obj_000003",
+        "object_number": 3,
+        "semantic_label": "railing",
+        "display_identity": "yellow railing",
+        "centroid": [0.02, 0.0, 0.0],
+        "bbox_3d": {"min": [0.0, -0.02, -0.02], "max": [0.08, 0.02, 0.02]},
+    }
+    near_voxels = [{"key": [2, 0, 0], "mean_color": [220, 210, 40], "object_number": 3}]
+
+    scored = module.score_match(target, target_keys, near_obj, near_voxels, args)
+
+    assert scored["overlap_ratio"] == 0.0
+    assert scored["support_overlap_ratio"] == 0.5
+    assert scored["support_overlap_count"] == 1
+    assert scored["score"] > 0.0
+
+
 def _long_tracklet(tracklet_id, frame_min, centroid, candidate="200001", source="9", color=(100, 100, 100)):
     c = np.array(centroid, dtype=float)
     return {

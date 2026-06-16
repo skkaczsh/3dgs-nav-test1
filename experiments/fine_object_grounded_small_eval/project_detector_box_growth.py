@@ -39,6 +39,10 @@ def candidate_color(candidate_id: int, focus: str) -> tuple[int, int, int]:
     return int(color[0]), int(color[1]), int(color[2])
 
 
+def parse_focus_set(values: list[str]) -> set[str]:
+    return {str(v).strip().lower() for v in values if str(v).strip()}
+
+
 def pca_summary(points: np.ndarray) -> dict:
     centroid = points.mean(axis=0)
     centered = points - centroid
@@ -195,6 +199,20 @@ def apply_seed_depth_guard(
     return guarded, filtered
 
 
+def should_apply_seed_depth_guard(row: dict, args: argparse.Namespace) -> bool:
+    focuses = parse_focus_set(getattr(args, "seed_depth_focuses", []))
+    focus = str(row.get("focus", "")).strip().lower()
+    if focuses and focus not in focuses:
+        return False
+    min_minrect_aspect = float(getattr(args, "seed_depth_min_minrect_aspect", 0.0))
+    if float(row.get("minrect_aspect_ratio", 0.0) or 0.0) < min_minrect_aspect:
+        return False
+    max_mask_fill = float(getattr(args, "seed_depth_max_mask_fill_ratio", 1.0))
+    if float(row.get("mask_bbox_fill_ratio", 0.0) or 0.0) > max_mask_fill:
+        return False
+    return True
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--accepted-jsonl", required=True)
@@ -212,6 +230,9 @@ def main() -> None:
     parser.add_argument("--depth-edge-threshold", type=float, default=0.0)
     parser.add_argument("--seed-depth-window-px", type=int, default=0)
     parser.add_argument("--seed-depth-threshold", type=float, default=0.0)
+    parser.add_argument("--seed-depth-focuses", nargs="*", default=[])
+    parser.add_argument("--seed-depth-min-minrect-aspect", type=float, default=0.0)
+    parser.add_argument("--seed-depth-max-mask-fill-ratio", type=float, default=1.0)
     parser.add_argument("--voxel-size", type=float, default=0.08)
     parser.add_argument("--min-component-points", type=int, default=8)
     parser.add_argument("--zbuffer-visible", action="store_true", default=True)
@@ -306,17 +327,19 @@ def main() -> None:
             window_px=args.depth_edge_window_px,
             threshold=args.depth_edge_threshold,
         )
-        candidate_local, seed_depth_filtered = apply_seed_depth_guard(
-            candidate_local,
-            seed_local,
-            box_vv,
-            box_uu,
-            box_dd,
-            height=h,
-            width=w,
-            window_px=args.seed_depth_window_px,
-            threshold=args.seed_depth_threshold,
-        )
+        seed_depth_filtered = 0
+        if should_apply_seed_depth_guard(row, args):
+            candidate_local, seed_depth_filtered = apply_seed_depth_guard(
+                candidate_local,
+                seed_local,
+                box_vv,
+                box_uu,
+                box_dd,
+                height=h,
+                width=w,
+                window_px=args.seed_depth_window_px,
+                threshold=args.seed_depth_threshold,
+            )
         candidate_indices = box_idx[candidate_local]
         candidate_seed_local = seed_local[candidate_local]
         if len(candidate_indices) == 0:
@@ -401,6 +424,9 @@ def main() -> None:
                 "depth_edge_threshold": float(args.depth_edge_threshold),
                 "seed_depth_window_px": int(args.seed_depth_window_px),
                 "seed_depth_threshold": float(args.seed_depth_threshold),
+                "seed_depth_focuses": sorted(parse_focus_set(args.seed_depth_focuses)),
+                "seed_depth_min_minrect_aspect": float(args.seed_depth_min_minrect_aspect),
+                "seed_depth_max_mask_fill_ratio": float(args.seed_depth_max_mask_fill_ratio),
                 "voxel_size": float(args.voxel_size),
                 "min_component_points": int(args.min_component_points),
             },
@@ -421,6 +447,7 @@ def main() -> None:
                 "candidate_box_points": int(len(candidate_indices)),
                 "depth_edge_filtered_points": int(depth_edge_filtered),
                 "seed_depth_filtered_points": int(seed_depth_filtered),
+                "seed_depth_guard_enabled": bool(should_apply_seed_depth_guard(row, args)),
                 "growth_gain": float(len(kept_points) / max(seed_point_count, 1)),
                 "point_ratio": float(len(kept_points) / max(len(points), 1)),
                 "depth_range": [depth_lo, depth_hi],
