@@ -127,6 +127,13 @@ def object_color(target_number: int) -> tuple[int, int, int]:
     return tuple(int(x) for x in rng.integers(70, 245, 3))
 
 
+def colored_frame_ply_path(frame: int, args: argparse.Namespace) -> str:
+    colored_dir = getattr(args, "colored_frame_dir", None)
+    if not colored_dir:
+        return ""
+    return str(Path(colored_dir) / f"frame_{frame:04d}.ply")
+
+
 def build_targets(props: list[str], data: np.ndarray, args: argparse.Namespace) -> tuple[list[dict], dict, list[tuple[np.ndarray, int]]]:
     idx = {name: i for i, name in enumerate(props)}
     required = {
@@ -195,8 +202,8 @@ def build_targets(props: list[str], data: np.ndarray, args: argparse.Namespace) 
                 "confidence": 1.0,
                 "image_path": "",
                 "mask_path": "",
-                "raw_frame_ply": "",
-                "colored_frame_ply": "",
+                "raw_frame_ply": colored_frame_ply_path(int(frame), args),
+                "colored_frame_ply": colored_frame_ply_path(int(frame), args),
                 "point_indices": point_indices,
                 "bbox_3d": {
                     "min": [float(x) for x in comp_xyz.min(axis=0)],
@@ -266,6 +273,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--enriched-ply", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--colored-frame-dir", type=Path, default=None)
     parser.add_argument("--voxel-size", type=float, default=0.08)
     parser.add_argument("--min-target-points", type=int, default=5)
     parser.add_argument("--write-ply", action="store_true")

@@ -55,6 +55,25 @@ Interpretation:
   after projection.
 - The remaining limitation is sparse 3D support, not catastrophic 2D drift.
 
+### Pipe -> frame targets -> global votes
+
+The `pipe` accepted points were also pushed one step deeper into the validated
+target/object route:
+
+- enriched accepted points: `247`
+- frame-level fine targets: `9`
+- frame target kept points: `221`
+- small residual points: `26`
+- global semantic vote voxels: `133`
+- global vote objects: `4`
+- global vote status: all `stable`
+
+Implication:
+
+- `pipe` is currently the only grounded fine-object class that has already
+  demonstrated a clean path through accepted 2D detections, correct-route 3D
+  projection, frame target generation, and global vote object consolidation.
+
 ## Equipment-rich sample
 
 Source:
