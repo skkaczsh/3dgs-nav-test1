@@ -21,6 +21,9 @@ FINE_LABELS = {"equipment", "railing", "pipe", "other"}
 FLOOR_TEXT = {"floor", "ground", "landing", "stair", "stairs", "step", "steps", "tread", "tiled floor", "roof surface", "rooftop floor"}
 WALL_TEXT = {"wall", "vertical", "facade", "panel", "paneling", "parapet"}
 CEILING_TEXT = {"ceiling", "overhead", "underside", "roof underside"}
+RAILING_TEXT = {"railing", "guardrail", "handrail", "fence", "metal fence", "barrier", "balustrade", "mesh"}
+PIPE_TEXT = {"pipe", "conduit", "cable", "duct", "tube", "hose", "wire"}
+EQUIPMENT_TEXT = {"equipment", "hvac", "outdoor unit", "air conditioning", "machine", "cabinet", "device", "fixture", "sensor", "antenna"}
 
 
 def norm(text: object) -> str:
@@ -42,6 +45,13 @@ def normal_abs_z(target: dict) -> float:
 def planarity(target: dict) -> float:
     try:
         return float((target.get("pca") or {}).get("planarity", 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def linearity(target: dict) -> float:
+    try:
+        return float((target.get("pca") or {}).get("linearity", 0.0))
     except (TypeError, ValueError):
         return 0.0
 
@@ -113,6 +123,22 @@ def relabel_target(target: dict, args: argparse.Namespace) -> tuple[str, str]:
     text_wall = has_any(text, WALL_TEXT)
     text_floor = has_any(text, FLOOR_TEXT)
     text_ceiling = has_any(text, CEILING_TEXT)
+    text_railing = has_any(text, RAILING_TEXT)
+    text_pipe = has_any(text, PIPE_TEXT)
+    text_equipment = has_any(text, EQUIPMENT_TEXT)
+    ln = linearity(target)
+    extents = sorted(bbox_extent(target), reverse=True)
+    max_extent = extents[0] if extents else 0.0
+    second_extent = extents[1] if len(extents) > 1 else 0.0
+
+    # Rescue thin fine structures that were swallowed into coarse surface labels.
+    if label in SURFACE_LABELS:
+        if text_railing and ln >= args.fine_linear_min_linearity and max_extent >= args.fine_linear_min_extent:
+            return "railing", f"{label}_rescued_railing_linear"
+        if text_pipe and ln >= args.fine_linear_min_linearity and max_extent >= args.fine_linear_min_extent:
+            return "pipe", f"{label}_rescued_pipe_linear"
+        if text_equipment and max_extent <= args.equipment_surface_rescue_max_extent and second_extent <= args.equipment_surface_rescue_max_second_extent:
+            return "equipment", f"{label}_rescued_equipment_compact"
 
     if label == "floor":
         if text_ceiling:
@@ -219,6 +245,10 @@ def main() -> None:
     parser.add_argument("--fine-surface-min-extent", type=float, default=1.2)
     parser.add_argument("--fine-surface-min-second-extent", type=float, default=0.45)
     parser.add_argument("--fine-surface-min-planarity", type=float, default=0.10)
+    parser.add_argument("--fine-linear-min-linearity", type=float, default=0.84)
+    parser.add_argument("--fine-linear-min-extent", type=float, default=0.6)
+    parser.add_argument("--equipment-surface-rescue-max-extent", type=float, default=1.8)
+    parser.add_argument("--equipment-surface-rescue-max-second-extent", type=float, default=1.2)
     args = parser.parse_args()
 
     files = iter_target_files(args.input_targets)
