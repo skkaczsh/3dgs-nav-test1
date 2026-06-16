@@ -49,6 +49,19 @@ def sanitize_phrase(text: str) -> str:
     return " ".join(text.replace(".", " ").split())
 
 
+def slugify(text: str) -> str:
+    keep = []
+    for ch in text.lower():
+        if ch.isalnum():
+            keep.append(ch)
+        else:
+            keep.append("_")
+    slug = "".join(keep)
+    while "__" in slug:
+        slug = slug.replace("__", "_")
+    return slug.strip("_") or "mask"
+
+
 def overlay_masks(image_rgb: np.ndarray, masks, labels, alpha: float = 0.35) -> np.ndarray:
     vis = image_rgb.copy()
     colors = [
@@ -164,6 +177,8 @@ def main() -> None:
         sample_id = sample["id"]
         sample_dir = per_sample_dir / sample_id
         sample_dir.mkdir(exist_ok=True)
+        mask_dir = sample_dir / "masks"
+        mask_dir.mkdir(exist_ok=True)
         prompt_terms = sample.get("prompt_terms") or manifest.get("prompt_terms") or []
         prompt_groups = sample.get("prompt_groups") or [{"focus": "all", "terms": prompt_terms}]
         prompt_text = " . ".join(prompt_terms) if prompt_terms else default_prompt_text
@@ -271,17 +286,33 @@ def main() -> None:
                     "sam_score": float(sam_score),
                     "box_xyxy": [float(x) for x in box.tolist()],
                     "mask_area": int(mask.sum()),
+                    "mask_area_ratio": float(mask.sum() / float(h * w)),
+                    "box_area_ratio": float(
+                        max(0.0, (float(box[2]) - float(box[0]))) * max(0.0, (float(box[3]) - float(box[1]))) / float(h * w)
+                    ),
+                    "box_width": float(max(0.0, float(box[2]) - float(box[0]))),
+                    "box_height": float(max(0.0, float(box[3]) - float(box[1]))),
+                    "box_aspect_ratio": float(
+                        max(float(max(0.0, float(box[2]) - float(box[0]))), float(max(0.0, float(box[3]) - float(box[1]))))
+                        / max(1.0, min(float(max(0.0, float(box[2]) - float(box[0]))), float(max(0.0, float(box[3]) - float(box[1])))))
+                    ),
+                    "mask_path": str(
+                        mask_dir / f"{rank:02d}_{focus}_{slugify(phrase)}.png"
+                    ),
                 }
-                for focus, phrase, logit, sam_score, box, mask in zip(
+                for rank, (focus, phrase, logit, sam_score, box, mask) in enumerate(zip(
                     detection_focuses,
                     phrases,
                     logits.tolist(),
                     sam_scores,
                     boxes_xyxy,
                     masks,
-                )
+                ))
             ],
         }
+        for det, mask in zip(result["detections"], masks):
+            mask_path = Path(det["mask_path"])
+            cv2.imwrite(str(mask_path), (mask.astype(np.uint8) * 255))
         (sample_dir / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
         aggregate.append(result)
 
