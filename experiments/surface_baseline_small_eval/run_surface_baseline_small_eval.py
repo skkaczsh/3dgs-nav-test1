@@ -353,7 +353,9 @@ def main() -> None:
         "",
         f"- device: `{device}`",
         f"- sample_count: `{len(sample_rows)}`",
-        "- models: `shi-labs/oneformer_ade20k_swin_tiny`, `facebook/mask2former-swin-tiny-ade-semantic`",
+        "- models: {}".format(
+            ", ".join(f"`{MODEL_SPECS[name]['hf_id']}`" for name in selected_model_names)
+        ),
         "- baseline reference: `sam2_prompt_v3_sky_label_merge_completion`",
         "",
         "## Aggregate",

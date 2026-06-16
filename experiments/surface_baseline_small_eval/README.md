@@ -21,6 +21,10 @@ Current status:
   `/root/epfs/vlm_seg_project/tmp_surface_baseline_small_eval/outputs_compare_city_map`
 - additional local synced report:
   `/Users/skkac/Work/SCAN/new_route/experiments/surface_baseline_small_eval/outputs_compare_city_map/report.md`
+- final missing large-checkpoint run output:
+  `/root/epfs/vlm_seg_project/tmp_surface_baseline_small_eval/outputs_compare_oneformer_ade20k_large`
+- final missing large-checkpoint local report:
+  `/Users/skkac/Work/SCAN/new_route/experiments/surface_baseline_small_eval/outputs_compare_oneformer_ade20k_large/report.md`
 
 Server result on 12 representative tail samples:
 
@@ -38,6 +42,17 @@ Additional outdoor-prior run:
   - `facebook/mask2former-swin-large-cityscapes-semantic`
   - `facebook/mask2former-swin-large-mapillary-vistas-semantic`
 
+Final missing checkpoint run:
+
+- device: `cuda`
+- model:
+  - `shi-labs/oneformer_ade20k_swin_large`
+- note:
+  - the first attempt failed only because `/root/.cache/huggingface` on the
+    container overlay was full
+  - rerunning with `HF_HOME=/root/epfs/hf_home` and
+    `HUGGINGFACE_HUB_CACHE=/root/epfs/hf_cache` completed successfully
+
 Decision:
 
 - neither `OneFormer(ADE20K)` nor `Mask2Former(ADE20K)` is good enough to
@@ -49,6 +64,9 @@ Decision:
   `wall/ceiling` on rooftop scenes
 - `Cityscapes/Mapillary` do not solve the problem either; they mostly shift the
   failure mode toward over-predicting `building` on rooftop surfaces
+- `OneFormer(ADE20K large)` also does not solve the problem; it still heavily
+  over-predicts `wall` on rooftop planes and only modestly changes the
+  floor/ceiling balance
 
 Implication:
 
@@ -61,3 +79,10 @@ Implication:
   - geometry-aware post rules on top of image semantics, or
   - a stronger outdoor/urban semantic model with labels better matched to the
     scan domain
+
+Current route decision:
+
+- within the current `Mask2Former/OneFormer` family and the already staged
+  12-sample rooftop benchmark, the branch is now effectively exhausted
+- no additional pure `Mask2Former/OneFormer` reruns are justified unless we
+  introduce a genuinely new dataset prior or a geometry-aware post layer

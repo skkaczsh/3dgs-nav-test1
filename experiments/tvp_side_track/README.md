@@ -63,6 +63,42 @@ Interpretation:
   either, unless we add a separate NLP-to-region post-processor, which would be
   a different project
 
+## 2026-06-16 bbox-crop sanity run
+
+One remaining confounder was then tested directly: perhaps the previous TVP
+failures were caused only by tiny targets inside full-resolution frames.
+
+To test that, the existing accepted-candidate manifest was converted into a
+6-sample bbox-crop manifest using:
+
+- `build_tvp_bboxcrop_manifest.py`
+
+Artifacts:
+
+- crop manifest:
+  `/root/epfs/model_side_tracks/tvp/tvp_bboxcrop_manifest_6.json`
+- cropped images:
+  `/root/epfs/model_side_tracks/tvp/bboxcrop_6`
+- outputs:
+  - `/root/epfs/model_side_tracks/tvp/tvp_opd_bboxcrop_6.jsonl`
+  - `/root/epfs/model_side_tracks/tvp/tvp_sftbox_bboxcrop_6.jsonl`
+
+Observed behavior:
+
+- both models again returned `0` boxes and `0` points on all 6 cropped samples
+- this time the models often described the visible object in plain text
+  correctly, for example `thin metal guardrail` or `rooftop equipment box or
+  HVAC unit`
+- however, the structured primitive channel still remained empty
+
+Interpretation:
+
+- the failure is not only caused by tiny-object scale in a full image
+- even after cropping around the target, TVP still does not produce usable
+  primitive outputs on this rooftop dataset
+- therefore TVP is not just a bad dense-semantic fit; it is also not currently
+  a reliable fine-object proposal source for this project
+
 ## Interpretation
 
 At the moment TVP is not a drop-in replacement for the dense semantic route.
@@ -89,6 +125,25 @@ For the current repository, that is not the direct fit:
   `TVP primitive proposal -> SAM2 local mask -> validated 3D projection`,
   not `TVP -> direct whole-scene semantic projection`.
 
+## Stop condition
+
+The bbox-crop sanity run closes the only serious remaining confounder for this
+side-track.
+
+Current stop condition is now satisfied:
+
+- `tvp_opd_bboxcrop_6.jsonl`: `sum_boxes = 0`, `sum_points = 0`
+- `tvp_sftbox_bboxcrop_6.jsonl`: `sum_boxes = 0`, `sum_points = 0`
+
+Therefore:
+
+1. TVP is not compatible as a direct dense semantic source for the current
+   `semantic.png -> project_semantic.py` route.
+2. TVP is not worth further pursuit as an automatic proposal side-track on the
+   current rooftop dataset unless a separate NLP-to-region or box-to-mask
+   subsystem is introduced.
+3. This side-track should be treated as closed for the current project goal.
+
 ## Engineering note
 
 The server runner now supports a persistent snapshot directory via
@@ -99,5 +154,6 @@ The manifest builder now also supports prompt variants:
 
 - `--prompt-mode concept`
 - `--prompt-mode locate --locate-field answer_class`
+- `build_tvp_bboxcrop_manifest.py` for the final bbox-crop sanity check
 
 This makes prompt-shape comparisons reproducible instead of one-off shell edits.

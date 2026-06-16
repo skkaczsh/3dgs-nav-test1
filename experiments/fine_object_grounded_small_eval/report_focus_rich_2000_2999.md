@@ -208,6 +208,70 @@ Interpretation:
   phrase gating and surface-aware rejection, not simply scaling sample count
   further.
 
+### Equipment strict-precision re-filter
+
+The existing `ext80` detector+SAM2 outputs were then reprocessed without
+rerunning the detector. A stricter phrase gate was added to
+`filter_grouped_detections.py` and applied only to the already generated
+`summary.json`.
+
+Source:
+
+- input summary:
+  `/root/epfs/new_route_stage1_skymask/equipment_rich_grounded_eval_2000_2999_ext80_run/outputs/summary.json`
+- strict-precision branch:
+  `/root/epfs/new_route_stage1_skymask/equipment_rich_grounded_eval_2000_2999_ext80_strict_precision`
+
+Rule change:
+
+- keep backward-compatible default filtering
+- add `--equipment-filter-mode strict_precision`
+- in strict mode:
+  - reject broad phrases such as `outdoor unit`
+  - reject phrases that lack `hvac` or `air conditioning`
+  - tighten equipment area / box-area limits
+
+Strict-precision result:
+
+- accepted 2D detections: `34` (from `37`)
+- rejected 2D detections: `278` (from `273`)
+- new main rejection reasons:
+  - `phrase_too_weak = 62`
+  - `phrase_too_broad = 49`
+  - `oversized_mask = 14`
+- projected 3D candidates: `25` (from `28`)
+- accepted 3D points: `3051` (from `3480`)
+- fused fine objects: `19` (from `21`)
+- merge count: `6` (from `7`)
+
+Promoted vote result:
+
+- global semantic vote voxels: `857` (from `1124`)
+- global vote objects: `35` (from `38`)
+- global vote status:
+  - `stable = 16`
+  - `single_voxel = 19`
+
+Accepted phrase distribution after strict filtering:
+
+- `air conditioning unit = 13`
+- `hvac air conditioning unit = 3`
+- `outdoor unit conditioning unit = 4`
+- `hvac outdoor unit = 4`
+- `conditioning unit = 2`
+- remaining mixed variants are all low-count
+
+Interpretation:
+
+- the stricter phrase gate removes a real amount of large-surface drift without
+  rerunning any expensive model stage
+- but the effect is moderate rather than decisive; the equipment branch is
+  cleaner, not solved
+- therefore the next meaningful improvement for `equipment/HVAC` is not more
+  sample count; it is either:
+  - an even tighter phrase hierarchy, or
+  - an additional surface-aware rejection stage after projection
+
 ## Comparison
 
 Current ranking for grounded fine-object transferability on real tail samples:

@@ -6,6 +6,10 @@ import json
 from pathlib import Path
 
 
+def normalize_phrase(text: str) -> str:
+    return " ".join(text.lower().split())
+
+
 def load_review_mapping(path: Path) -> dict[str, dict]:
     mapping: dict[str, dict] = {}
     with path.open() as f:
@@ -30,7 +34,70 @@ def load_review_mapping(path: Path) -> dict[str, dict]:
     return mapping
 
 
-def accept_detection(det: dict) -> tuple[bool, str]:
+def accept_equipment_detection(det: dict, *, mode: str) -> tuple[bool, str]:
+    score = float(det["grounding_score"])
+    area_ratio = float(det["mask_area_ratio"])
+    box_area_ratio = float(det["box_area_ratio"])
+    aspect = float(det["box_aspect_ratio"])
+    normalized = normalize_phrase(det["phrase"])
+
+    if score < 0.35:
+        return False, "low_score"
+    if area_ratio < 0.002:
+        return False, "tiny_mask"
+    if aspect > 2.2:
+        return False, "too_elongated"
+
+    weak_phrases = {
+        "air",
+        "unit",
+        "unit unit",
+        "outdoor unit",
+        "outdoor unit unit",
+        "outdoor unit rooftop",
+        "unit conditioning unit",
+        "h outdoor unit unit",
+    }
+    if normalized in weak_phrases:
+        return False, "phrase_too_weak"
+
+    has_air_conditioning = (
+        "air conditioning" in normalized
+        or ("conditioning" in normalized and "unit" in normalized)
+    )
+    has_hvac = "hvac" in normalized
+    has_outdoor_unit = "outdoor unit" in normalized
+    has_rooftop_box = "rooftop equipment box" in normalized
+
+    if mode == "strict_precision":
+        if not (has_air_conditioning or has_hvac):
+            return False, "phrase_too_broad"
+        if has_rooftop_box and not (has_air_conditioning or has_hvac):
+            return False, "phrase_too_broad"
+        if has_outdoor_unit and not has_hvac and not has_air_conditioning:
+            return False, "phrase_too_broad"
+        if area_ratio > 0.03:
+            return False, "oversized_mask"
+        if box_area_ratio > 0.06:
+            return False, "oversized_box"
+        return True, "accepted"
+
+    if area_ratio > 0.05:
+        return False, "oversized_mask"
+    if box_area_ratio > 0.08:
+        return False, "oversized_box"
+    strong_phrase = (
+        has_air_conditioning
+        or has_hvac
+        or has_outdoor_unit
+        or has_rooftop_box
+    )
+    if not strong_phrase:
+        return False, "phrase_mismatch"
+    return True, "accepted"
+
+
+def accept_detection(det: dict, *, equipment_filter_mode: str) -> tuple[bool, str]:
     focus = det["focus"]
     score = float(det["grounding_score"])
     area_ratio = float(det["mask_area_ratio"])
@@ -72,29 +139,7 @@ def accept_detection(det: dict) -> tuple[bool, str]:
         return True, "accepted"
 
     if focus in {"equipment", "hvac"}:
-        if score < 0.35:
-            return False, "low_score"
-        if area_ratio < 0.002:
-            return False, "tiny_mask"
-        if area_ratio > 0.05:
-            return False, "oversized_mask"
-        if box_area_ratio > 0.08:
-            return False, "oversized_box"
-        normalized = " ".join(phrase.split())
-        weak_phrases = {"air", "unit", "unit unit"}
-        if normalized in weak_phrases:
-            return False, "phrase_too_weak"
-        strong_phrase = (
-            "air conditioning" in normalized
-            or "hvac" in normalized
-            or "outdoor unit" in normalized
-            or ("conditioning" in normalized and "unit" in normalized)
-        )
-        if not strong_phrase:
-            return False, "phrase_mismatch"
-        if aspect > 2.2:
-            return False, "too_elongated"
-        return True, "accepted"
+        return accept_equipment_detection(det, mode=equipment_filter_mode)
 
     return False, "unsupported_focus"
 
@@ -121,6 +166,11 @@ def main() -> None:
     parser.add_argument("--summary", required=True)
     parser.add_argument("--review-mapping", required=False, default="")
     parser.add_argument("--output-dir", required=True)
+    parser.add_argument(
+        "--equipment-filter-mode",
+        choices=["default", "strict_precision"],
+        default="default",
+    )
     args = parser.parse_args()
 
     summary_path = Path(args.summary)
@@ -145,7 +195,10 @@ def main() -> None:
             }
         best_by_focus = {}
         for det in sample["detections"]:
-            ok, reason = accept_detection(det)
+            ok, reason = accept_detection(
+                det,
+                equipment_filter_mode=args.equipment_filter_mode,
+            )
             row = {
                 "sample_id": sample_id,
                 "frame": sample_mapping["frame"],
@@ -179,6 +232,7 @@ def main() -> None:
     summary_out = {
         "input_summary": str(summary_path),
         "review_mapping": str(mapping_path) if mapping_path else "",
+        "equipment_filter_mode": args.equipment_filter_mode,
         "accepted_count": len(accepted_rows),
         "rejected_count": len(rejected_rows),
         "accepted_by_focus": {},
