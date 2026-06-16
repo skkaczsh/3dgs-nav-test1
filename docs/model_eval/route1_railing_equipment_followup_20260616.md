@@ -351,6 +351,108 @@ Practical conclusion:
 - this branch is worth scaling further on adjacent windows before returning to
   any new model family
 
+## 1.8. In-Frame Same-Candidate Merge
+
+The raw adjacent-window result identified one concrete structural bottleneck:
+
+- `22` accepted 3D candidates
+- but `47` frame targets after voxel connected-components
+
+That means the next useful change is not another detector or VLM swap. It is a
+small in-frame recombination layer before short-tracklet building.
+
+Implementation update:
+
+- `/Users/skkac/Work/SCAN/new_route/scripts/build_frame_fine_targets_from_enriched.py`
+  now supports a same-frame merge pass for fragments that share the same
+  dominant `accepted_candidate`
+- `/Users/skkac/Work/SCAN/new_route/scripts/run_box_growth_tracklet_pipeline.py`
+  now exposes the in-frame merge thresholds explicitly so the replay is
+  reproducible
+
+Local replay evidence:
+
+- baseline:
+  `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/raw_adjacent_railing_2760_2860`
+- conservative merge:
+  `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/raw_adjacent_railing_2760_2860/inframe_merge_v1`
+- looser merge:
+  `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/raw_adjacent_railing_2760_2860/inframe_merge_v2`
+
+### `v1` conservative merge
+
+Parameters:
+
+- `in_frame_candidate_ratio = 0.8`
+- `in_frame_centroid_distance = 0.5`
+- `in_frame_bbox_distance = 0.5`
+- `in_frame_color_distance = 80`
+
+Result relative to baseline:
+
+- frame targets:
+  `47 -> 27`
+- short tracklets:
+  `41 -> 22`
+- long objects:
+  `22 -> 19`
+- mean points per tracklet:
+  `89.7 -> 167.2`
+
+Interpretation:
+
+- this removes a large amount of same-frame fragmentation
+- larger support moves earlier into frame-target and short-tracklet stages
+- the later `same_accepted_candidate` long-association count drops sharply
+  because much of that work is no longer deferred downstream
+
+### `v2` looser merge
+
+Parameters:
+
+- `in_frame_candidate_ratio = 0.8`
+- `in_frame_centroid_distance = 0.8`
+- `in_frame_bbox_distance = 0.8`
+- `in_frame_color_distance = 100`
+
+Result relative to baseline:
+
+- frame targets:
+  `47 -> 23`
+- short tracklets:
+  `41 -> 19`
+- long objects:
+  `22 -> 18`
+- mean points per tracklet:
+  `89.7 -> 193.6`
+
+Interpretation:
+
+- this pushes target reduction closer to the underlying `22` accepted
+  candidates
+- but it also erases too much downstream consolidation structure
+- the long-object stage is left with only `1` `stable_long_object`
+
+### Practical conclusion
+
+The in-frame merge idea is correct, but the threshold cannot be loose.
+
+What this proves:
+
+- frame-target over-splitting is a real, fixable bottleneck
+- conservative same-candidate merge materially reduces fragmentation
+- overly loose in-frame merge starts to over-collapse the evidence graph
+
+Current recommendation:
+
+- keep the adjacent-window railing branch
+- keep in-frame same-candidate merge enabled
+- use the conservative `v1` setting as the current default
+- do not broaden to the `v2` setting
+- the next improvement should target:
+  - candidate-level depth continuity / occlusion guards
+  - then cross-frame persistence on denser windows
+
 ## 2. Equipment/HVAC Strict Precision
 
 The broader equipment branch remained semantically risky. A stricter

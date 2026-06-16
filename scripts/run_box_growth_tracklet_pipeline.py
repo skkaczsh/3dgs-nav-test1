@@ -31,6 +31,10 @@ def main() -> None:
 
     parser.add_argument("--target-voxel-size", type=float, default=0.08)
     parser.add_argument("--min-target-points", type=int, default=5)
+    parser.add_argument("--in-frame-candidate-ratio", type=float, default=0.8)
+    parser.add_argument("--in-frame-centroid-distance", type=float, default=0.5)
+    parser.add_argument("--in-frame-bbox-distance", type=float, default=0.5)
+    parser.add_argument("--in-frame-color-distance", type=float, default=80.0)
 
     parser.add_argument("--tracklet-max-frame-gap", type=int, default=15)
     parser.add_argument("--tracklet-centroid-distance", type=float, default=0.35)
@@ -73,6 +77,14 @@ def main() -> None:
             str(args.target_voxel_size),
             "--min-target-points",
             str(args.min_target_points),
+            "--in-frame-candidate-ratio",
+            str(args.in_frame_candidate_ratio),
+            "--in-frame-centroid-distance",
+            str(args.in_frame_centroid_distance),
+            "--in-frame-bbox-distance",
+            str(args.in_frame_bbox_distance),
+            "--in-frame-color-distance",
+            str(args.in_frame_color_distance),
             "--write-ply",
         ]
     )
@@ -138,6 +150,10 @@ def main() -> None:
         "params": {
             "target_voxel_size": args.target_voxel_size,
             "min_target_points": args.min_target_points,
+            "in_frame_candidate_ratio": args.in_frame_candidate_ratio,
+            "in_frame_centroid_distance": args.in_frame_centroid_distance,
+            "in_frame_bbox_distance": args.in_frame_bbox_distance,
+            "in_frame_color_distance": args.in_frame_color_distance,
             "tracklet_max_frame_gap": args.tracklet_max_frame_gap,
             "tracklet_centroid_distance": args.tracklet_centroid_distance,
             "tracklet_bbox_distance": args.tracklet_bbox_distance,

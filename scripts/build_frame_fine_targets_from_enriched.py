@@ -122,6 +122,111 @@ def pca_summary(points: np.ndarray) -> dict:
     }
 
 
+def dominant_vote(counter: Counter[int]) -> tuple[int, float]:
+    if not counter:
+        return -1, 0.0
+    winner, votes = max(counter.items(), key=lambda kv: (kv[1], kv[0]))
+    total = max(sum(counter.values()), 1)
+    return int(winner), float(votes / total)
+
+
+def bbox_gap(a_xyz: np.ndarray, b_xyz: np.ndarray) -> float:
+    amin = a_xyz.min(axis=0)
+    amax = a_xyz.max(axis=0)
+    bmin = b_xyz.min(axis=0)
+    bmax = b_xyz.max(axis=0)
+    gap = np.maximum(0.0, np.maximum(bmin - amax, amin - bmax))
+    return float(np.linalg.norm(gap))
+
+
+def merge_components_with_same_candidate(
+    rows: np.ndarray,
+    components: list[np.ndarray],
+    idx: dict[str, int],
+    args: argparse.Namespace,
+) -> list[np.ndarray]:
+    if len(components) <= 1:
+        return components
+
+    ratio_min = float(getattr(args, "in_frame_candidate_ratio", 0.8))
+    centroid_limit = float(getattr(args, "in_frame_centroid_distance", 0.5))
+    bbox_limit = float(getattr(args, "in_frame_bbox_distance", 0.5))
+    color_limit = float(getattr(args, "in_frame_color_distance", 80.0))
+
+    summaries: list[dict] = []
+    for comp in components:
+        comp_rows = rows[comp]
+        comp_xyz = comp_rows[:, [idx["x"], idx["y"], idx["z"]]]
+        comp_rgb = comp_rows[:, [idx["visual_red"], idx["visual_green"], idx["visual_blue"]]]
+        candidate_counts = Counter(int(x) for x in comp_rows[:, idx["accepted_candidate"]].tolist())
+        source_cluster_counts = Counter(int(x) for x in comp_rows[:, idx["source_cluster"]].tolist())
+        dominant_candidate, candidate_ratio = dominant_vote(candidate_counts)
+        dominant_source_cluster, source_ratio = dominant_vote(source_cluster_counts)
+        summaries.append(
+            {
+                "indices": comp,
+                "xyz": comp_xyz,
+                "centroid": comp_xyz.mean(axis=0),
+                "mean_color": comp_rgb.mean(axis=0),
+                "dominant_candidate": dominant_candidate,
+                "candidate_ratio": candidate_ratio,
+                "dominant_source_cluster": dominant_source_cluster,
+                "source_ratio": source_ratio,
+            }
+        )
+
+    parent = list(range(len(summaries)))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    def union(i: int, j: int) -> None:
+        ri = find(i)
+        rj = find(j)
+        if ri != rj:
+            parent[rj] = ri
+
+    for i in range(len(summaries)):
+        a = summaries[i]
+        if a["dominant_candidate"] <= 0 or a["candidate_ratio"] < ratio_min:
+            continue
+        for j in range(i + 1, len(summaries)):
+            b = summaries[j]
+            if b["dominant_candidate"] != a["dominant_candidate"] or b["candidate_ratio"] < ratio_min:
+                continue
+            centroid_dist = float(np.linalg.norm(a["centroid"] - b["centroid"]))
+            bbox_dist = bbox_gap(a["xyz"], b["xyz"])
+            color_dist = float(np.linalg.norm(a["mean_color"] - b["mean_color"]))
+            same_source_cluster = (
+                a["dominant_source_cluster"] > 0
+                and b["dominant_source_cluster"] > 0
+                and a["dominant_source_cluster"] == b["dominant_source_cluster"]
+                and a["source_ratio"] >= ratio_min
+                and b["source_ratio"] >= ratio_min
+            )
+            same_source_and_near = same_source_cluster and (
+                centroid_dist <= centroid_limit or bbox_dist <= bbox_limit
+            )
+            if same_source_and_near or (
+                color_dist <= color_limit and (centroid_dist <= centroid_limit or bbox_dist <= bbox_limit)
+            ):
+                union(i, j)
+
+    merged: dict[int, list[np.ndarray]] = defaultdict(list)
+    for i, summary in enumerate(summaries):
+        merged[find(i)].append(summary["indices"])
+
+    merged_components = [
+        np.array(sorted(np.concatenate(parts).tolist()), dtype=np.int64)
+        for parts in merged.values()
+    ]
+    merged_components.sort(key=len, reverse=True)
+    return merged_components
+
+
 def object_color(target_number: int) -> tuple[int, int, int]:
     rng = np.random.default_rng(target_number * 97 + 311)
     return tuple(int(x) for x in rng.integers(70, 245, 3))
@@ -179,6 +284,7 @@ def build_targets(props: list[str], data: np.ndarray, args: argparse.Namespace) 
         rows = data[np.array(row_indices, dtype=np.int64)]
         xyz = rows[:, [idx["x"], idx["y"], idx["z"]]]
         components, residual = connected_components(xyz, args.voxel_size, args.min_target_points)
+        components = merge_components_with_same_candidate(rows, components, idx, args)
         residual_points += int(residual.sum())
         group_component_counts[len(components)] += 1
         for component_number, comp in enumerate(components):
@@ -276,6 +382,10 @@ def main() -> None:
     parser.add_argument("--colored-frame-dir", type=Path, default=None)
     parser.add_argument("--voxel-size", type=float, default=0.08)
     parser.add_argument("--min-target-points", type=int, default=5)
+    parser.add_argument("--in-frame-candidate-ratio", type=float, default=0.8)
+    parser.add_argument("--in-frame-centroid-distance", type=float, default=0.5)
+    parser.add_argument("--in-frame-bbox-distance", type=float, default=0.5)
+    parser.add_argument("--in-frame-color-distance", type=float, default=80.0)
     parser.add_argument("--write-ply", action="store_true")
     args = parser.parse_args()
 
@@ -287,7 +397,14 @@ def main() -> None:
         report["target_ply_points"] = write_target_ply(args.output_dir / "frame_fine_targets.ply", target_points)
     report["enriched_ply"] = str(args.enriched_ply)
     report["output_dir"] = str(args.output_dir)
-    report["params"] = {"voxel_size": args.voxel_size, "min_target_points": args.min_target_points}
+    report["params"] = {
+        "voxel_size": args.voxel_size,
+        "min_target_points": args.min_target_points,
+        "in_frame_candidate_ratio": args.in_frame_candidate_ratio,
+        "in_frame_centroid_distance": args.in_frame_centroid_distance,
+        "in_frame_bbox_distance": args.in_frame_bbox_distance,
+        "in_frame_color_distance": args.in_frame_color_distance,
+    }
     report_path = args.output_dir / "frame_fine_targets_report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({k: report[k] for k in ["source_points", "groups", "targets", "target_points", "small_residual_points"]}, indent=2))

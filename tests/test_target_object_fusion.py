@@ -513,6 +513,78 @@ def test_frame_fine_target_builder_splits_components_and_keeps_point_indices():
     assert targets[0]["point_indices"] == [0, 1]
 
 
+def test_frame_fine_target_builder_merges_same_candidate_fragments_within_frame():
+    module = load_module(SCRIPTS / "build_frame_fine_targets_from_enriched.py", "frame_fine_targets_merge_for_repo_test")
+    props = [
+        "x",
+        "y",
+        "z",
+        "red",
+        "green",
+        "blue",
+        "semantic",
+        "accepted_candidate",
+        "fine_object",
+        "source_type",
+        "source_cluster",
+        "subcluster",
+        "visual_red",
+        "visual_green",
+        "visual_blue",
+        "frame",
+        "camera",
+        "mask",
+        "point_index",
+        "trace_status",
+    ]
+    rows = []
+    for point_index, x in enumerate([0.00, 0.03, 0.40, 0.43]):
+        rows.append(
+            [
+                x,
+                0,
+                0,
+                255,
+                0,
+                255,
+                16,
+                200001,
+                1,
+                2,
+                9,
+                1,
+                90,
+                100,
+                110,
+                7,
+                1,
+                3,
+                point_index,
+                1,
+            ]
+        )
+    args = type(
+        "Args",
+        (),
+        {
+            "voxel_size": 0.08,
+            "min_target_points": 2,
+            "in_frame_candidate_ratio": 0.8,
+            "in_frame_centroid_distance": 0.5,
+            "in_frame_bbox_distance": 0.5,
+            "in_frame_color_distance": 20.0,
+        },
+    )()
+
+    targets, report, _ = module.build_targets(props, np.array(rows, dtype=float), args)
+
+    assert report["targets"] == 1
+    assert report["group_component_counts"] == {"1": 1}
+    assert targets[0]["cluster_size"] == 4
+    assert targets[0]["point_indices"] == [0, 1, 2, 3]
+    assert targets[0]["accepted_candidate_votes"] == {"200001": 4}
+
+
 def _track_target(target_id, frame_id, centroid, color=(100, 100, 100)):
     c = np.array(centroid, dtype=float)
     return {
