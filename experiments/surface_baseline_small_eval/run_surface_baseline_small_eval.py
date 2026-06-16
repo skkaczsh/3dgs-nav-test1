@@ -36,10 +36,30 @@ MODEL_SPECS = {
         "kind": "oneformer",
         "dataset": "ADE20K",
     },
+    "oneformer_ade20k_large": {
+        "hf_id": "shi-labs/oneformer_ade20k_swin_large",
+        "kind": "oneformer",
+        "dataset": "ADE20K",
+    },
+    "oneformer_cityscapes": {
+        "hf_id": "shi-labs/oneformer_cityscapes_swin_large",
+        "kind": "oneformer",
+        "dataset": "Cityscapes",
+    },
     "mask2former_ade20k": {
         "hf_id": "facebook/mask2former-swin-tiny-ade-semantic",
         "kind": "mask2former",
         "dataset": "ADE20K",
+    },
+    "mask2former_cityscapes": {
+        "hf_id": "facebook/mask2former-swin-large-cityscapes-semantic",
+        "kind": "mask2former",
+        "dataset": "Cityscapes",
+    },
+    "mask2former_mapillary": {
+        "hf_id": "facebook/mask2former-swin-large-mapillary-vistas-semantic",
+        "kind": "mask2former",
+        "dataset": "Mapillary Vistas",
     },
 }
 
