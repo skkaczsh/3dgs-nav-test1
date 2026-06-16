@@ -105,10 +105,13 @@ After the thin-mask replay, a support-preserving branch was tested on the same
 Local evidence:
 
 - `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/project_detector_box_growth.py`
+- `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/build_raw_frame_window_manifest.py`
+- `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/run_server_box_growth_focus_eval.py`
 - `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/railing_rich_2000_2999_box_growth_v1`
 - `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/railing_rich_2000_2999_box_growth_v2_tight`
 - `/Users/skkac/Work/SCAN/new_route/scripts/run_box_growth_tracklet_pipeline.py`
 - `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/railing_rich_2000_2999_box_growth_v2_tight_tracklet_samecand_loose`
+- `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/raw_adjacent_railing_2760_2860`
 
 ### Quantitative comparison
 
@@ -242,6 +245,111 @@ Practical conclusion:
   - in-frame target over-splitting reduction
   - then true neighboring-frame support accumulation on a denser sample than
     this 10-image rich set
+
+## 1.7. Raw Adjacent-Frame Window
+
+The earlier rich sample is still a useful microscope, but it is not a good
+test of neighboring-frame accumulation because it is sparse and cherry-picked.
+To test the real question, a raw frame-window run was added:
+
+- raw image window:
+  `2760-2860`
+- stride:
+  `10`
+- cameras:
+  `0, 1, 2`
+- total images:
+  `33`
+
+New helper scripts:
+
+- `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/build_raw_frame_window_manifest.py`
+- `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/run_server_box_growth_focus_eval.py`
+
+Local evidence:
+
+- `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/raw_adjacent_railing_2760_2860`
+
+### Detection and 3D support
+
+Detector + SAM2 + railing filter:
+
+- accepted 2D detections: `26`
+- rejected 2D detections: `47`
+- main rejection reasons:
+  - `oversized_mask = 24`
+  - `not_elongated = 20`
+  - `too_filled_for_railing = 3`
+
+Box-growth + geometry guard:
+
+- projected candidates: `24`
+- kept candidates: `22`
+- accepted 3D points before guard decision:
+  `3800`
+- kept 3D points:
+  `3679`
+
+This is already a meaningful shift from the 10-image sample:
+
+- the branch now produces sustained support across a real neighboring-frame
+  segment
+- the geometry guard no longer spends its time stripping away mostly bad
+  overgrowth; it keeps the overwhelming majority of projected points
+
+### Tracklet and long-object result
+
+Frame-target stage:
+
+- frame targets: `47`
+- frame-target kept points: `3679`
+- small residual points: `0`
+
+Short tracklets:
+
+- `47 -> 41`
+- tracklet merge ratio: `0.128`
+- stable tracklets: `6`
+
+Long association:
+
+- `41 -> 22`
+- long-object merge ratio: `0.463`
+- status:
+  - `stable_long_object = 12`
+  - `single_tracklet_object = 10`
+- merge reasons:
+  - `same_accepted_candidate = 18`
+  - `strict_cross_source = 1`
+
+### Interpretation
+
+This is the first result that demonstrates real neighboring-frame benefit for
+the `railing` branch.
+
+What it proves:
+
+- the `box_growth_v2_tight` route is not limited to the tiny rich sample
+- once a real adjacent-frame window is used, consolidation becomes materially
+  stronger
+- most of the useful merge signal still comes from same-candidate consistency,
+  but one merge already crosses sources under the stricter cross-source gate
+
+What it still does not solve:
+
+- frame-target over-splitting is still heavy:
+  `22` accepted candidates become `47` targets
+- short-tracklet merging remains weak relative to long-association merging
+- many large long objects are still single-tracklet observations
+
+Practical conclusion:
+
+- the previous conclusion holds, but is now stronger:
+  - `railing` is no longer blocked by 2D support alone
+  - the next bottleneck is now clearly target splitting and cross-frame
+    persistence
+- this branch is worth scaling further on adjacent windows before returning to
+  any new model family
 
 ## 2. Equipment/HVAC Strict Precision
 

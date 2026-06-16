@@ -1,0 +1,15 @@
+{
+  "input_summary": "/root/epfs/new_route_stage1_skymask/raw_adjacent_railing_2760_2860_run/outputs/summary.json",
+  "review_mapping": "",
+  "equipment_filter_mode": "default",
+  "accepted_count": 26,
+  "rejected_count": 47,
+  "accepted_by_focus": {
+    "railing": 26
+  },
+  "rejected_by_reason": {
+    "oversized_mask": 24,
+    "too_filled_for_railing": 3,
+    "not_elongated": 20
+  }
+}

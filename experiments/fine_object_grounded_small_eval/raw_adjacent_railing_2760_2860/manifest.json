@@ -1,0 +1,913 @@
+{
+  "experiment": "fine_object_grounded_railing_raw_window_eval",
+  "images_dir": "/root/epfs/manifold_3dgs_project/processed/images",
+  "focus": "railing",
+  "prompt_variant": "strict",
+  "prompt_terms": [
+    "railing",
+    "guardrail",
+    "handrail"
+  ],
+  "prompt_text": "railing . guardrail . handrail",
+  "frame_start": 2760,
+  "frame_end": 2860,
+  "frame_stride": 10,
+  "cameras": [
+    0,
+    1,
+    2
+  ],
+  "samples": [
+    {
+      "id": "cam0_002760",
+      "rel": "cam0_002760.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam0_002760.png",
+      "cam": 0,
+      "frame": 2760,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam1_002760",
+      "rel": "cam1_002760.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam1_002760.png",
+      "cam": 1,
+      "frame": 2760,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam2_002760",
+      "rel": "cam2_002760.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam2_002760.png",
+      "cam": 2,
+      "frame": 2760,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam0_002770",
+      "rel": "cam0_002770.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam0_002770.png",
+      "cam": 0,
+      "frame": 2770,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam1_002770",
+      "rel": "cam1_002770.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam1_002770.png",
+      "cam": 1,
+      "frame": 2770,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam2_002770",
+      "rel": "cam2_002770.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam2_002770.png",
+      "cam": 2,
+      "frame": 2770,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam0_002780",
+      "rel": "cam0_002780.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam0_002780.png",
+      "cam": 0,
+      "frame": 2780,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam1_002780",
+      "rel": "cam1_002780.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam1_002780.png",
+      "cam": 1,
+      "frame": 2780,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam2_002780",
+      "rel": "cam2_002780.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam2_002780.png",
+      "cam": 2,
+      "frame": 2780,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam0_002790",
+      "rel": "cam0_002790.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam0_002790.png",
+      "cam": 0,
+      "frame": 2790,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam1_002790",
+      "rel": "cam1_002790.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam1_002790.png",
+      "cam": 1,
+      "frame": 2790,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam2_002790",
+      "rel": "cam2_002790.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam2_002790.png",
+      "cam": 2,
+      "frame": 2790,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam0_002800",
+      "rel": "cam0_002800.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam0_002800.png",
+      "cam": 0,
+      "frame": 2800,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam1_002800",
+      "rel": "cam1_002800.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam1_002800.png",
+      "cam": 1,
+      "frame": 2800,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam2_002800",
+      "rel": "cam2_002800.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam2_002800.png",
+      "cam": 2,
+      "frame": 2800,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam0_002810",
+      "rel": "cam0_002810.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam0_002810.png",
+      "cam": 0,
+      "frame": 2810,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam1_002810",
+      "rel": "cam1_002810.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam1_002810.png",
+      "cam": 1,
+      "frame": 2810,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam2_002810",
+      "rel": "cam2_002810.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam2_002810.png",
+      "cam": 2,
+      "frame": 2810,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam0_002820",
+      "rel": "cam0_002820.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam0_002820.png",
+      "cam": 0,
+      "frame": 2820,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam1_002820",
+      "rel": "cam1_002820.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam1_002820.png",
+      "cam": 1,
+      "frame": 2820,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam2_002820",
+      "rel": "cam2_002820.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam2_002820.png",
+      "cam": 2,
+      "frame": 2820,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam0_002830",
+      "rel": "cam0_002830.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam0_002830.png",
+      "cam": 0,
+      "frame": 2830,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam1_002830",
+      "rel": "cam1_002830.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam1_002830.png",
+      "cam": 1,
+      "frame": 2830,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam2_002830",
+      "rel": "cam2_002830.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam2_002830.png",
+      "cam": 2,
+      "frame": 2830,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam0_002840",
+      "rel": "cam0_002840.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam0_002840.png",
+      "cam": 0,
+      "frame": 2840,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam1_002840",
+      "rel": "cam1_002840.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam1_002840.png",
+      "cam": 1,
+      "frame": 2840,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam2_002840",
+      "rel": "cam2_002840.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam2_002840.png",
+      "cam": 2,
+      "frame": 2840,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam0_002850",
+      "rel": "cam0_002850.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam0_002850.png",
+      "cam": 0,
+      "frame": 2850,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam1_002850",
+      "rel": "cam1_002850.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam1_002850.png",
+      "cam": 1,
+      "frame": 2850,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam2_002850",
+      "rel": "cam2_002850.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam2_002850.png",
+      "cam": 2,
+      "frame": 2850,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam0_002860",
+      "rel": "cam0_002860.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam0_002860.png",
+      "cam": 0,
+      "frame": 2860,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam1_002860",
+      "rel": "cam1_002860.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam1_002860.png",
+      "cam": 1,
+      "frame": 2860,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cam2_002860",
+      "rel": "cam2_002860.png",
+      "focus": [
+        "railing"
+      ],
+      "image": "/root/epfs/manifold_3dgs_project/processed/images/cam2_002860.png",
+      "cam": 2,
+      "frame": 2860,
+      "label_counts": {},
+      "all_labels": [],
+      "prompt_terms": [
+        "railing",
+        "guardrail",
+        "handrail"
+      ],
+      "prompt_groups": [
+        {
+          "focus": "railing",
+          "terms": [
+            "railing",
+            "guardrail",
+            "handrail"
+          ]
+        }
+      ]
+    }
+  ]
+}

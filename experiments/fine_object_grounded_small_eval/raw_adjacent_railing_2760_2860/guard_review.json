@@ -1,0 +1,476 @@
+{
+  "accepted_report": "/root/epfs/new_route_stage1_skymask/raw_adjacent_railing_2760_2860_run/box_growth/accepted_report.json",
+  "accepted_ply": "/root/epfs/new_route_stage1_skymask/raw_adjacent_railing_2760_2860_run/box_growth/accepted_points.ply",
+  "output_status_ply": "/root/epfs/new_route_stage1_skymask/raw_adjacent_railing_2760_2860_run/box_growth/guard_status.ply",
+  "output_filtered_ply": "/root/epfs/new_route_stage1_skymask/raw_adjacent_railing_2760_2860_run/box_growth/guarded_points.ply",
+  "output_accepted_report": "/root/epfs/new_route_stage1_skymask/raw_adjacent_railing_2760_2860_run/box_growth/guarded_accepted_report.json",
+  "params": {
+    "long_xy_span": 4.0,
+    "large_xy_span": 4.0,
+    "large_span": 6.0,
+    "tall_z_span": 2.5,
+    "large_points": 5000,
+    "linear_threshold": 0.9,
+    "planar_threshold": 0.55,
+    "equipment_demote_large_span": 3.0,
+    "equipment_demote_long_xy": 1.8,
+    "equipment_demote_planar_xy": 1.6,
+    "equipment_demote_aspect_xy": 4.0,
+    "equipment_linear_demote": 0.82,
+    "equipment_planar_demote": 0.3,
+    "equipment_review_large_points": 350,
+    "equipment_review_xy": 1.15,
+    "equipment_review_z": 1.5,
+    "linear_object_min_extent": 0.45,
+    "linear_object_min_linearity": 0.78,
+    "linear_object_max_mid_extent": 0.45,
+    "linear_object_max_thickness": 0.35,
+    "linear_object_surface_planarity": 0.18
+  },
+  "candidate_count": 24,
+  "input_points": 3800,
+  "kept_points": 3679,
+  "kept_candidate_count": 22,
+  "action_counts": {
+    "keep_linear_railing": 22,
+    "review_ambiguous_railing": 2
+  },
+  "point_counts": {
+    "keep_linear_railing": 3679,
+    "review_ambiguous_railing": 121
+  },
+  "candidates": [
+    {
+      "candidate_id": 400010,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400010,
+      "subcluster": -1,
+      "points": 334,
+      "span_x": 1.2718992233276367,
+      "span_y": 1.6863107681274414,
+      "span_z": 0.7628352642059326,
+      "linearity": 0.8518220699565051,
+      "planarity": 0.14533914468318407,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400018,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400018,
+      "subcluster": -1,
+      "points": 334,
+      "span_x": 0.3838157653808594,
+      "span_y": 2.572150230407715,
+      "span_z": 1.3593940734863281,
+      "linearity": 0.9855695713678971,
+      "planarity": 0.014389933186075326,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400012,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400012,
+      "subcluster": -1,
+      "points": 297,
+      "span_x": 0.18731021881103516,
+      "span_y": 1.428666114807129,
+      "span_z": 1.6797127723693848,
+      "linearity": 0.9178589906120131,
+      "planarity": 0.08207554203287966,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400007,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400007,
+      "subcluster": -1,
+      "points": 273,
+      "span_x": 0.06974029541015625,
+      "span_y": 0.5246067047119141,
+      "span_z": 0.30071496963500977,
+      "linearity": 0.9744882293146385,
+      "planarity": 0.024692661909041617,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400020,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400020,
+      "subcluster": -1,
+      "points": 226,
+      "span_x": 0.5414557456970215,
+      "span_y": 3.443181037902832,
+      "span_z": 1.0201678276062012,
+      "linearity": 0.9930737462418318,
+      "planarity": 0.0017099671619299928,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400017,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400017,
+      "subcluster": -1,
+      "points": 224,
+      "span_x": 0.13361501693725586,
+      "span_y": 1.0725135803222656,
+      "span_z": 0.20897912979125977,
+      "linearity": 0.9853407879845166,
+      "planarity": 0.01425429575233604,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400005,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400005,
+      "subcluster": -1,
+      "points": 222,
+      "span_x": 0.21098899841308594,
+      "span_y": 1.6327638626098633,
+      "span_z": 0.2516639232635498,
+      "linearity": 0.9942197634017114,
+      "planarity": 0.005692747796093689,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400013,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400013,
+      "subcluster": -1,
+      "points": 216,
+      "span_x": 2.3579635620117188,
+      "span_y": 0.4131793975830078,
+      "span_z": 0.42345285415649414,
+      "linearity": 0.9293128873855542,
+      "planarity": 0.06648655682303617,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400001,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400001,
+      "subcluster": -1,
+      "points": 166,
+      "span_x": 0.6332979202270508,
+      "span_y": 3.859684944152832,
+      "span_z": 1.146982192993164,
+      "linearity": 0.9923759355187592,
+      "planarity": 0.0070690324599363644,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400008,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400008,
+      "subcluster": -1,
+      "points": 156,
+      "span_x": 0.27583789825439453,
+      "span_y": 2.258695602416992,
+      "span_z": 1.2539019584655762,
+      "linearity": 0.993074317844855,
+      "planarity": 0.006897950774945089,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400019,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400019,
+      "subcluster": -1,
+      "points": 150,
+      "span_x": 0.11109209060668945,
+      "span_y": 0.8741254806518555,
+      "span_z": 0.09110784530639648,
+      "linearity": 0.9931036826138179,
+      "planarity": 0.006682054110115571,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400014,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400014,
+      "subcluster": -1,
+      "points": 139,
+      "span_x": 0.08332490921020508,
+      "span_y": 0.6280918121337891,
+      "span_z": 0.17994022369384766,
+      "linearity": 0.9831093709155632,
+      "planarity": 0.016260248619408328,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400004,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400004,
+      "subcluster": -1,
+      "points": 136,
+      "span_x": 0.29643917083740234,
+      "span_y": 2.400008201599121,
+      "span_z": 1.2477469444274902,
+      "linearity": 0.9832174801465807,
+      "planarity": 0.016753253841430497,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400016,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400016,
+      "subcluster": -1,
+      "points": 115,
+      "span_x": 0.6533718109130859,
+      "span_y": 1.4577884674072266,
+      "span_z": 0.24841880798339844,
+      "linearity": 0.9347031247604791,
+      "planarity": 0.06062305302894601,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400002,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400002,
+      "subcluster": -1,
+      "points": 111,
+      "span_x": 0.30675411224365234,
+      "span_y": 2.463442802429199,
+      "span_z": 0.9382600784301758,
+      "linearity": 0.9913162405312839,
+      "planarity": 0.008665635389616228,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400006,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400006,
+      "subcluster": -1,
+      "points": 109,
+      "span_x": 2.3361387252807617,
+      "span_y": 1.7295875549316406,
+      "span_z": 0.19575834274291992,
+      "linearity": 0.9849250579520334,
+      "planarity": 0.013057750388117134,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400003,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400003,
+      "subcluster": -1,
+      "points": 106,
+      "span_x": 0.46153688430786133,
+      "span_y": 1.3262042999267578,
+      "span_z": 0.11993694305419922,
+      "linearity": 0.9226839352465136,
+      "planarity": 0.07209855576795016,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400011,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400011,
+      "subcluster": -1,
+      "points": 105,
+      "span_x": 0.4206857681274414,
+      "span_y": 2.5235328674316406,
+      "span_z": 1.126373291015625,
+      "linearity": 0.9826169012381053,
+      "planarity": 0.017074213590640118,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400022,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400022,
+      "subcluster": -1,
+      "points": 88,
+      "span_x": 0.20133590698242188,
+      "span_y": 0.9918022155761719,
+      "span_z": 0.14919424057006836,
+      "linearity": 0.9820228804616506,
+      "planarity": 0.006598748631392409,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400015,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400015,
+      "subcluster": -1,
+      "points": 79,
+      "span_x": 0.3601851463317871,
+      "span_y": 2.815178871154785,
+      "span_z": 1.1538748741149902,
+      "linearity": 0.9975424572229533,
+      "planarity": 0.0024495870253136666,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400024,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400024,
+      "subcluster": -1,
+      "points": 67,
+      "span_x": 0.03825521469116211,
+      "span_y": 0.32686805725097656,
+      "span_z": 0.08072614669799805,
+      "linearity": 0.9458143349027438,
+      "planarity": 0.05260260473478263,
+      "strict_action": "review_ambiguous_railing",
+      "strict_status": 2,
+      "reasons": [
+        "weak_linearity"
+      ]
+    },
+    {
+      "candidate_id": 400009,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400009,
+      "subcluster": -1,
+      "points": 58,
+      "span_x": 1.8650684356689453,
+      "span_y": 1.1678218841552734,
+      "span_z": 0.024675846099853516,
+      "linearity": 0.9827246748474947,
+      "planarity": 0.017242330872858473,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    },
+    {
+      "candidate_id": 400023,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400023,
+      "subcluster": -1,
+      "points": 54,
+      "span_x": 0.18116044998168945,
+      "span_y": 0.23840904235839844,
+      "span_z": 0.1009821891784668,
+      "linearity": 0.9310110222651858,
+      "planarity": 0.01443292059672706,
+      "strict_action": "review_ambiguous_railing",
+      "strict_status": 2,
+      "reasons": [
+        "weak_linearity"
+      ]
+    },
+    {
+      "candidate_id": 400021,
+      "focus": "railing",
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400021,
+      "subcluster": -1,
+      "points": 35,
+      "span_x": 0.7597661018371582,
+      "span_y": 2.8713979721069336,
+      "span_z": 1.2185471057891846,
+      "linearity": 0.9914925208440765,
+      "planarity": 0.005695177219606142,
+      "strict_action": "keep_linear_railing",
+      "strict_status": 1,
+      "reasons": [
+        "linear_object"
+      ]
+    }
+  ]
+}

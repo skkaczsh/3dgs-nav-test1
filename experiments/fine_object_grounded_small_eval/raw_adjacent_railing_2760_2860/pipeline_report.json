@@ -1,0 +1,27 @@
+{
+  "enriched_ply": "/root/epfs/new_route_stage1_skymask/raw_adjacent_railing_2760_2860_run/box_growth/guarded_points.ply",
+  "output_dir": "/root/epfs/new_route_stage1_skymask/raw_adjacent_railing_2760_2860_run/tracklet_pipeline",
+  "frame_targets_report": "/root/epfs/new_route_stage1_skymask/raw_adjacent_railing_2760_2860_run/tracklet_pipeline/frame_targets/frame_fine_targets_report.json",
+  "tracklet_report": "/root/epfs/new_route_stage1_skymask/raw_adjacent_railing_2760_2860_run/tracklet_pipeline/tracklets/tracklet_report.json",
+  "long_association_report": "/root/epfs/new_route_stage1_skymask/raw_adjacent_railing_2760_2860_run/tracklet_pipeline/long_assoc/long_association_report.json",
+  "params": {
+    "target_voxel_size": 0.08,
+    "min_target_points": 5,
+    "tracklet_max_frame_gap": 15,
+    "tracklet_centroid_distance": 0.35,
+    "tracklet_bbox_distance": 0.08,
+    "tracklet_color_distance": 45.0,
+    "tracklet_normal_angle": 180.0,
+    "same_candidate_centroid_distance": 3.5,
+    "same_candidate_bbox_distance": 1.5,
+    "same_candidate_color_distance": 120.0,
+    "source_frame_gap": 240,
+    "source_centroid_distance": 0.8,
+    "source_bbox_distance": 0.25,
+    "source_color_distance": 60.0,
+    "cross_frame_gap": 80,
+    "cross_centroid_distance": 0.35,
+    "cross_bbox_distance": 0.08,
+    "cross_color_distance": 35.0
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "source_points": 3679,
+  "groups": 22,
+  "targets": 47,
+  "target_points": 3679,
+  "small_residual_points": 0,
+  "skipped_points": {},
+  "group_component_counts": {
+    "1": 10,
+    "2": 5,
+    "3": 4,
+    "4": 2,
+    "7": 1
+  },
+  "label_counts": {
+    "railing": 47
+  },
+  "target_point_stats": {
+    "min": 8,
+    "max": 334,
+    "mean": 78.27659574468085
+  },
+  "target_ply": "/root/epfs/new_route_stage1_skymask/raw_adjacent_railing_2760_2860_run/tracklet_pipeline/frame_targets/frame_fine_targets.ply",
+  "target_ply_points": 3679,
+  "enriched_ply": "/root/epfs/new_route_stage1_skymask/raw_adjacent_railing_2760_2860_run/box_growth/guarded_points.ply",
+  "output_dir": "/root/epfs/new_route_stage1_skymask/raw_adjacent_railing_2760_2860_run/tracklet_pipeline/frame_targets",
+  "params": {
+    "voxel_size": 0.08,
+    "min_target_points": 5
+  }
+}
