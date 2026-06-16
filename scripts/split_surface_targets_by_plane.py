@@ -58,10 +58,49 @@ def normal_abs_z(points: np.ndarray) -> float:
         return 1.0
 
 
+def bbox_xy_area(points: np.ndarray) -> float:
+    if len(points) == 0:
+        return 0.0
+    lo = points.min(axis=0)
+    hi = points.max(axis=0)
+    return float(max(hi[0] - lo[0], 0.0) * max(hi[1] - lo[1], 0.0))
+
+
+def bbox_extents(points: np.ndarray) -> tuple[float, float, float]:
+    if len(points) == 0:
+        return 0.0, 0.0, 0.0
+    lo = points.min(axis=0)
+    hi = points.max(axis=0)
+    return (
+        float(max(hi[0] - lo[0], 0.0)),
+        float(max(hi[1] - lo[1], 0.0)),
+        float(max(hi[2] - lo[2], 0.0)),
+    )
+
+
 def label_from_geometry(old_label: str, points: np.ndarray, args: argparse.Namespace) -> str:
+    source_label = old_label
     if old_label == "ceiling":
         return old_label
     z = normal_abs_z(points)
+    x_extent, y_extent, z_extent = bbox_extents(points)
+    xy_area = x_extent * y_extent
+    minor_extent = min(abs(x_extent), abs(y_extent))
+    major_extent = max(abs(x_extent), abs(y_extent), 1e-6)
+    aspect_ratio = major_extent / max(minor_extent, 1e-6)
+    centroid_z = float(points[:, 2].mean()) if len(points) else 0.0
+
+    if (
+        args.enable_ceiling_heuristic
+        and source_label in set(args.ceiling_source_labels)
+        and z >= args.floor_normal_z
+        and centroid_z >= args.ceiling_min_z
+        and xy_area <= args.ceiling_max_xy_area
+        and z_extent <= args.ceiling_max_z_extent
+        and minor_extent >= args.ceiling_min_minor_extent
+        and aspect_ratio <= args.ceiling_max_aspect_ratio
+    ):
+        return "ceiling"
     if z >= args.floor_normal_z:
         return "floor"
     if z <= args.wall_normal_z:
@@ -221,6 +260,13 @@ def main() -> None:
     parser.add_argument("--max-fit-points", type=int, default=1200)
     parser.add_argument("--floor-normal-z", type=float, default=0.72)
     parser.add_argument("--wall-normal-z", type=float, default=0.40)
+    parser.add_argument("--enable-ceiling-heuristic", action="store_true")
+    parser.add_argument("--ceiling-source-labels", nargs="+", default=["floor", "building"])
+    parser.add_argument("--ceiling-min-z", type=float, default=2.0)
+    parser.add_argument("--ceiling-max-xy-area", type=float, default=8.0)
+    parser.add_argument("--ceiling-max-z-extent", type=float, default=0.35)
+    parser.add_argument("--ceiling-min-minor-extent", type=float, default=0.30)
+    parser.add_argument("--ceiling-max-aspect-ratio", type=float, default=4.0)
     parser.add_argument("--seed", type=int, default=1337)
     args = parser.parse_args()
 

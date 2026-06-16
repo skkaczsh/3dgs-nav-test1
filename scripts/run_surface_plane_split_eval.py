@@ -73,6 +73,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-fit-points", type=int, default=1200)
     parser.add_argument("--floor-normal-z", type=float, default=0.72)
     parser.add_argument("--wall-normal-z", type=float, default=0.40)
+    parser.add_argument("--enable-ceiling-heuristic", action="store_true")
+    parser.add_argument("--ceiling-source-labels", nargs="+", default=["floor", "building"])
+    parser.add_argument("--ceiling-min-z", type=float, default=2.0)
+    parser.add_argument("--ceiling-max-xy-area", type=float, default=8.0)
+    parser.add_argument("--ceiling-max-z-extent", type=float, default=0.35)
+    parser.add_argument("--ceiling-min-minor-extent", type=float, default=0.30)
+    parser.add_argument("--ceiling-max-aspect-ratio", type=float, default=4.0)
     parser.add_argument("--seed", type=int, default=1337)
     parser.add_argument("--surface-labels", nargs="+", default=["floor", "wall", "building"])
     parser.add_argument("--surface-min-points", type=int, default=100)
@@ -126,42 +133,59 @@ def main() -> None:
     )
 
     split_report = reports_dir / "split_surface_targets_report.json"
-    run_cmd(
-        [
-            args.python,
-            str(SCRIPT_DIR / "split_surface_targets_by_plane.py"),
-            "--input-targets",
-            str(targets_dir),
-            "--output-targets",
-            str(split_targets_dir),
-            "--report",
-            str(split_report),
-            "--min-split-points",
-            str(args.min_split_points),
-            "--min-plane-points",
-            str(args.min_plane_points),
-            "--min-component-points",
-            str(args.min_component_points),
-            "--min-residual-points",
-            str(args.min_residual_points),
-            "--plane-distance",
-            str(args.plane_distance),
-            "--voxel-size",
-            str(args.voxel_size),
-            "--max-planes",
-            str(args.max_planes),
-            "--ransac-iters",
-            str(args.ransac_iters),
-            "--max-fit-points",
-            str(args.max_fit_points),
-            "--floor-normal-z",
-            str(args.floor_normal_z),
-            "--wall-normal-z",
-            str(args.wall_normal_z),
-            "--seed",
-            str(args.seed),
-        ]
-    )
+    split_cmd = [
+        args.python,
+        str(SCRIPT_DIR / "split_surface_targets_by_plane.py"),
+        "--input-targets",
+        str(targets_dir),
+        "--output-targets",
+        str(split_targets_dir),
+        "--report",
+        str(split_report),
+        "--min-split-points",
+        str(args.min_split_points),
+        "--min-plane-points",
+        str(args.min_plane_points),
+        "--min-component-points",
+        str(args.min_component_points),
+        "--min-residual-points",
+        str(args.min_residual_points),
+        "--plane-distance",
+        str(args.plane_distance),
+        "--voxel-size",
+        str(args.voxel_size),
+        "--max-planes",
+        str(args.max_planes),
+        "--ransac-iters",
+        str(args.ransac_iters),
+        "--max-fit-points",
+        str(args.max_fit_points),
+        "--floor-normal-z",
+        str(args.floor_normal_z),
+        "--wall-normal-z",
+        str(args.wall_normal_z),
+        "--seed",
+        str(args.seed),
+    ]
+    if args.enable_ceiling_heuristic:
+        split_cmd.extend(
+            [
+                "--enable-ceiling-heuristic",
+                "--ceiling-source-labels",
+                *args.ceiling_source_labels,
+                "--ceiling-min-z",
+                str(args.ceiling_min_z),
+                "--ceiling-max-xy-area",
+                str(args.ceiling_max_xy_area),
+                "--ceiling-max-z-extent",
+                str(args.ceiling_max_z_extent),
+                "--ceiling-min-minor-extent",
+                str(args.ceiling_min_minor_extent),
+                "--ceiling-max-aspect-ratio",
+                str(args.ceiling_max_aspect_ratio),
+            ]
+        )
+    run_cmd(split_cmd)
 
     fuse_cmd = [
         args.python,
