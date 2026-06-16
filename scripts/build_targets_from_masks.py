@@ -51,6 +51,10 @@ PARENT_CLASSES = {
 }
 
 
+def label_in_set(label: str, configured: list[str]) -> bool:
+    return not configured or label in set(configured)
+
+
 def frames_with_combo(base: Path, combo: str) -> list[int]:
     frames = set()
     images_dir = base / "images"
@@ -393,6 +397,69 @@ def load_labels(path: Path) -> dict[int, str]:
     return {mask_id: record["label"] for mask_id, record in load_label_records(path).items()}
 
 
+def build_depth_min_image(uu: np.ndarray, vv: np.ndarray, depths: np.ndarray, height: int, width: int) -> np.ndarray:
+    depth_img = np.full((height, width), np.inf, dtype=np.float32)
+    if len(uu):
+        depth_img[vv, uu] = np.minimum(depth_img[vv, uu], depths.astype(np.float32))
+    return depth_img
+
+
+def eroded_instance_mask(instance: np.ndarray, mask_id: int, radius_px: int) -> np.ndarray:
+    mask = (instance == mask_id).astype(np.uint8)
+    if radius_px <= 0:
+        return mask.astype(bool)
+    if cv2 is None:
+        raise RuntimeError("OpenCV is required for mask erosion in build_targets_from_masks.py")
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (radius_px * 2 + 1, radius_px * 2 + 1))
+    eroded = cv2.erode(mask, kernel, iterations=1)
+    return eroded.astype(bool)
+
+
+def local_min_depth_image(depth_img: np.ndarray, radius_px: int) -> np.ndarray:
+    if radius_px <= 0:
+        return depth_img
+    if cv2 is None:
+        raise RuntimeError("OpenCV is required for depth filtering in build_targets_from_masks.py")
+    large = np.float32(1e6)
+    working = np.where(np.isfinite(depth_img), depth_img, large)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (radius_px * 2 + 1, radius_px * 2 + 1))
+    local_min = cv2.erode(working, kernel, iterations=1)
+    local_min[local_min >= large * 0.5] = np.inf
+    return local_min
+
+
+def filter_mask_points(
+    instance: np.ndarray,
+    mask_id: int,
+    label: str,
+    selected: np.ndarray,
+    uu_all: np.ndarray,
+    vv_all: np.ndarray,
+    depths_all: np.ndarray,
+    depth_local_min: np.ndarray | None,
+    args: argparse.Namespace,
+) -> tuple[np.ndarray, dict[str, int]]:
+    stats = {"boundary_filtered": 0, "depth_filtered": 0}
+    if len(selected) == 0:
+        return selected, stats
+
+    keep = np.ones(len(selected), dtype=bool)
+    if args.mask_erode_px > 0 and label_in_set(label, args.mask_erode_labels):
+        eroded = eroded_instance_mask(instance, mask_id, args.mask_erode_px)
+        keep_boundary = eroded[vv_all[selected], uu_all[selected]]
+        stats["boundary_filtered"] = int((~keep_boundary).sum())
+        keep &= keep_boundary
+
+    if depth_local_min is not None and args.depth_edge_threshold > 0 and label_in_set(label, args.depth_edge_labels):
+        depths_sel = depths_all[selected]
+        local_min = depth_local_min[vv_all[selected], uu_all[selected]]
+        keep_depth = depths_sel <= (local_min + args.depth_edge_threshold)
+        stats["depth_filtered"] = int((~keep_depth & keep).sum())
+        keep &= keep_depth
+
+    return selected[keep], stats
+
+
 def connectivity_voxel_size(label: str, args: argparse.Namespace) -> float:
     if label in SURFACE_CONNECTIVITY_LABELS and args.surface_voxel_size is not None:
         return float(args.surface_voxel_size)
@@ -460,9 +527,13 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
         depths = depths[in_img]
         if args.zbuffer_visible:
             visible = zbuffer_visible_indices(point_idx, np.column_stack([uu, vv]), depths, width)
-            point_idx, uu, vv = point_idx[visible], uu[visible], vv[visible]
+            point_idx, uu, vv, depths = point_idx[visible], uu[visible], vv[visible], depths[visible]
         if len(point_idx) == 0:
             continue
+        depth_local_min = None
+        if args.depth_edge_window_px > 0:
+            depth_img = build_depth_min_image(uu, vv, depths, height, width)
+            depth_local_min = local_min_depth_image(depth_img, args.depth_edge_window_px)
 
         instance_ids = instance[vv, uu].astype(np.int64)
         for mask_id in sorted(int(x) for x in np.unique(instance_ids) if int(x) != 0):
@@ -473,8 +544,28 @@ def process_frame(frame_id: int, args: argparse.Namespace, config) -> dict:
                 skipped_masks[label] += 1
                 continue
             selected = point_idx[instance_ids == mask_id]
+            selected_local = np.where(instance_ids == mask_id)[0]
             if len(selected) == 0:
                 continue
+            filtered_selected, filter_stats = filter_mask_points(
+                instance=instance,
+                mask_id=mask_id,
+                label=label,
+                selected=selected_local,
+                uu_all=uu,
+                vv_all=vv,
+                depths_all=depths,
+                depth_local_min=depth_local_min,
+                args=args,
+            )
+            if filter_stats["boundary_filtered"]:
+                skipped_masks[f"{label}:boundary_filtered_points"] += filter_stats["boundary_filtered"]
+            if filter_stats["depth_filtered"]:
+                skipped_masks[f"{label}:depth_filtered_points"] += filter_stats["depth_filtered"]
+            if len(filtered_selected) == 0:
+                skipped_masks[f"{label}:empty_after_filter"] += 1
+                continue
+            selected = point_idx[filtered_selected]
             voxel_size = connectivity_voxel_size(label, args)
             comps, residual = connected_components(points[selected], voxel_size, args.min_target_points)
             residual_points += int(residual.sum())
@@ -584,6 +675,16 @@ def main() -> None:
     parser.add_argument("--min-depth", type=float, default=0.1)
     parser.add_argument("--zbuffer-visible", action="store_true", default=True)
     parser.add_argument("--no-zbuffer-visible", dest="zbuffer_visible", action="store_false")
+    parser.add_argument("--mask-erode-px", type=int, default=1,
+                        help="Erode instance masks by N pixels before 2D->3D target extraction.")
+    parser.add_argument("--mask-erode-labels", nargs="*", default=sorted(FINE_CONNECTIVITY_LABELS),
+                        help="Only apply mask erosion to these labels. Empty means all labels.")
+    parser.add_argument("--depth-edge-window-px", type=int, default=1,
+                        help="Neighborhood radius for local minimum depth edge filtering.")
+    parser.add_argument("--depth-edge-threshold", type=float, default=0.18,
+                        help="Reject projected points deeper than local minimum depth + threshold (meters).")
+    parser.add_argument("--depth-edge-labels", nargs="*", default=sorted(FINE_CONNECTIVITY_LABELS),
+                        help="Only apply local depth edge filtering to these labels. Empty means all labels.")
     parser.add_argument("--skip-labels", nargs="*", default=[])
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--write-ply", action="store_true")
