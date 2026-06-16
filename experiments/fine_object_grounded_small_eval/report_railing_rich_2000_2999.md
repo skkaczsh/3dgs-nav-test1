@@ -160,3 +160,41 @@ Interpretation:
   than to coarse wall-like surface regions
 - the remaining issue is recall/selectivity balance, not catastrophic
   surface swallowing
+
+## Accepted format integration
+
+The grounded `railing strict v2` path was then upgraded to emit the same core
+fields expected by the existing fine-object fusion chain:
+
+- projected accepted PLY now carries:
+  - `accepted_candidate`
+  - `visual_red/green/blue`
+  - `frame/camera/mask/point_index`
+  - source metadata compatible with the accepted fine-object path
+- projection stage now also writes `accepted_report.json` with:
+  - 3D bbox
+  - centroid
+  - mean visual color
+  - PCA linearity / planarity
+
+Server rerun result on:
+
+- `/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_accepted_v1`
+- `/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/fused_accepted_v1`
+
+Summary:
+
+- accepted candidates: `9`
+- accepted points: `1295`
+- fused fine objects: `9`
+- merge count: `0`
+
+Interpretation:
+
+- the new grounded output is now compatible with the object-fusion toolchain
+- for this small railing-rich set, the surviving 3D candidates remain spatially
+  separate enough that they do not merge under the current conservative
+  thresholds
+- this means the next useful expansion is not to relax merge rules on this
+  sample, but to feed the same accepted-format path with `pipe` and
+  `equipment/HVAC` candidates and compare cross-focus object statistics

@@ -90,6 +90,22 @@ def load_kept_candidates(strict_review: Path) -> list[dict]:
     return sorted(rows, key=lambda r: int(r["candidate_id"]))
 
 
+def load_candidates_from_accepted_report(path: Path) -> list[dict]:
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    rows = []
+    for row in raw.get("top_candidates", []):
+        out = dict(row)
+        out["candidate_id"] = int(out["candidate_id"])
+        out["points"] = int(out["points"])
+        out["source_type"] = str(out.get("source_type", "grounded_detector_mask"))
+        out["source_cluster"] = int(out.get("source_cluster", out["candidate_id"]))
+        out["subcluster"] = int(out.get("subcluster", -1))
+        out["centroid"] = row.get("centroid", None)
+        out["normal"] = pca_normal_from_eigen_hint(row)
+        rows.append(out)
+    return sorted(rows, key=lambda r: int(r["candidate_id"]))
+
+
 def create_object(index: int, cand: dict) -> dict:
     return {
         "fine_object_id": f"fine_obj_{index:04d}",
@@ -222,7 +238,8 @@ def write_object_ply(path: Path, accepted_ply: Path, objects: list[dict]) -> int
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--strict-review-json", type=Path, required=True)
+    parser.add_argument("--strict-review-json", type=Path)
+    parser.add_argument("--accepted-report-json", type=Path)
     parser.add_argument("--strict-filtered-ply", type=Path, required=True)
     parser.add_argument("--output-objects-jsonl", type=Path, required=True)
     parser.add_argument("--output-decisions-jsonl", type=Path, required=True)
@@ -234,7 +251,12 @@ def main() -> None:
     parser.add_argument("--color-distance", type=float, default=45.0)
     args = parser.parse_args()
 
-    candidates = load_kept_candidates(args.strict_review_json)
+    if args.accepted_report_json:
+        candidates = load_candidates_from_accepted_report(args.accepted_report_json)
+    elif args.strict_review_json:
+        candidates = load_kept_candidates(args.strict_review_json)
+    else:
+        raise ValueError("one of --accepted-report-json or --strict-review-json is required")
     objects, decisions = fuse(candidates, args)
     final_objects = [finalize_object(obj) for obj in objects]
     args.output_objects_jsonl.parent.mkdir(parents=True, exist_ok=True)
@@ -248,7 +270,8 @@ def main() -> None:
     vertex_count = write_object_ply(args.output_ply, args.strict_filtered_ply, objects)
     status_counts = Counter(obj["status"] for obj in final_objects)
     report = {
-        "strict_review_json": str(args.strict_review_json),
+        "strict_review_json": str(args.strict_review_json) if args.strict_review_json else "",
+        "accepted_report_json": str(args.accepted_report_json) if args.accepted_report_json else "",
         "strict_filtered_ply": str(args.strict_filtered_ply),
         "output_objects_jsonl": str(args.output_objects_jsonl),
         "output_decisions_jsonl": str(args.output_decisions_jsonl),
