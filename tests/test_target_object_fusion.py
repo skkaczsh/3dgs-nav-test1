@@ -9,6 +9,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
+EXPERIMENTS = ROOT / "experiments" / "fine_object_grounded_small_eval"
 
 
 def load_module(path: Path, name: str):
@@ -628,6 +629,87 @@ def test_tracklet_builder_merges_short_gap_and_splits_long_gap():
     assert decisions[1]["action"] == "merge"
     assert decisions[2]["action"] == "new_tracklet"
     assert decisions[3]["action"] == "new_tracklet"
+
+
+def test_box_growth_depth_edge_guard_rejects_farther_background_points():
+    module = load_module(
+        EXPERIMENTS / "project_detector_box_growth.py",
+        "project_detector_box_growth_depth_guard_for_repo_test",
+    )
+    candidate_local = np.array([True, True, False], dtype=bool)
+    seed_local = np.array([True, False, False], dtype=bool)
+    vv = np.array([5, 5, 5], dtype=np.int32)
+    uu = np.array([5, 6, 7], dtype=np.int32)
+    depths = np.array([1.0, 1.35, 1.05], dtype=np.float32)
+
+    guarded, filtered = module.apply_depth_edge_guard(
+        candidate_local,
+        seed_local,
+        vv,
+        uu,
+        depths,
+        height=16,
+        width=16,
+        window_px=1,
+        threshold=0.1,
+    )
+
+    assert guarded.tolist() == [True, False, False]
+    assert filtered == 1
+
+
+def test_box_growth_depth_edge_guard_preserves_seed_points():
+    module = load_module(
+        EXPERIMENTS / "project_detector_box_growth.py",
+        "project_detector_box_growth_seed_preserve_for_repo_test",
+    )
+    candidate_local = np.array([True, True], dtype=bool)
+    seed_local = np.array([True, False], dtype=bool)
+    vv = np.array([5, 5], dtype=np.int32)
+    uu = np.array([5, 6], dtype=np.int32)
+    depths = np.array([1.4, 1.0], dtype=np.float32)
+
+    guarded, filtered = module.apply_depth_edge_guard(
+        candidate_local,
+        seed_local,
+        vv,
+        uu,
+        depths,
+        height=16,
+        width=16,
+        window_px=1,
+        threshold=0.1,
+    )
+
+    assert guarded.tolist() == [True, True]
+    assert filtered == 0
+
+
+def test_box_growth_seed_depth_guard_rejects_points_behind_seed_surface():
+    module = load_module(
+        EXPERIMENTS / "project_detector_box_growth.py",
+        "project_detector_box_growth_seed_depth_guard_for_repo_test",
+    )
+    candidate_local = np.array([True, True, True], dtype=bool)
+    seed_local = np.array([True, False, False], dtype=bool)
+    vv = np.array([5, 5, 5], dtype=np.int32)
+    uu = np.array([5, 6, 7], dtype=np.int32)
+    depths = np.array([1.0, 1.06, 1.35], dtype=np.float32)
+
+    guarded, filtered = module.apply_seed_depth_guard(
+        candidate_local,
+        seed_local,
+        vv,
+        uu,
+        depths,
+        height=16,
+        width=16,
+        window_px=1,
+        threshold=0.1,
+    )
+
+    assert guarded.tolist() == [True, True, False]
+    assert filtered == 1
 
 
 def _long_tracklet(tracklet_id, frame_min, centroid, candidate="200001", source="9", color=(100, 100, 100)):

@@ -34,6 +34,10 @@ def main() -> None:
     parser.add_argument("--box-grow-expand-px", type=int, default=10)
     parser.add_argument("--box-grow-mask-distance-px", type=float, default=12.0)
     parser.add_argument("--box-grow-depth-slack", type=float, default=0.30)
+    parser.add_argument("--box-grow-depth-edge-window-px", type=int, default=0)
+    parser.add_argument("--box-grow-depth-edge-threshold", type=float, default=0.0)
+    parser.add_argument("--box-grow-seed-depth-window-px", type=int, default=0)
+    parser.add_argument("--box-grow-seed-depth-threshold", type=float, default=0.0)
     parser.add_argument("--box-grow-voxel-size", type=float, default=0.08)
     parser.add_argument("--box-grow-min-component-points", type=int, default=8)
     parser.add_argument("--target-voxel-size", type=float, default=0.08)
@@ -118,6 +122,10 @@ export TRANSFORMERS_OFFLINE=1
   --box-expand-px {args.box_grow_expand_px} \
   --mask-distance-px {args.box_grow_mask_distance_px} \
   --depth-slack {args.box_grow_depth_slack} \
+  --depth-edge-window-px {args.box_grow_depth_edge_window_px} \
+  --depth-edge-threshold {args.box_grow_depth_edge_threshold} \
+  --seed-depth-window-px {args.box_grow_seed_depth_window_px} \
+  --seed-depth-threshold {args.box_grow_seed_depth_threshold} \
   --voxel-size {args.box_grow_voxel_size} \
   --min-component-points {args.box_grow_min_component_points}
 if [ -f {shlex.quote(remote_box_growth)}/accepted_points.ply ]; then

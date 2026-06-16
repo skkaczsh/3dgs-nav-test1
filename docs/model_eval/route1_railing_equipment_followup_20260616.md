@@ -453,6 +453,94 @@ Current recommendation:
   - candidate-level depth continuity / occlusion guards
   - then cross-frame persistence on denser windows
 
+## 1.9. Seed-Depth Guard Prototype
+
+The next projector-side refinement was not another detector or mask change. It
+was a candidate-level depth guard that only trusts local depth support derived
+from seed-mask points.
+
+Implementation update:
+
+- `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/project_detector_box_growth.py`
+  now supports:
+  - local depth-edge guard
+  - seed-depth local-min guard
+- `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/run_server_box_growth_focus_eval.py`
+  now exposes these parameters for remote replays
+
+Tested replay:
+
+- source window:
+  `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/raw_adjacent_railing_2760_2860`
+- seed-depth replay:
+  `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/raw_adjacent_railing_2760_2860/seeddepth_v1`
+
+Parameters:
+
+- `seed_depth_window_px = 1`
+- `seed_depth_threshold = 0.12`
+
+### Quantitative effect
+
+Relative to the original adjacent-window replay:
+
+- projected 3D candidate points before review:
+  `3800 -> 2347`
+- kept 3D points after geometry guard:
+  `3679 -> 2247`
+- kept candidates after guard:
+  `22 -> 21`
+- frame targets:
+  `27 -> 27`
+- short tracklets:
+  `22 -> 23`
+- long objects:
+  `19 -> 18`
+- `stable_long_object`:
+  `3 -> 5`
+
+Additional projector statistic:
+
+- `seed_depth_filtered_points = 1458`
+- all `24` successful projected candidates had some points removed by this gate
+
+### Interpretation
+
+This confirms the intended mechanical behavior:
+
+- the seed-depth guard is not a no-op
+- it removes a large number of candidate points before geometry review
+- it can suppress one accepted candidate entirely on this window
+
+But it is not yet proven to be a net win.
+
+Why:
+
+- support drops sharply:
+  `3679 -> 2247`
+- short-tracklet count does not improve
+- frame-target count also does not improve beyond the current in-frame merge
+
+The one encouraging sign is that the long-object stage becomes slightly more
+compact while keeping more multi-tracklet objects alive:
+
+- `objects: 19 -> 18`
+- `stable_long_object: 3 -> 5`
+
+### Practical conclusion
+
+The seed-depth guard is worth keeping as an experimental projector constraint,
+but not yet as the default.
+
+Current recommendation:
+
+- keep the conservative in-frame merge as the default
+- keep seed-depth guard as an opt-in experimental branch
+- next refine this guard by making it selective rather than global:
+  - enable only for `railing`
+  - gate by mask elongation / candidate linearity
+  - avoid stripping support from already-clean candidates
+
 ## 2. Equipment/HVAC Strict Precision
 
 The broader equipment branch remained semantically risky. A stricter

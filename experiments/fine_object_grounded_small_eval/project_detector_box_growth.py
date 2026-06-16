@@ -96,6 +96,24 @@ def mask_distance(mask: np.ndarray) -> np.ndarray:
     return cv2.distanceTransform(zeros, cv2.DIST_L2, 3)
 
 
+def build_depth_min_image(uu: np.ndarray, vv: np.ndarray, depths: np.ndarray, height: int, width: int) -> np.ndarray:
+    depth_img = np.full((height, width), np.inf, dtype=np.float32)
+    if len(uu):
+        depth_img[vv, uu] = np.minimum(depth_img[vv, uu], depths.astype(np.float32))
+    return depth_img
+
+
+def local_min_depth_image(depth_img: np.ndarray, radius_px: int) -> np.ndarray:
+    if radius_px <= 0:
+        return depth_img
+    large = np.float32(1e6)
+    working = np.where(np.isfinite(depth_img), depth_img, large)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (radius_px * 2 + 1, radius_px * 2 + 1))
+    local_min = cv2.erode(working, kernel, iterations=1)
+    local_min[local_min >= large * 0.5] = np.inf
+    return local_min
+
+
 def expanded_box(box_xyxy: list[float], width: int, height: int, pad: int) -> tuple[int, int, int, int]:
     x0, y0, x1, y1 = [int(round(float(v))) for v in box_xyxy]
     return (
@@ -131,6 +149,52 @@ def keep_connected_to_seed(
     return np.unique(merged)
 
 
+def apply_depth_edge_guard(
+    candidate_local: np.ndarray,
+    seed_local: np.ndarray,
+    vv: np.ndarray,
+    uu: np.ndarray,
+    depths: np.ndarray,
+    *,
+    height: int,
+    width: int,
+    window_px: int,
+    threshold: float,
+) -> tuple[np.ndarray, int]:
+    if window_px <= 0 or threshold <= 0 or len(candidate_local) == 0:
+        return candidate_local, 0
+    depth_img = build_depth_min_image(uu, vv, depths, height, width)
+    depth_local_min = local_min_depth_image(depth_img, window_px)
+    local_min = depth_local_min[vv, uu]
+    keep_depth = depths <= (local_min + threshold)
+    guarded = candidate_local & (keep_depth | seed_local)
+    filtered = int(np.count_nonzero(candidate_local & ~guarded))
+    return guarded, filtered
+
+
+def apply_seed_depth_guard(
+    candidate_local: np.ndarray,
+    seed_local: np.ndarray,
+    vv: np.ndarray,
+    uu: np.ndarray,
+    depths: np.ndarray,
+    *,
+    height: int,
+    width: int,
+    window_px: int,
+    threshold: float,
+) -> tuple[np.ndarray, int]:
+    if window_px <= 0 or threshold <= 0 or len(candidate_local) == 0 or not np.any(seed_local):
+        return candidate_local, 0
+    seed_depth_img = build_depth_min_image(uu[seed_local], vv[seed_local], depths[seed_local], height, width)
+    seed_local_min = local_min_depth_image(seed_depth_img, window_px)
+    local_seed_min = seed_local_min[vv, uu]
+    keep_seed_depth = np.isfinite(local_seed_min) & (depths <= (local_seed_min + threshold))
+    guarded = candidate_local & (keep_seed_depth | seed_local)
+    filtered = int(np.count_nonzero(candidate_local & ~guarded))
+    return guarded, filtered
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--accepted-jsonl", required=True)
@@ -144,6 +208,10 @@ def main() -> None:
     parser.add_argument("--depth-lower-quantile", type=float, default=0.05)
     parser.add_argument("--depth-upper-quantile", type=float, default=0.95)
     parser.add_argument("--depth-slack", type=float, default=0.45)
+    parser.add_argument("--depth-edge-window-px", type=int, default=0)
+    parser.add_argument("--depth-edge-threshold", type=float, default=0.0)
+    parser.add_argument("--seed-depth-window-px", type=int, default=0)
+    parser.add_argument("--seed-depth-threshold", type=float, default=0.0)
     parser.add_argument("--voxel-size", type=float, default=0.08)
     parser.add_argument("--min-component-points", type=int, default=8)
     parser.add_argument("--zbuffer-visible", action="store_true", default=True)
@@ -227,11 +295,35 @@ def main() -> None:
         near_mask = box_dist <= args.mask_distance_px
         depth_ok = (box_dd >= depth_lo) & (box_dd <= depth_hi)
         candidate_local = near_mask & depth_ok
+        candidate_local, depth_edge_filtered = apply_depth_edge_guard(
+            candidate_local,
+            seed_local,
+            box_vv,
+            box_uu,
+            box_dd,
+            height=h,
+            width=w,
+            window_px=args.depth_edge_window_px,
+            threshold=args.depth_edge_threshold,
+        )
+        candidate_local, seed_depth_filtered = apply_seed_depth_guard(
+            candidate_local,
+            seed_local,
+            box_vv,
+            box_uu,
+            box_dd,
+            height=h,
+            width=w,
+            window_px=args.seed_depth_window_px,
+            threshold=args.seed_depth_threshold,
+        )
         candidate_indices = box_idx[candidate_local]
         candidate_seed_local = seed_local[candidate_local]
         if len(candidate_indices) == 0:
             candidate_indices = box_idx[seed_local]
             candidate_seed_local = np.ones(len(candidate_indices), dtype=bool)
+            depth_edge_filtered = 0
+            seed_depth_filtered = 0
 
         kept_idx = keep_connected_to_seed(
             candidate_indices,
@@ -305,6 +397,10 @@ def main() -> None:
                 "box_expand_px": int(args.box_expand_px),
                 "mask_distance_px": float(args.mask_distance_px),
                 "depth_slack": float(args.depth_slack),
+                "depth_edge_window_px": int(args.depth_edge_window_px),
+                "depth_edge_threshold": float(args.depth_edge_threshold),
+                "seed_depth_window_px": int(args.seed_depth_window_px),
+                "seed_depth_threshold": float(args.seed_depth_threshold),
                 "voxel_size": float(args.voxel_size),
                 "min_component_points": int(args.min_component_points),
             },
@@ -323,6 +419,8 @@ def main() -> None:
                 "seed_points": int(seed_point_count),
                 "box_points": int(len(box_idx)),
                 "candidate_box_points": int(len(candidate_indices)),
+                "depth_edge_filtered_points": int(depth_edge_filtered),
+                "seed_depth_filtered_points": int(seed_depth_filtered),
                 "growth_gain": float(len(kept_points) / max(seed_point_count, 1)),
                 "point_ratio": float(len(kept_points) / max(len(points), 1)),
                 "depth_range": [depth_lo, depth_hi],
