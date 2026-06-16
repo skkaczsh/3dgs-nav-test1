@@ -121,6 +121,42 @@ def draw_boxes(image_rgb: np.ndarray, boxes_xyxy: np.ndarray, labels) -> np.ndar
     return vis
 
 
+def mask_geometry(mask: np.ndarray) -> dict:
+    mask_u8 = mask.astype(np.uint8)
+    area = int(mask_u8.sum())
+    if area <= 0:
+        return {
+            "mask_bbox_fill_ratio": 0.0,
+            "component_count": 0,
+            "largest_component_ratio": 0.0,
+            "minrect_aspect_ratio": 0.0,
+        }
+    ys, xs = np.where(mask_u8 > 0)
+    x0, x1 = int(xs.min()), int(xs.max())
+    y0, y1 = int(ys.min()), int(ys.max())
+    bbox_area = max((x1 - x0 + 1) * (y1 - y0 + 1), 1)
+    num_labels, _, stats, _ = cv2.connectedComponentsWithStats(mask_u8, connectivity=8)
+    component_count = max(0, int(num_labels - 1))
+    if component_count > 0:
+        largest = int(stats[1:, cv2.CC_STAT_AREA].max())
+    else:
+        largest = 0
+    points = np.column_stack([xs, ys]).astype(np.float32)
+    if len(points) >= 3:
+        (_, _), (rw, rh), _ = cv2.minAreaRect(points)
+        long_side = float(max(rw, rh))
+        short_side = float(max(1.0, min(rw, rh)))
+        minrect_aspect_ratio = long_side / short_side
+    else:
+        minrect_aspect_ratio = 0.0
+    return {
+        "mask_bbox_fill_ratio": float(area / bbox_area),
+        "component_count": component_count,
+        "largest_component_ratio": float(largest / max(area, 1)),
+        "minrect_aspect_ratio": float(minrect_aspect_ratio),
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", required=True)
@@ -272,6 +308,8 @@ def main() -> None:
             "id": sample_id,
             "rel": sample["rel"],
             "focus": sample["focus"],
+            "frame": sample.get("frame"),
+            "cam": sample.get("cam"),
             "prompt_terms": prompt_terms,
             "prompt_groups": prompt_groups,
             "prompt_text": prompt_text,
@@ -280,6 +318,7 @@ def main() -> None:
             "num_boxes": int(len(boxes_xyxy)),
             "detections": [
                 {
+                    **mask_geometry(mask),
                     "focus": focus,
                     "phrase": phrase,
                     "grounding_score": float(logit),

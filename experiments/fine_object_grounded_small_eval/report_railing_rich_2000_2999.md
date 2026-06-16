@@ -115,3 +115,48 @@ Therefore the next tightening step should combine:
 2. fallback `metal fence` only when strict prompt returns no useful candidate
 3. geometric rejection on low aspect-ratio / high area-ratio masks before 3D
    projection
+
+## Strict prompt + geometry filter v2
+
+The strict prompt was then combined with stronger 2D geometry filtering:
+
+- reject `oversized_mask`
+- reject `not_elongated`
+- reject `too_filled_for_railing`
+- reject `too_fragmented`
+- for multiple accepted-looking railing detections in one image, rank by:
+  - oriented elongation
+  - largest-component ratio
+  - lower fill ratio
+  - smaller area ratio
+  - then `grounding_score`
+
+Filtered result:
+
+- accepted 2D detections: `10`
+- rejected 2D detections: `14`
+- rejection reasons:
+  - `not_elongated = 9`
+  - `oversized_mask = 5`
+
+3D projection result:
+
+- projected successfully: `9`
+- `mask_no_points`: `1`
+
+Projected railing subsets stayed compact:
+
+- `cam0_002640`: `62` points, ratio `0.0041`
+- `cam2_002670`: `714` points, ratio `0.0288`
+- `cam2_002840`: `334` points, ratio `0.0231`
+- `cam0_002780`: `53` points, ratio `0.0019`
+- `cam0_002920`: `39` points, ratio `0.0015`
+
+Interpretation:
+
+- this stage no longer returns the large broad fence/wall blobs seen in the
+  earlier `metal fence` run
+- the accepted results are now much closer to "thin-object candidate subsets"
+  than to coarse wall-like surface regions
+- the remaining issue is recall/selectivity balance, not catastrophic
+  surface swallowing

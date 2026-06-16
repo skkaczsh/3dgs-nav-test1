@@ -36,6 +36,9 @@ def accept_detection(det: dict) -> tuple[bool, str]:
     area_ratio = float(det["mask_area_ratio"])
     box_area_ratio = float(det["box_area_ratio"])
     aspect = float(det["box_aspect_ratio"])
+    fill_ratio = float(det.get("mask_bbox_fill_ratio", 0.0))
+    largest_component_ratio = float(det.get("largest_component_ratio", 0.0))
+    minrect_aspect = float(det.get("minrect_aspect_ratio", 0.0))
     phrase = det["phrase"].lower()
 
     if focus == "railing":
@@ -43,10 +46,14 @@ def accept_detection(det: dict) -> tuple[bool, str]:
             return False, "low_score"
         if area_ratio < 0.002:
             return False, "tiny_mask"
-        if area_ratio > 0.18:
+        if area_ratio > 0.12:
             return False, "oversized_mask"
-        if aspect < 2.2:
+        if aspect < 2.2 and minrect_aspect < 3.0:
             return False, "not_elongated"
+        if fill_ratio > 0.38 and minrect_aspect < 4.0:
+            return False, "too_filled_for_railing"
+        if largest_component_ratio < 0.45:
+            return False, "too_fragmented"
         if not any(word in phrase for word in ("railing", "guardrail", "handrail", "fence")):
             return False, "phrase_mismatch"
         return True, "accepted"
@@ -92,20 +99,37 @@ def accept_detection(det: dict) -> tuple[bool, str]:
     return False, "unsupported_focus"
 
 
+def candidate_rank(det: dict) -> tuple[float, ...]:
+    focus = det["focus"]
+    if focus == "railing":
+        return (
+            float(det.get("minrect_aspect_ratio", 0.0)),
+            float(det.get("largest_component_ratio", 0.0)),
+            -float(det.get("mask_bbox_fill_ratio", 0.0)),
+            -float(det.get("mask_area_ratio", 0.0)),
+            float(det.get("grounding_score", 0.0)),
+            float(det.get("sam_score", 0.0)),
+        )
+    return (
+        float(det.get("grounding_score", 0.0)),
+        float(det.get("sam_score", 0.0)),
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--summary", required=True)
-    parser.add_argument("--review-mapping", required=True)
+    parser.add_argument("--review-mapping", required=False, default="")
     parser.add_argument("--output-dir", required=True)
     args = parser.parse_args()
 
     summary_path = Path(args.summary)
-    mapping_path = Path(args.review_mapping)
+    mapping_path = Path(args.review_mapping) if args.review_mapping else None
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     summary = json.loads(summary_path.read_text())
-    review_mapping = load_review_mapping(mapping_path)
+    review_mapping = load_review_mapping(mapping_path) if mapping_path else {}
 
     accepted_rows = []
     rejected_rows = []
@@ -113,7 +137,12 @@ def main() -> None:
         sample_id = sample["id"]
         sample_mapping = review_mapping.get(sample_id)
         if not sample_mapping:
-            continue
+            sample_mapping = {
+                "frame": int(sample.get("frame", -1)),
+                "cam": int(sample.get("cam", -1)),
+                "target_id": sample.get("id", ""),
+                "source_label": sample.get("focus", ["unknown"])[0] if sample.get("focus") else "unknown",
+            }
         best_by_focus = {}
         for det in sample["detections"]:
             ok, reason = accept_detection(det)
@@ -131,16 +160,17 @@ def main() -> None:
                 "mask_area_ratio": det["mask_area_ratio"],
                 "box_area_ratio": det["box_area_ratio"],
                 "box_aspect_ratio": det["box_aspect_ratio"],
+                "mask_bbox_fill_ratio": det.get("mask_bbox_fill_ratio", 0.0),
+                "largest_component_ratio": det.get("largest_component_ratio", 0.0),
+                "minrect_aspect_ratio": det.get("minrect_aspect_ratio", 0.0),
+                "component_count": det.get("component_count", 0),
                 "mask_path": det["mask_path"],
                 "box_xyxy": det["box_xyxy"],
                 "status": reason,
             }
             if ok:
                 prev = best_by_focus.get(det["focus"])
-                if prev is None or (row["grounding_score"], row["sam_score"]) > (
-                    prev["grounding_score"],
-                    prev["sam_score"],
-                ):
+                if prev is None or candidate_rank(row) > candidate_rank(prev):
                     best_by_focus[det["focus"]] = row
             else:
                 rejected_rows.append(row)
@@ -148,7 +178,7 @@ def main() -> None:
 
     summary_out = {
         "input_summary": str(summary_path),
-        "review_mapping": str(mapping_path),
+        "review_mapping": str(mapping_path) if mapping_path else "",
         "accepted_count": len(accepted_rows),
         "rejected_count": len(rejected_rows),
         "accepted_by_focus": {},
