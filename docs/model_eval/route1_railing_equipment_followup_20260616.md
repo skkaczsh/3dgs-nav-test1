@@ -1,7 +1,8 @@
 # Route1 Railing/Equipment Follow-up - 2026-06-16
 
-This note records one additional `railing` replay and one stricter
-`equipment/HVAC` evidence pack after the initial Route1 small-eval summary.
+This note records one additional `railing` replay, one support-preserving
+`railing` box-growth branch, and one stricter `equipment/HVAC` evidence pack
+after the initial Route1 small-eval summary.
 
 It does not change the large-surface conclusion. It refines the fine-object
 conclusion.
@@ -90,6 +91,72 @@ Practical conclusion:
   - line/rail geometry growth in 3D after a small seed is found
   - multi-view support accumulation before final accept/reject
 
+## 1.5. Railing Box-Growth Branch
+
+After the thin-mask replay, a support-preserving branch was tested on the same
+`strict_v2` railing sample:
+
+- start from accepted `GroundingDINO + SAM2` detections
+- project all visible points inside the detector box
+- keep points near the 2D mask and inside a seed-derived depth range
+- grow support by 3D connected components
+- then re-apply the existing geometry guard
+
+Local evidence:
+
+- `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/project_detector_box_growth.py`
+- `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/railing_rich_2000_2999_box_growth_v1`
+
+### Quantitative comparison
+
+Same 10-image rich sample:
+
+- thin-mask `v1`
+  - fused `point_count = 25`
+- thin-mask `v2_relaxed`
+  - fused `point_count = 58`
+- thin-mask `v3_hybrid`
+  - fused `point_count = 34`
+- box-growth `v1`
+  - projected accepted points before guard: `1889`
+  - kept points after guard: `942`
+  - kept candidates after guard: `6`
+  - fused `point_count = 942`
+
+### Interpretation
+
+This is the first `railing` branch that materially improves 3D support instead
+of only changing 2D mask appearance.
+
+What improved:
+
+- support grew from tens of points to hundreds of points
+- geometry guard still removed the obvious surface-like overgrowth
+- the kept subsets remain mostly linear:
+  - one major survivor at `428` points has `linearity = 0.9877`
+  - several others remain above `0.84`
+
+What still did not improve enough:
+
+- object fusion is still fragmented
+- all six survivors remain `single_fine_candidate`
+- two large expanded candidates were still demoted as surface-like, so the
+  branch still needs a tighter grow rule
+
+Practical conclusion:
+
+- this branch is strictly better than pure thin-mask tuning
+- the correct next step for `railing` is now:
+  - keep detector-box constrained growth
+  - tighten growth acceptance
+  - add cross-view accumulation / tracklet merge after support has been grown
+
+This changes the earlier conclusion in one narrow way:
+
+- `railing` is still not production-ready
+- but the bottleneck has moved from “mask post-process cannot help” to
+  “support-preserving growth works, yet cross-view consolidation is still weak”
+
 ## 2. Equipment/HVAC Strict Precision
 
 The broader equipment branch remained semantically risky. A stricter
@@ -153,12 +220,12 @@ The Route1 fine-object ranking remains:
 
 1. `pipe`
 2. `equipment/HVAC` under strict precision
-3. `railing` as a guarded proposal branch
+3. `railing` with box-growth as the preferred guarded proposal branch
 
 This update makes the `railing` limitation clearer:
 
 - current issue is not mainly label quality
-- current issue is support quality and topological continuity
+- current issue is now mostly cross-view support continuity and consolidation
 
 So the next productive iteration should not be another broad phrase sweep.
 It should be a support-preserving branch focused on:

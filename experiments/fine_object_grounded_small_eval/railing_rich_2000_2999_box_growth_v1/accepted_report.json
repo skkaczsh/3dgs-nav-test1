@@ -1,0 +1,626 @@
+{
+  "accepted_jsonl": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/filtered/accepted_detections.jsonl",
+  "output_ply": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v1/accepted_points.ply",
+  "candidate_count": 9,
+  "accepted_points": 1889,
+  "candidate_counts": {
+    "grounded_box_growth": 9
+  },
+  "point_counts": {
+    "grounded_box_growth": 1889
+  },
+  "top_candidates": [
+    {
+      "candidate_id": 400002,
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400002,
+      "subcluster": -1,
+      "semantic_id": 9,
+      "focus": "railing",
+      "phrase": "guardrail handrail",
+      "frame": 2670,
+      "cam": 2,
+      "mask_id": 0,
+      "points": 766,
+      "seed_points": 608,
+      "growth_gain": 1.2598684210526316,
+      "mean_visual_color": [
+        118.68929290771484,
+        117.83942413330078,
+        117.593994140625
+      ],
+      "grounding_score": 0.20296698808670044,
+      "sam_score": 0.9694448113441467,
+      "mask_area_ratio": 0.04799623842592592,
+      "box_area_ratio": 0.06906090021133422,
+      "box_aspect_ratio": 5.691332372931442,
+      "mask_bbox_fill_ratio": 0.7607665377383009,
+      "largest_component_ratio": 0.9998693795528761,
+      "minrect_aspect_ratio": 6.210095281267761,
+      "component_count": 2,
+      "box_xyxy": [
+        615.021728515625,
+        236.74838256835938,
+        1517.809326171875,
+        395.3733825683594
+      ],
+      "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam2_002670/masks/02_railing_guardrail_handrail.png",
+      "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v1/cam2_002670_railing_grown_projected.ply",
+      "grow_params": {
+        "box_expand_px": 12,
+        "mask_distance_px": 18.0,
+        "depth_slack": 0.45,
+        "voxel_size": 0.08,
+        "min_component_points": 8
+      },
+      "centroid": [
+        -8.047074317932129,
+        14.416847229003906,
+        -0.40368589758872986
+      ],
+      "bbox_3d": {
+        "min": [
+          -8.75230884552002,
+          11.50831413269043,
+          -2.820024013519287
+        ],
+        "max": [
+          -6.960737228393555,
+          17.40445899963379,
+          2.526998996734619
+        ]
+      },
+      "linearity": 0.6337458070378947,
+      "planarity": 0.3616110065342507,
+      "pca_eigenvalues": [
+        5.465538024902344,
+        2.0017762184143066,
+        0.025377536192536354
+      ]
+    },
+    {
+      "candidate_id": 400003,
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400003,
+      "subcluster": -1,
+      "semantic_id": 9,
+      "focus": "railing",
+      "phrase": "guardrail handrail",
+      "frame": 2840,
+      "cam": 2,
+      "mask_id": 0,
+      "points": 428,
+      "seed_points": 296,
+      "growth_gain": 1.445945945945946,
+      "mean_visual_color": [
+        64.8528060913086,
+        68.08177947998047,
+        72.88551330566406
+      ],
+      "grounding_score": 0.21770355105400085,
+      "sam_score": 0.8765782713890076,
+      "mask_area_ratio": 0.05560619212962963,
+      "box_area_ratio": 0.11788558248394582,
+      "box_aspect_ratio": 5.42545043043081,
+      "mask_bbox_fill_ratio": 0.4747777535297969,
+      "largest_component_ratio": 0.8205541823858462,
+      "minrect_aspect_ratio": 5.7796505106335205,
+      "component_count": 12,
+      "box_xyxy": [
+        176.18450927734375,
+        0.20534515380859375,
+        1327.80859375,
+        212.46865844726562
+      ],
+      "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam2_002840/masks/02_railing_guardrail_handrail.png",
+      "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v1/cam2_002840_railing_grown_projected.ply",
+      "grow_params": {
+        "box_expand_px": 12,
+        "mask_distance_px": 18.0,
+        "depth_slack": 0.45,
+        "voxel_size": 0.08,
+        "min_component_points": 8
+      },
+      "centroid": [
+        -8.857865333557129,
+        13.918778419494629,
+        -4.1217360496521
+      ],
+      "bbox_3d": {
+        "min": [
+          -9.067571640014648,
+          11.865848541259766,
+          -5.281713008880615
+        ],
+        "max": [
+          -8.586105346679688,
+          15.215872764587402,
+          -3.1493918895721436
+        ]
+      },
+      "linearity": 0.9877347656371797,
+      "planarity": 0.010610236352477041,
+      "pca_eigenvalues": [
+        0.9577333331108093,
+        0.011746798641979694,
+        0.0015850214986130595
+      ]
+    },
+    {
+      "candidate_id": 400008,
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400008,
+      "subcluster": -1,
+      "semantic_id": 9,
+      "focus": "railing",
+      "phrase": "railing guardrail handrail",
+      "frame": 2920,
+      "cam": 0,
+      "mask_id": 0,
+      "points": 156,
+      "seed_points": 37,
+      "growth_gain": 4.216216216216216,
+      "mean_visual_color": [
+        42.346153259277344,
+        38.75,
+        38.10256576538086
+      ],
+      "grounding_score": 0.4224238097667694,
+      "sam_score": 0.930736780166626,
+      "mask_area_ratio": 0.02716628086419753,
+      "box_area_ratio": 0.33282238878113546,
+      "box_aspect_ratio": 1.2636442456575379,
+      "mask_bbox_fill_ratio": 0.08135254454157237,
+      "largest_component_ratio": 0.9989881417311652,
+      "minrect_aspect_ratio": 4.849676188300314,
+      "component_count": 8,
+      "box_xyxy": [
+        661.6278686523438,
+        551.658447265625,
+        1595.486572265625,
+        1290.6787109375
+      ],
+      "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam0_002920/masks/00_railing_railing_guardrail_handrail.png",
+      "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v1/cam0_002920_railing_grown_projected.ply",
+      "grow_params": {
+        "box_expand_px": 12,
+        "mask_distance_px": 18.0,
+        "depth_slack": 0.45,
+        "voxel_size": 0.08,
+        "min_component_points": 8
+      },
+      "centroid": [
+        -7.057038307189941,
+        12.898416519165039,
+        -8.113927841186523
+      ],
+      "bbox_3d": {
+        "min": [
+          -8.890411376953125,
+          11.227960586547852,
+          -9.033363342285156
+        ],
+        "max": [
+          -6.581267833709717,
+          13.70302677154541,
+          -6.9943718910217285
+        ]
+      },
+      "linearity": 0.7209280510003904,
+      "planarity": 0.2662909866656755,
+      "pca_eigenvalues": [
+        0.872399628162384,
+        0.24346227943897247,
+        0.011150116100907326
+      ]
+    },
+    {
+      "candidate_id": 400001,
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400001,
+      "subcluster": -1,
+      "semantic_id": 9,
+      "focus": "railing",
+      "phrase": "guardrail handrail",
+      "frame": 2640,
+      "cam": 0,
+      "mask_id": 0,
+      "points": 153,
+      "seed_points": 61,
+      "growth_gain": 2.5081967213114753,
+      "mean_visual_color": [
+        45.93463897705078,
+        42.41830062866211,
+        44.2156867980957
+      ],
+      "grounding_score": 0.3118126392364502,
+      "sam_score": 0.9194449782371521,
+      "mask_area_ratio": 0.022414641203703702,
+      "box_area_ratio": 0.15332040148044873,
+      "box_aspect_ratio": 2.369909390288327,
+      "mask_bbox_fill_ratio": 0.15467787506364625,
+      "largest_component_ratio": 0.999827879257299,
+      "minrect_aspect_ratio": 5.82035881075836,
+      "component_count": 3,
+      "box_xyxy": [
+        113.75616455078125,
+        722.01220703125,
+        981.7733764648438,
+        1088.2781982421875
+      ],
+      "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam0_002640/masks/01_railing_guardrail_handrail.png",
+      "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v1/cam0_002640_railing_grown_projected.ply",
+      "grow_params": {
+        "box_expand_px": 12,
+        "mask_distance_px": 18.0,
+        "depth_slack": 0.45,
+        "voxel_size": 0.08,
+        "min_component_points": 8
+      },
+      "centroid": [
+        -7.307840347290039,
+        13.912123680114746,
+        -4.125735759735107
+      ],
+      "bbox_3d": {
+        "min": [
+          -8.62470531463623,
+          11.364126205444336,
+          -4.7705488204956055
+        ],
+        "max": [
+          -6.75846004486084,
+          15.756720542907715,
+          -3.2779459953308105
+        ]
+      },
+      "linearity": 0.8491913942888797,
+      "planarity": 0.1448689300759065,
+      "pca_eigenvalues": [
+        2.170961856842041,
+        0.32739976048469543,
+        0.012894849292933941
+      ]
+    },
+    {
+      "candidate_id": 400005,
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400005,
+      "subcluster": -1,
+      "semantic_id": 9,
+      "focus": "railing",
+      "phrase": "guardrail handrail",
+      "frame": 2780,
+      "cam": 0,
+      "mask_id": 0,
+      "points": 135,
+      "seed_points": 44,
+      "growth_gain": 3.0681818181818183,
+      "mean_visual_color": [
+        119.57777404785156,
+        113.71852111816406,
+        114.00740814208984
+      ],
+      "grounding_score": 0.4305115044116974,
+      "sam_score": 0.9425822496414185,
+      "mask_area_ratio": 0.028426890432098766,
+      "box_area_ratio": 0.4192386036078016,
+      "box_aspect_ratio": 1.0440700194638977,
+      "mask_bbox_fill_ratio": 0.06862420951653612,
+      "largest_component_ratio": 1.0,
+      "minrect_aspect_ratio": 20.88235427199674,
+      "component_count": 1,
+      "box_xyxy": [
+        683.5293579101562,
+        338.8016052246094,
+        1596.019775390625,
+        1291.5054931640625
+      ],
+      "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam0_002780/masks/00_railing_guardrail_handrail.png",
+      "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v1/cam0_002780_railing_grown_projected.ply",
+      "grow_params": {
+        "box_expand_px": 12,
+        "mask_distance_px": 18.0,
+        "depth_slack": 0.45,
+        "voxel_size": 0.08,
+        "min_component_points": 8
+      },
+      "centroid": [
+        -9.245283126831055,
+        13.139934539794922,
+        -5.2663445472717285
+      ],
+      "bbox_3d": {
+        "min": [
+          -10.773310661315918,
+          12.359390258789062,
+          -6.944800853729248
+        ],
+        "max": [
+          -8.382140159606934,
+          15.07849407196045,
+          -4.471947193145752
+        ]
+      },
+      "linearity": 0.9772575548841288,
+      "planarity": 0.02152442860869852,
+      "pca_eigenvalues": [
+        2.4135241508483887,
+        0.05488951504230499,
+        0.0029397867619991302
+      ]
+    },
+    {
+      "candidate_id": 400006,
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400006,
+      "subcluster": -1,
+      "semantic_id": 9,
+      "focus": "railing",
+      "phrase": "railing guardrail handrail",
+      "frame": 2820,
+      "cam": 0,
+      "mask_id": 0,
+      "points": 83,
+      "seed_points": 20,
+      "growth_gain": 4.15,
+      "mean_visual_color": [
+        6.57831335067749,
+        5.903614521026611,
+        5.698795318603516
+      ],
+      "grounding_score": 0.2926284074783325,
+      "sam_score": 0.9359608292579651,
+      "mask_area_ratio": 0.011307388117283951,
+      "box_area_ratio": 0.10165276285091503,
+      "box_aspect_ratio": 2.692900566126995,
+      "mask_bbox_fill_ratio": 0.11609724697959992,
+      "largest_component_ratio": 1.0,
+      "minrect_aspect_ratio": 7.04085540789327,
+      "component_count": 1,
+      "box_xyxy": [
+        432.6706848144531,
+        538.3433837890625,
+        712.4476318359375,
+        1291.7548828125
+      ],
+      "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam0_002820/masks/01_railing_railing_guardrail_handrail.png",
+      "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v1/cam0_002820_railing_grown_projected.ply",
+      "grow_params": {
+        "box_expand_px": 12,
+        "mask_distance_px": 18.0,
+        "depth_slack": 0.45,
+        "voxel_size": 0.08,
+        "min_component_points": 8
+      },
+      "centroid": [
+        -6.920398235321045,
+        14.001901626586914,
+        -5.2482194900512695
+      ],
+      "bbox_3d": {
+        "min": [
+          -7.03848123550415,
+          12.668856620788574,
+          -5.734652996063232
+        ],
+        "max": [
+          -6.75087308883667,
+          14.899883270263672,
+          -4.531023025512695
+        ]
+      },
+      "linearity": 0.9928773918136423,
+      "planarity": 0.007079094144688876,
+      "pca_eigenvalues": [
+        0.6317787170410156,
+        0.004499912727624178,
+        2.749173654592596e-05
+      ]
+    },
+    {
+      "candidate_id": 400007,
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400007,
+      "subcluster": -1,
+      "semantic_id": 9,
+      "focus": "railing",
+      "phrase": "railing guardrail handrail",
+      "frame": 2800,
+      "cam": 0,
+      "mask_id": 0,
+      "points": 82,
+      "seed_points": 35,
+      "growth_gain": 2.342857142857143,
+      "mean_visual_color": [
+        141.59756469726562,
+        137.84146118164062,
+        142.40243530273438
+      ],
+      "grounding_score": 0.37646737694740295,
+      "sam_score": 0.7811410427093506,
+      "mask_area_ratio": 0.022762345679012346,
+      "box_area_ratio": 0.2645416156727142,
+      "box_aspect_ratio": 1.5095369844811,
+      "mask_bbox_fill_ratio": 0.08751242231418443,
+      "largest_component_ratio": 0.9973516949152542,
+      "minrect_aspect_ratio": 3.8306369208212794,
+      "component_count": 12,
+      "box_xyxy": [
+        684.7598876953125,
+        688.2008056640625,
+        1594.7388916015625,
+        1291.020751953125
+      ],
+      "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam0_002800/masks/00_railing_railing_guardrail_handrail.png",
+      "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v1/cam0_002800_railing_grown_projected.ply",
+      "grow_params": {
+        "box_expand_px": 12,
+        "mask_distance_px": 18.0,
+        "depth_slack": 0.45,
+        "voxel_size": 0.08,
+        "min_component_points": 8
+      },
+      "centroid": [
+        -9.888826370239258,
+        15.000628471374512,
+        -6.430637359619141
+      ],
+      "bbox_3d": {
+        "min": [
+          -10.815244674682617,
+          14.611408233642578,
+          -7.115260124206543
+        ],
+        "max": [
+          -8.651308059692383,
+          15.798866271972656,
+          -5.644700050354004
+        ]
+      },
+      "linearity": 0.8745587287258213,
+      "planarity": 0.11772987801977713,
+      "pca_eigenvalues": [
+        1.1779201030731201,
+        0.14775978028774261,
+        0.009083394892513752
+      ]
+    },
+    {
+      "candidate_id": 400004,
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400004,
+      "subcluster": -1,
+      "semantic_id": 9,
+      "focus": "railing",
+      "phrase": "railing guardrail handrail",
+      "frame": 2480,
+      "cam": 1,
+      "mask_id": 0,
+      "points": 61,
+      "seed_points": 14,
+      "growth_gain": 4.357142857142857,
+      "mean_visual_color": [
+        116.11475372314453,
+        114.01639556884766,
+        112.7868881225586
+      ],
+      "grounding_score": 0.3057987093925476,
+      "sam_score": 0.8884019255638123,
+      "mask_area_ratio": 0.015635127314814815,
+      "box_area_ratio": 0.2221269795643798,
+      "box_aspect_ratio": 1.393976467010578,
+      "mask_bbox_fill_ratio": 0.0728200152283922,
+      "largest_component_ratio": 1.0,
+      "minrect_aspect_ratio": 8.125592553080914,
+      "component_count": 1,
+      "box_xyxy": [
+        1021.0826416015625,
+        463.300048828125,
+        1595.9073486328125,
+        1264.5921630859375
+      ],
+      "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam1_002480/masks/01_railing_railing_guardrail_handrail.png",
+      "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v1/cam1_002480_railing_grown_projected.ply",
+      "grow_params": {
+        "box_expand_px": 12,
+        "mask_distance_px": 18.0,
+        "depth_slack": 0.45,
+        "voxel_size": 0.08,
+        "min_component_points": 8
+      },
+      "centroid": [
+        -7.104877471923828,
+        15.28500747680664,
+        -1.7852219343185425
+      ],
+      "bbox_3d": {
+        "min": [
+          -7.534235000610352,
+          13.85887622833252,
+          -2.9545090198516846
+        ],
+        "max": [
+          -6.895853042602539,
+          17.60837173461914,
+          -1.1141879558563232
+        ]
+      },
+      "linearity": 0.9832388955412784,
+      "planarity": 0.01609904793719726,
+      "pca_eigenvalues": [
+        2.533656358718872,
+        0.04246688634157181,
+        0.001677432912401855
+      ]
+    },
+    {
+      "candidate_id": 400009,
+      "source_type": "grounded_box_growth",
+      "source_cluster": 400009,
+      "subcluster": -1,
+      "semantic_id": 9,
+      "focus": "railing",
+      "phrase": "railing guardrail handrail",
+      "frame": 2620,
+      "cam": 1,
+      "mask_id": 0,
+      "points": 25,
+      "seed_points": 8,
+      "growth_gain": 3.125,
+      "mean_visual_color": [
+        66.4800033569336,
+        57.279998779296875,
+        51.7599983215332
+      ],
+      "grounding_score": 0.22611042857170105,
+      "sam_score": 0.9194088578224182,
+      "mask_area_ratio": 0.006548032407407408,
+      "box_area_ratio": 0.023471970904056547,
+      "box_aspect_ratio": 3.1382659947676568,
+      "mask_bbox_fill_ratio": 0.3104891267064554,
+      "largest_component_ratio": 1.0,
+      "minrect_aspect_ratio": 9.360222643531383,
+      "component_count": 1,
+      "box_xyxy": [
+        2.1036376953125,
+        543.4448852539062,
+        392.928466796875,
+        667.9801635742188
+      ],
+      "mask_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/per_sample/cam1_002620/masks/02_railing_railing_guardrail_handrail.png",
+      "ply_path": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v1/cam1_002620_railing_grown_projected.ply",
+      "grow_params": {
+        "box_expand_px": 12,
+        "mask_distance_px": 18.0,
+        "depth_slack": 0.45,
+        "voxel_size": 0.08,
+        "min_component_points": 8
+      },
+      "centroid": [
+        -6.8476386070251465,
+        10.465036392211914,
+        -5.217473983764648
+      ],
+      "bbox_3d": {
+        "min": [
+          -7.031721115112305,
+          10.272093772888184,
+          -5.22634220123291
+        ],
+        "max": [
+          -6.63496208190918,
+          10.667475700378418,
+          -5.209024906158447
+        ]
+      },
+      "linearity": 0.7252538200219395,
+      "planarity": 0.2738231722494173,
+      "pca_eigenvalues": [
+        0.018027449026703835,
+        0.004952972289174795,
+        1.6638956367387436e-05
+      ]
+    }
+  ]
+}

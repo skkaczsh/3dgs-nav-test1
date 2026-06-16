@@ -1,0 +1,257 @@
+{
+  "strict_review_json": "",
+  "accepted_report_json": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v1/guarded_accepted_report.json",
+  "strict_filtered_ply": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v1/guarded_points.ply",
+  "output_objects_jsonl": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/fused_box_growth_v1/fine_objects.jsonl",
+  "output_decisions_jsonl": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/fused_box_growth_v1/fine_object_decisions.jsonl",
+  "output_ply": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/fused_box_growth_v1/fine_object_points.ply",
+  "params": {
+    "centroid_distance": 0.9,
+    "cross_source_centroid_distance": 0.45,
+    "bbox_distance": 0.25,
+    "color_distance": 45.0
+  },
+  "candidate_count": 6,
+  "fine_object_count": 6,
+  "point_count": 942,
+  "merge_count": 0,
+  "status_counts": {
+    "single_fine_candidate": 6
+  },
+  "top_objects": [
+    {
+      "fine_object_id": "fine_obj_0002",
+      "candidate_ids": [
+        400003
+      ],
+      "candidate_count": 1,
+      "point_count": 428,
+      "bbox_3d": {
+        "min": [
+          -9.067571640014648,
+          11.865848541259766,
+          -5.281713008880615
+        ],
+        "max": [
+          -8.586105346679688,
+          15.215872764587402,
+          -3.1493918895721436
+        ]
+      },
+      "centroid": [
+        -8.857865333557129,
+        13.918778419494629,
+        -4.1217360496521
+      ],
+      "mean_visual_color": [
+        64.8528060913086,
+        68.08177947998047,
+        72.88551330566406
+      ],
+      "linearity_mean": 0.9877347656371797,
+      "planarity_mean": 0.010610236352477041,
+      "source_types": {
+        "grounded_box_growth": 1
+      },
+      "source_clusters": {
+        "400003": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0001",
+      "candidate_ids": [
+        400001
+      ],
+      "candidate_count": 1,
+      "point_count": 153,
+      "bbox_3d": {
+        "min": [
+          -8.62470531463623,
+          11.364126205444336,
+          -4.7705488204956055
+        ],
+        "max": [
+          -6.75846004486084,
+          15.756720542907715,
+          -3.2779459953308105
+        ]
+      },
+      "centroid": [
+        -7.307840347290039,
+        13.912123680114746,
+        -4.125735759735107
+      ],
+      "mean_visual_color": [
+        45.93463897705078,
+        42.41830062866211,
+        44.2156867980957
+      ],
+      "linearity_mean": 0.8491913942888797,
+      "planarity_mean": 0.1448689300759065,
+      "source_types": {
+        "grounded_box_growth": 1
+      },
+      "source_clusters": {
+        "400001": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0004",
+      "candidate_ids": [
+        400005
+      ],
+      "candidate_count": 1,
+      "point_count": 135,
+      "bbox_3d": {
+        "min": [
+          -10.773310661315918,
+          12.359390258789062,
+          -6.944800853729248
+        ],
+        "max": [
+          -8.382140159606934,
+          15.07849407196045,
+          -4.471947193145752
+        ]
+      },
+      "centroid": [
+        -9.245283126831055,
+        13.139934539794922,
+        -5.2663445472717285
+      ],
+      "mean_visual_color": [
+        119.57777404785156,
+        113.71852111816406,
+        114.00740814208984
+      ],
+      "linearity_mean": 0.9772575548841288,
+      "planarity_mean": 0.02152442860869852,
+      "source_types": {
+        "grounded_box_growth": 1
+      },
+      "source_clusters": {
+        "400005": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0005",
+      "candidate_ids": [
+        400006
+      ],
+      "candidate_count": 1,
+      "point_count": 83,
+      "bbox_3d": {
+        "min": [
+          -7.03848123550415,
+          12.668856620788574,
+          -5.734652996063232
+        ],
+        "max": [
+          -6.75087308883667,
+          14.899883270263672,
+          -4.531023025512695
+        ]
+      },
+      "centroid": [
+        -6.920398235321045,
+        14.001901626586914,
+        -5.2482194900512695
+      ],
+      "mean_visual_color": [
+        6.57831335067749,
+        5.903614521026611,
+        5.698795318603516
+      ],
+      "linearity_mean": 0.9928773918136423,
+      "planarity_mean": 0.007079094144688876,
+      "source_types": {
+        "grounded_box_growth": 1
+      },
+      "source_clusters": {
+        "400006": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0006",
+      "candidate_ids": [
+        400007
+      ],
+      "candidate_count": 1,
+      "point_count": 82,
+      "bbox_3d": {
+        "min": [
+          -10.815244674682617,
+          14.611408233642578,
+          -7.115260124206543
+        ],
+        "max": [
+          -8.651308059692383,
+          15.798866271972656,
+          -5.644700050354004
+        ]
+      },
+      "centroid": [
+        -9.888826370239258,
+        15.000628471374512,
+        -6.430637359619141
+      ],
+      "mean_visual_color": [
+        141.59756469726562,
+        137.84146118164062,
+        142.40243530273438
+      ],
+      "linearity_mean": 0.8745587287258213,
+      "planarity_mean": 0.11772987801977713,
+      "source_types": {
+        "grounded_box_growth": 1
+      },
+      "source_clusters": {
+        "400007": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0003",
+      "candidate_ids": [
+        400004
+      ],
+      "candidate_count": 1,
+      "point_count": 61,
+      "bbox_3d": {
+        "min": [
+          -7.534235000610352,
+          13.85887622833252,
+          -2.9545090198516846
+        ],
+        "max": [
+          -6.895853042602539,
+          17.60837173461914,
+          -1.1141879558563232
+        ]
+      },
+      "centroid": [
+        -7.104877471923828,
+        15.28500747680664,
+        -1.7852219343185425
+      ],
+      "mean_visual_color": [
+        116.11475372314453,
+        114.01639556884766,
+        112.7868881225586
+      ],
+      "linearity_mean": 0.9832388955412784,
+      "planarity_mean": 0.01609904793719726,
+      "source_types": {
+        "grounded_box_growth": 1
+      },
+      "source_clusters": {
+        "400004": 1
+      },
+      "status": "single_fine_candidate"
+    }
+  ]
+}
