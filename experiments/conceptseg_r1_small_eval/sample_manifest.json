@@ -1,0 +1,340 @@
+{
+  "task": "ConceptSeg-R1 small-sample eval for railing/mesh/thin-pole style concept regions",
+  "source_runlist": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/runlist.json",
+  "source_report": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/report.json",
+  "source_qa": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/conceptseg_fine_object_all_qa.json",
+  "source_alignment": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_alignment_v008/conceptseg_target_object_alignment_report.json",
+  "remote_check": {
+    "attempted_host": "scan-train",
+    "status": "blocked",
+    "reason": "ssh bind/connect failure before remote command execution"
+  },
+  "selection_policy": "12 representative items emphasizing railing/mesh/thin-structure failure modes, plus pipe and equipment controls.",
+  "samples": [
+    {
+      "sample_index": 1,
+      "image_id": "review_005_b1_fine_t_000241_cam2_mask0006_sem16_cc01_railing_or_thin_metal_guardrail",
+      "concept": "railing or thin metal guardrail",
+      "answer": "fence",
+      "mode": "mllm",
+      "assessment": "fail",
+      "failure_mode": "background_swallow_mesh",
+      "note": "Mesh fence is treated as one broad concept area and most of the fenced background is eaten.",
+      "red_overlay_ratio": 0.4031724524403963,
+      "output_path": "/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full/0051_review_005_b1_fine_t_000241_cam2_mask0006_sem16_cc01_railing_or_thin_metal_guardrail.png",
+      "local_output_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/outputs/0051_review_005_b1_fine_t_000241_cam2_mask0006_sem16_cc01_railing_or_thin_metal_guardrail.png",
+      "visual_path": "/Users/skkac/Work/SCAN/new_route/experiments/conceptseg_r1_small_eval/visuals/01_railing_background_swallow_mesh.png",
+      "local_image_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_005/b1/image.png",
+      "local_overlay_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_005/b1/overlay.png",
+      "source_label": "equipment",
+      "review_id": "review_005",
+      "target_id": "fine_t_000241_cam2_mask0006_sem16_cc01"
+    },
+    {
+      "sample_index": 2,
+      "image_id": "review_007_b0_fine_t_000228_cam2_mask0002_sem16_cc00_railing_or_thin_metal_guardrail",
+      "concept": "railing or thin metal guardrail",
+      "answer": "fence",
+      "mode": "mllm",
+      "assessment": "fail",
+      "failure_mode": "coarse_mesh_region",
+      "note": "Predicts fence/mesh instead of isolating thin rails or poles; region is too coarse for fine-target routing.",
+      "red_overlay_ratio": 0.24659482019563317,
+      "output_path": "/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full/0072_review_007_b0_fine_t_000228_cam2_mask0002_sem16_cc00_railing_or_thin_metal_guardrail.png",
+      "local_output_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/outputs/0072_review_007_b0_fine_t_000228_cam2_mask0002_sem16_cc00_railing_or_thin_metal_guardrail.png",
+      "visual_path": "/Users/skkac/Work/SCAN/new_route/experiments/conceptseg_r1_small_eval/visuals/02_railing_coarse_mesh_region.png",
+      "local_image_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_007/b0/image.png",
+      "local_overlay_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_007/b0/overlay.png",
+      "source_label": "equipment",
+      "review_id": "review_007",
+      "target_id": "fine_t_000228_cam2_mask0002_sem16_cc00"
+    },
+    {
+      "sample_index": 3,
+      "image_id": "review_006_a1_fine_t_000181_cam1_mask0026_sem16_cc00_railing_or_thin_metal_guardrail",
+      "concept": "railing or thin metal guardrail",
+      "answer": "nonexistent",
+      "mode": "mllm",
+      "assessment": "fail",
+      "failure_mode": "thin_structure_miss",
+      "note": "Returns nonexistent although a thin railing-like structure is present.",
+      "red_overlay_ratio": 0.034392629672843456,
+      "output_path": "/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full/0057_review_006_a1_fine_t_000181_cam1_mask0026_sem16_cc00_railing_or_thin_metal_guardrail.png",
+      "local_output_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/outputs/0057_review_006_a1_fine_t_000181_cam1_mask0026_sem16_cc00_railing_or_thin_metal_guardrail.png",
+      "visual_path": "/Users/skkac/Work/SCAN/new_route/experiments/conceptseg_r1_small_eval/visuals/03_railing_thin_structure_miss.png",
+      "local_image_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/a1/image.png",
+      "local_overlay_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/a1/overlay.png",
+      "source_label": "equipment",
+      "review_id": "review_006",
+      "target_id": "fine_t_000181_cam1_mask0026_sem16_cc00"
+    },
+    {
+      "sample_index": 4,
+      "image_id": "review_004_b0_fine_t_000454_cam1_mask0001_sem16_cc02_railing_or_thin_metal_guardrail",
+      "concept": "railing or thin metal guardrail",
+      "answer": "guardrail",
+      "mode": "mllm",
+      "assessment": "mixed",
+      "failure_mode": "undersegment",
+      "note": "Finds the right concept word but the visible mask is tiny and unstable on thin structures.",
+      "red_overlay_ratio": 0.0017397050029064783,
+      "output_path": "/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full/0039_review_004_b0_fine_t_000454_cam1_mask0001_sem16_cc02_railing_or_thin_metal_guardrail.png",
+      "local_output_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/outputs/0039_review_004_b0_fine_t_000454_cam1_mask0001_sem16_cc02_railing_or_thin_metal_guardrail.png",
+      "visual_path": "/Users/skkac/Work/SCAN/new_route/experiments/conceptseg_r1_small_eval/visuals/04_railing_undersegment.png",
+      "local_image_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_004/b0/image.png",
+      "local_overlay_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_004/b0/overlay.png",
+      "source_label": "equipment",
+      "review_id": "review_004",
+      "target_id": "fine_t_000454_cam1_mask0001_sem16_cc02"
+    },
+    {
+      "sample_index": 5,
+      "image_id": "review_006_a0_fine_t_000189_cam1_mask0023_sem16_cc00_pipe_or_thin_utility_conduit",
+      "concept": "pipe or thin utility conduit",
+      "answer": "pipe",
+      "mode": "mllm",
+      "assessment": "mixed",
+      "failure_mode": "thickened_pipe_region",
+      "note": "Detects the pipe, but expands to a thick blob rather than preserving thin geometry.",
+      "red_overlay_ratio": 0.09503974975012651,
+      "output_path": "/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full/0056_review_006_a0_fine_t_000189_cam1_mask0023_sem16_cc00_pipe_or_thin_utility_conduit.png",
+      "local_output_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/outputs/0056_review_006_a0_fine_t_000189_cam1_mask0023_sem16_cc00_pipe_or_thin_utility_conduit.png",
+      "visual_path": "/Users/skkac/Work/SCAN/new_route/experiments/conceptseg_r1_small_eval/visuals/05_pipe_thickened_pipe_region.png",
+      "local_image_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/a0/image.png",
+      "local_overlay_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/a0/overlay.png",
+      "source_label": "equipment",
+      "review_id": "review_006",
+      "target_id": "fine_t_000189_cam1_mask0023_sem16_cc00"
+    },
+    {
+      "sample_index": 6,
+      "image_id": "review_005_b0_fine_t_000991_cam1_mask0010_sem16_cc01_pipe_or_thin_utility_conduit",
+      "concept": "pipe or thin utility conduit",
+      "answer": "pole",
+      "mode": "mllm",
+      "assessment": "mixed",
+      "failure_mode": "concept_drift_pole",
+      "note": "Localizes a narrow vertical structure but drifts semantically from pipe/conduit to pole.",
+      "red_overlay_ratio": 0.03256092103997558,
+      "output_path": "/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full/0050_review_005_b0_fine_t_000991_cam1_mask0010_sem16_cc01_pipe_or_thin_utility_conduit.png",
+      "local_output_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/outputs/0050_review_005_b0_fine_t_000991_cam1_mask0010_sem16_cc01_pipe_or_thin_utility_conduit.png",
+      "visual_path": "/Users/skkac/Work/SCAN/new_route/experiments/conceptseg_r1_small_eval/visuals/06_pipe_concept_drift_pole.png",
+      "local_image_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_005/b0/image.png",
+      "local_overlay_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_005/b0/overlay.png",
+      "source_label": "equipment",
+      "review_id": "review_005",
+      "target_id": "fine_t_000991_cam1_mask0010_sem16_cc01"
+    },
+    {
+      "sample_index": 7,
+      "image_id": "review_002_b0_fine_t_000507_cam1_mask0013_sem16_cc00_pipe_or_thin_utility_conduit",
+      "concept": "pipe or thin utility conduit",
+      "answer": "cables",
+      "mode": "mllm",
+      "assessment": "mixed",
+      "failure_mode": "concept_drift_cables",
+      "note": "Still points to utility-like structure, but answer class drifts to cables and mask support is modest.",
+      "red_overlay_ratio": 0.021993049543954733,
+      "output_path": "/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full/0020_review_002_b0_fine_t_000507_cam1_mask0013_sem16_cc00_pipe_or_thin_utility_conduit.png",
+      "local_output_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/outputs/0020_review_002_b0_fine_t_000507_cam1_mask0013_sem16_cc00_pipe_or_thin_utility_conduit.png",
+      "visual_path": "/Users/skkac/Work/SCAN/new_route/experiments/conceptseg_r1_small_eval/visuals/07_pipe_concept_drift_cables.png",
+      "local_image_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_002/b0/image.png",
+      "local_overlay_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_002/b0/overlay.png",
+      "source_label": "equipment",
+      "review_id": "review_002",
+      "target_id": "fine_t_000507_cam1_mask0013_sem16_cc00"
+    },
+    {
+      "sample_index": 8,
+      "image_id": "review_004_a1_fine_t_000430_cam1_mask0008_sem16_cc01_pipe_or_thin_utility_conduit",
+      "concept": "pipe or thin utility conduit",
+      "answer": "pipe",
+      "mode": "mllm",
+      "assessment": "fail",
+      "failure_mode": "undersegment",
+      "note": "Very thin target is barely covered; too brittle for stable thin-pole extraction.",
+      "red_overlay_ratio": 0.0022624529004144347,
+      "output_path": "/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full/0038_review_004_a1_fine_t_000430_cam1_mask0008_sem16_cc01_pipe_or_thin_utility_conduit.png",
+      "local_output_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/outputs/0038_review_004_a1_fine_t_000430_cam1_mask0008_sem16_cc01_pipe_or_thin_utility_conduit.png",
+      "visual_path": "/Users/skkac/Work/SCAN/new_route/experiments/conceptseg_r1_small_eval/visuals/08_pipe_undersegment.png",
+      "local_image_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_004/a1/image.png",
+      "local_overlay_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_004/a1/overlay.png",
+      "source_label": "equipment",
+      "review_id": "review_004",
+      "target_id": "fine_t_000430_cam1_mask0008_sem16_cc01"
+    },
+    {
+      "sample_index": 9,
+      "image_id": "review_005_a0_fine_t_000970_cam1_mask0001_sem16_cc05_rooftop_equipment_box_or_HVAC_unit",
+      "concept": "rooftop equipment box or HVAC unit",
+      "answer": "HVAC",
+      "mode": "mllm",
+      "assessment": "pass",
+      "failure_mode": "none",
+      "note": "Boxy rooftop equipment is localized cleanly enough; this is the strongest concept family in the set.",
+      "red_overlay_ratio": 0.04033104578853384,
+      "output_path": "/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full/0043_review_005_a0_fine_t_000970_cam1_mask0001_sem16_cc05_rooftop_equipment_box_or_HVAC_unit.png",
+      "local_output_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/outputs/0043_review_005_a0_fine_t_000970_cam1_mask0001_sem16_cc05_rooftop_equipment_box_or_HVAC_unit.png",
+      "visual_path": "/Users/skkac/Work/SCAN/new_route/experiments/conceptseg_r1_small_eval/visuals/09_equipment_none.png",
+      "local_image_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_005/a0/image.png",
+      "local_overlay_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_005/a0/overlay.png",
+      "source_label": "equipment",
+      "review_id": "review_005",
+      "target_id": "fine_t_000970_cam1_mask0001_sem16_cc05"
+    },
+    {
+      "sample_index": 10,
+      "image_id": "review_006_a1_fine_t_000181_cam1_mask0026_sem16_cc00_rooftop_equipment_box_or_HVAC_unit",
+      "concept": "rooftop equipment box or HVAC unit",
+      "answer": "red box",
+      "mode": "mllm",
+      "assessment": "mixed",
+      "failure_mode": "lexical_drift",
+      "note": "Region is usable, but the textual answer drifts to red box instead of equipment/HVAC.",
+      "red_overlay_ratio": 0.02453151333425337,
+      "output_path": "/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full/0058_review_006_a1_fine_t_000181_cam1_mask0026_sem16_cc00_rooftop_equipment_box_or_HVAC_unit.png",
+      "local_output_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/outputs/0058_review_006_a1_fine_t_000181_cam1_mask0026_sem16_cc00_rooftop_equipment_box_or_HVAC_unit.png",
+      "visual_path": "/Users/skkac/Work/SCAN/new_route/experiments/conceptseg_r1_small_eval/visuals/10_equipment_lexical_drift.png",
+      "local_image_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/a1/image.png",
+      "local_overlay_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/a1/overlay.png",
+      "source_label": "equipment",
+      "review_id": "review_006",
+      "target_id": "fine_t_000181_cam1_mask0026_sem16_cc00"
+    },
+    {
+      "sample_index": 11,
+      "image_id": "review_006_b0_fine_t_000188_cam1_mask0031_sem16_cc00_rooftop_equipment_box_or_HVAC_unit",
+      "concept": "rooftop equipment box or HVAC unit",
+      "answer": "duct",
+      "mode": "mllm",
+      "assessment": "mixed",
+      "failure_mode": "semantic_alias_drift",
+      "note": "Finds relevant machinery but prefers duct, reinforcing that concept wording is loose.",
+      "red_overlay_ratio": 0.03841987947524475,
+      "output_path": "/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs_full/0061_review_006_b0_fine_t_000188_cam1_mask0031_sem16_cc00_rooftop_equipment_box_or_HVAC_unit.png",
+      "local_output_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/outputs/0061_review_006_b0_fine_t_000188_cam1_mask0031_sem16_cc00_rooftop_equipment_box_or_HVAC_unit.png",
+      "visual_path": "/Users/skkac/Work/SCAN/new_route/experiments/conceptseg_r1_small_eval/visuals/11_equipment_semantic_alias_drift.png",
+      "local_image_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/b0/image.png",
+      "local_overlay_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_006/b0/overlay.png",
+      "source_label": "equipment",
+      "review_id": "review_006",
+      "target_id": "fine_t_000188_cam1_mask0031_sem16_cc00"
+    },
+    {
+      "sample_index": 12,
+      "image_id": "review_001_b0_fine_t_000735_cam2_mask0008_sem16_cc00_rooftop_equipment_box_or_HVAC_unit",
+      "concept": "rooftop equipment box or HVAC unit",
+      "answer": "HVAC",
+      "mode": "mllm",
+      "assessment": "mixed",
+      "failure_mode": "undersegment",
+      "note": "Correct family, but the mask is tiny and not robust when the equipment occupies little area.",
+      "red_overlay_ratio": 0.0017564329356267328,
+      "output_path": "/root/epfs/new_route_stage1_skymask/conceptseg_fine_object_runlist_v008_outputs/0007_review_001_b0_fine_t_000735_cam2_mask0008_sem16_cc00_rooftop_equipment_box_or_HVAC_unit.png",
+      "local_output_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008_outputs_all/outputs/0007_review_001_b0_fine_t_000735_cam2_mask0008_sem16_cc00_rooftop_equipment_box_or_HVAC_unit.png",
+      "visual_path": "/Users/skkac/Work/SCAN/new_route/experiments/conceptseg_r1_small_eval/visuals/12_equipment_undersegment.png",
+      "local_image_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_001/b0/image.png",
+      "local_overlay_path": "/Users/skkac/Work/SCAN/server_conceptseg_fine_object_runlist_v008/assets/review_001/b0/overlay.png",
+      "source_label": "equipment",
+      "review_id": "review_001",
+      "target_id": "fine_t_000735_cam2_mask0008_sem16_cc00"
+    }
+  ],
+  "summary": {
+    "selected_count": 12,
+    "assessment_counts": {
+      "fail": 4,
+      "mixed": 7,
+      "pass": 1
+    },
+    "failure_mode_counts": {
+      "background_swallow_mesh": 1,
+      "coarse_mesh_region": 1,
+      "thin_structure_miss": 1,
+      "undersegment": 3,
+      "thickened_pipe_region": 1,
+      "concept_drift_pole": 1,
+      "concept_drift_cables": 1,
+      "none": 1,
+      "lexical_drift": 1,
+      "semantic_alias_drift": 1
+    },
+    "by_concept_assessment": {
+      "railing or thin metal guardrail": {
+        "fail": 3,
+        "mixed": 1
+      },
+      "pipe or thin utility conduit": {
+        "mixed": 3,
+        "fail": 1
+      },
+      "rooftop equipment box or HVAC unit": {
+        "pass": 1,
+        "mixed": 3
+      }
+    },
+    "full_run_metrics": {
+      "item_count": 90,
+      "concept_match_count": 89,
+      "overlarge_count": 2,
+      "non_discriminative_target_count": 30,
+      "concept_summary": {
+        "pipe or thin utility conduit": {
+          "count": 30,
+          "returncode_counts": {
+            "0": 30
+          },
+          "mode_counts": {
+            "mllm": 30
+          },
+          "answer_counts": {
+            "pipe": 24,
+            "pipes": 1,
+            "conduit": 2,
+            "cables": 2,
+            "pole": 1
+          },
+          "avg_red_overlay_ratio": 0.022910716053100036,
+          "overlarge_red_overlay_count": 0
+        },
+        "railing or thin metal guardrail": {
+          "count": 30,
+          "returncode_counts": {
+            "0": 30
+          },
+          "mode_counts": {
+            "mllm": 30
+          },
+          "answer_counts": {
+            "rail": 7,
+            "guardrail": 16,
+            "railing": 1,
+            "fence": 5,
+            "nonexistent": 1
+          },
+          "avg_red_overlay_ratio": 0.07018092653231348,
+          "overlarge_red_overlay_count": 2
+        },
+        "rooftop equipment box or HVAC unit": {
+          "count": 30,
+          "returncode_counts": {
+            "0": 30
+          },
+          "mode_counts": {
+            "mllm": 30
+          },
+          "answer_counts": {
+            "HVAC": 18,
+            "unit": 7,
+            "HVAC unit": 1,
+            "aircon": 1,
+            "red box": 1,
+            "duct": 2
+          },
+          "avg_red_overlay_ratio": 0.013928234380641325,
+          "overlarge_red_overlay_count": 0
+        }
+      }
+    }
+  }
+}
