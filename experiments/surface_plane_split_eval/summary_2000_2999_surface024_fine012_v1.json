@@ -1,0 +1,754 @@
+{
+  "input_dir": "/root/epfs/new_route_stage1_skymask/target_object_fusion_2000_2999_surface024_fine012",
+  "output_dir": "/root/epfs/new_route_stage1_skymask/surface_plane_split_eval_2000_2999_surface024_fine012_v1",
+  "baseline": {
+    "object_label_counts": {
+      "ambiguous": {
+        "objects": 35,
+        "points": 1318266,
+        "targets": 396
+      },
+      "building": {
+        "objects": 107,
+        "points": 395247,
+        "targets": 301
+      },
+      "equipment": {
+        "objects": 141,
+        "points": 1103713,
+        "targets": 339
+      },
+      "floor": {
+        "objects": 588,
+        "points": 10560708,
+        "targets": 4362
+      },
+      "other": {
+        "objects": 45,
+        "points": 195290,
+        "targets": 69
+      },
+      "person": {
+        "objects": 61,
+        "points": 59713,
+        "targets": 103
+      },
+      "pipe": {
+        "objects": 17,
+        "points": 13500,
+        "targets": 47
+      },
+      "railing": {
+        "objects": 101,
+        "points": 259523,
+        "targets": 330
+      },
+      "wall": {
+        "objects": 6,
+        "points": 4067,
+        "targets": 10
+      }
+    },
+    "surface_target_summary": {}
+  },
+  "split": {
+    "summary": {
+      "targets": 5957,
+      "passthrough": 3180,
+      "split_targets": 2486,
+      "children": 20421,
+      "child_label:wall": 11396,
+      "child_change:floor->wall": 10264,
+      "child_label:floor": 8973,
+      "single_plane": 291,
+      "child_change:building->wall": 452,
+      "child_change:building->floor": 141,
+      "child_label:building": 52,
+      "child_change:wall->floor": 315
+    },
+    "split_ratio": 0.41732415645459126
+  },
+  "strict_surface_fusion": {
+    "fusion_report": {
+      "targets": 23892,
+      "objects": 2051,
+      "zones": 10,
+      "merge_ratio": 0.9141553658128244,
+      "status_counts": {
+        "single_target": 656,
+        "stable": 1388,
+        "ambiguous_object": 7
+      },
+      "ambiguous_objects": 7,
+      "objects_jsonl": "/root/epfs/new_route_stage1_skymask/surface_plane_split_eval_2000_2999_surface024_fine012_v1/fused_strict_surface/objects.jsonl",
+      "zones_json": "/root/epfs/new_route_stage1_skymask/surface_plane_split_eval_2000_2999_surface024_fine012_v1/fused_strict_surface/zones.json",
+      "decisions_jsonl": "/root/epfs/new_route_stage1_skymask/surface_plane_split_eval_2000_2999_surface024_fine012_v1/fused_strict_surface/fusion_decisions.jsonl"
+    },
+    "object_label_counts": {
+      "ambiguous": {
+        "objects": 7,
+        "points": 3140,
+        "targets": 20
+      },
+      "building": {
+        "objects": 109,
+        "points": 41681,
+        "targets": 245
+      },
+      "equipment": {
+        "objects": 147,
+        "points": 1103713,
+        "targets": 339
+      },
+      "floor": {
+        "objects": 905,
+        "points": 4136104,
+        "targets": 11196
+      },
+      "other": {
+        "objects": 46,
+        "points": 195290,
+        "targets": 69
+      },
+      "person": {
+        "objects": 61,
+        "points": 59713,
+        "targets": 103
+      },
+      "pipe": {
+        "objects": 17,
+        "points": 13500,
+        "targets": 47
+      },
+      "railing": {
+        "objects": 105,
+        "points": 270501,
+        "targets": 336
+      },
+      "wall": {
+        "objects": 654,
+        "points": 7105787,
+        "targets": 11537
+      }
+    },
+    "surface_target_summary": {}
+  },
+  "same_label_surface_consolidation": {
+    "report": {
+      "input_objects": 2051,
+      "output_objects": 1852,
+      "merged_object_reduction": 199,
+      "labels": {
+        "building": {
+          "source_objects": 58,
+          "consolidated_objects": 55,
+          "merged_object_reduction": 3,
+          "source_points": 39355,
+          "edge_count": 3,
+          "largest_group_source_objects": 2,
+          "largest_group_points": 12642,
+          "merge_examples": [
+            {
+              "a": "obj_000014",
+              "b": "obj_000587",
+              "centroid_distance": 0.9353,
+              "bbox_gap": 0.0238,
+              "normal_angle": 4.1859,
+              "color_distance": 42.8458,
+              "plane_distance": 0.1151
+            },
+            {
+              "a": "obj_000791",
+              "b": "obj_000816",
+              "centroid_distance": 0.6648,
+              "bbox_gap": 0.0,
+              "normal_angle": 3.1742,
+              "color_distance": 9.2814,
+              "plane_distance": 0.0612
+            },
+            {
+              "a": "obj_000841",
+              "b": "obj_000860",
+              "centroid_distance": 0.22,
+              "bbox_gap": 0.0,
+              "normal_angle": 2.4535,
+              "color_distance": 13.2113,
+              "plane_distance": 0.0122
+            }
+          ],
+          "params": {
+            "min_points": 100,
+            "max_bbox_gap": 0.35,
+            "max_centroid_distance": 1.0,
+            "max_normal_angle": 15.0,
+            "max_plane_distance": 0.2,
+            "max_color_distance": 65.0
+          }
+        },
+        "floor": {
+          "source_objects": 583,
+          "consolidated_objects": 467,
+          "merged_object_reduction": 116,
+          "source_points": 4119631,
+          "edge_count": 116,
+          "largest_group_source_objects": 15,
+          "largest_group_points": 729314,
+          "merge_examples": [
+            {
+              "a": "obj_000009",
+              "b": "obj_000537",
+              "centroid_distance": 0.4644,
+              "bbox_gap": 0.0,
+              "normal_angle": 7.7996,
+              "color_distance": 12.168,
+              "plane_distance": 0.0889
+            },
+            {
+              "a": "obj_000046",
+              "b": "obj_000068",
+              "centroid_distance": 1.5155,
+              "bbox_gap": 0.0,
+              "normal_angle": 13.9537,
+              "color_distance": 55.9845,
+              "plane_distance": 0.1658
+            },
+            {
+              "a": "obj_000079",
+              "b": "obj_000104",
+              "centroid_distance": 1.2454,
+              "bbox_gap": 0.0,
+              "normal_angle": 5.2788,
+              "color_distance": 43.6425,
+              "plane_distance": 0.1575
+            },
+            {
+              "a": "obj_000079",
+              "b": "obj_000154",
+              "centroid_distance": 1.8352,
+              "bbox_gap": 0.0,
+              "normal_angle": 5.9587,
+              "color_distance": 23.2644,
+              "plane_distance": 0.0537
+            },
+            {
+              "a": "obj_000079",
+              "b": "obj_000377",
+              "centroid_distance": 4.5202,
+              "bbox_gap": 0.0,
+              "normal_angle": 5.9477,
+              "color_distance": 28.9197,
+              "plane_distance": 0.1973
+            },
+            {
+              "a": "obj_000090",
+              "b": "obj_000137",
+              "centroid_distance": 0.2847,
+              "bbox_gap": 0.0,
+              "normal_angle": 13.0009,
+              "color_distance": 63.3771,
+              "plane_distance": 0.1952
+            },
+            {
+              "a": "obj_000090",
+              "b": "obj_000536",
+              "centroid_distance": 0.4056,
+              "bbox_gap": 0.0,
+              "normal_angle": 12.3819,
+              "color_distance": 14.1988,
+              "plane_distance": 0.0606
+            },
+            {
+              "a": "obj_000101",
+              "b": "obj_000119",
+              "centroid_distance": 2.0551,
+              "bbox_gap": 0.0,
+              "normal_angle": 0.1592,
+              "color_distance": 38.572,
+              "plane_distance": 0.0114
+            },
+            {
+              "a": "obj_000101",
+              "b": "obj_000560",
+              "centroid_distance": 1.9851,
+              "bbox_gap": 0.0,
+              "normal_angle": 1.5676,
+              "color_distance": 50.171,
+              "plane_distance": 0.0454
+            },
+            {
+              "a": "obj_000101",
+              "b": "obj_000561",
+              "centroid_distance": 2.5368,
+              "bbox_gap": 0.0,
+              "normal_angle": 0.6142,
+              "color_distance": 53.693,
+              "plane_distance": 0.0138
+            },
+            {
+              "a": "obj_000101",
+              "b": "obj_000681",
+              "centroid_distance": 2.7227,
+              "bbox_gap": 0.0,
+              "normal_angle": 3.7437,
+              "color_distance": 42.1563,
+              "plane_distance": 0.1566
+            },
+            {
+              "a": "obj_000104",
+              "b": "obj_000131",
+              "centroid_distance": 1.1426,
+              "bbox_gap": 0.0,
+              "normal_angle": 6.1099,
+              "color_distance": 21.6258,
+              "plane_distance": 0.1636
+            },
+            {
+              "a": "obj_000111",
+              "b": "obj_000218",
+              "centroid_distance": 0.5509,
+              "bbox_gap": 0.0,
+              "normal_angle": 6.7417,
+              "color_distance": 23.0633,
+              "plane_distance": 0.1891
+            },
+            {
+              "a": "obj_000114",
+              "b": "obj_000159",
+              "centroid_distance": 0.9975,
+              "bbox_gap": 0.0,
+              "normal_angle": 8.4213,
+              "color_distance": 41.4982,
+              "plane_distance": 0.1752
+            },
+            {
+              "a": "obj_000114",
+              "b": "obj_000210",
+              "centroid_distance": 0.7864,
+              "bbox_gap": 0.0,
+              "normal_angle": 2.9922,
+              "color_distance": 31.6809,
+              "plane_distance": 0.0337
+            },
+            {
+              "a": "obj_000114",
+              "b": "obj_000246",
+              "centroid_distance": 0.6029,
+              "bbox_gap": 0.0,
+              "normal_angle": 9.8515,
+              "color_distance": 37.5931,
+              "plane_distance": 0.083
+            },
+            {
+              "a": "obj_000114",
+              "b": "obj_000337",
+              "centroid_distance": 0.3479,
+              "bbox_gap": 0.0,
+              "normal_angle": 13.9145,
+              "color_distance": 49.5145,
+              "plane_distance": 0.1615
+            },
+            {
+              "a": "obj_000119",
+              "b": "obj_000527",
+              "centroid_distance": 1.092,
+              "bbox_gap": 0.0,
+              "normal_angle": 0.842,
+              "color_distance": 50.9376,
+              "plane_distance": 0.0158
+            },
+            {
+              "a": "obj_000121",
+              "b": "obj_000523",
+              "centroid_distance": 0.0996,
+              "bbox_gap": 0.0,
+              "normal_angle": 14.5052,
+              "color_distance": 7.6142,
+              "plane_distance": 0.062
+            },
+            {
+              "a": "obj_000125",
+              "b": "obj_000468",
+              "centroid_distance": 0.7078,
+              "bbox_gap": 0.0,
+              "normal_angle": 10.2362,
+              "color_distance": 42.3262,
+              "plane_distance": 0.1541
+            },
+            {
+              "a": "obj_000131",
+              "b": "obj_000234",
+              "centroid_distance": 0.4512,
+              "bbox_gap": 0.0,
+              "normal_angle": 8.8903,
+              "color_distance": 37.0853,
+              "plane_distance": 0.1311
+            },
+            {
+              "a": "obj_000133",
+              "b": "obj_000551",
+              "centroid_distance": 0.2385,
+              "bbox_gap": 0.0,
+              "normal_angle": 0.9038,
+              "color_distance": 9.4402,
+              "plane_distance": 0.0152
+            },
+            {
+              "a": "obj_000139",
+              "b": "obj_000174",
+              "centroid_distance": 2.4504,
+              "bbox_gap": 0.0,
+              "normal_angle": 0.4523,
+              "color_distance": 18.4076,
+              "plane_distance": 0.0099
+            },
+            {
+              "a": "obj_000139",
+              "b": "obj_000248",
+              "centroid_distance": 3.9425,
+              "bbox_gap": 0.0,
+              "normal_angle": 0.9724,
+              "color_distance": 31.253,
+              "plane_distance": 0.0244
+            },
+            {
+              "a": "obj_000139",
+              "b": "obj_000520",
+              "centroid_distance": 2.4389,
+              "bbox_gap": 0.0,
+              "normal_angle": 0.6114,
+              "color_distance": 16.3634,
+              "plane_distance": 0.016
+            }
+          ],
+          "params": {
+            "min_points": 100,
+            "max_bbox_gap": 0.35,
+            "max_centroid_distance": 1.0,
+            "max_normal_angle": 15.0,
+            "max_plane_distance": 0.2,
+            "max_color_distance": 65.0
+          }
+        },
+        "wall": {
+          "source_objects": 577,
+          "consolidated_objects": 497,
+          "merged_object_reduction": 80,
+          "source_points": 7100986,
+          "edge_count": 80,
+          "largest_group_source_objects": 7,
+          "largest_group_points": 945457,
+          "merge_examples": [
+            {
+              "a": "obj_000044",
+              "b": "obj_000138",
+              "centroid_distance": 0.2848,
+              "bbox_gap": 0.0,
+              "normal_angle": 13.3196,
+              "color_distance": 27.9691,
+              "plane_distance": 0.0466
+            },
+            {
+              "a": "obj_000044",
+              "b": "obj_000163",
+              "centroid_distance": 0.4948,
+              "bbox_gap": 0.0,
+              "normal_angle": 12.4675,
+              "color_distance": 15.7959,
+              "plane_distance": 0.1382
+            },
+            {
+              "a": "obj_000053",
+              "b": "obj_000200",
+              "centroid_distance": 3.1916,
+              "bbox_gap": 0.0,
+              "normal_angle": 8.0064,
+              "color_distance": 16.4316,
+              "plane_distance": 0.1325
+            },
+            {
+              "a": "obj_000067",
+              "b": "obj_000533",
+              "centroid_distance": 0.7342,
+              "bbox_gap": 0.0,
+              "normal_angle": 2.3801,
+              "color_distance": 60.7125,
+              "plane_distance": 0.0895
+            },
+            {
+              "a": "obj_000069",
+              "b": "obj_000106",
+              "centroid_distance": 0.2086,
+              "bbox_gap": 0.0,
+              "normal_angle": 5.2783,
+              "color_distance": 26.9938,
+              "plane_distance": 0.0443
+            },
+            {
+              "a": "obj_000069",
+              "b": "obj_000521",
+              "centroid_distance": 0.0858,
+              "bbox_gap": 0.0,
+              "normal_angle": 2.5638,
+              "color_distance": 5.3481,
+              "plane_distance": 0.0099
+            },
+            {
+              "a": "obj_000082",
+              "b": "obj_000232",
+              "centroid_distance": 1.1218,
+              "bbox_gap": 0.0,
+              "normal_angle": 6.9035,
+              "color_distance": 49.7628,
+              "plane_distance": 0.0762
+            },
+            {
+              "a": "obj_000082",
+              "b": "obj_000533",
+              "centroid_distance": 0.3108,
+              "bbox_gap": 0.0,
+              "normal_angle": 14.4983,
+              "color_distance": 11.8594,
+              "plane_distance": 0.057
+            },
+            {
+              "a": "obj_000110",
+              "b": "obj_000134",
+              "centroid_distance": 1.1792,
+              "bbox_gap": 0.0,
+              "normal_angle": 9.9561,
+              "color_distance": 47.2505,
+              "plane_distance": 0.0937
+            },
+            {
+              "a": "obj_000110",
+              "b": "obj_000528",
+              "centroid_distance": 2.5053,
+              "bbox_gap": 0.0,
+              "normal_angle": 10.6196,
+              "color_distance": 17.3985,
+              "plane_distance": 0.1566
+            },
+            {
+              "a": "obj_000118",
+              "b": "obj_000291",
+              "centroid_distance": 0.6844,
+              "bbox_gap": 0.0,
+              "normal_angle": 12.4126,
+              "color_distance": 7.1187,
+              "plane_distance": 0.1779
+            },
+            {
+              "a": "obj_000126",
+              "b": "obj_000136",
+              "centroid_distance": 0.6648,
+              "bbox_gap": 0.0,
+              "normal_angle": 14.951,
+              "color_distance": 1.5338,
+              "plane_distance": 0.136
+            },
+            {
+              "a": "obj_000130",
+              "b": "obj_000249",
+              "centroid_distance": 0.7407,
+              "bbox_gap": 0.0,
+              "normal_angle": 8.0483,
+              "color_distance": 37.6407,
+              "plane_distance": 0.1098
+            },
+            {
+              "a": "obj_000130",
+              "b": "obj_000273",
+              "centroid_distance": 0.7825,
+              "bbox_gap": 0.0,
+              "normal_angle": 9.0884,
+              "color_distance": 26.7543,
+              "plane_distance": 0.0832
+            },
+            {
+              "a": "obj_000130",
+              "b": "obj_000483",
+              "centroid_distance": 1.5008,
+              "bbox_gap": 0.0,
+              "normal_angle": 3.9314,
+              "color_distance": 56.2872,
+              "plane_distance": 0.1961
+            },
+            {
+              "a": "obj_000130",
+              "b": "obj_000526",
+              "centroid_distance": 0.19,
+              "bbox_gap": 0.0,
+              "normal_angle": 8.4088,
+              "color_distance": 20.8285,
+              "plane_distance": 0.0165
+            },
+            {
+              "a": "obj_000130",
+              "b": "obj_000557",
+              "centroid_distance": 1.3267,
+              "bbox_gap": 0.0,
+              "normal_angle": 11.3282,
+              "color_distance": 37.8725,
+              "plane_distance": 0.1376
+            },
+            {
+              "a": "obj_000164",
+              "b": "obj_000244",
+              "centroid_distance": 0.4277,
+              "bbox_gap": 0.0,
+              "normal_angle": 3.6028,
+              "color_distance": 61.578,
+              "plane_distance": 0.1206
+            },
+            {
+              "a": "obj_000167",
+              "b": "obj_000227",
+              "centroid_distance": 0.9202,
+              "bbox_gap": 0.0,
+              "normal_angle": 2.7518,
+              "color_distance": 25.422,
+              "plane_distance": 0.0389
+            },
+            {
+              "a": "obj_000167",
+              "b": "obj_000340",
+              "centroid_distance": 0.4637,
+              "bbox_gap": 0.0,
+              "normal_angle": 13.9051,
+              "color_distance": 59.7097,
+              "plane_distance": 0.0367
+            },
+            {
+              "a": "obj_000167",
+              "b": "obj_000756",
+              "centroid_distance": 0.6427,
+              "bbox_gap": 0.0,
+              "normal_angle": 1.9777,
+              "color_distance": 27.2479,
+              "plane_distance": 0.0745
+            },
+            {
+              "a": "obj_000169",
+              "b": "obj_000316",
+              "centroid_distance": 0.2368,
+              "bbox_gap": 0.0,
+              "normal_angle": 11.6334,
+              "color_distance": 56.9845,
+              "plane_distance": 0.0492
+            },
+            {
+              "a": "obj_000179",
+              "b": "obj_000756",
+              "centroid_distance": 0.29,
+              "bbox_gap": 0.0,
+              "normal_angle": 8.2733,
+              "color_distance": 45.6821,
+              "plane_distance": 0.1425
+            },
+            {
+              "a": "obj_000179",
+              "b": "obj_000787",
+              "centroid_distance": 1.4651,
+              "bbox_gap": 0.0,
+              "normal_angle": 5.4675,
+              "color_distance": 38.2803,
+              "plane_distance": 0.0729
+            },
+            {
+              "a": "obj_000190",
+              "b": "obj_000638",
+              "centroid_distance": 0.5906,
+              "bbox_gap": 0.0,
+              "normal_angle": 14.1068,
+              "color_distance": 39.9188,
+              "plane_distance": 0.0835
+            }
+          ],
+          "params": {
+            "min_points": 100,
+            "max_bbox_gap": 0.35,
+            "max_centroid_distance": 1.0,
+            "max_normal_angle": 15.0,
+            "max_plane_distance": 0.2,
+            "max_color_distance": 65.0
+          }
+        }
+      },
+      "params": {
+        "labels": [
+          "building",
+          "floor",
+          "wall"
+        ],
+        "min_points": 100,
+        "max_bbox_gap": 0.35,
+        "max_centroid_distance": 1.0,
+        "max_normal_angle": 15.0,
+        "max_plane_distance": 0.2,
+        "max_color_distance": 65.0,
+        "label_config": []
+      }
+    },
+    "object_label_counts": {
+      "ambiguous": {
+        "objects": 7,
+        "points": 3140,
+        "targets": 20
+      },
+      "building": {
+        "objects": 106,
+        "points": 41681,
+        "targets": 245
+      },
+      "equipment": {
+        "objects": 147,
+        "points": 1103713,
+        "targets": 339
+      },
+      "floor": {
+        "objects": 789,
+        "points": 4136104,
+        "targets": 11196
+      },
+      "other": {
+        "objects": 46,
+        "points": 195290,
+        "targets": 69
+      },
+      "person": {
+        "objects": 61,
+        "points": 59713,
+        "targets": 103
+      },
+      "pipe": {
+        "objects": 17,
+        "points": 13500,
+        "targets": 47
+      },
+      "railing": {
+        "objects": 105,
+        "points": 270501,
+        "targets": 336
+      },
+      "wall": {
+        "objects": 574,
+        "points": 7105787,
+        "targets": 11537
+      }
+    }
+  },
+  "headline": {
+    "baseline_objects": 1101,
+    "strict_objects": 2051,
+    "consolidated_objects": 1852,
+    "wall_objects_baseline": 6,
+    "wall_objects_strict": 654,
+    "wall_objects_consolidated": 574,
+    "floor_objects_baseline": 588,
+    "floor_objects_strict": 905,
+    "floor_objects_consolidated": 789,
+    "ceiling_objects_baseline": 0,
+    "ceiling_objects_strict": 0,
+    "ceiling_objects_consolidated": 0
+  }
+}
