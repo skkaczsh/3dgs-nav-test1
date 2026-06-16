@@ -31,6 +31,38 @@ Observed behavior on the current railing sample:
 - both models returned `0` boxes and `0` points
 - both responses said: `There is no railing visible in the image.`
 
+## 2026-06-16 explicit multi-class smoke
+
+The same server was then tested again with a broader 6-sample manifest and
+explicit locate prompts:
+
+- `Locate the pipe in the image.`
+- `Locate the HVAC outdoor unit in the image.`
+- `Locate the rooftop equipment box in the image.`
+- `Locate the railing in the image.`
+- `Locate the guardrail in the image.`
+
+Outputs:
+
+- `/root/epfs/model_side_tracks/tvp/tvp_opd_explicit_6.jsonl`
+- `/root/epfs/model_side_tracks/tvp/tvp_sftbox_explicit_6.jsonl`
+
+Observed behavior:
+
+- both models still returned `0` boxes and `0` points` on all 6 samples
+- some responses gave coarse natural-language location hints such as
+  `towards the bottom right corner`
+- but the primitive output channel remained empty
+
+Interpretation:
+
+- TVP is not merely failing on one difficult railing sample
+- on the current rooftop data, it is not emitting usable primitives for
+  `pipe`, `HVAC/equipment`, or `railing`
+- therefore it is not currently actionable as an automatic proposal source
+  either, unless we add a separate NLP-to-region post-processor, which would be
+  a different project
+
 ## Interpretation
 
 At the moment TVP is not a drop-in replacement for the dense semantic route.
@@ -62,3 +94,10 @@ For the current repository, that is not the direct fit:
 The server runner now supports a persistent snapshot directory via
 `--download-dir` / `TVP_DOWNLOAD_DIR` so model weights no longer spill into
 `/tmp`.
+
+The manifest builder now also supports prompt variants:
+
+- `--prompt-mode concept`
+- `--prompt-mode locate --locate-field answer_class`
+
+This makes prompt-shape comparisons reproducible instead of one-off shell edits.

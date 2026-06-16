@@ -16,11 +16,35 @@ def concept_prompt(row: dict) -> str:
     return " ; ".join(parts) if parts else "fine object"
 
 
+def locate_prompt(row: dict, field: str) -> str:
+    value = str(row.get(field) or "").strip()
+    if not value:
+        value = str(row.get("answer_class") or row.get("source_label") or "object").strip()
+    article = "an" if value[:1].lower() in {"a", "e", "i", "o", "u"} else "a"
+    if value.lower().startswith(("a ", "an ", "the ")):
+        return f"Locate {value} in the image."
+    return f"Locate {article} {value} in the image."
+
+
+def resolve_prompt(row: dict, mode: str, locate_field: str) -> str:
+    if mode == "concept":
+        return concept_prompt(row)
+    if mode == "locate":
+        return locate_prompt(row, locate_field)
+    raise ValueError(f"unsupported prompt mode: {mode}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--accepted-jsonl", type=Path, required=True)
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--prompt-mode", choices=["concept", "locate"], default="concept")
+    parser.add_argument(
+        "--locate-field",
+        choices=["concept", "concept_class", "answer", "answer_class", "source_label"],
+        default="answer_class",
+    )
     args = parser.parse_args()
 
     rows = []
@@ -45,7 +69,7 @@ def main() -> None:
             "concept_class": row.get("concept_class", ""),
             "answer": row.get("answer", ""),
             "answer_class": row.get("answer_class", ""),
-            "prompt": concept_prompt(row),
+            "prompt": resolve_prompt(row, args.prompt_mode, args.locate_field),
             "bbox": row.get("bbox"),
             "image_path": assets.get("image", ""),
             "instance_path": assets.get("instance", ""),
@@ -63,6 +87,8 @@ def main() -> None:
     manifest = {
         "schema": "tvp_side_track_manifest_v1",
         "source": str(args.accepted_jsonl),
+        "prompt_mode": args.prompt_mode,
+        "locate_field": args.locate_field,
         "sample_count": len(samples),
         "samples": samples,
     }
