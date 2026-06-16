@@ -190,6 +190,42 @@ Why Florence loses right now:
 - its accepted set needs heavy geometric rejection
 - after 3D promotion it still yields many singleton / fragmented objects
 
+### Fair replay with the same projected geometry guard
+
+After the new projected-candidate geometry guard was added to the validated
+grounded route, the Florence projected outputs were replayed through the same
+guard so the comparison would stay fair.
+
+Server replay outputs:
+
+- guarded projection:
+  `/root/epfs/vlm_seg_project/tmp_fine_object_florence_small_eval/projected_large_ft_guard_focus_v1`
+- guarded fusion:
+  `/root/epfs/vlm_seg_project/tmp_fine_object_florence_small_eval/fused_large_ft_guard_focus_v1`
+
+Replay result:
+
+- candidates: `13 -> 8 keep`
+- points: `2317 -> 1449`
+- actions:
+  - `keep_linear_railing = 1`
+  - `keep_linear_pipe = 2`
+  - `keep_compact_equipment = 5`
+  - `review_large_equipment = 3`
+  - `demote_surface_like_equipment = 1`
+  - `demote_line_like = 1`
+- fused fine objects: `12 -> 8`
+- merge count: `1 -> 0`
+
+Interpretation:
+
+- the geometry guard removes some obvious Florence over-expansions
+- but the route still collapses into mostly singleton survivors
+- unlike the grounded `pipe` branch, the Florence guarded survivors do not
+  become cleaner reusable identities after projection
+- therefore the current ranking does **not** change after equalizing the
+  post-projection guard
+
 ## New promotion results for grounded detector categories
 
 To make the comparison fair, the grounded detector categories were also pushed

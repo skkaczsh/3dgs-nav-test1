@@ -65,6 +65,14 @@ Best fit: **second-stage review / proposal signal**, not a replacement for the c
   - `ssh: connect to host 10.0.8.114 port 31909: failure`
 - Because this failed before entering the remote shell, this is a connectivity/config blocker, not a ConceptSeg-R1 environment blocker.
 
+Historical note:
+
+- This connectivity issue was later resolved by fixing the local SSH bind
+  configuration.
+- The current verdict in this report does **not** depend on that temporary
+  connection failure; it rests on the already completed `90/90` run package and
+  the sampled `12`-item review set described above.
+
 ## Recommendation
 
 - Keep ConceptSeg-R1 as a **side-track reviewer / candidate proposer** for ambiguous fine targets.
