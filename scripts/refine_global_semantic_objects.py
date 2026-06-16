@@ -195,7 +195,9 @@ def vote_ratio(obj: dict[str, Any], label: str) -> float:
 def choose_label(obj: dict[str, Any], geom: dict[str, Any], context: dict[str, Any] | None = None) -> tuple[str, str]:
     original = str(obj.get("semantic_label") or "unknown")
     text = combined_text(obj)
+    primary_text = " ".join(str(obj.get(k) or "") for k in ("display_identity", "description")).lower()
     hits = text_hits(text)
+    primary_hits = text_hits(primary_text)
     label_votes = normalize_votes(obj.get("label_votes"))
     dom_label, _, dom_ratio = dominant(label_votes, original)
     ratios = {name: weighted_text_ratio(obj, name) for name in TERM_PATTERNS}
@@ -203,10 +205,18 @@ def choose_label(obj: dict[str, Any], geom: dict[str, Any], context: dict[str, A
 
     # Fine object protection comes first. Large planar objects are allowed to
     # stay surface-like unless the text is explicitly fine-object oriented.
+    railing_geometry = geom["linearity"] >= 0.84 and geom["max_extent"] >= 0.6
+    if original == "railing" and "railing" not in primary_hits and not railing_geometry:
+        if geom["is_vertical"] or "wall" in primary_hits:
+            return "wall", "railing_rejected_non_linear_wall"
+        if geom["is_horizontal"] or "floor" in primary_hits:
+            return "floor", "railing_rejected_non_linear_floor"
+        return "other", "railing_rejected_non_linear_other"
     if "railing" in hits and (
-        ratios["railing"] >= 0.18
+        "railing" in primary_hits
+        or ratios["railing"] >= 0.30
         or vote_ratio(obj, "railing") >= 0.08
-        or (geom["linearity"] >= 0.84 and ratios["railing"] >= 0.015 and geom["max_extent"] >= 0.6)
+        or (railing_geometry and ratios["railing"] >= 0.015)
     ):
         return "railing", "text_or_linear_railing_guard"
     if "pipe" in hits and (
