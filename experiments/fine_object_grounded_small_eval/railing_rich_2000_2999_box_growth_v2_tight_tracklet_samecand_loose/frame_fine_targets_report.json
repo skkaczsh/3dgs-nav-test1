@@ -1,0 +1,30 @@
+{
+  "source_points": 814,
+  "groups": 7,
+  "targets": 23,
+  "target_points": 814,
+  "small_residual_points": 0,
+  "skipped_points": {},
+  "group_component_counts": {
+    "2": 3,
+    "3": 1,
+    "4": 2,
+    "6": 1
+  },
+  "label_counts": {
+    "railing": 23
+  },
+  "target_point_stats": {
+    "min": 8,
+    "max": 373,
+    "mean": 35.391304347826086
+  },
+  "target_ply": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/box_growth_v2_tight_tracklet_samecand_loose_repro/frame_targets/frame_fine_targets.ply",
+  "target_ply_points": 814,
+  "enriched_ply": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_box_growth_v2_tight/guarded_points.ply",
+  "output_dir": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/box_growth_v2_tight_tracklet_samecand_loose_repro/frame_targets",
+  "params": {
+    "voxel_size": 0.08,
+    "min_target_points": 5
+  }
+}

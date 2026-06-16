@@ -107,6 +107,8 @@ Local evidence:
 - `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/project_detector_box_growth.py`
 - `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/railing_rich_2000_2999_box_growth_v1`
 - `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/railing_rich_2000_2999_box_growth_v2_tight`
+- `/Users/skkac/Work/SCAN/new_route/scripts/run_box_growth_tracklet_pipeline.py`
+- `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/railing_rich_2000_2999_box_growth_v2_tight_tracklet_samecand_loose`
 
 ### Quantitative comparison
 
@@ -165,6 +167,81 @@ This changes the earlier conclusion in one narrow way:
 - `railing` is still not production-ready
 - but the bottleneck has moved from “mask post-process cannot help” to
   “support-preserving growth works, yet cross-view consolidation is still weak”
+
+## 1.6. Tracklet Consolidation on Box-Growth
+
+The box-growth branch is now wrapped in a reproducible runner:
+
+- `/Users/skkac/Work/SCAN/new_route/scripts/run_box_growth_tracklet_pipeline.py`
+
+This script runs:
+
+1. enriched PLY -> frame fine targets
+2. frame targets -> short tracklets
+3. tracklets -> long objects
+
+### Default consolidation
+
+On `box_growth_v2_tight`:
+
+- `814` guarded points
+- `23` frame targets
+- `19` short tracklets
+- `14` long objects
+
+Default merge behavior:
+
+- frame-target to tracklet merge ratio: `0.174`
+- tracklet to long-object merge ratio: `0.263`
+- long-association reasons:
+  - `same_accepted_candidate = 5`
+
+Interpretation:
+
+- the new branch no longer dies in the projection stage
+- fragmentation is now pushed downstream into 3D clustering and same-candidate
+  reconsolidation
+
+### Same-candidate loose association
+
+Only the `same_accepted_candidate` thresholds were loosened:
+
+- same-candidate centroid distance: `3.5`
+- same-candidate bbox distance: `1.5`
+- same-candidate color distance: `120`
+
+Result:
+
+- `23` frame targets
+- `19` short tracklets
+- `13` long objects
+- long-association merge ratio: `0.316`
+- `same_accepted_candidate = 6`
+
+Interpretation:
+
+- loosening only same-candidate association does help
+- the gain is real but still modest
+- the rich sample remains dominated by same-frame fragmentation, not true
+  multi-frame repeat observations
+
+This matters because it tells us the next bottleneck more precisely:
+
+- not surface-vs-railing semantics
+- not only 2D mask recall
+- now mainly:
+  - same-candidate over-splitting inside one observation
+  - insufficient repeated support across neighboring frames
+
+Practical conclusion:
+
+- keep `box_growth_v2_tight` as the preferred railing base
+- keep same-candidate loose association as the current better default for this
+  branch
+- the next improvement should target:
+  - in-frame target over-splitting reduction
+  - then true neighboring-frame support accumulation on a denser sample than
+    this 10-image rich set
 
 ## 2. Equipment/HVAC Strict Precision
 

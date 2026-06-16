@@ -1,0 +1,662 @@
+{
+  "tracklets": 19,
+  "objects": 13,
+  "merge_ratio": 0.3157894736842105,
+  "status_counts": {
+    "single_tracklet_object": 11,
+    "stable_long_object": 2
+  },
+  "reason_counts": {
+    "new_object": 13,
+    "same_accepted_candidate": 6
+  },
+  "centroid_ply": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/box_growth_v2_tight_tracklet_samecand_loose_repro/long_assoc/long_object_tracklet_centroids.ply",
+  "centroid_points": 19,
+  "params": {
+    "tracklets": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/box_growth_v2_tight_tracklet_samecand_loose_repro/tracklets",
+    "output_dir": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/box_growth_v2_tight_tracklet_samecand_loose_repro/long_assoc",
+    "same_candidate_centroid_distance": 3.5,
+    "same_candidate_bbox_distance": 1.5,
+    "same_candidate_color_distance": 120.0,
+    "source_frame_gap": 240,
+    "source_centroid_distance": 0.8,
+    "source_bbox_distance": 0.25,
+    "source_color_distance": 60.0,
+    "cross_frame_gap": 80,
+    "cross_centroid_distance": 0.35,
+    "cross_bbox_distance": 0.08,
+    "cross_color_distance": 35.0
+  },
+  "top_objects": [
+    {
+      "long_object_id": "long_obj_0010",
+      "object_number": 10,
+      "label": "railing",
+      "label_vote_ratio": 1.0,
+      "tracklet_ids": [
+        "trk_000016"
+      ],
+      "tracklet_count": 1,
+      "target_count": 2,
+      "point_count": 397,
+      "frame_min": 2840,
+      "frame_max": 2840,
+      "frame_count": 1,
+      "bbox_3d": {
+        "min": [
+          -9.067572,
+          12.072005,
+          -5.180089
+        ],
+        "max": [
+          -8.586105,
+          15.192812,
+          -3.149392
+        ]
+      },
+      "centroid": [
+        -8.853211267002518,
+        13.92277459949622,
+        -4.114767070528967
+      ],
+      "mean_color": [
+        60.34760705289673,
+        63.38287153652393,
+        68.36272040302266
+      ],
+      "accepted_candidate_votes": {
+        "400003": 397
+      },
+      "dominant_accepted_candidate": "400003",
+      "dominant_accepted_candidate_ratio": 1.0,
+      "source_cluster_votes": {
+        "400003": 397
+      },
+      "dominant_source_cluster": "400003",
+      "dominant_source_cluster_ratio": 1.0,
+      "status": "single_tracklet_object"
+    },
+    {
+      "long_object_id": "long_obj_0003",
+      "object_number": 3,
+      "label": "railing",
+      "label_vote_ratio": 1.0,
+      "tracklet_ids": [
+        "trk_000003",
+        "trk_000005",
+        "trk_000006",
+        "trk_000007",
+        "trk_000008"
+      ],
+      "tracklet_count": 5,
+      "target_count": 5,
+      "point_count": 89,
+      "frame_min": 2640,
+      "frame_max": 2640,
+      "frame_count": 1,
+      "bbox_3d": {
+        "min": [
+          -7.640877,
+          12.854532,
+          -4.710856
+        ],
+        "max": [
+          -6.761555,
+          15.756721,
+          -3.385576
+        ]
+      },
+      "centroid": [
+        -7.030874337078652,
+        14.480102573033708,
+        -4.145040662921349
+      ],
+      "mean_color": [
+        47.47191011235955,
+        43.87640449438202,
+        46.752808988764045
+      ],
+      "accepted_candidate_votes": {
+        "400001": 89
+      },
+      "dominant_accepted_candidate": "400001",
+      "dominant_accepted_candidate_ratio": 1.0,
+      "source_cluster_votes": {
+        "400001": 89
+      },
+      "dominant_source_cluster": "400001",
+      "dominant_source_cluster_ratio": 1.0,
+      "status": "stable_long_object"
+    },
+    {
+      "long_object_id": "long_obj_0005",
+      "object_number": 5,
+      "label": "railing",
+      "label_vote_ratio": 1.0,
+      "tracklet_ids": [
+        "trk_000009"
+      ],
+      "tracklet_count": 1,
+      "target_count": 1,
+      "point_count": 67,
+      "frame_min": 2780,
+      "frame_max": 2780,
+      "frame_count": 1,
+      "bbox_3d": {
+        "min": [
+          -8.827549,
+          12.35939,
+          -4.826336
+        ],
+        "max": [
+          -8.38214,
+          12.866807,
+          -4.471947
+        ]
+      },
+      "centroid": [
+        -8.57377552238806,
+        12.603025701492536,
+        -4.682448253731343
+      ],
+      "mean_color": [
+        106.46268656716418,
+        96.98507462686567,
+        94.31343283582089
+      ],
+      "accepted_candidate_votes": {
+        "400005": 67
+      },
+      "dominant_accepted_candidate": "400005",
+      "dominant_accepted_candidate_ratio": 1.0,
+      "source_cluster_votes": {
+        "400005": 67
+      },
+      "dominant_source_cluster": "400005",
+      "dominant_source_cluster_ratio": 1.0,
+      "status": "single_tracklet_object"
+    },
+    {
+      "long_object_id": "long_obj_0009",
+      "object_number": 9,
+      "label": "railing",
+      "label_vote_ratio": 1.0,
+      "tracklet_ids": [
+        "trk_000013",
+        "trk_000014",
+        "trk_000015"
+      ],
+      "tracklet_count": 3,
+      "target_count": 3,
+      "point_count": 56,
+      "frame_min": 2820,
+      "frame_max": 2820,
+      "frame_count": 1,
+      "bbox_3d": {
+        "min": [
+          -7.036105,
+          12.992403,
+          -5.713494
+        ],
+        "max": [
+          -6.778022,
+          14.857769,
+          -4.633988
+        ]
+      },
+      "centroid": [
+        -6.931282249999998,
+        14.091348249999998,
+        -5.287020714285715
+      ],
+      "mean_color": [
+        9.75,
+        8.75,
+        8.446428571428571
+      ],
+      "accepted_candidate_votes": {
+        "400006": 56
+      },
+      "dominant_accepted_candidate": "400006",
+      "dominant_accepted_candidate_ratio": 1.0,
+      "source_cluster_votes": {
+        "400006": 56
+      },
+      "dominant_source_cluster": "400006",
+      "dominant_source_cluster_ratio": 1.0,
+      "status": "stable_long_object"
+    },
+    {
+      "long_object_id": "long_obj_0011",
+      "object_number": 11,
+      "label": "railing",
+      "label_vote_ratio": 1.0,
+      "tracklet_ids": [
+        "trk_000017"
+      ],
+      "tracklet_count": 1,
+      "target_count": 2,
+      "point_count": 52,
+      "frame_min": 2920,
+      "frame_max": 2920,
+      "frame_count": 1,
+      "bbox_3d": {
+        "min": [
+          -6.853829,
+          12.661994,
+          -8.418566
+        ],
+        "max": [
+          -6.753152,
+          13.519823,
+          -7.813145
+        ]
+      },
+      "centroid": [
+        -6.809569538461539,
+        13.138136211538463,
+        -8.133329769230771
+      ],
+      "mean_color": [
+        16.75,
+        15.288461538461538,
+        14.51923076923077
+      ],
+      "accepted_candidate_votes": {
+        "400008": 52
+      },
+      "dominant_accepted_candidate": "400008",
+      "dominant_accepted_candidate_ratio": 1.0,
+      "source_cluster_votes": {
+        "400008": 52
+      },
+      "dominant_source_cluster": "400008",
+      "dominant_source_cluster_ratio": 1.0,
+      "status": "single_tracklet_object"
+    },
+    {
+      "long_object_id": "long_obj_0008",
+      "object_number": 8,
+      "label": "railing",
+      "label_vote_ratio": 1.0,
+      "tracklet_ids": [
+        "trk_000012"
+      ],
+      "tracklet_count": 1,
+      "target_count": 3,
+      "point_count": 31,
+      "frame_min": 2800,
+      "frame_max": 2800,
+      "frame_count": 1,
+      "bbox_3d": {
+        "min": [
+          -10.815245,
+          14.669237,
+          -6.967863
+        ],
+        "max": [
+          -10.72223,
+          15.426949,
+          -6.477601
+        ]
+      },
+      "centroid": [
+        -10.764765935483869,
+        15.038973580645164,
+        -6.759602129032258
+      ],
+      "mean_color": [
+        150.19354838709677,
+        147.58064516129033,
+        151.3548387096774
+      ],
+      "accepted_candidate_votes": {
+        "400007": 31
+      },
+      "dominant_accepted_candidate": "400007",
+      "dominant_accepted_candidate_ratio": 1.0,
+      "source_cluster_votes": {
+        "400007": 31
+      },
+      "dominant_source_cluster": "400007",
+      "dominant_source_cluster_ratio": 1.0,
+      "status": "single_tracklet_object"
+    },
+    {
+      "long_object_id": "long_obj_0007",
+      "object_number": 7,
+      "label": "railing",
+      "label_vote_ratio": 1.0,
+      "tracklet_ids": [
+        "trk_000011"
+      ],
+      "tracklet_count": 1,
+      "target_count": 1,
+      "point_count": 29,
+      "frame_min": 2800,
+      "frame_max": 2800,
+      "frame_count": 1,
+      "bbox_3d": {
+        "min": [
+          -8.715202,
+          14.611408,
+          -5.810205
+        ],
+        "max": [
+          -8.651308,
+          14.877231,
+          -5.6447
+        ]
+      },
+      "centroid": [
+        -8.675754551724138,
+        14.725145,
+        -5.731144172413793
+      ],
+      "mean_color": [
+        145.93103448275863,
+        144.13793103448276,
+        153.0344827586207
+      ],
+      "accepted_candidate_votes": {
+        "400007": 29
+      },
+      "dominant_accepted_candidate": "400007",
+      "dominant_accepted_candidate_ratio": 1.0,
+      "source_cluster_votes": {
+        "400007": 29
+      },
+      "dominant_source_cluster": "400007",
+      "dominant_source_cluster_ratio": 1.0,
+      "status": "single_tracklet_object"
+    },
+    {
+      "long_object_id": "long_obj_0004",
+      "object_number": 4,
+      "label": "railing",
+      "label_vote_ratio": 1.0,
+      "tracklet_ids": [
+        "trk_000004"
+      ],
+      "tracklet_count": 1,
+      "target_count": 1,
+      "point_count": 26,
+      "frame_min": 2640,
+      "frame_max": 2640,
+      "frame_count": 1,
+      "bbox_3d": {
+        "min": [
+          -8.624705,
+          11.364126,
+          -4.201479
+        ],
+        "max": [
+          -8.459201,
+          11.459854,
+          -4.141875
+        ]
+      },
+      "centroid": [
+        -8.585212269230768,
+        11.393032423076923,
+        -4.178406961538462
+      ],
+      "mean_color": [
+        104.23076923076923,
+        96.26923076923077,
+        97.0
+      ],
+      "accepted_candidate_votes": {
+        "400001": 26
+      },
+      "dominant_accepted_candidate": "400001",
+      "dominant_accepted_candidate_ratio": 1.0,
+      "source_cluster_votes": {
+        "400001": 26
+      },
+      "dominant_source_cluster": "400001",
+      "dominant_source_cluster_ratio": 1.0,
+      "status": "single_tracklet_object"
+    },
+    {
+      "long_object_id": "long_obj_0012",
+      "object_number": 12,
+      "label": "railing",
+      "label_vote_ratio": 1.0,
+      "tracklet_ids": [
+        "trk_000018"
+      ],
+      "tracklet_count": 1,
+      "target_count": 1,
+      "point_count": 21,
+      "frame_min": 2920,
+      "frame_max": 2920,
+      "frame_count": 1,
+      "bbox_3d": {
+        "min": [
+          -8.890411,
+          13.224882,
+          -7.189891
+        ],
+        "max": [
+          -8.842813,
+          13.564998,
+          -6.994372
+        ]
+      },
+      "centroid": [
+        -8.87287542857143,
+        13.385377047619048,
+        -7.095126809523809
+      ],
+      "mean_color": [
+        38.523809523809526,
+        33.76190476190476,
+        33.666666666666664
+      ],
+      "accepted_candidate_votes": {
+        "400008": 21
+      },
+      "dominant_accepted_candidate": "400008",
+      "dominant_accepted_candidate_ratio": 1.0,
+      "source_cluster_votes": {
+        "400008": 21
+      },
+      "dominant_source_cluster": "400008",
+      "dominant_source_cluster_ratio": 1.0,
+      "status": "single_tracklet_object"
+    },
+    {
+      "long_object_id": "long_obj_0001",
+      "object_number": 1,
+      "label": "railing",
+      "label_vote_ratio": 1.0,
+      "tracklet_ids": [
+        "trk_000001"
+      ],
+      "tracklet_count": 1,
+      "target_count": 1,
+      "point_count": 15,
+      "frame_min": 2480,
+      "frame_max": 2480,
+      "frame_count": 1,
+      "bbox_3d": {
+        "min": [
+          -7.016588,
+          13.922989,
+          -1.583192
+        ],
+        "max": [
+          -6.897865,
+          14.348448,
+          -1.165188
+        ]
+      },
+      "centroid": [
+        -6.943915933333333,
+        14.127615600000002,
+        -1.4226652000000002
+      ],
+      "mean_color": [
+        106.33333333333333,
+        105.6,
+        104.06666666666666
+      ],
+      "accepted_candidate_votes": {
+        "400004": 15
+      },
+      "dominant_accepted_candidate": "400004",
+      "dominant_accepted_candidate_ratio": 1.0,
+      "source_cluster_votes": {
+        "400004": 15
+      },
+      "dominant_source_cluster": "400004",
+      "dominant_source_cluster_ratio": 1.0,
+      "status": "single_tracklet_object"
+    },
+    {
+      "long_object_id": "long_obj_0006",
+      "object_number": 6,
+      "label": "railing",
+      "label_vote_ratio": 1.0,
+      "tracklet_ids": [
+        "trk_000010"
+      ],
+      "tracklet_count": 1,
+      "target_count": 1,
+      "point_count": 15,
+      "frame_min": 2780,
+      "frame_max": 2780,
+      "frame_count": 1,
+      "bbox_3d": {
+        "min": [
+          -10.773311,
+          14.734896,
+          -6.944801
+        ],
+        "max": [
+          -10.731532,
+          15.078494,
+          -6.654085
+        ]
+      },
+      "centroid": [
+        -10.751190666666666,
+        14.90030873333333,
+        -6.809054199999999
+      ],
+      "mean_color": [
+        190.73333333333332,
+        196.2,
+        202.93333333333334
+      ],
+      "accepted_candidate_votes": {
+        "400005": 15
+      },
+      "dominant_accepted_candidate": "400005",
+      "dominant_accepted_candidate_ratio": 1.0,
+      "source_cluster_votes": {
+        "400005": 15
+      },
+      "dominant_source_cluster": "400005",
+      "dominant_source_cluster_ratio": 1.0,
+      "status": "single_tracklet_object"
+    },
+    {
+      "long_object_id": "long_obj_0002",
+      "object_number": 2,
+      "label": "railing",
+      "label_vote_ratio": 1.0,
+      "tracklet_ids": [
+        "trk_000002"
+      ],
+      "tracklet_count": 1,
+      "target_count": 1,
+      "point_count": 8,
+      "frame_min": 2480,
+      "frame_max": 2480,
+      "frame_count": 1,
+      "bbox_3d": {
+        "min": [
+          -7.497578,
+          17.357409,
+          -2.233759
+        ],
+        "max": [
+          -7.331865,
+          17.608372,
+          -2.027498
+        ]
+      },
+      "centroid": [
+        -7.4156414999999996,
+        17.439671,
+        -2.1488120000000004
+      ],
+      "mean_color": [
+        130.25,
+        127.375,
+        125.125
+      ],
+      "accepted_candidate_votes": {
+        "400004": 8
+      },
+      "dominant_accepted_candidate": "400004",
+      "dominant_accepted_candidate_ratio": 1.0,
+      "source_cluster_votes": {
+        "400004": 8
+      },
+      "dominant_source_cluster": "400004",
+      "dominant_source_cluster_ratio": 1.0,
+      "status": "single_tracklet_object"
+    },
+    {
+      "long_object_id": "long_obj_0013",
+      "object_number": 13,
+      "label": "railing",
+      "label_vote_ratio": 1.0,
+      "tracklet_ids": [
+        "trk_000019"
+      ],
+      "tracklet_count": 1,
+      "target_count": 1,
+      "point_count": 8,
+      "frame_min": 2920,
+      "frame_max": 2920,
+      "frame_count": 1,
+      "bbox_3d": {
+        "min": [
+          -6.808815,
+          12.263682,
+          -8.512878
+        ],
+        "max": [
+          -6.707868,
+          12.383933,
+          -8.399307
+        ]
+      },
+      "centroid": [
+        -6.734491625,
+        12.327530875,
+        -8.45996175
+      ],
+      "mean_color": [
+        95.125,
+        85.625,
+        84.0
+      ],
+      "accepted_candidate_votes": {
+        "400008": 8
+      },
+      "dominant_accepted_candidate": "400008",
+      "dominant_accepted_candidate_ratio": 1.0,
+      "source_cluster_votes": {
+        "400008": 8
+      },
+      "dominant_source_cluster": "400008",
+      "dominant_source_cluster_ratio": 1.0,
+      "status": "single_tracklet_object"
+    }
+  ]
+}
