@@ -42,6 +42,21 @@ At the moment TVP is not a drop-in replacement for the dense semantic route.
 - The most reasonable role for TVP remains a proposal / spatial-anchor
   side-track, not the main 2D dense segmentation path.
 
+## Integration verdict for current project
+
+The user's suggested idea was: merge the full PLY first, then use
+`img_pos/cam_in_ex` plus TVP semantics to project back into space.
+
+For the current repository, that is not the direct fit:
+
+- TVP does not emit dense semantic maps; it emits sparse visual primitives such
+  as boxes and points.
+- Therefore TVP can help with `where to look`, but not with dense surface or
+  thin-structure coverage by itself.
+- If we use it at all, the correct integration point is:
+  `TVP primitive proposal -> SAM2 local mask -> validated 3D projection`,
+  not `TVP -> direct whole-scene semantic projection`.
+
 ## Engineering note
 
 The server runner now supports a persistent snapshot directory via
