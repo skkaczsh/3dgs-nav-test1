@@ -238,6 +238,83 @@ Strict-precision result:
 - new main rejection reasons:
   - `phrase_too_weak = 62`
   - `phrase_too_broad = 49`
+
+### Projected-candidate geometry guard replay
+
+The next bottleneck was confirmed to be *post-projection surface drift* rather
+than only image-text phrase drift. To test that cleanly, the already projected
+accepted candidates were replayed through a focus-aware geometry guard without
+rerunning GroundingDINO or SAM2.
+
+Implementation:
+
+- `scripts/review_accepted_fine_objects.py`
+  - now emits:
+    - `guarded_accepted_report.json`
+    - `guarded_points.ply`
+    - `guard_status.ply`
+- `run_server_focus_rich_grounded_eval.py`
+  - now supports `--apply-geometry-guard` so the guard can be inserted into the
+    normal server path before fine-object fusion
+
+Server replay outputs:
+
+- equipment:
+  `/root/epfs/new_route_stage1_skymask/equipment_rich_grounded_eval_2000_2999_ext80_run/projected_guard_focus_v1`
+- railing:
+  `/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_guard_focus_v1`
+- pipe:
+  `/root/epfs/new_route_stage1_skymask/pipe_rich_grounded_eval_2000_2999_ext17_run/projected_guard_focus_v1`
+
+Replay summary:
+
+- equipment
+  - candidates: `28 -> 19 keep`
+  - points: `3480 -> 1534`
+  - actions:
+    - `keep_compact_equipment = 19`
+    - `review_large_equipment = 4`
+    - `demote_surface_like_equipment = 5`
+  - fused fine objects: `21 -> 17`
+- railing
+  - candidates: `9 -> 6 keep`
+  - points: `1295 -> 237`
+  - actions:
+    - `keep_linear_railing = 6`
+    - `demote_surface_like_railing = 3`
+  - fused fine objects: `9 -> 6`
+- pipe
+  - candidates: `12 -> 10 keep`
+  - points: `448 -> 381`
+  - actions:
+    - `keep_linear_pipe = 10`
+    - `review_ambiguous_pipe = 2`
+  - fused fine objects: `12 -> 10`
+
+Interpretation:
+
+- the guard is immediately useful for `equipment/HVAC`
+  - it removes a meaningful fraction of obvious surface-like projected blobs
+    before fusion
+  - this is the first clean evidence that some of the current contamination is
+    not a VLM-label problem alone, but a projected-geometry acceptance problem
+- `pipe` remains mostly intact under the same guard
+  - this is a good sign because it means the guard is not simply deleting all
+    thin structures
+- `railing` remains unresolved
+  - several large projected wall-like blobs are correctly removed
+  - but the surviving railing candidates are still sparse and fragmented
+  - therefore railing is now better localized as a *mask/projection/occlusion*
+    problem, not merely a phrase-gating problem
+
+Current engineering conclusion:
+
+1. keep the new geometry guard in the validated fine-object route
+2. use it primarily as an `equipment/HVAC` precision control
+3. do **not** assume it solves railing
+4. the next meaningful railing fix should target mask splitting, visibility /
+   occlusion filtering, or detector-region proposal quality rather than only
+   adding more text or PCA thresholds
   - `oversized_mask = 14`
 - projected 3D candidates: `25` (from `28`)
 - accepted 3D points: `3051` (from `3480`)

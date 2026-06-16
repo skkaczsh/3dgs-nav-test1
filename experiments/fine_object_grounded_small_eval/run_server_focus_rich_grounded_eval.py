@@ -32,6 +32,7 @@ def main() -> None:
     parser.add_argument("--nms-threshold", type=float, default=0.5)
     parser.add_argument("--max-boxes", type=int, default=12)
     parser.add_argument("--max-boxes-per-group", type=int, default=4)
+    parser.add_argument("--apply-geometry-guard", action="store_true")
     parser.add_argument("--sync-local-dir", type=Path, default=None)
     args = parser.parse_args()
 
@@ -80,9 +81,24 @@ export TRANSFORMERS_OFFLINE=1
   --color-dir /root/epfs/new_route_stage1_skymask/output \
   --output-dir {shlex.quote(remote_projected)}
 if [ -f {shlex.quote(remote_projected)}/accepted_points.ply ]; then
+  if [ "{'1' if args.apply_geometry_guard else '0'}" = "1" ]; then
+    {shlex.quote(REMOTE_PYTHON)} {shlex.quote(REMOTE_SCRIPT_DIR)}/review_accepted_fine_objects.py \
+      --accepted-report {shlex.quote(remote_projected)}/accepted_report.json \
+      --accepted-ply {shlex.quote(remote_projected)}/accepted_points.ply \
+      --output-report {shlex.quote(remote_projected)}/guard_review.json \
+      --output-csv {shlex.quote(remote_projected)}/guard_review.csv \
+      --output-status-ply {shlex.quote(remote_projected)}/guard_status.ply \
+      --output-filtered-ply {shlex.quote(remote_projected)}/guarded_points.ply \
+      --output-accepted-report {shlex.quote(remote_projected)}/guarded_accepted_report.json
+    accepted_report_input={shlex.quote(remote_projected)}/guarded_accepted_report.json
+    accepted_ply_input={shlex.quote(remote_projected)}/guarded_points.ply
+  else
+    accepted_report_input={shlex.quote(remote_projected)}/accepted_report.json
+    accepted_ply_input={shlex.quote(remote_projected)}/accepted_points.ply
+  fi
   {shlex.quote(REMOTE_PYTHON)} {shlex.quote(REMOTE_SCRIPT_DIR)}/fuse_accepted_fine_objects.py \
-    --accepted-report-json {shlex.quote(remote_projected)}/accepted_report.json \
-    --strict-filtered-ply {shlex.quote(remote_projected)}/accepted_points.ply \
+    --accepted-report-json "$accepted_report_input" \
+    --strict-filtered-ply "$accepted_ply_input" \
     --output-objects-jsonl {shlex.quote(remote_fused)}/fine_objects.jsonl \
     --output-decisions-jsonl {shlex.quote(remote_fused)}/fine_object_decisions.jsonl \
     --output-report {shlex.quote(remote_fused)}/fine_object_report.json \
