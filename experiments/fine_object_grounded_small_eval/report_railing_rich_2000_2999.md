@@ -198,3 +198,134 @@ Interpretation:
 - this means the next useful expansion is not to relax merge rules on this
   sample, but to feed the same accepted-format path with `pipe` and
   `equipment/HVAC` candidates and compare cross-focus object statistics
+## Thin-structure refinement replay
+
+To isolate whether the remaining `railing` fragmentation is primarily a
+**2D mask-shape** problem or a deeper 3D visibility problem, the already
+accepted strict-v2 masks were replayed without rerunning GroundingDINO or SAM2.
+
+New local script:
+
+- `/Users/skkac/Work/SCAN/new_route/experiments/fine_object_grounded_small_eval/refine_thin_structure_masks.py`
+
+Method:
+
+1. load the existing accepted `railing` masks
+2. build a morphological skeleton
+3. dilate the skeleton into a narrow band
+4. keep elongated band components only
+5. replay the same validated chain:
+   - projection
+   - projected geometry guard
+   - fine-object fusion
+   - promoted global votes
+
+### Baseline vs guard-only
+
+Reference paths:
+
+- baseline projection:
+  `/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_accepted_v1`
+- guard-only projection:
+  `/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_guard_focus_v1`
+- guard-only promoted votes:
+  `/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/promoted_guard_focus_v1`
+
+Reference numbers:
+
+- baseline:
+  - projected candidates: `9`
+  - projected points: `1295`
+  - vote objects: `70`
+  - vote status:
+    - `stable = 10`
+    - `single_voxel = 60`
+- guard-only:
+  - fused objects: `6`
+  - fused points: `237`
+  - vote objects: `44`
+  - vote status:
+    - `stable = 5`
+    - `single_voxel = 39`
+
+Interpretation:
+
+- the projected geometry guard already removes a real amount of wall-like
+  contamination
+- but the branch remains highly fragmented after promotion
+
+### Thin refine v1
+
+Paths:
+
+- refined masks:
+  `/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/refined_thin_structure_v1`
+- replayed projection:
+  `/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_refined_thin_v1`
+- replayed promoted votes:
+  `/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/promoted_refined_thin_guard_v1`
+
+Numbers:
+
+- mean refined/original mask area ratio: `0.117`
+- projected candidates: `7`
+- projected points: `101`
+- guard-kept candidates: `4`
+- guard-kept points: `25`
+- vote objects: `4`
+- vote status:
+  - `single_voxel = 4`
+
+Interpretation:
+
+- this proves the replay direction is real: mask-shape tightening can collapse
+  the broad fragmentation
+- but this first parameter set is too aggressive and destroys recall
+
+### Thin refine v2 (relaxed)
+
+Paths:
+
+- refined masks:
+  `/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/refined_thin_structure_v2_relaxed`
+- replayed projection:
+  `/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_refined_thin_v2_relaxed`
+- replayed promoted votes:
+  `/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/promoted_refined_thin_guard_v2_relaxed`
+
+Numbers:
+
+- mean refined/original mask area ratio: `0.219`
+- projected candidates: `8`
+- projected points: `192`
+- guard-kept candidates: `5`
+- guard-kept points: `58`
+- vote objects: `2`
+- vote status:
+  - `stable = 2`
+
+Interpretation:
+
+- this is the first strong evidence that the current `railing` bottleneck is
+  primarily upstream in **2D mask shape**, not only prompt phrasing or global
+  vote settings
+- a relaxed thin-structure replay can reduce the final fragmentation from
+  `70` vote objects (`60` singleton voxels) to only `2` stable objects
+- however, that comes at a large recall cost because only `58` guard-kept
+  points remain
+
+## Current conclusion
+
+`railing` is now much better localized:
+
+1. prompt cleanup helped
+2. projected geometry guard helped
+3. but the decisive lever is still mask-shape control before projection
+
+The next iteration should therefore not spend its first budget on more prompt
+variants. It should refine the **thin-mask replay** itself:
+
+1. hybrid fallback between original and refined mask per component
+2. width-aware trimming that preserves long main rails but does not keep broad
+   mesh interiors
+3. visibility / occlusion checks only after this shape-control step is tuned
