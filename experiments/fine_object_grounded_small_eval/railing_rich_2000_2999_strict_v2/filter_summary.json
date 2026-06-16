@@ -1,0 +1,13 @@
+{
+  "input_summary": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/outputs/summary.json",
+  "review_mapping": "",
+  "accepted_count": 10,
+  "rejected_count": 14,
+  "accepted_by_focus": {
+    "railing": 10
+  },
+  "rejected_by_reason": {
+    "not_elongated": 9,
+    "oversized_mask": 5
+  }
+}

@@ -1,0 +1,374 @@
+{
+  "strict_review_json": "",
+  "accepted_report_json": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_accepted_v1/accepted_report.json",
+  "strict_filtered_ply": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/projected_accepted_v1/accepted_points.ply",
+  "output_objects_jsonl": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/fused_accepted_v1/fine_objects.jsonl",
+  "output_decisions_jsonl": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/fused_accepted_v1/fine_object_decisions.jsonl",
+  "output_ply": "/root/epfs/new_route_stage1_skymask/railing_rich_grounded_eval_2000_2999_strict_v2/fused_accepted_v1/fine_object_points.ply",
+  "params": {
+    "centroid_distance": 0.9,
+    "cross_source_centroid_distance": 0.45,
+    "bbox_distance": 0.25,
+    "color_distance": 45.0
+  },
+  "candidate_count": 9,
+  "fine_object_count": 9,
+  "point_count": 1295,
+  "merge_count": 0,
+  "status_counts": {
+    "single_fine_candidate": 9
+  },
+  "top_objects": [
+    {
+      "fine_object_id": "fine_obj_0002",
+      "candidate_ids": [
+        300002
+      ],
+      "candidate_count": 1,
+      "point_count": 714,
+      "bbox_3d": {
+        "min": [
+          -8.79587173461914,
+          11.616145133972168,
+          -2.69185209274292
+        ],
+        "max": [
+          -6.906033039093018,
+          20.349245071411133,
+          2.526998996734619
+        ]
+      },
+      "centroid": [
+        -7.9509687423706055,
+        14.516519546508789,
+        -0.18937987089157104
+      ],
+      "mean_visual_color": [
+        113.6302490234375,
+        112.7633056640625,
+        111.79972076416016
+      ],
+      "linearity_mean": 0.6561998229481255,
+      "planarity_mean": 0.3406621443608131,
+      "source_types": {
+        "grounded_detector_mask": 1
+      },
+      "source_clusters": {
+        "300002": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0003",
+      "candidate_ids": [
+        300003
+      ],
+      "candidate_count": 1,
+      "point_count": 334,
+      "bbox_3d": {
+        "min": [
+          -10.39293384552002,
+          7.07177209854126,
+          -5.543024063110352
+        ],
+        "max": [
+          -8.337186813354492,
+          15.176403999328613,
+          2.2340919971466064
+        ]
+      },
+      "centroid": [
+        -8.83399486541748,
+        13.522516250610352,
+        -4.0652756690979
+      ],
+      "mean_visual_color": [
+        44.35628890991211,
+        46.7215576171875,
+        50.53293228149414
+      ],
+      "linearity_mean": 0.8177021422308555,
+      "planarity_mean": 0.18042080779670186,
+      "source_types": {
+        "grounded_detector_mask": 1
+      },
+      "source_clusters": {
+        "300003": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0001",
+      "candidate_ids": [
+        300001
+      ],
+      "candidate_count": 1,
+      "point_count": 62,
+      "bbox_3d": {
+        "min": [
+          -8.62470531463623,
+          11.364126205444336,
+          -4.710855960845947
+        ],
+        "max": [
+          -6.7704949378967285,
+          15.756720542907715,
+          -3.4742250442504883
+        ]
+      },
+      "centroid": [
+        -7.680727481842041,
+        13.135529518127441,
+        -4.21829891204834
+      ],
+      "mean_visual_color": [
+        101.69355010986328,
+        93.82257843017578,
+        97.80644989013672
+      ],
+      "linearity_mean": 0.9398851603394661,
+      "planarity_mean": 0.057782125073809185,
+      "source_types": {
+        "grounded_detector_mask": 1
+      },
+      "source_clusters": {
+        "300001": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0005",
+      "candidate_ids": [
+        300005
+      ],
+      "candidate_count": 1,
+      "point_count": 53,
+      "bbox_3d": {
+        "min": [
+          -10.771678924560547,
+          12.359390258789062,
+          -7.101955890655518
+        ],
+        "max": [
+          -8.382140159606934,
+          16.149988174438477,
+          -4.471947193145752
+        ]
+      },
+      "centroid": [
+        -9.453635215759277,
+        13.463922500610352,
+        -5.526876926422119
+      ],
+      "mean_visual_color": [
+        145.0,
+        137.4339599609375,
+        138.77359008789062
+      ],
+      "linearity_mean": 0.9270576643957296,
+      "planarity_mean": 0.0727989775147954,
+      "source_types": {
+        "grounded_detector_mask": 1
+      },
+      "source_clusters": {
+        "300005": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0007",
+      "candidate_ids": [
+        300007
+      ],
+      "candidate_count": 1,
+      "point_count": 40,
+      "bbox_3d": {
+        "min": [
+          -10.816010475158691,
+          14.611408233642578,
+          -7.110416889190674
+        ],
+        "max": [
+          -8.651308059692383,
+          15.58527946472168,
+          -5.644700050354004
+        ]
+      },
+      "centroid": [
+        -9.037450790405273,
+        14.860270500183105,
+        -5.955471515655518
+      ],
+      "mean_visual_color": [
+        141.60000610351562,
+        139.5,
+        146.3000030517578
+      ],
+      "linearity_mean": 0.9534399797118279,
+      "planarity_mean": 0.0408462460949347,
+      "source_types": {
+        "grounded_detector_mask": 1
+      },
+      "source_clusters": {
+        "300007": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0008",
+      "candidate_ids": [
+        300008
+      ],
+      "candidate_count": 1,
+      "point_count": 39,
+      "bbox_3d": {
+        "min": [
+          -8.890411376953125,
+          11.559907913208008,
+          -8.916090965270996
+        ],
+        "max": [
+          -6.602156162261963,
+          13.564997673034668,
+          -6.9943718910217285
+        ]
+      },
+      "centroid": [
+        -7.899467945098877,
+        13.09743595123291,
+        -7.673619270324707
+      ],
+      "mean_visual_color": [
+        60.17948532104492,
+        53.79487228393555,
+        51.56410217285156
+      ],
+      "linearity_mean": 0.9112964610116422,
+      "planarity_mean": 0.0870144956307521,
+      "source_types": {
+        "grounded_detector_mask": 1
+      },
+      "source_clusters": {
+        "300008": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0004",
+      "candidate_ids": [
+        300004
+      ],
+      "candidate_count": 1,
+      "point_count": 23,
+      "bbox_3d": {
+        "min": [
+          -7.433434963226318,
+          14.067564964294434,
+          -2.732106924057007
+        ],
+        "max": [
+          -6.914848804473877,
+          17.50750160217285,
+          -1.3560450077056885
+        ]
+      },
+      "centroid": [
+        -7.125198841094971,
+        15.695300102233887,
+        -2.0616915225982666
+      ],
+      "mean_visual_color": [
+        114.6956558227539,
+        110.91304016113281,
+        110.3043441772461
+      ],
+      "linearity_mean": 0.9793518591587778,
+      "planarity_mean": 0.020190342616590657,
+      "source_types": {
+        "grounded_detector_mask": 1
+      },
+      "source_clusters": {
+        "300004": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0006",
+      "candidate_ids": [
+        300006
+      ],
+      "candidate_count": 1,
+      "point_count": 20,
+      "bbox_3d": {
+        "min": [
+          -7.036105155944824,
+          12.992403030395508,
+          -5.676601886749268
+        ],
+        "max": [
+          -6.778021812438965,
+          14.857769012451172,
+          -4.675960063934326
+        ]
+      },
+      "centroid": [
+        -6.924063682556152,
+        14.01824951171875,
+        -5.237685680389404
+      ],
+      "mean_visual_color": [
+        27.299999237060547,
+        24.5,
+        23.649999618530273
+      ],
+      "linearity_mean": 0.9989014704859667,
+      "planarity_mean": 0.0009899737258854749,
+      "source_types": {
+        "grounded_detector_mask": 1
+      },
+      "source_clusters": {
+        "300006": 1
+      },
+      "status": "single_fine_candidate"
+    },
+    {
+      "fine_object_id": "fine_obj_0009",
+      "candidate_ids": [
+        300009
+      ],
+      "candidate_count": 1,
+      "point_count": 10,
+      "bbox_3d": {
+        "min": [
+          -8.3766450881958,
+          10.29395866394043,
+          -5.22634220123291
+        ],
+        "max": [
+          -6.582060813903809,
+          11.464098930358887,
+          -4.186849117279053
+        ]
+      },
+      "centroid": [
+        -6.997393608093262,
+        10.705144882202148,
+        -5.093993186950684
+      ],
+      "mean_visual_color": [
+        71.0,
+        63.79999923706055,
+        60.70000076293945
+      ],
+      "linearity_mean": 0.8009770860360752,
+      "planarity_mean": 0.19811507027375294,
+      "source_types": {
+        "grounded_detector_mask": 1
+      },
+      "source_clusters": {
+        "300009": 1
+      },
+      "status": "single_fine_candidate"
+    }
+  ]
+}
