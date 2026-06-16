@@ -57,6 +57,48 @@ Best fit: **second-stage review / proposal signal**, not a replacement for the c
 | pipe / conduit | 0 | 3 | 1 | useful hint, but geometry is too thick/coarse |
 | equipment / HVAC | 1 | 3 | 0 | strongest concept family, but not the target problem |
 
+## 2026-06-16 rich-tail transfer rerun
+
+To avoid overfitting the earlier `v008` package verdict, a fresh `12`-image
+transfer set was built from the newer accepted fine-object candidates on the
+`2000-2999` tail slice:
+
+- `4` railing-rich crops from
+  `railing_rich_grounded_eval_2000_2999_strict_v2`
+- `4` pipe-rich crops from
+  `pipe_rich_grounded_eval_2000_2999_ext17_run`
+- `4` equipment-rich crops from
+  `equipment_rich_grounded_eval_2000_2999_ext80_run`
+
+Artifacts:
+
+- runlist:
+  `/root/epfs/new_route_stage1_skymask/conceptseg_rich_tail_transfer_v001/runlist.json`
+- outputs:
+  `/root/epfs/new_route_stage1_skymask/conceptseg_rich_tail_transfer_v001_outputs`
+- QA summary:
+  `/root/epfs/new_route_stage1_skymask/conceptseg_rich_tail_transfer_v001_outputs/conceptseg_rich_tail_transfer_qa.json`
+
+Observed signal:
+
+- `12/12` runs completed successfully
+- railing prompts produced semantically consistent answers
+  (`railing`, `handrail`, `rail`) with average red-overlay ratio `0.0730`
+- pipe prompts stayed semantically nearby (`pipe`, `conduit`) but one sample
+  drifted to `metallic`; average red-overlay ratio `0.0193`
+- equipment prompts were the cleanest (`HVAC` on `4/4`) with average
+  red-overlay ratio `0.0639`
+
+Interpretation:
+
+- This rerun confirms that ConceptSeg-R1 can act as a **concept recognizer**
+  on the newer rich-tail candidates.
+- It still does **not** resolve the mainline need: the output is a concept
+  overlay, not a topology-stable fine mask.
+- The railing family remains the most dangerous one to over-trust, because the
+  semantic answer is often right while the highlighted region can still be
+  broad or mesh-like.
+
 ## Remote blocker
 
 - Tried to reconnect to `scan-train` for a live `12`-image rerun using the existing remote assets.
