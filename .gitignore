@@ -33,9 +33,13 @@ build/
 outputs/
 *.ply
 !docs/
+docs/preserved_run_reports_*/
+.local/
 
 # === 其他 ===
-*.log# Generated outputs
+*.log
+
+# Generated outputs
 colorized_frame_*.ply
 
 # 大文件（标定数据、原始数据）
