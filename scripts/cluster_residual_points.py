@@ -115,6 +115,33 @@ def write_object_ply(path: Path, points: np.ndarray, object_ids: np.ndarray) -> 
         f.write(data.tobytes())
 
 
+def pca_stats(points: np.ndarray) -> dict:
+    centered = points.astype(np.float64) - points.mean(axis=0, keepdims=True)
+    if len(points) < 3:
+        eigvals = np.zeros(3, dtype=np.float64)
+        eigvecs = np.eye(3, dtype=np.float64)
+    else:
+        cov = (centered.T @ centered) / max(len(points) - 1, 1)
+        eigvals, eigvecs = np.linalg.eigh(cov)
+        order = np.argsort(eigvals)[::-1]
+        eigvals = eigvals[order]
+        eigvecs = eigvecs[:, order]
+    extents = points.max(axis=0) - points.min(axis=0)
+    thickness_rms = float(np.sqrt(max(eigvals[-1], 0.0)))
+    spread_rms = float(np.sqrt(max(eigvals[0], 0.0)))
+    planarity = 1.0 - (thickness_rms / max(spread_rms, 1e-6))
+    normal = eigvecs[:, -1].astype(float).tolist()
+    return {
+        "pca_eigenvalues": eigvals.astype(float).tolist(),
+        "pca_normal": normal,
+        "thickness_rms": thickness_rms,
+        "spread_rms": spread_rms,
+        "planarity": float(planarity),
+        "extent": extents.astype(float).tolist(),
+        "max_extent": float(extents.max()),
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input-ply", type=Path, required=True)
@@ -122,6 +149,9 @@ def main() -> None:
     parser.add_argument("--voxel-size", type=float, default=0.12)
     parser.add_argument("--color-threshold", type=float, default=55.0)
     parser.add_argument("--min-points", type=int, default=30)
+    parser.add_argument("--surface-min-points", type=int, default=5000)
+    parser.add_argument("--surface-min-extent", type=float, default=3.0)
+    parser.add_argument("--surface-thickness-rms", type=float, default=0.18)
     parser.add_argument("--max-points", type=int, default=0, help="Optional deterministic downsample for smoke tests.")
     parser.add_argument("--seed", type=int, default=7)
     args = parser.parse_args()
@@ -186,6 +216,12 @@ def main() -> None:
             mask = root_for_point == root
             pts = points[mask]
             cols = colors[mask].astype(np.float32)
+            geom = pca_stats(pts)
+            is_surface_candidate = (
+                int(mask.sum()) >= args.surface_min_points
+                and geom["max_extent"] >= args.surface_min_extent
+                and geom["thickness_rms"] <= args.surface_thickness_rms
+            )
             obj = {
                 "object_id": int(oid),
                 "point_count": int(mask.sum()),
@@ -194,10 +230,11 @@ def main() -> None:
                 "bbox_min": pts.min(axis=0).astype(float).tolist(),
                 "bbox_max": pts.max(axis=0).astype(float).tolist(),
                 "mean_color": cols.mean(axis=0).astype(float).tolist(),
+                **geom,
                 "source": str(args.input_ply),
-                "semantic_label": "unlabeled_residual",
+                "semantic_label": "residual_surface_candidate" if is_surface_candidate else "unlabeled_residual",
                 "description": "",
-                "status": "needs_semantic_review",
+                "status": "hold_as_surface_residual" if is_surface_candidate else "needs_semantic_review",
             }
             objects.append(obj)
             f.write(json.dumps(obj, ensure_ascii=False) + "\n")
