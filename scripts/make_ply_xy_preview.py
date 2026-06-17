@@ -34,6 +34,7 @@ def read_ply_xyzrgb(path: Path, max_points: int, seed: int, color_field: str | N
         n = 0
         header_len = 0
         props = []
+        prop_types = []
         in_vertex = False
         while True:
             raw = f.readline()
@@ -49,7 +50,9 @@ def read_ply_xyzrgb(path: Path, max_points: int, seed: int, color_field: str | N
             elif line.startswith("element "):
                 in_vertex = False
             elif in_vertex and line.startswith("property "):
-                props.append(line.split()[-1])
+                parts = line.split()
+                prop_types.append(parts[1])
+                props.append(parts[-1])
             elif line == "end_header":
                 break
 
@@ -67,9 +70,26 @@ def read_ply_xyzrgb(path: Path, max_points: int, seed: int, color_field: str | N
         else:
             rgb = np.full((len(xyz), 3), 210, dtype=np.uint8)
     elif fmt == "binary_little_endian":
+        type_map = {
+            "float": "<f4",
+            "float32": "<f4",
+            "double": "<f8",
+            "uchar": "u1",
+            "uint8": "u1",
+            "char": "i1",
+            "int8": "i1",
+            "ushort": "<u2",
+            "uint16": "<u2",
+            "short": "<i2",
+            "int16": "<i2",
+            "uint": "<u4",
+            "uint32": "<u4",
+            "int": "<i4",
+            "int32": "<i4",
+        }
         dtype = np.dtype([
-            ("x", "<f4"), ("y", "<f4"), ("z", "<f4"),
-            ("red", "u1"), ("green", "u1"), ("blue", "u1"),
+            (name, type_map.get(ptype, "<f4"))
+            for ptype, name in zip(prop_types, props)
         ])
         with path.open("rb") as f:
             while f.readline().strip() != b"end_header":
@@ -77,8 +97,13 @@ def read_ply_xyzrgb(path: Path, max_points: int, seed: int, color_field: str | N
             arr = np.frombuffer(f.read(n * dtype.itemsize), dtype=dtype, count=n)
         xyz = np.column_stack([arr["x"], arr["y"], arr["z"]]).astype(np.float32)
         if color_field:
-            raise ValueError("--color-field is only supported for ASCII PLY")
-        rgb = np.column_stack([arr["red"], arr["green"], arr["blue"]]).astype(np.uint8)
+            if color_field not in props:
+                raise ValueError(f"PLY field not found: {color_field}; available={props}")
+            rgb = scalar_colors(arr[color_field].astype(np.float32), color_field)
+        elif all(name in props for name in ("red", "green", "blue")):
+            rgb = np.column_stack([arr["red"], arr["green"], arr["blue"]]).astype(np.uint8)
+        else:
+            rgb = np.full((len(xyz), 3), 210, dtype=np.uint8)
     else:
         raise ValueError(f"Unsupported PLY format: {fmt}")
 
