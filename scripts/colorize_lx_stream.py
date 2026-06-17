@@ -110,7 +110,30 @@ def undistort(frame, maps, cam_id):
     return cv2.remap(frame, map1, map2, cv2.INTER_LINEAR)
 
 
-def project_color_points(points_world, pose, images, cams):
+def heuristic_sky_mask(image_bgr, upper_ratio=0.72):
+    """Conservative sky mask for undistorted outdoor frames.
+
+    This is not a semantic sky model. It only removes common blue-sky and bright
+    low-saturation sky pixels in the upper image region, so it is suitable as a
+    color-contamination guard before dense semantic processing.
+    """
+    h, w = image_bgr.shape[:2]
+    hsv = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2HSV)
+    hue = hsv[:, :, 0]
+    sat = hsv[:, :, 1]
+    val = hsv[:, :, 2]
+    y = np.arange(h, dtype=np.float32)[:, None]
+    upper = y < (h * float(upper_ratio))
+    blue_sky = (hue >= 85) & (hue <= 130) & (sat >= 25) & (val >= 95)
+    bright_haze = (sat <= 65) & (val >= 185)
+    mask = upper & (blue_sky | bright_haze)
+    if np.any(mask):
+        kernel = np.ones((5, 5), np.uint8)
+        mask = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_CLOSE, kernel) > 0
+    return mask
+
+
+def project_color_points(points_world, pose, images, cams, sky_filter="none", sky_upper_ratio=0.72):
     n = len(points_world)
     colors = np.zeros((n, 3), dtype=np.uint8)
     depths = np.full(n, np.inf, dtype=np.float32)
@@ -128,6 +151,12 @@ def project_color_points(points_world, pose, images, cams):
     P_robot = (R_wr @ points64.T + t_wr.reshape(3, 1)).T
     P_lidar = (R_li @ P_robot.T + t_li.reshape(3, 1)).T
 
+    sky_masks = {}
+    if sky_filter == "heuristic":
+        for cam_id, img in images.items():
+            sky_masks[cam_id] = None if img is None else heuristic_sky_mask(img, sky_upper_ratio)
+
+    sky_rejected = 0
     for cam_id in cams:
         img = images.get(cam_id)
         if img is None:
@@ -156,6 +185,19 @@ def project_color_points(points_world, pose, images, cams):
         v_v = v[in_img]
         z_v = z[valid][in_img]
 
+        sky_mask = sky_masks.get(cam_id)
+        if sky_mask is not None:
+            sx = np.clip(u_v.astype(np.int32), 0, w - 1)
+            sy = np.clip(v_v.astype(np.int32), 0, h - 1)
+            non_sky = ~sky_mask[sy, sx]
+            sky_rejected += int((~non_sky).sum())
+            if not np.any(non_sky):
+                continue
+            idx = idx[non_sky]
+            u_v = u_v[non_sky]
+            v_v = v_v[non_sky]
+            z_v = z_v[non_sky]
+
         u0 = u_v.astype(np.int32)
         v0 = v_v.astype(np.int32)
         su = u_v - u0
@@ -179,7 +221,7 @@ def project_color_points(points_world, pose, images, cams):
             depths[out_idx] = z_v[better].astype(np.float32)
 
     keep = np.isfinite(depths)
-    return points_world[keep], colors[keep], int(keep.sum())
+    return points_world[keep], colors[keep], int(keep.sum()), sky_rejected
 
 
 def append_binary_xyzrgb(body_f, points, colors):
@@ -287,6 +329,9 @@ def main():
     parser.add_argument("--voxel-size", type=float, default=0.05)
     parser.add_argument("--report", type=Path, default=None)
     parser.add_argument("--skip-full-output", action="store_true")
+    parser.add_argument("--frame-step", type=int, default=1)
+    parser.add_argument("--sky-filter", choices=["none", "heuristic"], default="none")
+    parser.add_argument("--sky-upper-ratio", type=float, default=0.72)
     parser.add_argument("--progress-every", type=int, default=50)
     args = parser.parse_args()
 
@@ -296,7 +341,7 @@ def main():
     if args.end is None:
         args.end = min(len(sections), max(poses) + 1 if poses else 0) - 1
 
-    target_ids = [i for i in range(args.start, args.end + 1)
+    target_ids = [i for i in range(args.start, args.end + 1, max(args.frame_step, 1))
                   if i < len(sections) and i in poses]
     if not target_ids:
         raise SystemExit("No overlapping .lx sections and img_pos poses.")
@@ -319,6 +364,7 @@ def main():
     bounds = None
     raw_points = 0
     colored_points = 0
+    sky_rejected_points = 0
     failed_images = 0
 
     body_path = None
@@ -342,8 +388,16 @@ def main():
                     else:
                         images[cam_id] = undistort(frame, maps, cam_id)
 
-                pts_col, cols, keep = project_color_points(points, poses[frame_id], images, args.cams)
+                pts_col, cols, keep, sky_rejected = project_color_points(
+                    points,
+                    poses[frame_id],
+                    images,
+                    args.cams,
+                    sky_filter=args.sky_filter,
+                    sky_upper_ratio=args.sky_upper_ratio,
+                )
                 colored_points += keep
+                sky_rejected_points += sky_rejected
                 bounds = update_bounds(bounds, pts_col)
                 if body_f is not None and keep:
                     append_binary_xyzrgb(body_f, pts_col, cols)
@@ -376,6 +430,9 @@ def main():
         "raw_points": raw_points,
         "colored_points": colored_points,
         "colored_ratio": colored_points / max(raw_points, 1),
+        "sky_filter": args.sky_filter,
+        "sky_upper_ratio": args.sky_upper_ratio,
+        "sky_rejected_projected_samples": sky_rejected_points,
         "failed_image_reads": failed_images,
         "bounds": bounds,
         "output": None if args.skip_full_output else str(args.output),
