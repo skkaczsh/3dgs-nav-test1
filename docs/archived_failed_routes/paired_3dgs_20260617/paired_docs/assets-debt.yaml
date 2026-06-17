@@ -1,0 +1,208 @@
+# Semantic3D Pipeline 技术资产与技术债务
+
+assets:
+  # ===== 设计模式 =====
+  - id: asset-ssh-pattern
+    title: SSH + nohup 远程后台任务模式
+    type: design_pattern
+    owner: agent
+    status: active
+    value: 远程服务器启动长时间任务，不阻塞 SSH 连接
+    description: |
+      sshpass + ssh -o ServerAliveInterval=30 + nohup + 重定向
+      适用场景：E2E 测试、长时间训练、远程调试
+    verification: 已在 E2E 测试中多次验证
+    linked_nodes:
+      - debt-unknown-labels
+
+  - id: asset-vlm-multistage
+    title: VLM 多阶段处理模式
+    type: design_pattern
+    owner: agent
+    status: active
+    value: 多轮 VLM 迭代直到质量达标
+    description: |
+      Stage 1: ANALYZE - 检查 mask 质量
+      Stage 2: CLASSIFY - 语义分类
+      Stage 3: VERIFY - 验证修正
+      支持 JSON schema 验证和重试
+    verification: 在 IterativeMaskProcessor 中实现并验证
+    linked_nodes:
+      - module-vlm
+      - module-iterative
+
+  - id: asset-iterative-pattern
+    title: SAM2+VLM 迭代优化模式
+    type: design_pattern
+    owner: agent
+    status: active
+    value: VLM 可指导 SAM2 重新生成 mask，形成闭环优化
+    description: |
+      SAM2 dense mask → VLM ANALYZE → 合并建议/缺失区域 → SAM2 重新生成
+      最大 3 轮迭代，直到 VLM VERIFY 报告 all_ok
+    verification: IterativeMaskProcessor 类已实现
+    linked_nodes:
+      - module-iterative
+      - module-vlm-advisor
+
+  - id: asset-voxel-pattern
+    title: 体素化 + 投影融合模式
+    type: design_pattern
+    owner: agent
+    status: active
+    value: 3D 语义标注的标准流程
+    description: |
+      1. PCD → VoxelGrid（可配置体素大小）
+      2. 体素中心投影到多视图
+      3. Alpha/Depth Gate 过滤
+      4. 读取 mask 标签
+      5. 加权投票
+      6. RegionMerger 合并小区域
+    verification: SemanticFusion + RegionMerger 类已实现
+    linked_nodes:
+      - module-voxel
+      - module-fusion
+
+  - id: asset-coordinate-transform
+    title: 坐标系变换记录
+    type: pitfall_record
+    owner: agent
+    status: active
+    value: 避免重复踩坑
+    description: |
+      PCD (Z-up) → Splat (Y-up) 变换公式：
+      splat_pts = np.stack([-pcd_x, pcd_z, pcd_y], axis=1) + T_offset
+      
+      COLMAP 相机 180° Y轴旋转：
+      R_y = [[-1,0,0],[0,1,0],[0,0,-1]]
+    verification: TIMELINE.md 中有详细记录
+    linked_nodes:
+      - risk-coordinate
+      - debt-camera-rotation
+
+  - id: asset-e2e-pipeline
+    title: E2E 测试流水线
+    type: testing_pattern
+    owner: agent
+    status: active
+    value: 可重复的端到端验证流程
+    description: |
+      tmp_e2e_semantic_test.py
+      输出：labeled_pointcloud.ply + voxel_labels.json + e2e_log.txt
+      远程执行 + 日志监控 + 结果下载
+    verification: 多次运行验证
+    linked_nodes:
+      - module-pipeline
+
+  - id: asset-debug-scripts
+    title: 诊断脚本集
+    type: tooling
+    owner: agent
+    status: active
+    value: 快速定位渲染、坐标、融合问题
+    description: |
+      diag_*.py 系列脚本：
+      - diag_gsplat_convention.py: gsplat 深度归一化验证
+      - diag_camera_rotation.py: 相机朝向检查
+      - diag_pcd_projection.py: 点云投影验证
+      - diag_fusion_gates.py: Alpha/Depth Gate 调试
+    verification: 在多次 bug 修复中使用
+    linked_nodes:
+      - debt-depth-normalization
+      - debt-camera-rotation
+
+debts:
+  # ===== 活跃债务 =====
+  - id: debt-unknown-labels
+    title: 语义融合后所有标签为 unknown
+    severity: critical
+    status: open
+    cause: |
+      E2E 测试后 Voxel label distribution: unknown 100%
+      可能原因：
+      1. mask 坐标 → 体素坐标投影失败
+      2. VLM 标签未写入体素 votes
+      3. Alpha/Depth Gate 过于严格
+      4. 坐标系变换仍有问题
+    impact: E2E pipeline 无法产出任何有效语义标签
+    repayment_plan: |
+      1. 在 SemanticFusion.fuse() 添加详细日志
+      2. 验证投影坐标是否在图像范围内
+      3. 检查 mask 标签是否正确传递
+      4. 调整 Gate 阈值
+    linked_nodes:
+      - module-fusion
+      - module-voxel
+      - risk-coordinate
+
+  - id: debt-no-unit-tests
+    title: 缺少单元测试
+    severity: medium
+    status: open
+    cause: E2E 测试覆盖但无模块级单元测试
+    impact: 无法自动化检测单模块回归
+    repayment_plan: |
+      为以下模块添加单元测试：
+      - SplatLoader: 加载 + 解析
+      - VoxelGrid: 体素化
+      - SemanticFusion: 投影 + 投票
+      - normalize_label: 标签映射
+    linked_nodes:
+      - module-pipeline
+
+  # ===== 已修复债务 =====
+  - id: debt-opacity-sigmoid
+    title: 双重 Sigmoid 导致渲染全白
+    severity: high
+    status: fixed
+    cause: SplatLoader 对 opacity 做 sigmoid，get_opacity_sigmoid() 又做一次
+    impact: alpha=0.0016，渲染全白/灰色
+    repayment_plan: 移除 SplatLoader 中的 sigmoid，使用 logit 存储
+    fix_date: 2026-05-19
+    linked_nodes:
+      - module-splat-loader
+
+  - id: debt-depth-normalization
+    title: gsplat 深度归一化误解
+    severity: medium
+    status: fixed
+    cause: gsplat 返回归一化深度 d_norm = (far - Z) / (far - near)
+    impact: 误判深度为 near_plane clamp
+    repayment_plan: 理解 gsplat 内部归一化公式
+    fix_date: 2026-05-19
+    linked_nodes:
+      - module-renderer
+
+  - id: debt-camera-rotation
+    title: COLMAP 相机朝向错误
+    severity: high
+    status: fixed
+    cause: COLMAP 相机朝向 SPLAT 正 X，但 PCD 在负 X 区域
+    impact: 所有 voxel 投影到图像范围外，融合 100% unknown
+    repayment_plan: 180° Y轴旋转相机
+    fix_date: 2026-05-20
+    linked_nodes:
+      - module-renderer
+      - risk-coordinate
+
+  - id: debt-vlm-json
+    title: VLM JSON 解析失败
+    severity: medium
+    status: fixed
+    cause: VLM API 返回截断 JSON 或 markdown fences
+    impact: 标签解析失败
+    repayment_plan: 重写 _parse_json_response 支持多种格式
+    fix_date: 2026-05-20
+    linked_nodes:
+      - module-vlm
+
+  - id: debt-scale-unit
+    title: SplatLoader scale 单位混淆
+    severity: medium
+    status: fixed
+    cause: 远程诊断误将 scale 当 float32 meters，做了多余变换
+    impact: scale 无效
+    repayment_plan: 移除多余变换，使用原始值
+    fix_date: 2026-05-19
+    linked_nodes:
+      - module-splat-loader

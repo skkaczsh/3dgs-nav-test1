@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semantic3D Pipeline — Project Memory Palace</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card-bg: #16161d;
+            --card-border: #2a2a3a;
+            --accent: #6366f1;
+            --accent-light: #818cf8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --link: #38bdf8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        h1, h2, h3, h4 { font-weight: 600; }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        /* Card System */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            transition: border-color 0.2s;
+        }
+
+        .card:hover { border-color: var(--accent); }
+
+        .card h2 {
+            font-size: 1.25rem;
+            color: var(--accent-light);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card h3 {
+            font-size: 1rem;
+            color: var(--text);
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .card p, .card ul { color: var(--text-muted); }
+        .card ul { padding-left: 1.5rem; }
+        .card li { margin-bottom: 0.25rem; }
+
+        /* Status Badges */
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-active { background: var(--success); color: #000; }
+        .badge-open { background: var(--warning); color: #000; }
+        .badge-critical { background: var(--danger); color: #fff; }
+        .badge-complete { background: #22c55e40; color: var(--success); border: 1px solid var(--success); }
+
+        /* Hyperedges */
+        .hyperedges {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px dashed var(--card-border);
+        }
+
+        .hyperedges a {
+            display: inline-block;
+            color: var(--link);
+            text-decoration: none;
+            margin-right: 1rem;
+            margin-bottom: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border: 1px solid #38bdf840;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .hyperedges a:hover {
+            background: #38bdf820;
+            border-color: var(--link);
+        }
+
+        /* Tech Stack Badge */
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        .tech-tag {
+            background: #6366f120;
+            color: var(--accent-light);
+            border: 1px solid #6366f140;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        /* Grid Layout */
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+
+        @media (max-width: 900px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        }
+
+        /* Architecture Diagram */
+        .arch-flow {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+        }
+
+        .arch-node {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .arch-arrow { color: var(--accent); font-size: 1.2rem; }
+
+        /* Pipeline Visualization */
+        .pipeline {
+            background: linear-gradient(135deg, #6366f108, #38bdf808);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .pipeline-stage {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: var(--card-bg);
+            border-radius: 8px;
+        }
+
+        .pipeline-stage .stage-num {
+            background: var(--accent);
+            color: white;
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-weight: 600;
+        }
+
+        .pipeline-stage .stage-content { flex: 1; }
+        .pipeline-stage .stage-time { color: var(--text-muted); font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+<!-- Palace Root -->
+<section id="palace-root" class="card">
+    <h1>🏗️ Semantic3D Pipeline — Memory Palace</h1>
+    <p>基于 3D Gaussian Splatting + SAM2 + VLM 的语义3D重建系统</p>
+    
+    <div class="tech-stack">
+        <span class="tech-tag">3DGS</span>
+        <span class="tech-tag">gsplat</span>
+        <span class="tech-tag">SAM2</span>
+        <span class="tech-tag">VLM (Qwen2-VL)</span>
+        <span class="tech-tag">Open3D</span>
+        <span class="tech-tag">PyTorch</span>
+        <span class="tech-tag">异步并发</span>
+    </div>
+
+    <div class="hyperedges">
+        <a href="#module-splat-loader">SplatLoader</a>
+        <a href="#module-renderer">GaussianRenderer</a>
+        <a href="#module-sam2">SAM2 Mask Generator</a>
+        <a href="#module-vlm">VLM Client</a>
+        <a href="#module-voxel">VoxelGrid</a>
+        <a href="#module-fusion">SemanticFusion</a>
+        <a href="#debt-unknown-labels">技术债务：Unknown Labels</a>
+        <a href="#risk-coordinate">风险：坐标系对齐</a>
+    </div>
+</section>
+
+<!-- Pipeline Overview -->
+<section id="pipeline-overview" class="pipeline">
+    <h2 style="margin-bottom: 1rem;">📐 Pipeline 架构</h2>
+    
+    <div class="pipeline-stage">
+        <div class="stage-num">1</div>
+        <div class="stage-content">
+            <strong>数据加载</strong>
+            <span class="stage-time">~2s</span>
+            <div>SplatLoader 加载 .splat (3M+ Gaussians) + COLMAP 相机</div>
+        </div>
+    </div>
+
+    <div class="pipeline-stage">
+        <div class="stage-num">2</div>
+        <div class="stage-content">
+            <strong>多视图渲染</strong>
+            <span class="stage-time">~0.5s/view</span>
+            <div>gsplat 渲染 RGB + Depth + Alpha，支持虚拟相机生成</div>
+        </div>
+    </div>
+
+    <div class="pipeline-stage">
+        <div class="stage-num">3</div>
+        <div class="stage-content">
+            <strong>SAM2 语义分割</strong>
+            <span class="stage-time">~1-2s/view</span>
+            <div>32×32 点阵采样，自动分割 + 去重叠</div>
+        </div>
+    </div>
+
+    <div class="pipeline-stage">
+        <div class="stage-num">4</div>
+        <div class="stage-content">
+            <strong>VLM 语义标注</strong>
+            <span class="stage-time">~3-5s/view</span>
+            <div>多阶段 VLM：ANALYZE → CLASSIFY → VERIFY</div>
+        </div>
+    </div>
+
+    <div class="pipeline-stage">
+        <div class="stage-num">5</div>
+        <div class="stage-content">
+            <strong>体素化 + 语义融合</strong>
+            <span class="stage-time">~15s</span>
+            <div>PCD → VoxelGrid → 投影 → Alpha/Depth Gate → 投票</div>
+        </div>
+    </div>
+
+    <div class="pipeline-stage">
+        <div class="stage-num">6</div>
+        <div class="stage-content">
+            <strong>区域合并 + 输出</strong>
+            <span class="stage-time">~5s</span>
+            <div>RegionMerger → labeled_pointcloud.ply + voxel_labels.json</div>
+        </div>
+    </div>
+</section>
+
+<!-- Core Modules -->
+<h2 style="margin: 2rem 0 1rem; color: var(--accent-light);">🧩 核心模块</h2>
+
+<div class="grid-2">
+    <!-- SplatLoader Module -->
+    <article id="module-splat-loader" class="card">
+        <h2>📦 SplatLoader</h2>
+        <p><strong>状态:</strong> <span class="badge badge-active">Active</span></p>
+        <p>加载 .splat 二进制文件，解析 Gaussian 参数（position, scale, color, rotation）。</p>
+        
+        <h3>关键能力</h3>
+        <ul>
+            <li>支持 gsplat .splat 格式（32 bytes/Gaussian）</li>
+            <li>支持 .ply 格式（Open3D fallback）</li>
+            <li>空间范围过滤（移除 NaN/Inf 异常点）</li>
+            <li>坐标系变换：PCD(Z-up) → Splat(Y-up)</li>
+        </ul>
+
+        <h3>关键参数</h3>
+        <ul>
+            <li>position: float32 米（非毫米！）</li>
+            <li>scale: float32 ÷ 100 → 分米级</li>
+            <li>opacity: logit 存储，避免双重 sigmoid</li>
+            <li>rotation: uint8 [0,255] → float32 quaternion</li>
+        </ul>
+
+        <div class="hyperedges">
+            <a href="#debt-opacity-sigmoid">踩坑：双重 Sigmoid</a>
+            <a href="#module-renderer">→ GaussianRenderer</a>
+            <a href="#risk-coordinate">坐标系风险</a>
+        </div>
+    </article>
+
+    <!-- GaussianRenderer Module -->
+    <article id="module-renderer" class="card">
+        <h2>🎬 GaussianRenderer</h2>
+        <p><strong>状态:</strong> <span class="badge badge-active">Active</span></p>
+        <p>基于 gsplat 的多视图渲染器，输出 RGB/Depth/Alpha 三通道图像。</p>
+        
+        <h3>关键能力</h3>
+        <ul>
+            <li>gsplat.rasterization 光栅化</li>
+            <li>COLMAP 相机加载 + 虚拟相机生成</li>
+            <li>相机 180° Y轴旋转（修复朝向问题）</li>
+            <li>分块渲染避免显存溢出</li>
+        </ul>
+
+        <h3>渲染参数</h3>
+        <ul>
+            <li>near_plane: -400.0, far_plane: 500.0</li>
+            <li>分辨率: 800×640（保持 K 矩阵一致）</li>
+            <li>深度: max-alpha 深度（最前面 Gaussian）</li>
+        </ul>
+
+        <div class="hyperedges">
+            <a href="#debt-depth-normalization">踩坑：深度归一化</a>
+            <a href="#debt-camera-rotation">踩坑：相机朝向</a>
+            <a href="#module-splat-loader">← SplatLoader</a>
+            <a href="#module-sam2">→ SAM2</a>
+        </div>
+    </article>
+
+    <!-- SAM2 Mask Generator -->
+    <article id="module-sam2" class="card">
+        <h2>🎭 SAM2MaskGenerator</h2>
+        <p><strong>状态:</strong> <span class="badge badge-active">Active</span></p>
+        <p>Segment Anything Model 2 全自动分割，生成逐像素 mask。</p>
+        
+        <h3>关键能力</h3>
+        <ul>
+            <li>32×32 点阵均匀采样（1024 点/图）</li>
+            <li>基于 IoU + Stability Score 过滤</li>
+            <li>贪心去重叠算法</li>
+            <li>GPU 并发加速</li>
+        </ul>
+
+        <h3>模型配置</h3>
+        <ul>
+            <li>hiera_tiny / hiera_large</li>
+            <li>pred_iou_thresh: 0.7</li>
+            <li>stability_score_thresh: 0.92</li>
+            <li>min_mask_area: 100-500 px</li>
+        </ul>
+
+        <div class="hyperedges">
+            <a href="#module-renderer">← GaussianRenderer</a>
+            <a href="#module-vlm">→ VLM</a>
+            <a href="#debt-iterative">迭代优化模式</a>
+        </div>
+    </article>
+
+    <!-- VLM Client -->
+    <article id="module-vlm" class="card">
+        <h2>🤖 VLM Client</h2>
+        <p><strong>状态:</strong> <span class="badge badge-active">Active</span></p>
+        <p>视觉语言模型客户端，支持本地 Qwen2-VL 和远程 HTTP API。</p>
+        
+        <h3>多阶段处理</h3>
+        <ul>
+            <li><strong>ANALYZE</strong>: 检查 mask 质量，发现可合并区域</li>
+            <li><strong>CLASSIFY</strong>: 为每个 mask 区域标注语义类别</li>
+            <li><strong>VERIFY</strong>: 验证并修正分类结果</li>
+        </ul>
+
+        <h3>标签体系</h3>
+        <ul>
+            <li>18 类: wall, floor, ceiling, table, chair, ...</li>
+            <li>中文 → 英文映射（LABEL_MAP）</li>
+            <li>异步并发 16 workers</li>
+        </ul>
+
+        <div class="hyperedges">
+            <a href="#module-sam2">← SAM2</a>
+            <a href="#module-voxel">→ VoxelGrid</a>
+            <a href="#debt-vlm-json">踩坑：JSON 解析</a>
+        </div>
+    </article>
+
+    <!-- VoxelGrid -->
+    <article id="module-voxel" class="card">
+        <h2>📐 VoxelGrid</h2>
+        <p><strong>状态:</strong> <span class="badge badge-active">Active</span></p>
+        <p>点云体素化，为语义融合提供空间索引。</p>
+        
+        <h3>关键能力</h3>
+        <ul>
+            <li>Open3D 体素化引擎</li>
+            <li>可配置体素大小（默认 0.05m）</li>
+            <li>体素中心计算 + 点索引映射</li>
+        </ul>
+
+        <h3>输出</h3>
+        <ul>
+            <li>Voxel 对象列表（center, point_indices, votes）</li>
+            <li>voxel_map: (i,j,k) → voxel_id</li>
+        </ul>
+
+        <div class="hyperedges">
+            <a href="#module-fusion">→ SemanticFusion</a>
+            <a href="#asset-voxel-pattern">资产：体素化模式</a>
+        </div>
+    </article>
+
+    <!-- SemanticFusion -->
+    <article id="module-fusion" class="card">
+        <h2>🔗 SemanticFusion</h2>
+        <p><strong>状态:</strong> <span class="badge badge-open">Open</span></p>
+        <p>语义融合引擎：体素中心投影到多视图，读取 mask 标签，加权投票。</p>
+        
+        <h3>融合流程</h3>
+        <ul>
+            <li>体素中心 → 投影到每个视图</li>
+            <li>Alpha Gate: α > 0.5</li>
+            <li>Depth Gate: |z_render - z_voxel| < threshold</li>
+            <li>读取 mask 标签 → 加权投票</li>
+            <li>置信度 > 0.5 才采纳</li>
+        </ul>
+
+        <h3>输出</h3>
+        <ul>
+            <li>每个 Voxel: final_label + confidence</li>
+            <li>assign_labels_to_points(): 体素标签 → 点标签</li>
+        </ul>
+
+        <div class="hyperedges">
+            <a href="#module-voxel">← VoxelGrid</a>
+            <a href="#module-vlm">← VLM</a>
+            <a href="#debt-unknown-labels">⚠️ Unknown Labels Bug</a>
+            <a href="#risk-coordinate">坐标系风险</a>
+        </div>
+    </article>
+</div>
+
+<!-- Iterative Processing -->
+<section id="module-iterative" class="card">
+    <h2>🔄 IterativeMaskProcessor</h2>
+    <p><strong>状态:</strong> <span class="badge badge-active">Active</span></p>
+    <p>多轮迭代优化：SAM2 → VLM 分析 → 指导 SAM2 重新生成 → 直到 VLM 满意。</p>
+    
+    <div class="arch-flow">
+        <div class="arch-node">SAM2 Dense</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">VLM ANALYZE</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">VLM CLASSIFY</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">VLM VERIFY</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">all_ok?</div>
+    </div>
+    
+    <p>最大迭代次数: 3，支持合并建议和缺失区域补充。</p>
+    
+    <div class="hyperedges">
+        <a href="#module-sam2">← SAM2</a>
+        <a href="#module-vlm">← VLM</a>
+        <a href="#asset-iterative-pattern">资产：迭代优化模式</a>
+    </div>
+</section>
+
+<!-- Risks -->
+<h2 style="margin: 2rem 0 1rem; color: var(--warning);">⚠️ 风险区域</h2>
+
+<div class="grid-2">
+    <article id="risk-coordinate" class="card">
+        <h2>🧭 坐标系对齐风险</h2>
+        <p><strong>状态:</strong> <span class="badge badge-open">Open</span></p>
+        <p>PCD (Z-up) 和 Splat (Y-up) 坐标系不同，且存在 X 轴反转。</p>
+        
+        <h3>已知问题</h3>
+        <ul>
+            <li>PCD X 方向与 Splat X 方向相反</li>
+            <li>COLMAP 相机朝向需 180° Y轴旋转</li>
+            <li>unit_scale 参数易混淆（cm → m）</li>
+        </ul>
+
+        <h3>缓解措施</h3>
+        <ul>
+            <li>TIMELINE.md 记录了完整变换公式</li>
+            <li>渲染前检查相机 forward 方向</li>
+        </ul>
+
+        <div class="hyperedges">
+            <a href="#module-splat-loader">SplatLoader</a>
+            <a href="#module-renderer">GaussianRenderer</a>
+            <a href="#debt-camera-rotation">踩坑记录</a>
+        </div>
+    </article>
+
+    <article id="risk-scalability" class="card">
+        <h2>📈 规模化风险</h2>
+        <p><strong>状态:</strong> <span class="badge badge-open">Open</span></p>
+        <p>当前 24M 点 + 3M Gaussians + 501 视图，大数据量下性能瓶颈。</p>
+        
+        <h3>瓶颈点</h3>
+        <ul>
+            <li>体素化: 24M → 1.7M voxels (~15s)</li>
+            <li>融合: 1.7M × 501 视图投影</li>
+            <li>RegionMerger: 15K+ 区域合并</li>
+            <li>输出: 664MB PLY + 261MB JSON</li>
+        </ul>
+
+        <div class="hyperedges">
+            <a href="#module-voxel">VoxelGrid</a>
+            <a href="#module-fusion">SemanticFusion</a>
+        </div>
+    </article>
+</div>
+
+<!-- Technical Debt -->
+<h2 style="margin: 2rem 0 1rem; color: var(--danger);">🔴 技术债务</h2>
+
+<div class="grid-3">
+    <article id="debt-unknown-labels" class="card">
+        <h2>Unknown Labels Bug</h2>
+        <p><strong>严重度:</strong> <span class="badge badge-critical">Critical</span></p>
+        <p>E2E 测试后所有体素标签为 unknown，语义融合完全失败。</p>
+        
+        <h3>症状</h3>
+        <ul>
+            <li>Voxel label distribution: unknown 100%</li>
+            <li>Labeled PCD: 0/24M points</li>
+        </ul>
+
+        <h3>可能根因</h3>
+        <ul>
+            <li>mask 坐标 → 体素坐标投影失败</li>
+            <li>VLM 标签未写入体素 votes</li>
+            <li>Alpha/Depth Gate 过于严格</li>
+        </ul>
+
+        <div class="hyperedges">
+            <a href="#module-fusion">SemanticFusion</a>
+            <a href="#risk-coordinate">坐标系风险</a>
+        </div>
+    </article>
+
+    <article id="debt-opacity-sigmoid" class="card">
+        <h2>双重 Sigmoid</h2>
+        <p><strong>严重度:</strong> <span class="badge badge-complete">Fixed</span></p>
+        <p>SplatLoader + get_opacity_sigmoid 双重应用 sigmoid → alpha=0.0016。</p>
+        
+        <h3>修复</h3>
+        <ul>
+            <li>移除 SplatLoader 中的 sigmoid</li>
+            <li>使用 logit 存储 opacity</li>
+        </ul>
+
+        <div class="hyperedges">
+            <a href="#module-splat-loader">SplatLoader</a>
+        </div>
+    </article>
+
+    <article id="debt-depth-normalization" class="card">
+        <h2>深度归一化</h2>
+        <p><strong>严重度:</strong> <span class="badge badge-complete">Fixed</span></p>
+        <p>gsplat 返回归一化深度 [0,1]，非线性米制深度。</p>
+        
+        <h3>根因</h3>
+        <ul>
+            <li>gsplat 内部: d_norm = (far - Z) / (far - near)</li>
+            <li>输出 ~0.999 是正确的物理深度</li>
+        </ul>
+
+        <div class="hyperedges">
+            <a href="#module-renderer">GaussianRenderer</a>
+        </div>
+    </article>
+
+    <article id="debt-camera-rotation" class="card">
+        <h2>相机朝向错误</h2>
+        <p><strong>严重度:</strong> <span class="badge badge-complete">Fixed</span></p>
+        <p>COLMAP 相机朝向 SPLAT 正 X，但 PCD 在负 X 区域。</p>
+        
+        <h3>修复</h3>
+        <ul>
+            <li>180° Y轴旋转: R_y = [[-1,0,0],[0,1,0],[0,0,-1]]</li>
+            <li>验证 forward 方向指向 PCD</li>
+        </ul>
+
+        <div class="hyperedges">
+            <a href="#risk-coordinate">坐标系风险</a>
+            <a href="#module-renderer">GaussianRenderer</a>
+        </div>
+    </article>
+
+    <article id="debt-vlm-json" class="card">
+        <h2>VLM JSON 解析</h2>
+        <p><strong>严重度:</strong> <span class="badge badge-complete">Fixed</span></p>
+        <p>VLM API 返回截断 JSON 或 markdown fences，导致解析失败。</p>
+        
+        <h3>修复</h3>
+        <ul>
+            <li>支持 markdown code fences 移除</li>
+            <li>截断 JSON 修复（补全 ]}）</li>
+            <li>非贪婪正则匹配</li>
+        </ul>
+
+        <div class="hyperedges">
+            <a href="#module-vlm">VLM Client</a>
+        </div>
+    </article>
+
+    <article id="debt-iterative" class="card">
+        <h2>迭代优化模式</h2>
+        <p><strong>严重度:</strong> <span class="badge badge-active">Active</span></p>
+        <p>多轮 SAM2+VLM 迭代，VLM 可指导 SAM2 重新生成 mask。</p>
+        
+        <h3>阶段</h3>
+        <ul>
+            <li>ANALYZE → GUIDANCE → CLASSIFY → VERIFY</li>
+            <li>最大 3 轮迭代</li>
+            <li>支持合并建议和缺失区域补充</li>
+        </ul>
+
+        <div class="hyperedges">
+            <a href="#module-iterative">IterativeMaskProcessor</a>
+            <a href="#module-vlm">VLM Client</a>
+        </div>
+    </article>
+</div>
+
+<!-- Technical Assets -->
+<h2 style="margin: 2rem 0 1rem; color: var(--success);">✅ 技术资产</h2>
+
+<div class="grid-2">
+    <article id="asset-ssh-pattern" class="card">
+        <h2>SSH + nohup 远程任务</h2>
+        <p><strong>类型:</strong> 设计模式</p>
+        <p>远程服务器启动长时间任务，不阻塞 SSH 连接。</p>
+        
+        <div class="hyperedges">
+            <a href="#debt-unknown-labels">Unknown Labels 调试</a>
+        </div>
+    </article>
+
+    <article id="asset-iterative-pattern" class="card">
+        <h2>VLM 多阶段迭代</h2>
+        <p><strong>类型:</strong> 设计模式</p>
+        <p>ANALYZE → CLASSIFY → VERIFY 多轮迭代直到收敛。</p>
+        
+        <div class="hyperedges">
+            <a href="#module-iterative">IterativeMaskProcessor</a>
+            <a href="#module-vlm">VLM Client</a>
+        </div>
+    </article>
+
+    <article id="asset-voxel-pattern" class="card">
+        <h2>体素化 + 投影融合</h2>
+        <p><strong>类型:</strong> 设计模式</p>
+        <p>点云体素化 → 投影到多视图 → 读取标签 → 投票融合。</p>
+        
+        <div class="hyperedges">
+            <a href="#module-voxel">VoxelGrid</a>
+            <a href="#module-fusion">SemanticFusion</a>
+        </div>
+    </article>
+
+    <article id="asset-coordinate-transform" class="card">
+        <h2>坐标系变换</h2>
+        <p><strong>类型:</strong> 踩坑记录</p>
+        <p>PCD(Z-up) ↔ Splat(Y-up) 变换公式 + 相机旋转修复。</p>
+        
+        <div class="hyperedges">
+            <a href="#risk-coordinate">坐标系风险</a>
+        </div>
+    </article>
+</div>
+
+<!-- Key Metrics -->
+<section id="metrics" class="card">
+    <h2>📊 关键指标</h2>
+    
+    <div class="grid-3" style="margin-top: 1rem;">
+        <div>
+            <h3>数据规模</h3>
+            <ul>
+                <li>PCD: 24,610,163 点</li>
+                <li>Splat: 3,078,419 Gaussians</li>
+                <li>相机: 501 视图</li>
+                <li>体素: 1,698,896 个</li>
+            </ul>
+        </div>
+        <div>
+            <h3>渲染性能</h3>
+            <ul>
+                <li>渲染: ~0.5s/view</li>
+                <li>SAM2: ~1-2s/view</li>
+                <li>VLM: ~3-5s/view (串行)</li>
+                <li>VLM: ~0.3s/view (16并发)</li>
+            </ul>
+        </div>
+        <div>
+            <h3>输出文件</h3>
+            <ul>
+                <li>labeled_pointcloud.ply: 664MB</li>
+                <li>voxel_labels.json: 261MB</li>
+                <li>debug images: ~50MB/view</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- Dependencies -->
+<section id="dependencies" class="card">
+    <h2>📦 依赖关系</h2>
+    <div class="tech-stack">
+        <span class="tech-tag">torch >= 2.0</span>
+        <span class="tech-tag">gsplat</span>
+        <span class="tech-tag">open3d</span>
+        <span class="tech-tag">transformers</span>
+        <span class="tech-tag">sam2</span>
+        <span class="tech-tag">httpx</span>
+        <span class="tech-tag">numpy</span>
+        <span class="tech-tag">cv2</span>
+        <span class="tech-tag">PIL</span>
+    </div>
+</section>
+
+</div>
+
+</body>
+</html>

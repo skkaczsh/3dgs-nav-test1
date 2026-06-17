@@ -1,0 +1,240 @@
+# Semantic3D Pipeline 知识图谱
+# 记录项目模块、风险、资产、债务之间的关系
+
+nodes:
+  # ===== 核心模块 =====
+  - id: module-splat-loader
+    type: module
+    title: SplatLoader
+    status: active
+    summary: 加载 .splat 二进制文件，解析 Gaussian 参数（position, scale, color, rotation）
+    path: semantic_3d/splats.py
+    links:
+      - module-renderer
+      - debt-opacity-sigmoid
+      - risk-coordinate
+
+  - id: module-renderer
+    type: module
+    title: GaussianRenderer
+    status: active
+    summary: 基于 gsplat 的多视图渲染器，输出 RGB/Depth/Alpha 三通道图像
+    path: semantic_3d/splats.py
+    links:
+      - module-splat-loader
+      - module-sam2
+      - debt-depth-normalization
+      - debt-camera-rotation
+      - risk-coordinate
+
+  - id: module-sam2
+    type: module
+    title: SAM2MaskGenerator
+    status: active
+    summary: Segment Anything Model 2 全自动分割，32×32 点阵采样
+    path: semantic_3d/mask_processor.py
+    links:
+      - module-renderer
+      - module-vlm
+      - module-iterative
+
+  - id: module-vlm
+    type: module
+    title: VLM Client
+    status: active
+    summary: 视觉语言模型客户端，支持 Qwen2-VL 和 HTTP API
+    path: semantic_3d/vlm.py
+    links:
+      - module-sam2
+      - module-fusion
+      - module-iterative
+      - debt-vlm-json
+      - asset-vlm-multistage
+
+  - id: module-vlm-advisor
+    type: module
+    title: VLMMaskAdvisor
+    status: active
+    summary: VLM 多阶段 mask 指导（ANALYZE → CLASSIFY → VERIFY）
+    path: semantic_3d/vlm_mask_advisor.py
+    links:
+      - module-vlm
+      - module-iterative
+
+  - id: module-iterative
+    type: module
+    title: IterativeMaskProcessor
+    status: active
+    summary: 多轮迭代优化 SAM2+VLM，直到 VLM 满意
+    path: semantic_3d/iterative_mask_processor.py
+    links:
+      - module-sam2
+      - module-vlm-advisor
+      - asset-iterative-pattern
+
+  - id: module-voxel
+    type: module
+    title: VoxelGrid
+    status: active
+    summary: 点云体素化，Open3D 引擎，可配置体素大小
+    path: semantic_3d/semantic.py
+    links:
+      - module-fusion
+      - asset-voxel-pattern
+
+  - id: module-fusion
+    type: module
+    title: SemanticFusion
+    status: open
+    summary: 语义融合：体素中心投影 → Alpha/Depth Gate → 标签投票
+    path: semantic_3d/semantic.py
+    links:
+      - module-voxel
+      - module-vlm
+      - debt-unknown-labels
+      - risk-coordinate
+
+  - id: module-region-merger
+    type: module
+    title: RegionMerger
+    status: active
+    summary: 连通区域合并，小区域吸收
+    path: semantic_3d/semantic.py
+    links:
+      - module-fusion
+
+  - id: module-pipeline
+    type: module
+    title: Semantic3DPipeline
+    status: active
+    summary: 主管道协调器，端到端流程管理
+    path: semantic_3d/pipeline.py
+    links:
+      - module-splat-loader
+      - module-renderer
+      - module-sam2
+      - module-vlm
+      - module-voxel
+      - module-fusion
+      - module-region-merger
+
+  # ===== 风险 =====
+  - id: risk-coordinate
+    type: risk
+    title: 坐标系对齐风险
+    status: open
+    summary: PCD(Z-up) 和 Splat(Y-up) 坐标系不同，且存在 X 轴反转
+    links:
+      - module-splat-loader
+      - module-renderer
+      - module-fusion
+      - debt-camera-rotation
+      - asset-coordinate-transform
+
+  - id: risk-scalability
+    type: risk
+    title: 规模化风险
+    status: open
+    summary: 24M 点 + 3M Gaussians + 501 视图，大数据量下性能瓶颈
+    links:
+      - module-voxel
+      - module-fusion
+
+  # ===== 技术债务 =====
+  - id: debt-unknown-labels
+    type: debt
+    title: Unknown Labels Bug
+    severity: critical
+    status: open
+    cause: 语义融合失败，所有体素标签为 unknown
+    impact: E2E pipeline 无法产出有效语义标签
+    linked_nodes:
+      - module-fusion
+      - module-voxel
+      - risk-coordinate
+
+  - id: debt-opacity-sigmoid
+    type: debt
+    title: 双重 Sigmoid
+    severity: high
+    status: fixed
+    cause: SplatLoader + get_opacity_sigmoid 双重应用 sigmoid
+    impact: alpha=0.0016，渲染全白
+    linked_nodes:
+      - module-splat-loader
+
+  - id: debt-depth-normalization
+    type: debt
+    title: 深度归一化误解
+    severity: medium
+    status: fixed
+    cause: gsplat 返回归一化深度 [0,1]，非线性米制深度
+    impact: 深度计算错误
+    linked_nodes:
+      - module-renderer
+
+  - id: debt-camera-rotation
+    type: debt
+    title: 相机朝向错误
+    severity: high
+    status: fixed
+    cause: COLMAP 相机朝向 SPLAT 正 X，但 PCD 在负 X 区域
+    impact: 所有 voxel 投影到图像范围外
+    linked_nodes:
+      - module-renderer
+      - risk-coordinate
+
+  - id: debt-vlm-json
+    type: debt
+    title: VLM JSON 解析失败
+    severity: medium
+    status: fixed
+    cause: VLM API 返回截断 JSON 或 markdown fences
+    impact: 标签解析失败，所有标签变成 unknown
+    linked_nodes:
+      - module-vlm
+
+  # ===== 技术资产 =====
+  - id: asset-ssh-pattern
+    type: asset
+    title: SSH + nohup 远程任务模式
+    status: active
+    summary: 远程服务器启动长时间任务，不阻塞 SSH 连接
+    linked_nodes:
+      - debt-unknown-labels
+
+  - id: asset-vlm-multistage
+    type: asset
+    title: VLM 多阶段处理模式
+    status: active
+    summary: ANALYZE → CLASSIFY → VERIFY 多轮迭代直到收敛
+    linked_nodes:
+      - module-vlm
+      - module-iterative
+
+  - id: asset-iterative-pattern
+    type: asset
+    title: 迭代优化模式
+    status: active
+    summary: SAM2 → VLM 分析 → 指导 SAM2 → 验证循环
+    linked_nodes:
+      - module-iterative
+      - module-vlm-advisor
+
+  - id: asset-voxel-pattern
+    type: asset
+    title: 体素化 + 投影融合模式
+    status: active
+    summary: 点云体素化 → 投影到多视图 → 读取标签 → 投票融合
+    linked_nodes:
+      - module-voxel
+      - module-fusion
+
+  - id: asset-coordinate-transform
+    type: asset
+    title: 坐标系变换记录
+    status: active
+    summary: PCD(Z-up) ↔ Splat(Y-up) 变换公式 + 相机旋转修复
+    linked_nodes:
+      - risk-coordinate
+      - debt-camera-rotation
