@@ -63,13 +63,21 @@ def extract_cam(cam_id: int, ids: list[int], output_dir: Path, quality: int, ski
     ok = skipped = failed = 0
     first_error = None
     encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), int(quality)]
+    sequential = bool(ids) and all((b - a) == 1 for a, b in zip(ids, ids[1:]))
+    if sequential:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, int(ids[0]))
     for frame_id in ids:
         out = cam_dir / f"frame_{frame_id:06d}.jpg"
         if skip_existing and out.exists():
             skipped += 1
+            if sequential:
+                cap.grab()
             continue
-        cap.set(cv2.CAP_PROP_POS_FRAMES, int(frame_id))
-        ret, frame = cap.read()
+        if sequential:
+            ret, frame = cap.read()
+        else:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(frame_id))
+            ret, frame = cap.read()
         if not ret or frame is None:
             failed += 1
             first_error = first_error or f"read_failed_frame_{frame_id}"
