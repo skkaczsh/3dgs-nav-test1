@@ -113,6 +113,64 @@ Til = np.array([
     [ 0.0,        0.0,        0.0,        1.0     ],
 ], dtype=np.float64)
 
+
+def _matrix4(values):
+    return np.asarray(values, dtype=np.float64).reshape(4, 4)
+
+
+def _camera_params_from_calib(cam):
+    return {
+        "K": np.array([
+            [float(cam["A11"]), float(cam.get("A12", 0.0)), float(cam["u0"])],
+            [0.0, float(cam["A22"]), float(cam["v0"])],
+            [0.0, 0.0, 1.0],
+        ], dtype=np.float64),
+        "D": np.array([
+            float(cam.get("k2", 0.0)),
+            float(cam.get("k3", 0.0)),
+            float(cam.get("k4", 0.0)),
+            float(cam.get("k5", 0.0)),
+        ], dtype=np.float64),
+        "KB_k6": float(cam.get("k6", 0.0)),
+        "KB_k7": float(cam.get("k7", 0.0)),
+    }
+
+
+def _load_dataset_calibration(calib_file):
+    """Load MANIFOLD camera calibration from cam_in_ex.txt when available.
+
+    Older scripts used hardcoded calibration from the first rooftop dataset.
+    New datasets have different Tcl/Til/intrinsics, so all route scripts must
+    read calibration from SCAN_IMAGE_DIR/cam_in_ex.txt to stay dataset-safe.
+    """
+    global IMAGE_WIDTH, IMAGE_HEIGHT, Til
+    if yaml is None or not os.path.exists(calib_file):
+        return
+    with open(calib_file, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+
+    loaded_cams = {}
+    for cam_id in (0, 1, 2):
+        cam_key = f"cam_{cam_id}"
+        tcl_key = f"Tcl_{cam_id}"
+        if cam_key not in data or tcl_key not in data:
+            continue
+        loaded_cams[cam_id] = _camera_params_from_calib(data[cam_key])
+        Tcl[cam_id] = _matrix4(data[tcl_key])
+
+    if loaded_cams:
+        CAMERA_PARAMS.clear()
+        CAMERA_PARAMS.update(loaded_cams)
+        first = data.get("cam_0", {})
+        IMAGE_WIDTH = int(first.get("image_width", IMAGE_WIDTH))
+        IMAGE_HEIGHT = int(first.get("image_height", IMAGE_HEIGHT))
+
+    if "Til" in data:
+        Til = _matrix4(data["Til"])
+
+
+_load_dataset_calibration(CALIB_FILE)
+
 # ==================== 测试范围 (10 秒) ====================
 # img_pos.txt 数据: 帧率 10Hz, 起始时间戳 ~1749910819.820857
 # 10 秒 => 约 100 帧 (0 ~ 99)
