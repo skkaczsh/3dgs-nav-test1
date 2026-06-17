@@ -286,8 +286,16 @@ def main() -> None:
     if not frame_ids:
         raise SystemExit("No overlapping .lx sections, img_pos rows, and frame range.")
 
-    priority_body = Path(tempfile.mkstemp(prefix="priority_points_", suffix=".bin")[1])
-    residual_body = Path(tempfile.mkstemp(prefix="residual_points_", suffix=".bin")[1])
+    priority_fd, priority_tmp = tempfile.mkstemp(
+        prefix="priority_points_", suffix=".bin", dir=str(args.output_dir)
+    )
+    residual_fd, residual_tmp = tempfile.mkstemp(
+        prefix="residual_points_", suffix=".bin", dir=str(args.output_dir)
+    )
+    os.close(priority_fd)
+    os.close(residual_fd)
+    priority_body = Path(priority_tmp)
+    residual_body = Path(residual_tmp)
     priority_count = 0
     residual_count = 0
     raw_points = 0
