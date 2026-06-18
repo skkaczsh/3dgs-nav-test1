@@ -641,6 +641,29 @@ Object-level scene-context review:
   - remaining no-evidence failure counts: `low_projected_before_image_filter=17,302`, `low_projected_in_image=11,137`, `bbox_too_small=5,641`.
   - DINO seed-similarity rerun on v15 railing evidence: `server_parking_priority_s10/dino_seed_similarity_v2_fullpoints_railing`; `12/12` railing samples still flagged bleed-risk.
   - interpretation: dense/full point source materially improves evidence recall, but does not solve thin-object visual separation. The next step is to preserve/generate full-density object point bundles for review while splitting candidates by 3D local geometry before DINO feature use.
+- v16 local-geometry split for fine candidates:
+  - script: `scripts/split_fine_candidates_by_local_geometry.py`
+  - input: v13 `dino_review_candidates.jsonl` plus 470MB full-scene PLY `full_scene_objects_s10_full_v6_local_geometry_split_v2/full_scene_objects_ascii.ply`.
+  - output: `server_parking_priority_s10/fine_candidate_splits_v1_fullpoints`
+  - split result: `299` parent candidates -> `284` split candidates, `270,004` split points.
+  - parent split histogram: `0 components=66`, `1=197`, `2=26`, `3=6`, `4=3`, `5=1`.
+  - geometry classes: `compact_candidate=135`, `irregular_candidate=91`, `linear_candidate=50`, `planar_surface_fragment=8`.
+  - interpretation: the 66 zero-component parents are mostly too sparse after local clustering and should be treated as weak/noise candidates unless recovered by frame-level target evidence.
+- v16 split-candidate image evidence:
+  - evidence output: `server_parking_priority_s10/object_image_evidence_dino_v16_split_fullpoints_diag`
+  - parameters changed for local split candidates: `min_bbox_area=900`, `max_bbox_area_ratio=0.45`; all other frame/camera search logic stays comparable.
+  - evidence result: `188/284` split candidates have evidence, `529` evidence rows.
+  - comparison: v14 preview points `66/299`, v15 full parent points `157/299`, v16 local split points `188/284`.
+  - candidate label counts for rank-1 evidence: `car=75`, `fine_candidate=103`, `railing=10`.
+  - joined recall by candidate label and geometry:
+    - car compact `33/70`, irregular `65/66`, linear `12/15`, planar `4/4`.
+    - railing compact `30/65`, irregular `19/25`, linear `22/35`, planar `3/4`.
+  - interpretation: local geometry split improves image-evidence recall and makes candidate structure more inspectable. It does not alone solve fine semantic correctness; it provides a better dataset for visual/DINO review.
+- DINOv3 seed-similarity after split:
+  - output: `server_parking_priority_s10/dino_seed_similarity_v3_split_railing`
+  - result: `12/12` split railing samples still flagged as bleed-risk.
+  - visual check: contact sheet remains blocky because the public DINOv3 ONNX fallback is still `224x224` / `14x14` patches.
+  - interpretation: even after 3D split, current DINOv3 ONNX resolution is too coarse to trace railing boundaries. The useful role is candidate evidence/binding, while final shape filtering should remain 3D geometry driven.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
@@ -649,10 +672,11 @@ Object-level scene-context review:
 
 ## Next Step
 
-Build a point-evidence-first fine-object refinement pass:
+Build a v17 geometry-driven candidate promotion/demotion pass:
 
-- consume the v13 drivability-guarded full-scene bundle and its enriched object JSONL
-- rebuild fine-object image evidence from denser/full object points, not only preview stride points
-- split candidate objects by 3D connectedness, local plane/line PCA, and depth-continuity before visual review
-- use DINOv3 patch features only as a local binding/split signal after the geometry split
-- keep `car/railing` as candidate labels until geometry plus visual evidence agree
+- consume `fine_candidate_splits_v1_fullpoints/fine_candidate_splits.jsonl`
+- promote likely railings only when local geometry is linear/thin and image evidence exists
+- demote planar-surface fragments back to wall/floor/unknown review instead of letting them remain car/railing candidates
+- keep compact candidates as car/fine-object candidates only when 3D extent and image evidence are plausible
+- write a review PLY/JSONL that can be loaded in the local viewer without treating all visual candidates as final labels
+- use DINOv3 seed/evidence metadata only as supporting evidence, not as a direct segmentation result
