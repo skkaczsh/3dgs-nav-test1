@@ -128,6 +128,14 @@
    - object-level status counts: `unknown_to_wall=7`, `unknown_to_floor=21`, `fine_candidate_to_wall=12`, `fine_candidate_to_floor=17`, `railing_to_wall=1`, `railing_to_floor=2`, `mixed_fine_candidate_with_surface_points=196`.
    - implementation note: the voxel-only drivability PCD does not contain wall labels in this dataset; v19 must use the full-point wallbfs prior.
    - default viewer: `tools/parking_full_scene_viewer.html` now opens this v19 output.
+20. Prototype image-side geometry-guided mask refinement:
+   - scripts: `scripts/build_geometry_guidance_maps.py`, `scripts/refine_priority_masks_with_geometry.py`
+   - remote smoke output: `/root/epfs/work_MT20260616-175807/geometry_guidance_v1_s10_0000_0190`, `/root/epfs/work_MT20260616-175807/geometry_refine_v1_s10_0000_0190`
+   - local report copy: `server_parking_priority_s10/geometry_refine_v1_s10_0000_0190`
+   - method: project raw `.lx` section points into the undistorted image with the validated calibration chain, build depth / depth-edge / v19 semantic-prior maps, then conservatively correct priority masks where `residual/car/railing` overlaps trusted projected `ground/wall/grass`.
+   - result on `0..190`, `stride=10`, `3` cameras: `60/60` images processed; `4,961` pixels restored to trusted surfaces; `2,196` fine-object pixels cut at depth edges.
+   - correction breakdown: `residual->ground=3,047`, `residual->wall=874`, `railing->ground=352`, `railing->wall=106`, `car->ground=278`, `car->wall=88`, plus smaller grass corrections.
+   - interpretation: this is the first successful reverse-depth constraint on the 2D mask stage. It is intentionally conservative and should be used to evaluate contamination reduction before any new full-scene production run.
 
 ## Current Metrics
 
@@ -713,10 +721,10 @@ Object-level scene-context review:
 
 ## Next Step
 
-Build a v18 full-scene review preview:
+Use the geometry-guided mask refinement as the next controlled experiment:
 
-- merge the v17 fine-candidate review labels back into the v13 drivability-guarded full-scene preview without overwriting stable floor/wall/grass objects
-- show promoted `car/railing` as final only where v17 accepted them
-- show held/demoted split candidates as `fine_candidate` or review overlays, not as final car/railing labels
-- preserve `parent_object_id`, `review_status`, and image-evidence metadata for point selection in the viewer
-- keep DINOv3 as evidence metadata only; do not use its blocky 14x14 seed map as a segmentation boundary
+- rerun priority projection on the 60-image refined mask set and compare point-level contamination against v19
+- if contamination drops, scale the refinement to the full `stride=10` parking dataset
+- keep stable ground/wall/grass from `drivability_cpp` and v19 as trusted priors
+- restrict DINO/GroundingDINO/SAM to residual and fine-object candidates after surface removal
+- do not use DINOv3 14x14 seed maps as segmentation boundaries; use them only as weak evidence metadata unless a higher-resolution feature extractor is introduced
