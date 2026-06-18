@@ -60,6 +60,12 @@ class OnnxFeatureModel:
     patch_size: int
 
 
+def model_runtime_name(model: Any) -> str:
+    if isinstance(model, OnnxFeatureModel):
+        return "onnxruntime:" + ",".join(model.session.get_providers())
+    return "torch"
+
+
 def load_feature_model(model_id: str, device: str):
     from transformers import AutoImageProcessor, AutoModel
 
@@ -88,8 +94,14 @@ def load_feature_model(model_id: str, device: str):
 
 
 def infer_patch_grid(processor, model, image: Image.Image, device: str) -> tuple[np.ndarray, tuple[int, int], tuple[int, int]]:
+    return infer_patch_grids(processor, model, [image], device)[0]
+
+
+def infer_patch_grids(processor, model, images: list[Image.Image], device: str) -> list[tuple[np.ndarray, tuple[int, int], tuple[int, int]]]:
+    if not images:
+        return []
     if isinstance(model, OnnxFeatureModel):
-        inputs = processor(images=image, return_tensors="np")
+        inputs = processor(images=images, return_tensors="np")
         pixel_values = inputs["pixel_values"].astype(np.float32)
         input_h, input_w = int(pixel_values.shape[-2]), int(pixel_values.shape[-1])
         outputs = model.session.run(None, {model.input_name: pixel_values})
@@ -111,11 +123,14 @@ def infer_patch_grid(processor, model, image: Image.Image, device: str) -> tuple
                     gh = gw = side
                 else:
                     gh, gw = 1, n
-        feats = patch_tokens[0]
-        feats = feats / np.maximum(np.linalg.norm(feats, axis=1, keepdims=True), 1e-6)
-        return feats.reshape(gh, gw, -1), (input_w, input_h), image.size
+        results: list[tuple[np.ndarray, tuple[int, int], tuple[int, int]]] = []
+        for i, image in enumerate(images):
+            feats = patch_tokens[i]
+            feats = feats / np.maximum(np.linalg.norm(feats, axis=1, keepdims=True), 1e-6)
+            results.append((feats.reshape(gh, gw, -1), (input_w, input_h), image.size))
+        return results
 
-    inputs = processor(images=image, return_tensors="pt").to(device)
+    inputs = processor(images=images, return_tensors="pt").to(device)
     pixel_values = inputs["pixel_values"]
     input_h, input_w = int(pixel_values.shape[-2]), int(pixel_values.shape[-1])
     with torch.no_grad():
@@ -134,9 +149,12 @@ def infer_patch_grid(processor, model, image: Image.Image, device: str) -> tuple
         else:
             # Fall back to a single-row layout; metrics will be conservative.
             gh, gw = 1, n
-    feats = patch_tokens[0].cpu().numpy()
-    feats = feats / np.maximum(np.linalg.norm(feats, axis=1, keepdims=True), 1e-6)
-    return feats.reshape(gh, gw, -1), (input_w, input_h), image.size
+    results = []
+    for i, image in enumerate(images):
+        feats = patch_tokens[i].cpu().numpy()
+        feats = feats / np.maximum(np.linalg.norm(feats, axis=1, keepdims=True), 1e-6)
+        results.append((feats.reshape(gh, gw, -1), (input_w, input_h), image.size))
+    return results
 
 
 def roi_patch_mask(
@@ -163,6 +181,41 @@ def roi_patch_mask(
     ys = (np.arange(gh) + 0.5) * proc_h / gh
     xx, yy = np.meshgrid(xs, ys)
     mask = (xx >= rel[0]) & (xx <= rel[2]) & (yy >= rel[1]) & (yy <= rel[3])
+    return mask
+
+
+def point_patch_mask(
+    uv_samples: list[list[float]],
+    crop_bbox_xyxy: list[float],
+    original_size: tuple[int, int],
+    processed_size: tuple[int, int],
+    grid_shape: tuple[int, int],
+    dilation: int,
+) -> np.ndarray:
+    mask = np.zeros(grid_shape, dtype=bool)
+    if not uv_samples:
+        return mask
+    ox0, oy0, _ox1, _oy1 = crop_bbox_xyxy
+    orig_w, orig_h = original_size
+    proc_w, proc_h = processed_size
+    gh, gw = grid_shape
+    scale_x = proc_w / max(orig_w, 1)
+    scale_y = proc_h / max(orig_h, 1)
+    radius = max(0, int(dilation))
+    for sample in uv_samples:
+        if len(sample) < 2:
+            continue
+        px = (float(sample[0]) - ox0) * scale_x
+        py = (float(sample[1]) - oy0) * scale_y
+        cx = int(np.floor(px * gw / max(proc_w, 1)))
+        cy = int(np.floor(py * gh / max(proc_h, 1)))
+        if cx < 0 or cx >= gw or cy < 0 or cy >= gh:
+            continue
+        y0 = max(0, cy - radius)
+        y1 = min(gh, cy + radius + 1)
+        x0 = max(0, cx - radius)
+        x1 = min(gw, cx + radius + 1)
+        mask[y0:y1, x0:x1] = True
     return mask
 
 
@@ -213,6 +266,10 @@ def main() -> None:
     parser.add_argument("--model-id", default="facebook/dinov2-small")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--top-k", type=int, default=1)
+    parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument("--roi-source", choices=["auto", "bbox", "points"], default="auto")
+    parser.add_argument("--point-dilation", type=int, default=1)
+    parser.add_argument("--min-point-patches", type=int, default=2)
     parser.add_argument("--limit-objects", type=int, default=0)
     args = parser.parse_args()
 
@@ -245,23 +302,58 @@ def main() -> None:
         print(json.dumps(report, ensure_ascii=False, indent=2))
         raise SystemExit(2)
 
-    out_rows: list[dict[str, Any]] = []
     evidence_dir = args.evidence_jsonl.parent
+    work_items: list[tuple[int, dict[str, Any], dict[str, Any], Path]] = []
     for object_id in object_ids:
         visual = visual_by_id.get(object_id, {})
         for row in evidence_by_object[object_id][: args.top_k]:
             crop_path = resolve_path(str(row.get("crop_path", "")), args.workdir, evidence_dir)
             if not crop_path.exists():
                 continue
-            image = Image.open(crop_path).convert("RGB")
-            feats, processed_size, original_size = infer_patch_grid(processor, model, image, device)
-            roi_mask = roi_patch_mask(
+            work_items.append((object_id, visual, row, crop_path))
+
+    out_rows: list[dict[str, Any]] = []
+    batch_size = max(1, int(args.batch_size))
+    for start in range(0, len(work_items), batch_size):
+        batch = work_items[start:start + batch_size]
+        images: list[Image.Image] = []
+        valid_items: list[tuple[int, dict[str, Any], dict[str, Any], Path]] = []
+        for item in batch:
+            _object_id, _visual, _row, crop_path = item
+            try:
+                images.append(Image.open(crop_path).convert("RGB"))
+                valid_items.append(item)
+            except Exception:
+                continue
+        grids = infer_patch_grids(processor, model, images, device)
+        for (object_id, visual, row, crop_path), (feats, processed_size, original_size) in zip(valid_items, grids):
+            bbox_mask = roi_patch_mask(
                 row["bbox_xyxy"],
                 row["crop_bbox_xyxy"],
                 original_size,
                 processed_size,
                 feats.shape[:2],
             )
+            point_mask = point_patch_mask(
+                row.get("projected_uv_samples") or [],
+                row["crop_bbox_xyxy"],
+                original_size,
+                processed_size,
+                feats.shape[:2],
+                args.point_dilation,
+            )
+            if args.roi_source == "points":
+                roi_mask = point_mask
+                roi_source = "points"
+            elif args.roi_source == "bbox":
+                roi_mask = bbox_mask
+                roi_source = "bbox"
+            elif int(point_mask.sum()) >= args.min_point_patches:
+                roi_mask = point_mask
+                roi_source = "points"
+            else:
+                roi_mask = bbox_mask
+                roi_source = "bbox_fallback"
             metrics = feature_metrics(feats, roi_mask)
             out_rows.append({
                 "object_id": object_id,
@@ -277,6 +369,8 @@ def main() -> None:
                 "crop_bbox_xyxy": row.get("crop_bbox_xyxy"),
                 "bbox_area_ratio": row.get("bbox_area_ratio"),
                 "bbox_inlier_ratio": row.get("bbox_inlier_ratio"),
+                "roi_source": roi_source,
+                "point_patch_count": int(point_mask.sum()),
                 **{k: round(float(v), 6) for k, v in metrics.items()},
             })
 
@@ -285,6 +379,11 @@ def main() -> None:
     report = {
         "model_id": args.model_id,
         "device": device,
+        "runtime": model_runtime_name(model),
+        "batch_size": batch_size,
+        "roi_source": args.roi_source,
+        "point_dilation": args.point_dilation,
+        "min_point_patches": args.min_point_patches,
         "evidence_jsonl": str(args.evidence_jsonl),
         "visual_review_jsonl": str(args.visual_review_jsonl),
         "output_dir": str(args.output_dir),

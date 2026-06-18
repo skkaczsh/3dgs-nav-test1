@@ -198,6 +198,21 @@ def evidence_score(projected_points: int, bbox_area: float, bbox_area_ratio: flo
     return float(projected_points * math.log1p(max(bbox_area, 0.0)) / depth)
 
 
+def sampled_projection_payload(uv: np.ndarray, depth: np.ndarray, max_samples: int) -> dict[str, Any]:
+    if max_samples <= 0 or len(uv) == 0:
+        return {}
+    if len(uv) <= max_samples:
+        take = np.arange(len(uv), dtype=np.int32)
+    else:
+        take = np.linspace(0, len(uv) - 1, max_samples).round().astype(np.int32)
+    uv_take = uv[take].astype(float)
+    depth_take = depth[take].astype(float)
+    return {
+        "projected_uv_samples": [[round(float(x), 3), round(float(y), 3)] for x, y in uv_take],
+        "projected_depth_samples": [round(float(z), 4) for z in depth_take],
+    }
+
+
 def make_contact_sheet(rows: list[dict[str, Any]], output_path: Path, thumb_size: int = 180, cols: int = 6) -> None:
     thumbs = []
     labels = []
@@ -253,6 +268,7 @@ def main() -> None:
     parser.add_argument("--max-bbox-area-ratio", type=float, default=0.0, help="Reject evidence boxes larger than this image-area ratio when >0.")
     parser.add_argument("--score-mode", choices=["legacy", "tight"], default="legacy")
     parser.add_argument("--crop-margin", type=int, default=48)
+    parser.add_argument("--save-projected-samples", type=int, default=0, help="Store up to this many projected uv/depth samples per evidence row for patch-level feature binding.")
     parser.add_argument("--limit-objects", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
     args = parser.parse_args()
@@ -328,6 +344,7 @@ def main() -> None:
                     "median_depth": float(np.median(depth_in)),
                     "score": score,
                     "uv": uv_in,
+                    "depth": depth_in,
                 })
         obs.sort(key=lambda row: row["score"], reverse=True)
         for rank, row in enumerate(obs[:args.top_k], 1):
@@ -349,11 +366,12 @@ def main() -> None:
             cv2.imwrite(str(crop_path), crop)
             cv2.imwrite(str(overlay_path), overlay)
             out = {
-                **{k: v for k, v in row.items() if k != "uv"},
+                **{k: v for k, v in row.items() if k not in {"uv", "depth"}},
                 "rank": rank,
                 "crop_path": str(crop_path),
                 "overlay_path": str(overlay_path),
                 "crop_bbox_xyxy": list(crop_bbox),
+                **sampled_projection_payload(row["uv"], row["depth"], args.save_projected_samples),
                 "semantic_label": obj.get("semantic_label", ""),
                 "scene_context": obj.get("scene_context", ""),
                 "downstream_stage": obj.get("downstream_stage", ""),
@@ -391,6 +409,7 @@ def main() -> None:
             "bbox_percentile": args.bbox_percentile,
             "max_bbox_area_ratio": args.max_bbox_area_ratio,
             "score_mode": args.score_mode,
+            "save_projected_samples": args.save_projected_samples,
         },
         "label_counts": dict(Counter(row.get("semantic_label", "") for row in rows if row.get("rank") == 1)),
     }

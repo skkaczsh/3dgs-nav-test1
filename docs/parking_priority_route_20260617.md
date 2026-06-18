@@ -577,6 +577,16 @@ Object-level scene-context review:
   - result: `93` evidence objects evaluated; all `93` rows were flagged risky by the same bbox ROI/context metric.
   - timing: the 93-object CUDA run took about `18s`; the CPU run was about `20s`. ORT reports many memcpy nodes, so single-crop ONNX GPU inference is functionally correct but not a meaningful speedup.
   - interpretation: DINOv3 is now runnable, but the current metric is the bottleneck. Next use should be batched patch/point-level feature binding or TensorRT engine caching, not per-crop bbox averaging.
+- DINOv3 batch + projected-point evidence v13:
+  - script change: `scripts/run_dino_feature_evidence_qa.py` now supports `--batch-size`, `--roi-source auto|bbox|points`, and projected-point patch masks.
+  - script change: `scripts/build_object_image_evidence.py` now supports `--save-projected-samples`; each evidence row can store projected `uv/depth` samples for patch-level feature binding.
+  - batch timing: v12 ONNX CUDA `batch_size=16` reduced the 93-object run from about `18s` to about `8s`.
+  - point-evidence output: `server_parking_priority_s10/object_image_evidence_dino_v13_points`.
+  - point-feature output: `server_parking_priority_s10/dino_feature_qa_v13_points`.
+  - v13 evidence count: `323` candidate objects, `80` objects with evidence, `232` evidence rows. This is a new evidence snapshot and should not overwrite v12 because v12 had `93` objects with evidence.
+  - v13 point ROI check: all `80` QA rows used projected-point ROI (`roi_source=points`), with about `36-158` DINO patches per object.
+  - v13 result: all `80` rows were still flagged risky by ROI/context feature separation.
+  - interpretation: even projected-point ROI does not make the current ROI-vs-context metric reliable. DINO features should be used as local patch descriptors for object-internal split/merge, not as a standalone accept/reject classifier.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
