@@ -160,3 +160,86 @@ server_parking_priority_s10/mask_refine_guarded_v2_bad_windows_rtx5070/<range>/s
 Next step: run `guarded_v2` on a medium slice and rebuild target/object outputs,
 then verify in the viewer that wall/ground recovery does not erase real railing
 or cars.
+
+## Full Guarded V2 Run
+
+After the bad-window and medium-window checks, `guarded_v2` was run on the full
+stride10 parking dataset.
+
+- Range: `0..6180`, `stride=10`, `619` frames x `3` cameras.
+- Geometry guidance maps: `1,857/1,857`, elapsed `224.5s`.
+- Guarded priority refinement:
+  - images: `1,857/1,857`
+  - residual surface fill pixels: `410,123`
+  - guarded fine-surface override pixels: `118,023`
+  - main recoveries: `railing->wall=93,165`, `car->wall=24,019`
+- Projection:
+  - raw points: `9,905,881`
+  - visible non-sky: `9,341,265`
+  - priority points: `9,140,355`
+  - residual points: `200,910`
+  - class counts: `ground=1,687,223`, `wall=6,019,917`, `grass=1,111,815`, `car=214,043`, `railing=107,357`
+- Frame targets:
+  - source targets: `9,532`
+  - source target points: `9,056,679`
+  - source labels: `ground=763`, `wall=3,081`, `car=1,103`, `grass=4,178`, `railing=407`
+- Target geometry refinement:
+  - refined targets: `9,605`
+  - split source targets: `45`
+  - relabelled targets: `154`
+  - output labels: `ground=836`, `wall=3,051`, `car=1,089`, `grass=4,178`, `railing=387`, `ceiling=64`
+  - missing target points: `0`
+- Object fusion:
+  - objects: `3,100`
+  - zones: `62`
+  - merge ratio: `0.677`
+  - statuses: `stable=1,537`, `single_target=1,501`, `ambiguous_object=62`
+- Viewer export:
+  - input vertices: `9,033,868`
+  - stride10 output vertices: `903,387`
+  - missing target points: `0`
+  - label counts: `wall=498,786`, `ground=127,949`, `ambiguous=143,754`, `grass=98,460`, `car=20,491`, `railing=8,228`, `ceiling=5,719`
+
+Compared with the previous full v5 baseline viewer export:
+
+| label | v5 baseline | guarded_v2 full | change |
+| --- | ---: | ---: | ---: |
+| wall | `475,505` | `498,786` | `+23,281` |
+| railing | `14,084` | `8,228` | `-5,856` |
+| car | `22,874` | `20,491` | `-2,383` |
+| ambiguous | `119,105` | `143,754` | `+24,649` |
+| ground | `126,662` | `127,949` | `+1,287` |
+| grass | `96,762` | `98,460` | `+1,698` |
+
+Interpretation:
+
+- The guarded mask stage does reduce false fine-object leakage into large
+  surfaces, especially `railing` and broad planar `car` regions.
+- The increase in `ambiguous` is expected because recovered large surfaces expose
+  more ground/wall/ceiling vote conflicts during object fusion rather than
+  hiding them as fine-object labels.
+- Remaining bottleneck has shifted from raw fine-label pollution to large
+  surface object consolidation, especially ground/wall/ceiling separation in
+  zones with mixed normals or scan geometry.
+
+Local viewer URL:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_guarded_v2_full_s10_geometry_ceiling_rtx5070/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_guarded_v2_full_s10_geometry_ceiling_rtx5070/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5
+```
+
+Local QA contact sheet:
+
+```text
+server_parking_priority_s10/frame_local_object_qa_guarded_v2_full_s10_geometry_ceiling_rtx5070/frame_local_object_qa_contact.jpg
+```
+
+Local report bundle:
+
+```text
+server_parking_priority_s10/guarded_v2_full_reports/guarded_v2_full_summary.local.json
+```
+
+Recommended next step: keep `guarded_v2` as the default priority-mask correction
+candidate, then improve object fusion for large surfaces with a stricter
+plane/normal/height-aware split before label voting.
