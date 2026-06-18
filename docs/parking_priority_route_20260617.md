@@ -632,6 +632,15 @@ Object-level scene-context review:
   - objects without evidence: `233` (`car=83`, `railing=150` by DINO prompt group).
   - failure counts across no-evidence object frame/camera attempts: `low_projected_before_image_filter=54,395`, `low_projected_in_image=1,069`, `bbox_too_small=456`.
   - interpretation: the recall bottleneck is not loose crop filtering. Most fine candidates do not project enough sampled points into the candidate frame pool. This is consistent with over-fragmented/stride-thinned fine objects and means DINO review should be fed by denser object points or by local frame-level target clusters, not only the current preview full-scene PLY.
+- v15 full-point evidence check:
+  - input object JSON: v13 drivability-guarded `dino_review_candidates.jsonl`.
+  - input point source changed from the 46MB preview PLY to the 470MB full-scene PLY: `full_scene_objects_s10_full_v6_local_geometry_split_v2/full_scene_objects_ascii.ply`.
+  - diagnostic output: `server_parking_priority_s10/object_image_evidence_dino_v15_v13_full_points_diag/object_image_evidence_report.json`
+  - evidence recall improved from `66/299` to `157/299`, with `433` evidence rows.
+  - objects without evidence dropped from `233` to `142` (`car=51`, `railing=91`).
+  - remaining no-evidence failure counts: `low_projected_before_image_filter=17,302`, `low_projected_in_image=11,137`, `bbox_too_small=5,641`.
+  - DINO seed-similarity rerun on v15 railing evidence: `server_parking_priority_s10/dino_seed_similarity_v2_fullpoints_railing`; `12/12` railing samples still flagged bleed-risk.
+  - interpretation: dense/full point source materially improves evidence recall, but does not solve thin-object visual separation. The next step is to preserve/generate full-density object point bundles for review while splitting candidates by 3D local geometry before DINO feature use.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
