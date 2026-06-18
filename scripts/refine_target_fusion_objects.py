@@ -19,13 +19,18 @@ from typing import Any
 import numpy as np
 
 
-SURFACE = {"floor", "wall", "ceiling", "building", "other", "ambiguous"}
+SURFACE = {"floor", "ground", "wall", "ceiling", "building", "other", "ambiguous"}
 FINE = {"railing", "pipe", "equipment", "person", "car", "tree", "grass"}
 
 PATTERNS = {
     "ceiling": re.compile(r"\b(ceiling|overhead|underside|soffit|roof underside|roof panel underside)\b", re.I),
-    "floor": re.compile(
+    "ground": re.compile(
         r"\b(floor|ground|rooftop floor|roof floor|roof surface|rooftop surface|"
+        r"walkable|platform|pavement|concrete surface|deck)\b",
+        re.I,
+    ),
+    "floor": re.compile(
+        r"\b(floor|rooftop floor|roof floor|roof surface|rooftop surface|"
         r"walkable|platform|pavement|concrete surface|deck)\b",
         re.I,
     ),
@@ -146,11 +151,11 @@ def build_ceiling_context(objects: list[dict[str, Any]], args: argparse.Namespac
             if xy_overlap_ratio(upper, lower) < args.ceiling_min_xy_overlap:
                 continue
             lower_label = str(lower.get("semantic_label") or "unknown")
-            if lower_label not in {"floor", "ambiguous", "wall"}:
+            if lower_label not in {"floor", "ground", "ambiguous", "wall"}:
                 continue
-            if upper_label not in {"floor", "wall"}:
+            if upper_label not in {"floor", "ground", "wall"}:
                 continue
-            if upper_label == "floor" and not has_ceiling_text:
+            if upper_label in {"floor", "ground"} and not has_ceiling_text:
                 continue
             if has_wall_text and not has_ceiling_text:
                 continue
@@ -175,35 +180,47 @@ def choose_label(obj: dict[str, Any], context: dict[str, Any], args: argparse.Na
 
     geom = geometry(obj)
     text = text_blob(obj)
-    has_floor = bool(PATTERNS["floor"].search(text))
+    has_ground = bool(PATTERNS["ground"].search(text) or PATTERNS["floor"].search(text))
     has_wall = bool(PATTERNS["wall"].search(text))
     has_ceiling = bool(PATTERNS["ceiling"].search(text))
+    horizontal_label = str(getattr(args, "horizontal_surface_label", "ground"))
 
     if context.get("height_layer_ceiling") and bool(geom["is_horizontal"]):
         return "ceiling", "height_layer_ceiling"
     if has_ceiling and bool(geom["is_horizontal"]):
         return "ceiling", "text_ceiling_horizontal"
-    if original in {"floor", "wall", "building", "ambiguous"} and has_floor and bool(geom["is_horizontal"]):
-        return "floor", "text_floor_horizontal"
+    if original in {"floor", "ground", "wall", "building", "ambiguous"} and has_ground and bool(geom["is_horizontal"]):
+        return horizontal_label, "text_ground_horizontal"
     if has_wall and bool(geom["is_vertical"]):
         return "wall", "text_wall_vertical"
 
+    if (
+        bool(getattr(args, "geometry_relabel_flat_wall", False))
+        and original == "wall"
+        and bool(geom["is_horizontal"])
+        and float(geom["z_span"]) <= float(args.flat_wall_max_z_span)
+        and float(geom["max_extent"]) >= float(args.flat_wall_min_extent)
+        and float(geom["horiz_area"]) >= float(args.flat_wall_min_area)
+    ):
+        label = "ceiling" if float(geom["min_z"]) >= float(args.ceiling_min_z) else horizontal_label
+        return label, f"flat_wall_geometry_to_{label}"
+
     # Strong correction for "rooftop floor" text trapped inside a tall merged wall object.
-    if original == "wall" and has_floor and vote_ratio(obj, "ceiling") < args.wall_floor_max_ceiling_ratio:
+    if original == "wall" and has_ground and vote_ratio(obj, "ceiling") < args.wall_floor_max_ceiling_ratio:
         if geom["horiz_area"] >= args.wall_floor_min_area and geom["max_extent"] >= args.wall_floor_min_extent:
-            return "floor", "wall_text_floor_large_surface"
+            return horizontal_label, "wall_text_ground_large_surface"
 
     # Building is often used as a fallback surface bucket. Resolve by geometry + text.
     if original == "building":
-        if has_floor and bool(geom["is_horizontal"]):
-            return "floor", "building_text_floor_horizontal"
+        if has_ground and bool(geom["is_horizontal"]):
+            return horizontal_label, "building_text_ground_horizontal"
         if has_wall and bool(geom["is_vertical"]):
             return "wall", "building_text_wall_vertical"
 
     # Conservative geometry fallback.
     if original in {"floor", "wall", "building", "other", "ambiguous"}:
-        if bool(geom["is_horizontal"]) and vote_ratio(obj, "floor") >= 0.15:
-            return "floor", "geometry_horizontal_surface"
+        if bool(geom["is_horizontal"]) and max(vote_ratio(obj, "floor"), vote_ratio(obj, "ground")) >= 0.15:
+            return horizontal_label, "geometry_horizontal_surface"
         if bool(geom["is_vertical"]) and (vote_ratio(obj, "wall") >= 0.12 or vote_ratio(obj, "building") >= 0.10):
             return "wall", "geometry_vertical_surface"
 
@@ -216,6 +233,7 @@ def main() -> None:
     parser.add_argument("--output-jsonl", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--ceiling-min-z-gap", type=float, default=1.4)
+    parser.add_argument("--ceiling-min-z", type=float, default=2.5)
     parser.add_argument("--ceiling-max-z-gap", type=float, default=4.0)
     parser.add_argument("--ceiling-min-xy-overlap", type=float, default=0.20)
     parser.add_argument("--ceiling-min-points", type=int, default=120)
@@ -223,6 +241,11 @@ def main() -> None:
     parser.add_argument("--wall-floor-max-ceiling-ratio", type=float, default=0.10)
     parser.add_argument("--wall-floor-min-area", type=float, default=4.0)
     parser.add_argument("--wall-floor-min-extent", type=float, default=2.0)
+    parser.add_argument("--horizontal-surface-label", choices=["ground", "floor"], default="ground")
+    parser.add_argument("--geometry-relabel-flat-wall", action="store_true")
+    parser.add_argument("--flat-wall-max-z-span", type=float, default=0.45)
+    parser.add_argument("--flat-wall-min-area", type=float, default=3.0)
+    parser.add_argument("--flat-wall-min-extent", type=float, default=1.5)
     args = parser.parse_args()
 
     objects = load_jsonl(args.objects_jsonl)
