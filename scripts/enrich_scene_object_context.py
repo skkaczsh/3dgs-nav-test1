@@ -191,6 +191,20 @@ def assign_context(obj: dict[str, Any], layers: list[dict[str, Any]], args: argp
         downstream_stage = "dino_fine_object_review"
         review_priority = "high"
         prompt_group = "railing"
+    elif label == "fine_candidate":
+        candidate_label = str(obj.get("candidate_label") or obj.get("semantic_label_original") or "")
+        if candidate_label in {"car", "railing"}:
+            context = "unconfirmed_fine_object_candidate"
+            description = f"unconfirmed {candidate_label} candidate requiring visual and geometry review"
+            downstream_stage = "dino_fine_object_review"
+            review_priority = "high"
+            prompt_group = candidate_label
+        else:
+            context = "ambiguous_fine_object_candidate"
+            description = "fine object candidate requiring visual review"
+            downstream_stage = "fine_semantic_review"
+            review_priority = "high"
+            prompt_group = "unknown"
     elif label == "unknown":
         context = "residual_object_candidate_after_surface_removal"
         description = "remaining residual object after sky, surfaces, vegetation, car, and railing priority removal"

@@ -257,10 +257,59 @@ def feature_metrics(feats: np.ndarray, roi_mask: np.ndarray) -> dict[str, float]
     }
 
 
+def pooled_features(feats: np.ndarray, roi_mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    flat = feats.reshape(-1, feats.shape[-1])
+    roi = roi_mask.reshape(-1)
+    if int(roi.sum()) == 0:
+        roi_feat = flat.mean(axis=0)
+    else:
+        roi_feat = flat[roi].mean(axis=0)
+    if int((~roi).sum()) == 0:
+        ctx_feat = np.zeros_like(roi_feat)
+    else:
+        ctx_feat = flat[~roi].mean(axis=0)
+    roi_feat = roi_feat / np.maximum(np.linalg.norm(roi_feat), 1e-6)
+    ctx_norm = np.linalg.norm(ctx_feat)
+    if ctx_norm > 1e-6:
+        ctx_feat = ctx_feat / ctx_norm
+    return roi_feat.astype(np.float32), ctx_feat.astype(np.float32)
+
+
+def label_prototype_report(labels: list[str], features: list[np.ndarray]) -> dict[str, Any]:
+    if not features:
+        return {}
+    by_label: dict[str, list[np.ndarray]] = {}
+    for label, feat in zip(labels, features):
+        by_label.setdefault(label, []).append(feat)
+    prototypes: dict[str, np.ndarray] = {}
+    out: dict[str, Any] = {}
+    for label, feats in sorted(by_label.items()):
+        arr = np.stack(feats).astype(np.float32)
+        proto = arr.mean(axis=0)
+        proto = proto / np.maximum(np.linalg.norm(proto), 1e-6)
+        prototypes[label] = proto
+        sims = arr @ proto
+        out[label] = {
+            "count": int(len(feats)),
+            "prototype_similarity_mean": round(float(np.mean(sims)), 6),
+            "prototype_similarity_min": round(float(np.min(sims)), 6),
+            "prototype_similarity_p10": round(float(np.percentile(sims, 10)), 6),
+        }
+    pairwise: dict[str, float] = {}
+    keys = sorted(prototypes)
+    for i, a in enumerate(keys):
+        for b in keys[i + 1:]:
+            pairwise[f"{a}__{b}"] = round(float(prototypes[a] @ prototypes[b]), 6)
+    return {
+        "by_label": out,
+        "prototype_cosine": pairwise,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--evidence-jsonl", type=Path, required=True)
-    parser.add_argument("--visual-review-jsonl", type=Path, required=True)
+    parser.add_argument("--visual-review-jsonl", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--workdir", type=Path, default=Path("."))
     parser.add_argument("--model-id", default="facebook/dinov2-small")
@@ -270,12 +319,13 @@ def main() -> None:
     parser.add_argument("--roi-source", choices=["auto", "bbox", "points"], default="auto")
     parser.add_argument("--point-dilation", type=int, default=1)
     parser.add_argument("--min-point-patches", type=int, default=2)
+    parser.add_argument("--save-feature-npz", type=Path)
     parser.add_argument("--limit-objects", type=int, default=0)
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     evidence_rows = read_jsonl(args.evidence_jsonl)
-    visual_rows = read_jsonl(args.visual_review_jsonl)
+    visual_rows = read_jsonl(args.visual_review_jsonl) if args.visual_review_jsonl else []
     visual_by_id = {int(row["object_id"]): row for row in visual_rows}
     evidence_by_object: dict[int, list[dict[str, Any]]] = {}
     for row in evidence_rows:
@@ -313,6 +363,13 @@ def main() -> None:
             work_items.append((object_id, visual, row, crop_path))
 
     out_rows: list[dict[str, Any]] = []
+    feature_object_ids: list[int] = []
+    feature_ranks: list[int] = []
+    semantic_labels: list[str] = []
+    feature_labels: list[str] = []
+    feature_roi_sources: list[str] = []
+    roi_features: list[np.ndarray] = []
+    context_features: list[np.ndarray] = []
     batch_size = max(1, int(args.batch_size))
     for start in range(0, len(work_items), batch_size):
         batch = work_items[start:start + batch_size]
@@ -355,9 +412,13 @@ def main() -> None:
                 roi_mask = bbox_mask
                 roi_source = "bbox_fallback"
             metrics = feature_metrics(feats, roi_mask)
+            roi_feat, ctx_feat = pooled_features(feats, roi_mask)
+            semantic_label = str(row.get("semantic_label", ""))
+            feature_label = str(row.get("dino_prompt_group") or row.get("candidate_label") or semantic_label)
             out_rows.append({
                 "object_id": object_id,
-                "semantic_label": row.get("semantic_label", ""),
+                "semantic_label": semantic_label,
+                "feature_label": feature_label,
                 "visual_status": visual.get("visual_status", ""),
                 "visual_score": float(visual.get("best_score") or 0.0),
                 "best_phrase": visual.get("best_phrase", ""),
@@ -373,8 +434,28 @@ def main() -> None:
                 "point_patch_count": int(point_mask.sum()),
                 **{k: round(float(v), 6) for k, v in metrics.items()},
             })
+            feature_object_ids.append(int(object_id))
+            feature_ranks.append(int(row.get("rank", 999)))
+            semantic_labels.append(semantic_label)
+            feature_labels.append(feature_label)
+            feature_roi_sources.append(roi_source)
+            roi_features.append(roi_feat)
+            context_features.append(ctx_feat)
 
     write_jsonl(args.output_dir / "dino_feature_evidence_qa.jsonl", out_rows)
+    feature_npz = args.save_feature_npz or (args.output_dir / "dino_feature_evidence_features.npz")
+    if roi_features:
+        feature_npz.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(
+            feature_npz,
+            object_id=np.asarray(feature_object_ids, dtype=np.int64),
+            rank=np.asarray(feature_ranks, dtype=np.int16),
+            semantic_label=np.asarray(semantic_labels),
+            feature_label=np.asarray(feature_labels),
+            roi_source=np.asarray(feature_roi_sources),
+            roi_feature=np.stack(roi_features).astype(np.float32),
+            context_feature=np.stack(context_features).astype(np.float32),
+        )
     risky = [row for row in out_rows if float(row.get("feature_risk", 0.0)) >= 0.5]
     report = {
         "model_id": args.model_id,
@@ -385,13 +466,16 @@ def main() -> None:
         "point_dilation": args.point_dilation,
         "min_point_patches": args.min_point_patches,
         "evidence_jsonl": str(args.evidence_jsonl),
-        "visual_review_jsonl": str(args.visual_review_jsonl),
+        "visual_review_jsonl": str(args.visual_review_jsonl) if args.visual_review_jsonl else None,
         "output_dir": str(args.output_dir),
+        "feature_npz": str(feature_npz) if roi_features else None,
         "object_count": len(object_ids),
         "row_count": len(out_rows),
         "feature_risky_rows": len(risky),
         "visual_status_counts": dict(Counter(row.get("visual_status", "") for row in out_rows)),
         "label_counts": dict(Counter(row.get("semantic_label", "") for row in out_rows)),
+        "feature_label_counts": dict(Counter(row.get("feature_label", "") for row in out_rows)),
+        "feature_prototypes": label_prototype_report(feature_labels, roi_features),
         "top_feature_risk": sorted(
             [
                 {

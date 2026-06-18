@@ -604,6 +604,27 @@ Object-level scene-context review:
   - changed objects: `51`; changed preview points: `9,272`.
   - after relabel preview counts: `floor=308,796`, `wall=341,665`, `unknown=152,726`, `ceiling=2,616`, `grass=82,088`, `car=18,382`, `fine_candidate=6,857`, `railing=2,243`.
   - interpretation: this is the first full-scene use of the successful `drivability_cpp` wall/floor prior, not just residual cleanup. It reduces visually promoted fine-object false positives when the 3D object is actually a ground/wall surface.
+- DINOv3 v14 fine-candidate enrichment:
+  - script update: `scripts/enrich_scene_object_context.py` routes `fine_candidate` objects with preserved `candidate_label=car/railing` into `dino_fine_object_review` instead of treating them as generic residuals.
+  - enriched object JSON: `server_parking_priority_s10/full_scene_objects_s10_full_v13_drivability_full_scene_guard/full_scene_objects_drivability_full_scene_guard_enriched.jsonl`
+  - DINO/fine candidates: `299` (`car=54`, `railing=10`, `fine_candidate=235` with preserved prompt groups).
+  - evidence output: `server_parking_priority_s10/object_image_evidence_dino_v14_v13_fine_points`
+  - evidence result: `299` candidate objects, `66` objects with image evidence, `190` evidence rows. The lower recall is expected because this run uses the preview/stride object PLY; full point-level evidence is still needed before any full production decision.
+  - DINOv3 feature output: `server_parking_priority_s10/dino_feature_qa_v14_v13_fine_points`
+  - feature result: `66` objects, feature labels `car=47`, `railing=19`, all `66` rows flagged risky by ROI/context separation.
+  - prototype check: car/railing prototype cosine is `0.940977`, too close for direct class separation.
+  - interpretation: DINOv3 is useful as a local patch descriptor asset, but current ROI pooling cannot classify or confirm fine objects reliably.
+- DINOv3 seed-similarity maps v1:
+  - script: `scripts/run_dino_seed_similarity_maps.py`
+  - purpose: use projected 3D point samples as seed patches and visualize DINO patch-feature expansion inside the crop.
+  - car output: `server_parking_priority_s10/dino_seed_similarity_v1`
+  - railing output: `server_parking_priority_s10/dino_seed_similarity_v1_railing`
+  - runtime: scan-train, DINOv3 ONNX, `CUDAExecutionProvider`, `batch_size=4`.
+  - model limitation: the public ONNX fallback is fixed at `224x224` with `patch_size=16`, giving only a `14x14` feature grid.
+  - result: `12/12` car samples and `12/12` railing samples were flagged as bleed-risk cases.
+  - railing stats: seed patch count median `77.5`, foreground patch count median `36`, seed similarity mean median `0.969492`, context similarity p95 median `0.973396`.
+  - interpretation: the projected-point seed and surrounding wall/floor context are not separable enough at this DINOv3 ViT-S/16 ONNX resolution. DINOv3 should not be used as a direct railing segmentation stage in this form.
+  - useful role remains: after tighter 3D object splitting and better crop/point evidence, DINO features can support local same-object binding or object-internal split checks.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
@@ -612,10 +633,10 @@ Object-level scene-context review:
 
 ## Next Step
 
-Build `refine_priority_by_geometry.py`:
+Build a point-evidence-first fine-object refinement pass:
 
-- consume `priority_points.ply` and `residual_objects.jsonl`
-- split priority points by class, voxel cluster them, and apply PCA/height/extent guards
-- demote invalid broad `railing`, invalid floating `ground`, and non-planar `wall` back into residual
-- merge PCA-held residual surface candidates into stable surface layers where geometry agrees
-- re-run residual object clustering on the refined residual set
+- consume the v13 drivability-guarded full-scene bundle and its enriched object JSONL
+- rebuild fine-object image evidence from denser/full object points, not only preview stride points
+- split candidate objects by 3D connectedness, local plane/line PCA, and depth-continuity before visual review
+- use DINOv3 patch features only as a local binding/split signal after the geometry split
+- keep `car/railing` as candidate labels until geometry plus visual evidence agree
