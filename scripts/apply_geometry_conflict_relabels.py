@@ -70,6 +70,8 @@ def choose_relabel(finding: dict[str, Any], args: argparse.Namespace) -> tuple[s
         return "unknown", "grass_geometry_conflict_to_unknown"
     if label == "car" and reasons & {"car_high_centroid_z", "car_too_flat"}:
         return "unknown", "car_geometry_conflict_to_unknown"
+    if label == "railing" and "railing_clean_horizontal_surface" in reasons:
+        return "floor", "railing_clean_horizontal_surface_to_floor"
     if label == "railing" and "railing_surface_like_horizontal" in reasons:
         return "unknown", "railing_surface_like_to_unknown"
     if label == "floor" and "floor_not_horizontal" in reasons:

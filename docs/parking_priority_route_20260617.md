@@ -84,6 +84,13 @@
    - local preview output: `server_parking_priority_s10/full_scene_objects_s10_full_v4_voxel012_geometry_relabel`
    - result: priority object count increases from `102` to `585`; high-severity conflict points drop from `7,175,595` to `1,748,088`, but medium conflicts remain high.
    - conservative relabel preview changes `112` objects / `5,880,678` points, mostly demoting mixed geometry conflicts to `unknown`.
+14. Split priority objects by local 3D geometry:
+   - scripts: `scripts/qa_priority_geometry_conflicts.py`, `scripts/split_priority_objects_by_local_geometry.py`
+   - server priority output: `/root/epfs/work_MT20260616-175807/priority_objects_s10_full_v4_local_geometry_v2`
+   - server full-scene output: `/root/epfs/work_MT20260616-175807/full_scene_objects_s10_full_v6_local_geometry_split_v2`
+   - local full-scene preview: `server_parking_priority_s10/full_scene_objects_s10_full_v6_local_geometry_split_v2`
+   - method: recompute conflicts with `railing_clean_horizontal_surface`, split selected floor/wall/grass/railing objects by local `0.80m` voxel PCA and 6-neighbor connected components.
+   - result: priority objects `585 -> 1128`; priority railing points `124,493 -> 111,642`; remaining railing geometry conflicts are small fragments totaling `2,709` points.
 
 ## Current Metrics
 
@@ -263,6 +270,20 @@ Conservative geometry relabel preview:
   - unknown: `225`
 - interpretation: this preview is more honest than the confident mislabel view, but it intentionally increases `unknown`. It is a QA/debug preview, not the final semantic product.
 
+Local geometry split v2:
+
+- split source objects: `20`
+- priority objects after split: `1128`
+- priority point labels after split:
+  - floor: `2,626,523`
+  - wall: `3,342,814`
+  - grass: `823,978`
+  - car: `237,670`
+  - railing: `111,642`
+  - unknown: `1,444,321`
+- user-reported issue addressed: several floor/wall regions were being shown as `railing`; the updated QA flags `railing_clean_horizontal_surface` and the split stage converts local horizontal surface voxels to `floor` or `unknown`.
+- remaining `railing` geometry conflicts: `17` objects, `2,709` points total. These are small fragments and should be handled by a later small-object merge/demotion pass, not by broad class-level relabel.
+
 ## Review Assets
 
 Local previews:
@@ -316,6 +337,11 @@ Local review outputs:
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v4_voxel012_geometry_relabel/full_scene_objects_geometry_relabel.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v4_voxel012_geometry_relabel/full_scene_objects_geometry_relabel_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v4_voxel012_geometry_relabel/full_scene_objects_geometry_relabel_relabels.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v6_local_geometry_split_v2/full_scene_objects_stride10.ply`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v6_local_geometry_split_v2/full_scene_objects.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v6_local_geometry_split_v2/full_scene_objects_report.json`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/priority_objects_s10_full_v4_local_geometry_v2/priority_objects_local_geometry_report.json`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/priority_objects_s10_full_v4_local_geometry_v2/priority_geometry_conflict_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded_ascii.ply`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/groundingdino_review_v1/groundingdino_review_report.json`
@@ -335,6 +361,10 @@ Guarded server-full stride review:
 Conservative geometry relabel preview:
 
 `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v4_voxel012_geometry_relabel/full_scene_objects_geometry_relabel_stride10.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v4_voxel012_geometry_relabel/full_scene_objects_geometry_relabel.jsonl&mode=semantic&stride=1&pointSize=1.5`
+
+Local geometry split v2 preview:
+
+`http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v6_local_geometry_split_v2/full_scene_objects_stride10.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v6_local_geometry_split_v2/full_scene_objects.jsonl&mode=semantic&stride=1&pointSize=1.5`
 
 Guarded local light review:
 
@@ -370,6 +400,7 @@ Object-level scene-context review:
 - Geometry conflict QA shows the largest remaining error is upstream priority overmerge/misclassification, especially a huge `wall` object with horizontal PCA normal. This cannot be fixed by a crop-level detector alone; the next correction must split/relabel priority surfaces by 3D geometry before object-level semantic review.
 - Finer priority voxel connectivity helps but is not sufficient. It splits some large components and reduces high-severity conflict points, but many medium conflicts remain because connected mixed surfaces still need plane/local-normal splitting.
 - Conservative geometry relabel preview is useful for QA because it removes confident false labels, but it should not be mistaken for final semantics: the large `unknown` region is a signal that geometry splitting is still missing.
+- Local geometry split v2 is the better default preview than conservative relabel: it keeps more geometry-specific labels while correcting large mixed priority objects. It still leaves small railing/floor/wall fragments for a later merge/demotion pass.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,

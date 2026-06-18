@@ -61,6 +61,13 @@ def normal_z_abs(obj: dict[str, Any]) -> float:
     return abs(normal[2])
 
 
+def linearity(obj: dict[str, Any]) -> float:
+    vals = obj.get("pca_eigenvalues") or []
+    if len(vals) < 2 or float(vals[0]) <= 1e-9:
+        return 0.0
+    return max(0.0, 1.0 - float(vals[1]) / max(float(vals[0]), 1e-9))
+
+
 def orientation(obj: dict[str, Any], horizontal_z: float, vertical_z: float) -> str:
     nz = normal_z_abs(obj)
     if nz >= horizontal_z:
@@ -82,6 +89,8 @@ def metric_summary(obj: dict[str, Any], args: argparse.Namespace) -> dict[str, A
         "orientation": orientation(obj, args.horizontal_normal_z, args.vertical_normal_z),
         "planarity": float(obj.get("planarity") or 0.0),
         "thickness_rms": float(obj.get("thickness_rms") or 0.0),
+        "linearity": linearity(obj),
+        "xy_minor_extent": min(ex[0], ex[1]),
     }
 
 
@@ -137,6 +146,16 @@ def assess_object(obj: dict[str, Any], args: argparse.Namespace) -> tuple[str, l
         if status == "geometry_rejected":
             reasons.append("railing_geometry_rejected")
             suggested_action = "demote_to_unknown"
+        if (
+            metrics["orientation"] == "horizontal"
+            and metrics["planarity"] >= args.railing_surface_min_planarity
+            and (
+                metrics["linearity"] < args.railing_keep_linearity
+                or metrics["xy_minor_extent"] >= args.railing_max_minor_extent
+            )
+        ):
+            reasons.append("railing_clean_horizontal_surface")
+            suggested_action = "split_or_relabel_railing_surface"
         if metrics["orientation"] == "horizontal" and metrics["thickness_rms"] > args.railing_max_horizontal_thickness:
             reasons.append("railing_surface_like_horizontal")
             suggested_action = "split_or_demote_railing_candidate"
@@ -150,7 +169,13 @@ def assess_object(obj: dict[str, Any], args: argparse.Namespace) -> tuple[str, l
 
     severity = "ok"
     if reasons:
-        severity = "high" if any("rejected" in r or "horizontal_normal" in r or "large_vertical" in r for r in reasons) else "medium"
+        severity = "high" if any(
+            "rejected" in r
+            or "horizontal_normal" in r
+            or "large_vertical" in r
+            or "clean_horizontal_surface" in r
+            for r in reasons
+        ) else "medium"
     return severity, reasons, suggested_action
 
 
@@ -171,6 +196,9 @@ def main() -> None:
     parser.add_argument("--car-min-z-extent", type=float, default=0.45)
     parser.add_argument("--railing-max-extent", type=float, default=18.00)
     parser.add_argument("--railing-max-horizontal-thickness", type=float, default=0.16)
+    parser.add_argument("--railing-surface-min-planarity", type=float, default=0.80)
+    parser.add_argument("--railing-keep-linearity", type=float, default=0.82)
+    parser.add_argument("--railing-max-minor-extent", type=float, default=1.20)
     parser.add_argument("--tiny-surface-points", type=int, default=500)
     args = parser.parse_args()
 
