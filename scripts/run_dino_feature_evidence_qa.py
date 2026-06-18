@@ -17,6 +17,7 @@ import json
 import math
 import os
 from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -52,8 +53,34 @@ def resolve_path(raw_path: str, workdir: Path, evidence_dir: Path) -> Path:
     return workdir / p
 
 
+@dataclass
+class OnnxFeatureModel:
+    session: Any
+    input_name: str
+    patch_size: int
+
+
 def load_feature_model(model_id: str, device: str):
     from transformers import AutoImageProcessor, AutoModel
+
+    model_path = Path(model_id)
+    onnx_path = model_path / "onnx" / "model_quantized.onnx"
+    if model_path.exists() and onnx_path.exists():
+        import onnxruntime as ort
+
+        processor = AutoImageProcessor.from_pretrained(model_path, local_files_only=True)
+        available = ort.get_available_providers()
+        providers = ["CPUExecutionProvider"]
+        if device.startswith("cuda") and "CUDAExecutionProvider" in available:
+            providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        session = ort.InferenceSession(str(onnx_path), providers=providers)
+        input_name = session.get_inputs()[0].name
+        patch_size = int(getattr(getattr(processor, "size", None), "get", lambda _k, d=None: d)("patch_size", 16) or 16)
+        config_path = model_path / "config.json"
+        if config_path.exists():
+            with config_path.open("r", encoding="utf-8") as f:
+                patch_size = int(json.load(f).get("patch_size") or patch_size)
+        return processor, OnnxFeatureModel(session=session, input_name=input_name, patch_size=patch_size)
 
     processor = AutoImageProcessor.from_pretrained(model_id)
     model = AutoModel.from_pretrained(model_id).eval().to(device)
@@ -61,6 +88,33 @@ def load_feature_model(model_id: str, device: str):
 
 
 def infer_patch_grid(processor, model, image: Image.Image, device: str) -> tuple[np.ndarray, tuple[int, int], tuple[int, int]]:
+    if isinstance(model, OnnxFeatureModel):
+        inputs = processor(images=image, return_tensors="np")
+        pixel_values = inputs["pixel_values"].astype(np.float32)
+        input_h, input_w = int(pixel_values.shape[-2]), int(pixel_values.shape[-1])
+        outputs = model.session.run(None, {model.input_name: pixel_values})
+        tokens = np.asarray(outputs[0], dtype=np.float32)
+        patch_tokens = tokens[:, 1:, :]
+        n = int(patch_tokens.shape[1])
+        patch_size = model.patch_size
+        gh = max(1, input_h // patch_size)
+        gw = max(1, input_w // patch_size)
+        if gh * gw != n:
+            # Some DINOv3 ONNX exports include register tokens after CLS.
+            register_count = n - gh * gw
+            if register_count > 0:
+                patch_tokens = patch_tokens[:, register_count:, :]
+                n = int(patch_tokens.shape[1])
+            if gh * gw != n:
+                side = int(round(math.sqrt(n)))
+                if side * side == n:
+                    gh = gw = side
+                else:
+                    gh, gw = 1, n
+        feats = patch_tokens[0]
+        feats = feats / np.maximum(np.linalg.norm(feats, axis=1, keepdims=True), 1e-6)
+        return feats.reshape(gh, gw, -1), (input_w, input_h), image.size
+
     inputs = processor(images=image, return_tensors="pt").to(device)
     pixel_values = inputs["pixel_values"]
     input_h, input_w = int(pixel_values.shape[-2]), int(pixel_values.shape[-1])

@@ -567,6 +567,16 @@ Object-level scene-context review:
   - output: `server_parking_priority_s10/dino_feature_qa_v12_dinov2_small`
   - result: `93` evidence objects evaluated; `91` rows were flagged risky by naive bbox-level ROI/context feature separation.
   - interpretation: crop-rectangle feature averaging is too coarse. The useful DINOv3/DINOv2 role should be patch/point-level binding or object-internal splitting using projected points and depth continuity, not a simple bbox-level post-filter.
+- DINOv3 ONNX setup:
+  - official `facebook/dinov3-vits16-pretrain-lvd1689m` remains gated; the provided HF token can reach Hugging Face but the model request is still awaiting repo-author review.
+  - public fallback model synced locally and to scan-train: `onnx-community/dinov3-vits16-pretrain-lvd1689m-ONNX`.
+  - remote path: `/root/epfs/models/dinov3-vits16-pretrain-lvd1689m-onnx`.
+  - `onnxruntime-gpu==1.23.2` is installed in `/root/epfs/conda_envs/vlm_seg`; available providers are `TensorrtExecutionProvider`, `CUDAExecutionProvider`, and `CPUExecutionProvider`.
+  - script update: `scripts/run_dino_feature_evidence_qa.py` now supports ONNXRuntime local model directories and selects CUDA provider when `--device cuda`.
+  - output: `server_parking_priority_s10/dino_feature_qa_v12_dinov3_onnx_cuda`.
+  - result: `93` evidence objects evaluated; all `93` rows were flagged risky by the same bbox ROI/context metric.
+  - timing: the 93-object CUDA run took about `18s`; the CPU run was about `20s`. ORT reports many memcpy nodes, so single-crop ONNX GPU inference is functionally correct but not a meaningful speedup.
+  - interpretation: DINOv3 is now runnable, but the current metric is the bottleneck. Next use should be batched patch/point-level feature binding or TensorRT engine caching, not per-crop bbox averaging.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
