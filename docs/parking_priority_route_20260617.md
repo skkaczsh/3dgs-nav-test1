@@ -488,6 +488,10 @@ Visual + geometry guarded v11 preview:
 
 `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v11_visual_geometry_guard/full_scene_objects_visual_geometry_guard.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v11_visual_geometry_guard/full_scene_objects_visual_geometry_guard.jsonl&mode=semantic&stride=1&pointSize=1.5`
 
+Tight-evidence visual + geometry guarded v12 preview:
+
+`http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v12_tight_visual_geometry_guard/full_scene_objects_tight_visual_geometry_guard.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v12_tight_visual_geometry_guard/full_scene_objects_tight_visual_geometry_guard.jsonl&mode=semantic&stride=1&pointSize=1.5`
+
 Guarded local light review:
 
 `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded_ascii.ply&objects=/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded.jsonl&mode=semantic&stride=1&pointSize=1.5`
@@ -548,6 +552,21 @@ Object-level scene-context review:
   - contact sheets: `fine_object_qa_top_crops.jpg`, `fine_object_qa_top_overlays.jpg`
   - finding: the highest-risk cases are often loose image-evidence boxes over walls, stairs, building panels, or nearby railings. GroundingDINO can confirm something present in the crop without proving that the projected 3D object is that thing.
   - implication: the next correction should tighten projection evidence with point-overlay coverage, depth/edge continuity, and smaller crop boxes before detector review; it should not be another text-threshold-only detector sweep.
+- Tight-evidence v12:
+  - script change: `scripts/build_object_image_evidence.py` now supports percentile bboxes, bbox area-ratio filtering, bbox inlier ratio, and tight scoring while preserving legacy defaults.
+  - run params: `bbox_percentile=4`, `max_bbox_area_ratio=0.65`, `score_mode=tight`
+  - evidence recall unchanged: `93` objects, `279` evidence rows.
+  - GroundingDINO result: `92` confirmed, `230` not detected, `1` weak (`car=61`, `railing=31` confirmed).
+  - after geometry guard: `car=57`, `railing=19`, `fine_candidate=247`.
+  - point counts: `car=22,863`, `railing=4,583`, `fine_candidate=7,224`.
+  - interpretation: tightening image evidence removes one weak railing but does not materially change the result. The remaining error mode is likely over-merged/misaligned 3D object candidates, so the next useful step is object-internal 3D splitting / depth-continuity filtering, not more detector prompt/threshold tuning.
+- DINO-style dense feature pilot:
+  - script: `scripts/run_dino_feature_evidence_qa.py`
+  - DINOv3 status: `facebook/dinov3-vits16-pretrain-lvd1689m` is gated on Hugging Face; scan-train receives `403 Forbidden` without approved access.
+  - fallback pilot: `facebook/dinov2-small` ran on the v12 tight evidence crops.
+  - output: `server_parking_priority_s10/dino_feature_qa_v12_dinov2_small`
+  - result: `93` evidence objects evaluated; `91` rows were flagged risky by naive bbox-level ROI/context feature separation.
+  - interpretation: crop-rectangle feature averaging is too coarse. The useful DINOv3/DINOv2 role should be patch/point-level binding or object-internal splitting using projected points and depth continuity, not a simple bbox-level post-filter.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,

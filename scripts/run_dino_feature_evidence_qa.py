@@ -1,0 +1,266 @@
+#!/usr/bin/env python3
+"""Use DINO-style dense features to score fine-object evidence crops.
+
+This is not a detector. It checks whether the projected object bounding box is
+visually coherent and distinct from surrounding context. That addresses the
+current failure mode where GroundingDINO confirms a label somewhere in a loose
+crop, while the projected 3D object may actually be wall/floor/stair structure.
+
+The script works with DINOv3 when access is available. It can also run DINOv2 as
+a public feature-backbone sanity check with the same interface.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import os
+from collections import Counter
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import torch
+from PIL import Image
+
+
+def read_jsonl(path: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                rows.append(json.loads(line))
+    return rows
+
+
+def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        for row in rows:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def resolve_path(raw_path: str, workdir: Path, evidence_dir: Path) -> Path:
+    p = Path(raw_path)
+    if p.is_absolute() and p.exists():
+        return p
+    for base in (workdir, evidence_dir, evidence_dir.parent):
+        q = base / p
+        if q.exists():
+            return q
+    return workdir / p
+
+
+def load_feature_model(model_id: str, device: str):
+    from transformers import AutoImageProcessor, AutoModel
+
+    processor = AutoImageProcessor.from_pretrained(model_id)
+    model = AutoModel.from_pretrained(model_id).eval().to(device)
+    return processor, model
+
+
+def infer_patch_grid(processor, model, image: Image.Image, device: str) -> tuple[np.ndarray, tuple[int, int], tuple[int, int]]:
+    inputs = processor(images=image, return_tensors="pt").to(device)
+    pixel_values = inputs["pixel_values"]
+    input_h, input_w = int(pixel_values.shape[-2]), int(pixel_values.shape[-1])
+    with torch.no_grad():
+        output = model(**inputs)
+    tokens = output.last_hidden_state.detach()
+    patch_tokens = tokens[:, 1:, :].float()
+    n = int(patch_tokens.shape[1])
+
+    patch_size = int(getattr(model.config, "patch_size", 14) or 14)
+    gh = max(1, input_h // patch_size)
+    gw = max(1, input_w // patch_size)
+    if gh * gw != n:
+        side = int(round(math.sqrt(n)))
+        if side * side == n:
+            gh = gw = side
+        else:
+            # Fall back to a single-row layout; metrics will be conservative.
+            gh, gw = 1, n
+    feats = patch_tokens[0].cpu().numpy()
+    feats = feats / np.maximum(np.linalg.norm(feats, axis=1, keepdims=True), 1e-6)
+    return feats.reshape(gh, gw, -1), (input_w, input_h), image.size
+
+
+def roi_patch_mask(
+    bbox_xyxy: list[float],
+    crop_bbox_xyxy: list[float],
+    original_size: tuple[int, int],
+    processed_size: tuple[int, int],
+    grid_shape: tuple[int, int],
+) -> np.ndarray:
+    ox0, oy0, _ox1, _oy1 = crop_bbox_xyxy
+    x0, y0, x1, y1 = bbox_xyxy
+    rel = np.array([x0 - ox0, y0 - oy0, x1 - ox0, y1 - oy0], dtype=np.float32)
+    orig_w, orig_h = original_size
+    proc_w, proc_h = processed_size
+    scale = np.array([
+        proc_w / max(orig_w, 1),
+        proc_h / max(orig_h, 1),
+        proc_w / max(orig_w, 1),
+        proc_h / max(orig_h, 1),
+    ], dtype=np.float32)
+    rel *= scale
+    gh, gw = grid_shape
+    xs = (np.arange(gw) + 0.5) * proc_w / gw
+    ys = (np.arange(gh) + 0.5) * proc_h / gh
+    xx, yy = np.meshgrid(xs, ys)
+    mask = (xx >= rel[0]) & (xx <= rel[2]) & (yy >= rel[1]) & (yy <= rel[3])
+    return mask
+
+
+def feature_metrics(feats: np.ndarray, roi_mask: np.ndarray) -> dict[str, float]:
+    flat = feats.reshape(-1, feats.shape[-1])
+    roi = roi_mask.reshape(-1)
+    if int(roi.sum()) < 2:
+        return {
+            "roi_patch_count": float(roi.sum()),
+            "roi_coherence": 0.0,
+            "context_separation": 0.0,
+            "context_similarity": 1.0,
+            "feature_risk": 1.0,
+        }
+    roi_feats = flat[roi]
+    ctx_feats = flat[~roi]
+    roi_mean = roi_feats.mean(axis=0)
+    roi_mean /= max(float(np.linalg.norm(roi_mean)), 1e-6)
+    roi_sims = roi_feats @ roi_mean
+    roi_coherence = float(np.mean(roi_sims))
+    if len(ctx_feats) > 0:
+        ctx_mean = ctx_feats.mean(axis=0)
+        ctx_mean /= max(float(np.linalg.norm(ctx_mean)), 1e-6)
+        context_similarity = float(roi_mean @ ctx_mean)
+    else:
+        context_similarity = 0.0
+    context_separation = float(roi_coherence - context_similarity)
+    feature_risk = 0.0
+    if roi_coherence < 0.55:
+        feature_risk += 0.5
+    if context_separation < 0.06:
+        feature_risk += 0.5
+    return {
+        "roi_patch_count": float(roi.sum()),
+        "roi_coherence": roi_coherence,
+        "context_similarity": context_similarity,
+        "context_separation": context_separation,
+        "feature_risk": feature_risk,
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence-jsonl", type=Path, required=True)
+    parser.add_argument("--visual-review-jsonl", type=Path, required=True)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--workdir", type=Path, default=Path("."))
+    parser.add_argument("--model-id", default="facebook/dinov2-small")
+    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--top-k", type=int, default=1)
+    parser.add_argument("--limit-objects", type=int, default=0)
+    args = parser.parse_args()
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    evidence_rows = read_jsonl(args.evidence_jsonl)
+    visual_rows = read_jsonl(args.visual_review_jsonl)
+    visual_by_id = {int(row["object_id"]): row for row in visual_rows}
+    evidence_by_object: dict[int, list[dict[str, Any]]] = {}
+    for row in evidence_rows:
+        evidence_by_object.setdefault(int(row["object_id"]), []).append(row)
+    for rows in evidence_by_object.values():
+        rows.sort(key=lambda r: int(r.get("rank", 999)))
+    object_ids = sorted(evidence_by_object)
+    if args.limit_objects:
+        object_ids = object_ids[: args.limit_objects]
+
+    device = args.device if torch.cuda.is_available() and args.device.startswith("cuda") else "cpu"
+    try:
+        processor, model = load_feature_model(args.model_id, device)
+    except Exception as exc:
+        report = {
+            "model_id": args.model_id,
+            "status": "model_load_failed",
+            "error": repr(exc),
+        }
+        (args.output_dir / "dino_feature_qa_report.json").write_text(
+            json.dumps(report, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        raise SystemExit(2)
+
+    out_rows: list[dict[str, Any]] = []
+    evidence_dir = args.evidence_jsonl.parent
+    for object_id in object_ids:
+        visual = visual_by_id.get(object_id, {})
+        for row in evidence_by_object[object_id][: args.top_k]:
+            crop_path = resolve_path(str(row.get("crop_path", "")), args.workdir, evidence_dir)
+            if not crop_path.exists():
+                continue
+            image = Image.open(crop_path).convert("RGB")
+            feats, processed_size, original_size = infer_patch_grid(processor, model, image, device)
+            roi_mask = roi_patch_mask(
+                row["bbox_xyxy"],
+                row["crop_bbox_xyxy"],
+                original_size,
+                processed_size,
+                feats.shape[:2],
+            )
+            metrics = feature_metrics(feats, roi_mask)
+            out_rows.append({
+                "object_id": object_id,
+                "semantic_label": row.get("semantic_label", ""),
+                "visual_status": visual.get("visual_status", ""),
+                "visual_score": float(visual.get("best_score") or 0.0),
+                "best_phrase": visual.get("best_phrase", ""),
+                "rank": int(row.get("rank", 999)),
+                "frame_id": row.get("frame_id"),
+                "cam_id": row.get("cam_id"),
+                "crop_path": str(crop_path),
+                "bbox_xyxy": row.get("bbox_xyxy"),
+                "crop_bbox_xyxy": row.get("crop_bbox_xyxy"),
+                "bbox_area_ratio": row.get("bbox_area_ratio"),
+                "bbox_inlier_ratio": row.get("bbox_inlier_ratio"),
+                **{k: round(float(v), 6) for k, v in metrics.items()},
+            })
+
+    write_jsonl(args.output_dir / "dino_feature_evidence_qa.jsonl", out_rows)
+    risky = [row for row in out_rows if float(row.get("feature_risk", 0.0)) >= 0.5]
+    report = {
+        "model_id": args.model_id,
+        "device": device,
+        "evidence_jsonl": str(args.evidence_jsonl),
+        "visual_review_jsonl": str(args.visual_review_jsonl),
+        "output_dir": str(args.output_dir),
+        "object_count": len(object_ids),
+        "row_count": len(out_rows),
+        "feature_risky_rows": len(risky),
+        "visual_status_counts": dict(Counter(row.get("visual_status", "") for row in out_rows)),
+        "label_counts": dict(Counter(row.get("semantic_label", "") for row in out_rows)),
+        "top_feature_risk": sorted(
+            [
+                {
+                    "object_id": row["object_id"],
+                    "semantic_label": row["semantic_label"],
+                    "visual_status": row["visual_status"],
+                    "visual_score": row["visual_score"],
+                    "roi_coherence": row["roi_coherence"],
+                    "context_separation": row["context_separation"],
+                    "feature_risk": row["feature_risk"],
+                }
+                for row in out_rows
+            ],
+            key=lambda r: (-(float(r["feature_risk"])), float(r["context_separation"])),
+        )[:30],
+    }
+    (args.output_dir / "dino_feature_qa_report.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()

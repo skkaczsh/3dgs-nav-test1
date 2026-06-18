@@ -160,6 +160,44 @@ def crop_with_margin(image: np.ndarray, bbox: tuple[int, int, int, int], margin:
     return image[y0:y1 + 1, x0:x1 + 1].copy(), (x0, y0, x1, y1)
 
 
+def bbox_from_points(
+    uv: np.ndarray,
+    width: int,
+    height: int,
+    percentile: float,
+) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int], float]:
+    raw_x0, raw_y0 = np.floor(uv.min(axis=0)).astype(int)
+    raw_x1, raw_y1 = np.ceil(uv.max(axis=0)).astype(int)
+    raw_bbox = (
+        int(max(0, raw_x0)),
+        int(max(0, raw_y0)),
+        int(min(width - 1, raw_x1)),
+        int(min(height - 1, raw_y1)),
+    )
+    if percentile <= 0:
+        return raw_bbox, raw_bbox, 1.0
+
+    lo = max(0.0, min(49.0, percentile))
+    hi = 100.0 - lo
+    q0 = np.floor(np.percentile(uv, lo, axis=0)).astype(int)
+    q1 = np.ceil(np.percentile(uv, hi, axis=0)).astype(int)
+    x0 = int(max(0, q0[0]))
+    y0 = int(max(0, q0[1]))
+    x1 = int(min(width - 1, q1[0]))
+    y1 = int(min(height - 1, q1[1]))
+    if x1 < x0 or y1 < y0:
+        return raw_bbox, raw_bbox, 1.0
+    inlier = (uv[:, 0] >= x0) & (uv[:, 0] <= x1) & (uv[:, 1] >= y0) & (uv[:, 1] <= y1)
+    return (x0, y0, x1, y1), raw_bbox, float(inlier.mean()) if len(inlier) else 0.0
+
+
+def evidence_score(projected_points: int, bbox_area: float, bbox_area_ratio: float, median_depth: float, score_mode: str) -> float:
+    depth = max(float(median_depth), 1.0)
+    if score_mode == "tight":
+        return float(projected_points / depth / math.sqrt(max(bbox_area_ratio, 0.002)))
+    return float(projected_points * math.log1p(max(bbox_area, 0.0)) / depth)
+
+
 def make_contact_sheet(rows: list[dict[str, Any]], output_path: Path, thumb_size: int = 180, cols: int = 6) -> None:
     thumbs = []
     labels = []
@@ -211,6 +249,9 @@ def main() -> None:
     parser.add_argument("--min-depth", type=float, default=0.1)
     parser.add_argument("--min-projected-points", type=int, default=20)
     parser.add_argument("--min-bbox-area", type=float, default=1600.0)
+    parser.add_argument("--bbox-percentile", type=float, default=0.0, help="Use percentile bbox, e.g. 2 means 2nd-98th percentile. 0 keeps min/max.")
+    parser.add_argument("--max-bbox-area-ratio", type=float, default=0.0, help="Reject evidence boxes larger than this image-area ratio when >0.")
+    parser.add_argument("--score-mode", choices=["legacy", "tight"], default="legacy")
     parser.add_argument("--crop-margin", type=int, default=48)
     parser.add_argument("--limit-objects", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
@@ -260,21 +301,30 @@ def main() -> None:
                     continue
                 uv_in = uv[in_img]
                 depth_in = depth[in_img]
-                x0, y0 = np.floor(uv_in.min(axis=0)).astype(int)
-                x1, y1 = np.ceil(uv_in.max(axis=0)).astype(int)
+                bbox, raw_bbox, bbox_inlier_ratio = bbox_from_points(uv_in, w, h, args.bbox_percentile)
+                x0, y0, x1, y1 = bbox
+                rx0, ry0, rx1, ry1 = raw_bbox
                 area = float(max(0, x1 - x0 + 1) * max(0, y1 - y0 + 1))
+                raw_area = float(max(0, rx1 - rx0 + 1) * max(0, ry1 - ry0 + 1))
+                area_ratio = area / float(max(1, w * h))
+                if args.max_bbox_area_ratio > 0 and area_ratio > args.max_bbox_area_ratio:
+                    continue
                 if area < args.min_bbox_area:
                     continue
-                score = float(len(uv_in) * math.log1p(area) / max(float(np.median(depth_in)), 1.0))
+                score = evidence_score(len(uv_in), area, area_ratio, float(np.median(depth_in)), args.score_mode)
                 obs.append({
                     "object_id": object_id,
                     "frame_id": frame_id,
                     "cam_id": int(cam_id),
                     "image_path": str(img_path),
                     "bbox_xyxy": [int(x0), int(y0), int(x1), int(y1)],
+                    "raw_bbox_xyxy": [int(rx0), int(ry0), int(rx1), int(ry1)],
                     "projected_points": int(len(uv_in)),
                     "sample_points": int(len(points)),
                     "bbox_area": area,
+                    "raw_bbox_area": raw_area,
+                    "bbox_area_ratio": area_ratio,
+                    "bbox_inlier_ratio": bbox_inlier_ratio,
                     "median_depth": float(np.median(depth_in)),
                     "score": score,
                     "uv": uv_in,
@@ -338,6 +388,9 @@ def main() -> None:
             "max_points_per_object": args.max_points_per_object,
             "min_projected_points": args.min_projected_points,
             "min_bbox_area": args.min_bbox_area,
+            "bbox_percentile": args.bbox_percentile,
+            "max_bbox_area_ratio": args.max_bbox_area_ratio,
+            "score_mode": args.score_mode,
         },
         "label_counts": dict(Counter(row.get("semantic_label", "") for row in rows if row.get("rank") == 1)),
     }
