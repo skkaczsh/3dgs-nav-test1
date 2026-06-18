@@ -198,6 +198,10 @@ Local review outputs:
 
 Viewer URL:
 
+Default parking full-scene object entry:
+
+`http://127.0.0.1:8765/tools/parking_full_scene_viewer.html`
+
 Class-level review:
 
 `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_v3/full_scene_objects_ascii.ply&objects=/server_parking_priority_s10/full_scene_objects_v3/full_scene_objects.jsonl&mode=semantic&stride=1&pointSize=1.5`
@@ -217,7 +221,8 @@ Object-level scene-context review:
 - Residual still contains large planar fragments. PCA now flags these instead of sending them directly to semantic review.
 - User review showed outdoor ground was removed well, while indoor ground remained in the residual view. The cause was not projection failure: two residual objects had strong drivability ground votes (`70.8%` and `75.7%`) and horizontal normals, but were kept because edge clutter made thickness too high for the original strict planar threshold.
 - The current fix is object-level geometry absorption, not another VLM pass. The remaining review candidates are mostly `other`, `unknown`, or mixed object geometry; high-confidence ground-like fragments are now small (`288` points in the v3 report).
-- Reviewing only `semantic_review_candidates_ascii.ply` is misleading because it intentionally hides priority-layer objects such as cars and railings. Use the unified full-scene view for user QA, and use the candidate-only view only for debugging the next semantic clustering stage.
+- Reviewing only `semantic_review_candidates_ascii.ply` is misleading because it intentionally hides priority-layer objects such as cars and railings. Use `tools/parking_full_scene_viewer.html` or the unified full-scene view for user QA, and use the candidate-only view only for debugging the next semantic clustering stage.
+- Viewer policy: default QA must show complete scene objects first. Residual/candidate-only views are secondary diagnostics and should be named as such in status reports.
 - Reviewing only class-level priority objects is also insufficient for downstream target reasoning. `cluster_priority_points.py` now gives priority-layer classes object ids, so the next stage can reason over individual car/railing/grass components.
 - Scene-context enrichment gives stable surfaces descriptive roles before any VLM/DINO work: parking-lot ground, upper-level floor/deck, building/indoor wall, vegetation, parked vehicle candidates, guardrail/fence candidates, and residual fine-object candidates.
 - The next DINO-style stage should consume `dino_review_candidates.jsonl` first. It contains only car/railing fine-object candidates, while `all_review_candidates.jsonl` also includes geometry-review surfaces and residual semantic candidates.

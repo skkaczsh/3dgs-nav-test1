@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parking Full Scene Object Viewer</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #111318;
+      color: #eef1f5;
+      font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main {
+      width: min(720px, calc(100vw - 32px));
+      border: 1px solid #303642;
+      border-radius: 8px;
+      background: #181b22;
+      padding: 20px;
+    }
+    a { color: #8bd3ff; }
+    code {
+      padding: 2px 4px;
+      border-radius: 4px;
+      background: #20242d;
+      color: #eef1f5;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Parking Full Scene Object Viewer</h1>
+    <p>Redirecting to the full-scene object view. This view includes priority objects such as cars, railings, grass, floor, wall, plus residual objects.</p>
+    <p>Use residual or semantic-review candidate files only for debugging filtered leftovers.</p>
+    <p><a id="target" href="#">Open full-scene viewer</a></p>
+  </main>
+  <script>
+    const target = 'semantic_ply_viewer.html'
+      + '?file=/server_parking_priority_s10/full_scene_objects_v4_clustered_priority/full_scene_objects_ascii.ply'
+      + '&objects=/server_parking_priority_s10/full_scene_objects_v4_clustered_priority/full_scene_objects_enriched.jsonl'
+      + '&mode=object&stride=1&pointSize=1.5';
+    document.getElementById('target').href = target;
+    window.location.replace(target);
+  </script>
+</body>
+</html>

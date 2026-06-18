@@ -17,6 +17,14 @@ Open:
 http://127.0.0.1:8765/tools/semantic_ply_viewer.html
 ```
 
+Parking dataset full-scene object view:
+
+```text
+http://127.0.0.1:8765/tools/parking_full_scene_viewer.html
+```
+
+Use this parking entry when judging whether large objects were removed too aggressively. It loads the unified full-scene object PLY/JSONL, including priority objects such as cars, railings, grass, floor, wall, plus residual objects. Candidate-only files such as `semantic_review_candidates_ascii.ply` are intentionally filtered debug views.
+
 Supported drag-and-drop inputs:
 
 - ASCII PLY with vertex properties such as `x y z red green blue object semantic frame`.
