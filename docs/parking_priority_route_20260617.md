@@ -56,6 +56,12 @@
    - server output: `/root/epfs/work_MT20260616-175807/object_image_evidence_dino_v1`
    - local summary copy: `server_parking_priority_s10/object_image_evidence_dino_v1`
    - result: `68/68` DINO candidates have evidence, `204` evidence rows, rank-1 labels `car=32`, `railing=36`.
+10. Apply deterministic geometry/evidence guard to priority fine-object candidates:
+   - scripts: `scripts/refine_priority_candidates_by_guard.py`, `scripts/apply_priority_guard_to_full_scene.py`
+   - server full guard output: `/root/epfs/work_MT20260616-175807/full_scene_objects_s10_full_v2_priority_guarded`
+   - local guarded review output: `server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local`
+   - full result: `68` candidates -> `29` geometry-plausible, `23` visual-review, `16` geometry-rejected.
+   - full guarded PLY keeps all `9,236,274` points; `144,092` points from rejected priority objects are demoted from `car/railing` to `unknown`.
 
 ## Current Metrics
 
@@ -162,6 +168,26 @@ Scene-context enrichment:
   - fine semantic review: `125`
   - geometry review: `13`
 
+Priority candidate guard:
+
+- full server candidates: `68`
+- geometry plausible: `29`
+  - car: `10`
+  - railing: `19`
+- needs visual review: `23`
+  - car: `11`
+  - railing: `12`
+- geometry rejected: `16`
+  - car: `11`
+  - railing: `5`
+- guarded full-scene object labels:
+  - floor: `69`
+  - wall: `19`
+  - grass: `22`
+  - car: `21`
+  - railing: `31`
+  - unknown: `141`
+
 ## Review Assets
 
 Local previews:
@@ -204,12 +230,22 @@ Local review outputs:
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/object_image_evidence_dino_v1/object_image_evidence_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/object_image_evidence_dino_v1/object_image_evidence.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/object_image_evidence_dino_v1/object_image_evidence_contact.jpg`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/priority_candidate_guard_v1/priority_candidate_guard_report.json`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/priority_candidate_guard_v1/priority_candidate_guard_all.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/full_scene_guard_report.json`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/full_scene_objects_guarded.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded_ascii.ply`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded.jsonl`
 
 Viewer URL:
 
 Default parking full-scene object entry:
 
 `http://127.0.0.1:8765/tools/parking_full_scene_viewer.html`
+
+Guarded local review:
+
+`http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded_ascii.ply&objects=/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded.jsonl&mode=semantic&stride=1&pointSize=1.5`
 
 Class-level review:
 
@@ -236,6 +272,7 @@ Object-level scene-context review:
 - Scene-context enrichment gives stable surfaces descriptive roles before any VLM/DINO work: parking-lot ground, upper-level floor/deck, building/indoor wall, vegetation, parked vehicle candidates, guardrail/fence candidates, and residual fine-object candidates.
 - The next DINO-style stage should consume `dino_review_candidates.jsonl` first. It contains only car/railing fine-object candidates, while `all_review_candidates.jsonl` also includes geometry-review surfaces and residual semantic candidates.
 - Image evidence shows the current priority layer still has false fine-object positives: some wall seams, ceiling panels, indoor boards, and clutter are labeled as `car` or `railing`. Treat `car/railing` priority objects as candidates until a crop-level detector/reviewer confirms them.
+- Geometry/evidence guard now blocks the clearest false positives from becoming stable car/railing labels. This is deliberately conservative: plausible objects and ambiguous objects are kept for DINO/GroundingDINO/visual review rather than removed.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,

@@ -247,7 +247,12 @@
       absorbed_by_drivability_ground_contaminated: "并入地面: 混杂但地面占优",
       absorbed_by_geometry_ground_unmatched: "并入地面: 几何兜底",
       absorbed_by_drivability_wall: "并入墙面: 墙面先验",
-      absorbed_by_drivability_wall_loose: "并入墙面: 宽松先验"
+      absorbed_by_drivability_wall_loose: "并入墙面: 宽松先验",
+      priority_car_needs_visual_review: "汽车候选: 待视觉复审",
+      priority_railing_needs_visual_review: "栏杆候选: 待视觉复审",
+      priority_car_geometry_plausible: "汽车候选: 几何可信",
+      priority_railing_geometry_plausible: "栏杆候选: 几何可信",
+      priority_geometry_rejected: "Priority 候选: 几何拒绝"
     };
     const DOWNSTREAM_ZH = {
       stable_surface: "稳定大面",
@@ -257,6 +262,11 @@
       geometry_review: "几何复审"
     };
     const REVIEW_PRIORITY_ZH = { high: "高", medium: "中", low: "低" };
+    const PRIORITY_GUARD_ZH = {
+      geometry_plausible: "几何可信",
+      needs_visual_review: "待视觉复审",
+      geometry_rejected: "几何拒绝"
+    };
     const GEOMETRY_QUALITY_ZH = {
       clean: "几何清晰",
       unclassified_candidate: "未分类候选",
@@ -351,6 +361,11 @@
       return raw ? (GEOMETRY_QUALITY_ZH[raw] || raw) : "";
     }
 
+    function displayPriorityGuard(value) {
+      const raw = String(value || "");
+      return raw ? (PRIORITY_GUARD_ZH[raw] || raw) : "";
+    }
+
     function displaySceneContext(value) {
       const raw = String(value || "");
       return raw ? (SCENE_CONTEXT_ZH[raw] || raw) : "";
@@ -435,6 +450,9 @@
           reviewPriority: meta.reviewPriority,
           dinoPromptGroup: meta.dinoPromptGroup,
           dinoPrompts: meta.dinoPrompts,
+          priorityGuardStatus: meta.priorityGuardStatus,
+          priorityGuardReasons: meta.priorityGuardReasons,
+          evidenceRank1: meta.evidenceRank1,
           objectFrame: meta.frame,
           objectBbox: meta.bbox,
           source: "ply+objects_jsonl"
@@ -521,6 +539,9 @@
           reviewPriority: obj.review_priority || "",
           dinoPromptGroup: obj.dino_prompt_group || "",
           dinoPrompts: obj.dino_prompts || [],
+          priorityGuardStatus: obj.priority_guard_status || "",
+          priorityGuardReasons: obj.priority_guard_reasons || [],
+          evidenceRank1: obj.evidence_rank1 || {},
           bbox: obj.bbox_3d,
           source: "objects_jsonl"
         });
@@ -759,6 +780,9 @@
         kv("几何标记", row.geometryFlags && row.geometryFlags.length ? row.geometryFlags.join(", ") : ""),
         kv("DINO 组", displayPromptGroup(row.dinoPromptGroup)),
         kv("DINO prompts", row.dinoPrompts && row.dinoPrompts.length ? row.dinoPrompts.join(", ") : ""),
+        kv("Priority guard", displayPriorityGuard(row.priorityGuardStatus)),
+        kv("Guard 原因", row.priorityGuardReasons && row.priorityGuardReasons.length ? row.priorityGuardReasons.join(", ") : ""),
+        kv("图像证据", row.evidenceRank1 && Object.keys(row.evidenceRank1).length ? JSON.stringify(row.evidenceRank1) : ""),
         kv("原始标签字段", row.semanticLabelOriginal || ""),
         kv("修正原因", row.refineReason || ""),
         kv("描述占比", row.descriptionVoteRatio != null ? Number(row.descriptionVoteRatio).toFixed(3) : ""),

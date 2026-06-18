@@ -23,7 +23,9 @@ Parking dataset full-scene object view:
 http://127.0.0.1:8765/tools/parking_full_scene_viewer.html
 ```
 
-Use this parking entry when judging whether large objects were removed too aggressively. It loads the unified full-scene object PLY/JSONL, including priority objects such as cars, railings, grass, floor, wall, plus residual objects. Candidate-only files such as `semantic_review_candidates_ascii.ply` are intentionally filtered debug views.
+Use this parking entry when judging whether large objects were removed too aggressively. It loads the guarded unified full-scene object PLY/JSONL, including priority objects such as cars, railings, grass, floor, wall, plus residual objects. Candidate-only files such as `semantic_review_candidates_ascii.ply` are intentionally filtered debug views.
+
+The guarded parking view keeps all points but demotes priority fine-object candidates that fail geometry/height checks from `car` or `railing` to `unknown`. Their object metadata keeps `priority_guard_status`, `priority_guard_reasons`, and the best image evidence pointer.
 
 The viewer displays common semantic labels, statuses, and scene contexts in Chinese. The underlying PLY/JSONL values remain unchanged English machine labels for script compatibility.
 
