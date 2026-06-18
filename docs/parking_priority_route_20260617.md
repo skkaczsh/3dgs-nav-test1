@@ -484,6 +484,10 @@ Visual-promoted v10 preview:
 
 `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v10_visual_promoted/full_scene_objects_visual_promoted.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v10_visual_promoted/full_scene_objects_visual_promoted.jsonl&mode=semantic&stride=1&pointSize=1.5`
 
+Visual + geometry guarded v11 preview:
+
+`http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v11_visual_geometry_guard/full_scene_objects_visual_geometry_guard.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v11_visual_geometry_guard/full_scene_objects_visual_geometry_guard.jsonl&mode=semantic&stride=1&pointSize=1.5`
+
 Guarded local light review:
 
 `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded_ascii.ply&objects=/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded.jsonl&mode=semantic&stride=1&pointSize=1.5`
@@ -530,6 +534,12 @@ Object-level scene-context review:
   - unconfirmed candidates kept as `fine_candidate`: `230`
   - changed points from v9: `33,229`
   - final point counts: `floor=307,238`, `wall=334,648`, `ceiling=2,616`, `grass=82,414`, `car=23,144`, `railing=10,085`, `fine_candidate=1,441`, `unknown=153,787`
+- Visual + geometry guarded v11 is the current default user-review preview. It keeps v10's visual confirmation, then demotes visually confirmed fine objects whose 3D shape is inconsistent with the class.
+  - checked visual promotions: `93` (`car=61`, `railing=32`)
+  - demoted after geometry guard: `16` (`car=4`, `railing=12`)
+  - main demotion reasons: horizontal surface fragments, dense/thick railing clusters, broad railing volume, wall-like railing plane
+  - changed points from v10: `5,760`
+  - final point counts: `floor=307,238`, `wall=334,648`, `ceiling=2,616`, `grass=82,414`, `car=22,863`, `railing=4,606`, `fine_candidate=7,201`, `unknown=153,787`
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
