@@ -293,27 +293,39 @@ def main() -> None:
 
     rows = []
     missing_points = []
+    failure_counts = Counter()
+    objects_without_evidence = []
     for object_id in sorted(object_ids):
         obj = object_map[object_id]
         points = point_samples.get(object_id)
         if points is None or len(points) == 0:
             missing_points.append(object_id)
+            failure_counts["missing_points"] += 1
             continue
         frame_pool = choose_frame_pool(points, poses, args.max_frame_pool, args.max_frame_distance)
+        object_failures = Counter()
+        object_attempts = 0
+        object_accepted = 0
+        if not frame_pool:
+            object_failures["empty_frame_pool"] += 1
         obs = []
         for pose in frame_pool:
             frame_id = int(pose["frame_id"])
             for cam_id in args.cams:
+                object_attempts += 1
                 img_path = frame_path(args.frame_root, cam_id, frame_id)
                 if not img_path.exists():
+                    object_failures["missing_image"] += 1
                     continue
                 uv, depth = project_points(points, pose, cam_id, args.min_depth)
                 if len(uv) < args.min_projected_points:
+                    object_failures["low_projected_before_image_filter"] += 1
                     continue
                 w = config.IMAGE_WIDTH
                 h = config.IMAGE_HEIGHT
                 in_img = (uv[:, 0] >= 0) & (uv[:, 0] < w) & (uv[:, 1] >= 0) & (uv[:, 1] < h)
                 if int(in_img.sum()) < args.min_projected_points:
+                    object_failures["low_projected_in_image"] += 1
                     continue
                 uv_in = uv[in_img]
                 depth_in = depth[in_img]
@@ -324,8 +336,10 @@ def main() -> None:
                 raw_area = float(max(0, rx1 - rx0 + 1) * max(0, ry1 - ry0 + 1))
                 area_ratio = area / float(max(1, w * h))
                 if args.max_bbox_area_ratio > 0 and area_ratio > args.max_bbox_area_ratio:
+                    object_failures["bbox_too_large"] += 1
                     continue
                 if area < args.min_bbox_area:
+                    object_failures["bbox_too_small"] += 1
                     continue
                 score = evidence_score(len(uv_in), area, area_ratio, float(np.median(depth_in)), args.score_mode)
                 obs.append({
@@ -350,6 +364,7 @@ def main() -> None:
         for rank, row in enumerate(obs[:args.top_k], 1):
             image = cv2.imread(row["image_path"], cv2.IMREAD_COLOR)
             if image is None:
+                object_failures["crop_image_read_failed"] += 1
                 continue
             bbox = tuple(row["bbox_xyxy"])
             crop, crop_bbox = crop_with_margin(image, bbox, args.crop_margin)
@@ -380,6 +395,18 @@ def main() -> None:
                 "dino_prompts": obj.get("dino_prompts", []),
             }
             rows.append(out)
+            object_accepted += 1
+
+        if object_accepted == 0:
+            failure_counts.update(object_failures)
+            objects_without_evidence.append({
+                "object_id": object_id,
+                "semantic_label": obj.get("semantic_label", ""),
+                "candidate_label": obj.get("candidate_label", ""),
+                "dino_prompt_group": obj.get("dino_prompt_group", ""),
+                "attempts": object_attempts,
+                "top_failure_reasons": dict(object_failures.most_common(5)),
+            })
 
     manifest = args.output_dir / "object_image_evidence.jsonl"
     with manifest.open("w", encoding="utf-8") as f:
@@ -396,6 +423,8 @@ def main() -> None:
         "objects_with_evidence": len(set(int(row["object_id"]) for row in rows)),
         "evidence_rows": len(rows),
         "missing_point_objects": missing_points,
+        "objects_without_evidence": objects_without_evidence,
+        "failure_counts_for_objects_without_evidence": dict(failure_counts),
         "params": {
             "frame_range": [args.start, pose_end],
             "frame_stride": args.frame_stride,

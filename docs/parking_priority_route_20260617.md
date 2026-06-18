@@ -625,6 +625,13 @@ Object-level scene-context review:
   - railing stats: seed patch count median `77.5`, foreground patch count median `36`, seed similarity mean median `0.969492`, context similarity p95 median `0.973396`.
   - interpretation: the projected-point seed and surrounding wall/floor context are not separable enough at this DINOv3 ViT-S/16 ONNX resolution. DINOv3 should not be used as a direct railing segmentation stage in this form.
   - useful role remains: after tighter 3D object splitting and better crop/point evidence, DINO features can support local same-object binding or object-internal split checks.
+- v14 evidence recall diagnosis:
+  - script update: `scripts/build_object_image_evidence.py` now reports failure reasons for objects without evidence.
+  - diagnostic output: `server_parking_priority_s10/object_image_evidence_dino_v14_v13_fine_points_diag/object_image_evidence_report.json`
+  - same parameters as v14: `299` candidates, `66` objects with evidence, `190` evidence rows.
+  - objects without evidence: `233` (`car=83`, `railing=150` by DINO prompt group).
+  - failure counts across no-evidence object frame/camera attempts: `low_projected_before_image_filter=54,395`, `low_projected_in_image=1,069`, `bbox_too_small=456`.
+  - interpretation: the recall bottleneck is not loose crop filtering. Most fine candidates do not project enough sampled points into the candidate frame pool. This is consistent with over-fragmented/stride-thinned fine objects and means DINO review should be fed by denser object points or by local frame-level target clusters, not only the current preview full-scene PLY.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
