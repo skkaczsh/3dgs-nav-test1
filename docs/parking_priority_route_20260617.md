@@ -28,6 +28,18 @@
    - output: `/root/epfs/work_MT20260616-175807/residual_clusters_s10_pca`
    - clustering: `0.15m` voxel connectivity + RGB distance threshold `60`.
    - PCA flags large planar residuals as `hold_as_surface_residual`.
+5. Apply `drivability_cpp` geometry prior to residual objects:
+   - script: `scripts/apply_drivability_prior_to_residual.py`
+   - geometry prior: `/Users/skkac/Work/SCAN/drivability_cpp/output/MT20260616-175807_drivable_points_collision_arm64_wallbfs.pcd`
+   - output: `server_parking_priority_s10/residual_clusters_s10_pca_drivability_prior_v3`
+   - red/white/blue prior votes are mapped to `ground/wall/other`.
+   - large horizontal residuals with dominant ground votes are absorbed even when edge clutter makes PCA thickness high.
+   - clean horizontal surfaces missing from the prior are absorbed by geometry-only fallback.
+6. Build unified full-scene viewer input:
+   - script: `scripts/make_full_scene_object_view.py`
+   - output: `server_parking_priority_s10/full_scene_objects_v3`
+   - combines priority-layer classes and residual objects into one PLY/JSONL pair.
+   - this is the default review view when judging whether important targets were removed too aggressively.
 
 ## Current Metrics
 
@@ -53,6 +65,38 @@ Residual clustering:
 - PCA surface residuals: `11` objects, `147,372` points
 - semantic review candidates: `190` objects, `419,406` points
 
+After `drivability_cpp` prior:
+
+- residual points inspected: `582,345`
+- objects inspected: `201`
+- point prior votes:
+  - ground: `361,056`
+  - wall: `50,727`
+  - other: `110,434`
+  - unknown: `60,128`
+- absorbed as ground surface: `61` objects
+- absorbed as wall surface: `15` objects
+- semantic review candidates: `125` objects, `96,290` points
+- previous indoor-ground leakage was dominated by two large horizontal residual objects:
+  - status: `absorbed_by_drivability_ground_contaminated`
+  - points absorbed: `171,373`
+- extra clean horizontal surfaces not covered by the prior:
+  - status: `absorbed_by_geometry_ground_unmatched`
+  - points absorbed: `23,381`
+
+Unified full-scene viewer:
+
+- total points: `1,442,660`
+- priority-layer points: `875,882`
+- residual object points: `566,778`
+- label counts:
+  - floor: `596,418`
+  - wall: `596,288`
+  - grass: `109,552`
+  - unknown/residual review: `96,290`
+  - car: `24,927`
+  - railing: `19,185`
+
 ## Review Assets
 
 Local previews:
@@ -71,11 +115,27 @@ Server PLY/JSON outputs:
 - `/root/epfs/work_MT20260616-175807/residual_clusters_s10_pca/residual_objects.jsonl`
 - `/root/epfs/work_MT20260616-175807/residual_clusters_s10_pca/residual_cluster_report.json`
 
+Local review outputs:
+
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/residual_clusters_s10_pca_drivability_prior_v3/all_status_ascii.ply`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/residual_clusters_s10_pca_drivability_prior_v3/residual_objects_drivability_prior_view.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/residual_clusters_s10_pca_drivability_prior_v3/semantic_review_candidates_ascii.ply`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/residual_clusters_s10_pca_drivability_prior_v3/semantic_review_candidates.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v3/full_scene_objects_ascii.ply`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v3/full_scene_objects.jsonl`
+
+Viewer URL:
+
+`http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_v3/full_scene_objects_ascii.ply&objects=/server_parking_priority_s10/full_scene_objects_v3/full_scene_objects.jsonl&mode=semantic&stride=1&pointSize=1.5`
+
 ## Findings
 
 - This route is materially better structured than free clustering over the whole cloud: most stable surfaces and known large classes are removed before residual object clustering.
 - The priority model is aggressive. It overuses `wall` on building/interior-looking views, so some valid objects may be swallowed into the priority layer.
 - Residual still contains large planar fragments. PCA now flags these instead of sending them directly to semantic review.
+- User review showed outdoor ground was removed well, while indoor ground remained in the residual view. The cause was not projection failure: two residual objects had strong drivability ground votes (`70.8%` and `75.7%`) and horizontal normals, but were kept because edge clutter made thickness too high for the original strict planar threshold.
+- The current fix is object-level geometry absorption, not another VLM pass. The remaining review candidates are mostly `other`, `unknown`, or mixed object geometry; high-confidence ground-like fragments are now small (`288` points in the v3 report).
+- Reviewing only `semantic_review_candidates_ascii.ply` is misleading because it intentionally hides priority-layer objects such as cars and railings. Use the unified full-scene view for user QA, and use the candidate-only view only for debugging the next semantic clustering stage.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
@@ -91,4 +151,3 @@ Build `refine_priority_by_geometry.py`:
 - demote invalid broad `railing`, invalid floating `ground`, and non-planar `wall` back into residual
 - merge PCA-held residual surface candidates into stable surface layers where geometry agrees
 - re-run residual object clustering on the refined residual set
-
