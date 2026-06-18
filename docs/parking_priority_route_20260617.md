@@ -256,6 +256,7 @@ Local review outputs:
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/priority_candidate_guard_v1/priority_candidate_guard_all.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/full_scene_guard_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/full_scene_objects_guarded.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/full_scene_objects_guarded_stride10.ply`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/full_scene_objects_guarded_visual.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/visual_merge_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded_ascii.ply`
@@ -270,7 +271,11 @@ Default parking full-scene object entry:
 
 `http://127.0.0.1:8765/tools/parking_full_scene_viewer.html`
 
-Guarded local review:
+Guarded server-full stride review:
+
+`http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/full_scene_objects_guarded_stride10.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/full_scene_objects_guarded_visual.jsonl&mode=semantic&stride=1&pointSize=1.5`
+
+Guarded local light review:
 
 `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded_ascii.ply&objects=/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded.jsonl&mode=semantic&stride=1&pointSize=1.5`
 
