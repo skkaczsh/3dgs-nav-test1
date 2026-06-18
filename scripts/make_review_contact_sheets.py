@@ -10,6 +10,13 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 
+def path_exists(path: Path) -> bool:
+    try:
+        return path.exists()
+    except OSError:
+        return False
+
+
 def load_jsonl(path: Path) -> list[dict]:
     rows = []
     with path.open("r", encoding="utf-8") as f:
@@ -25,13 +32,13 @@ def image_path(rep: dict, pack_dir: Path | None = None) -> Path | None:
         if not raw_path:
             continue
         path = Path(raw_path)
-        if path.exists():
+        if path_exists(path):
             return path
         if pack_dir is not None and "assets" in path.parts:
             parts = path.parts
             asset_idx = parts.index("assets")
             remapped = pack_dir.joinpath(*parts[asset_idx:])
-            if remapped.exists():
+            if path_exists(remapped):
                 return remapped
     return None
 
