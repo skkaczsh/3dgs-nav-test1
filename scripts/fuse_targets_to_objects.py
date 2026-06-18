@@ -331,12 +331,20 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
     obj_surface_labels = set(obj.get("label_votes", {}).keys()) & SURFACE_LABELS
     surface_cross_label = strict_surface_labels and target_is_surface_label and bool(obj_surface_labels) and not same_label
     surface_same_label = same_label and target_is_surface_label and bool(obj_surface_labels)
-    surface_near = centroid_dist <= args.surface_centroid_distance or bbox_dist <= args.surface_bbox_distance
-    surface_color_ok = color_dist <= args.surface_color_distance
-    surface_normal_ok = normal_angle <= args.surface_normal_angle
-    near = centroid_dist <= args.centroid_distance or bbox_dist <= args.bbox_distance
-    color_ok = color_dist <= args.color_distance
-    normal_ok = normal_angle <= args.normal_angle
+    surface_centroid_distance = float(getattr(args, "surface_centroid_distance", getattr(args, "centroid_distance", 0.35)))
+    surface_bbox_distance = float(getattr(args, "surface_bbox_distance", getattr(args, "bbox_distance", 0.35)))
+    surface_color_distance = float(getattr(args, "surface_color_distance", getattr(args, "color_distance", 70.0)))
+    surface_normal_angle = float(getattr(args, "surface_normal_angle", getattr(args, "normal_angle", 25.0)))
+    centroid_distance = float(getattr(args, "centroid_distance", 0.35))
+    bbox_distance_limit = float(getattr(args, "bbox_distance", 0.35))
+    color_distance_limit = float(getattr(args, "color_distance", 70.0))
+    normal_angle_limit = float(getattr(args, "normal_angle", 25.0))
+    surface_near = centroid_dist <= surface_centroid_distance or bbox_dist <= surface_bbox_distance
+    surface_color_ok = color_dist <= surface_color_distance
+    surface_normal_ok = normal_angle <= surface_normal_angle
+    near = centroid_dist <= centroid_distance or bbox_dist <= bbox_distance_limit
+    color_ok = color_dist <= color_distance_limit
+    normal_ok = normal_angle <= normal_angle_limit
     quality = target_quality(target, float(getattr(args, "min_merge_confidence", DEFAULT_MIN_MERGE_CONFIDENCE)))
     quality_ok = bool(quality["merge_quality_ok"])
     overlap = False

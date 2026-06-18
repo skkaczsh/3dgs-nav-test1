@@ -175,6 +175,15 @@
    - Mimo review result on the 15 reliable-evidence objects: parse `15/15`; controlled labels `car=4`, `building_part=4`, `unknown=2`, `tree_or_shrub=1`, `floor=1`, `hvac_outdoor_unit=1`, `railing=1`, `wall=1`; actions `keep=5`, `relabel=8`, `review_manually=2`.
    - interpretation: this validates the bug diagnosis. Proper same-frame visibility removes most old v23 evidence candidates, so v23's broad automatic relabel should remain invalid. v24 is useful as a conservative object-review dataset, not as a full-scene automatic semantic overwrite.
    - local audit table: `server_parking_priority_s10/mimo_review_v24_depthgate_highctx/mimo_review_summary.tsv`
+25. Build frame-local target provenance route:
+   - script: `scripts/build_frame_targets_from_priority.py`
+   - purpose: produce Target records directly from same-frame `.lx` sections and same-frame priority masks, instead of reconstructing image evidence from global objects.
+   - invariant: every target stores `frame_id`, `cam_id`, `mask_id`, source image/mask path, local `.lx` point indices, 2D bbox, 3D bbox, centroid, mean color, PCA geometry, and cluster size.
+   - smoke output: `frame_targets_priority_smoke_0000_0100_s10` produced `150` targets from `11` frames, `124,714` target points; fusion produced `50` objects, merge ratio `0.667`.
+   - full stride10 output: `frame_targets_priority_full_s10_v1` produced `9,707` targets from `619` frames, `9,196,812` target points. Target label counts: `ground=901`, `wall=3,025`, `grass=4,111`, `car=1,117`, `railing=553`.
+   - full object fusion output: `frame_objects_priority_full_s10_v1` produced `2,721` objects, `62` zones, merge ratio `0.720`; statuses `stable=1,491`, `single_target=1,175`, `ambiguous_object=55`.
+   - interpretation: this is the correct next data model. It keeps local target provenance before object fusion and avoids the v23 failure mode where global object points were projected into unrelated camera frames.
+   - local viewer/debug file: `server_parking_priority_s10/frame_targets_priority_full_s10_v1/frame_targets_stride10.ply`
 
 ## Current Metrics
 
