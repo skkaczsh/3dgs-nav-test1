@@ -480,6 +480,10 @@ Candidate-safe v9 preview:
 
 `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v9_candidate_safe/full_scene_objects_candidate_safe.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v9_candidate_safe/full_scene_objects_candidate_safe.jsonl&mode=semantic&stride=1&pointSize=1.5`
 
+Visual-promoted v10 preview:
+
+`http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v10_visual_promoted/full_scene_objects_visual_promoted.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v10_visual_promoted/full_scene_objects_visual_promoted.jsonl&mode=semantic&stride=1&pointSize=1.5`
+
 Guarded local light review:
 
 `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded_ascii.ply&objects=/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded.jsonl&mode=semantic&stride=1&pointSize=1.5`
@@ -519,6 +523,13 @@ Object-level scene-context review:
 - Clean horizontal wall refinement v8 is now the default user-review preview. It addresses the next structural error class after railing cleanup: clean horizontal wall fragments are not kept as wall; low fragments become floor and high fragments become ceiling / overhead deck.
 - Scene-context enrichment now uses coarse height zones in addition to floor-layer clustering because parking lots, ramps, and upper decks can form a continuous z distribution. This avoids incorrectly treating all floor objects as one undifferentiated ground layer.
 - Candidate-safe v9 corrects a display/semantic contract problem: priority `car` and `railing` outputs are not confirmed labels. They should be shown as fine-object candidates until crop-level visual review promotes them. This directly addresses the user-observed v8 issue where wall fragments appeared as cars or railings.
+- Visual-promoted v10 is the current user-review default. It runs object-image evidence plus GroundingDINO over v8 fine-object candidates, then promotes only visually confirmed candidates from v9 `fine_candidate` back to `car` / `railing`.
+  - evidence candidates: `323`
+  - objects with crop evidence: `93`
+  - promoted objects: `93` (`car=61`, `railing=32`)
+  - unconfirmed candidates kept as `fine_candidate`: `230`
+  - changed points from v9: `33,229`
+  - final point counts: `floor=307,238`, `wall=334,648`, `ceiling=2,616`, `grass=82,414`, `car=23,144`, `railing=10,085`, `fine_candidate=1,441`, `unknown=153,787`
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
