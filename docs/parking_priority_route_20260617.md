@@ -184,6 +184,19 @@
    - full object fusion output: `frame_objects_priority_full_s10_v1` produced `2,721` objects, `62` zones, merge ratio `0.720`; statuses `stable=1,491`, `single_target=1,175`, `ambiguous_object=55`.
    - interpretation: this is the correct next data model. It keeps local target provenance before object fusion and avoids the v23 failure mode where global object points were projected into unrelated camera frames.
    - local viewer/debug file: `server_parking_priority_s10/frame_targets_priority_full_s10_v1/frame_targets_stride10.ply`
+26. Export frame-local fused objects for review:
+   - script: `scripts/export_frame_target_objects_for_viewer.py`
+   - output: `frame_object_viewer_priority_full_s10_v1`
+   - method: stream `frame_targets.ply`, map target index -> target id -> fused object id, and write viewer-ready point fields `object` and `semantic`.
+   - result: `9,196,812` input target vertices -> `919,682` stride10 viewer points; all points mapped (`missing_target_points=0`); `2,721` object records.
+   - viewer label counts: `wall=478,407`, `ground=122,500`, `ambiguous=179,648`, `grass=97,288`, `car=24,295`, `railing=17,544`.
+   - local viewer files: `server_parking_priority_s10/frame_object_viewer_priority_full_s10_v1/frame_object_points_stride10.ply` and `server_parking_priority_s10/frame_object_viewer_priority_full_s10_v1/frame_objects_viewer.jsonl`.
+   - metadata hygiene: viewer JSONL is slimmed to remove heavy per-point index fields; the local object metadata file is `3.3MB` instead of the raw `121MB` fusion JSONL.
+27. Remote reproducibility wrapper:
+   - script: `scripts/run_remote_frame_local_priority_targets.sh`
+   - purpose: sync the minimal route scripts and launch target build -> object fusion -> viewer export on a remote server with either `tmux` or `nohup` fallback.
+   - verified on `scan-train` output above and `scan-vlm` smoke (`0..100`, stride10): `150` targets, `50` objects, viewer export `12,472` points.
+   - `scan-vlm` full stride10 duplicate run was started in background as `frame_local_priority_full_s10_vlm`, writing to `_vlm` suffixed output directories. This gives the second server a reusable copy and validates the route outside `scan-train`.
 
 ## Current Metrics
 
