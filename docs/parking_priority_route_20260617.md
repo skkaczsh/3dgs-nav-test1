@@ -664,6 +664,17 @@ Object-level scene-context review:
   - result: `12/12` split railing samples still flagged as bleed-risk.
   - visual check: contact sheet remains blocky because the public DINOv3 ONNX fallback is still `224x224` / `14x14` patches.
   - interpretation: even after 3D split, current DINOv3 ONNX resolution is too coarse to trace railing boundaries. The useful role is candidate evidence/binding, while final shape filtering should remain 3D geometry driven.
+- v17 geometry/evidence candidate review:
+  - script: `scripts/apply_fine_candidate_geometry_review.py`
+  - input: v16 split candidates and v16 split-candidate image evidence.
+  - output: `server_parking_priority_s10/fine_candidate_geometry_review_v17`
+  - object-level review labels: `car=61`, `railing=15`, `fine_candidate=105`, `weak_candidate=95`, `surface_fragment=8`.
+  - review statuses: `promoted_car_geometry_evidence=61`, `promoted_railing_geometry_evidence=15`, `hold_car_geometry_mismatch=49`, `hold_railing_geometry_mismatch=56`, `hold_no_image_evidence=95`, `demoted_planar_surface_fragment=8`.
+  - point counts in review PLY: `car=173,151`, `fine_candidate=74,865`, `weak_candidate=6,479`, `surface_fragment=13,110`, `railing=2,399`.
+  - interpretation: this is the safest current fine-candidate review layer. It prevents visual/DINO candidates from becoming final labels unless local 3D geometry and image evidence both support the label.
+- Viewer update:
+  - `tools/semantic_ply_viewer.html` now displays `parent_object_id`, `review_label`, `review_status`, `review_reasons`, `candidate_label`, `geometry_class`, `image_evidence_count`, and `best_evidence` from object JSONL metadata.
+  - This is required for v17 review because non-final labels intentionally remain `fine_candidate` in the semantic field while their review state explains why they were held or demoted.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
@@ -672,11 +683,10 @@ Object-level scene-context review:
 
 ## Next Step
 
-Build a v17 geometry-driven candidate promotion/demotion pass:
+Build a v18 full-scene review preview:
 
-- consume `fine_candidate_splits_v1_fullpoints/fine_candidate_splits.jsonl`
-- promote likely railings only when local geometry is linear/thin and image evidence exists
-- demote planar-surface fragments back to wall/floor/unknown review instead of letting them remain car/railing candidates
-- keep compact candidates as car/fine-object candidates only when 3D extent and image evidence are plausible
-- write a review PLY/JSONL that can be loaded in the local viewer without treating all visual candidates as final labels
-- use DINOv3 seed/evidence metadata only as supporting evidence, not as a direct segmentation result
+- merge the v17 fine-candidate review labels back into the v13 drivability-guarded full-scene preview without overwriting stable floor/wall/grass objects
+- show promoted `car/railing` as final only where v17 accepted them
+- show held/demoted split candidates as `fine_candidate` or review overlays, not as final car/railing labels
+- preserve `parent_object_id`, `review_status`, and image-evidence metadata for point selection in the viewer
+- keep DINOv3 as evidence metadata only; do not use its blocky 14x14 seed map as a segmentation boundary
