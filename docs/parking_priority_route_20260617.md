@@ -166,6 +166,15 @@
    - invalidation note: user review found projected red evidence points on sky / far buildings outside the current LiDAR frame range. Root cause is the evidence builder projected global object points into nearby camera frames, while the validated color route projects only the same-frame `.lx` section points. v23 must not be used as an automatic relabel source.
    - fix started: `scripts/build_object_image_evidence.py` now supports priority-mask sky filtering and `.lx` frame-local depth visibility gating (`--lx`, `--depth-tolerance`, `--depth-neighborhood`). Spotcheck with 5 problematic objects reduced valid evidence from `5/5` objects to `3/5`, filtering candidates that were not visible in the same LiDAR section.
    - default viewer: `tools/parking_full_scene_viewer.html` is rolled back to v21 surface guard until Mimo evidence is rebuilt with frame-local LiDAR visibility.
+24. Rebuild Mimo evidence with frame-local LiDAR visibility:
+   - evidence output: `server_parking_priority_s10/object_image_evidence_mimo_v24_depthgate_v1`
+   - review output: `server_parking_priority_s10/mimo_review_v24_depthgate_highctx`
+   - method: same validated projection chain as colorization, plus priority sky-mask filtering and `.lx` same-frame depth visibility gating (`depth_tolerance=0.6`, `depth_neighborhood=2`).
+   - evidence result: `80` candidate objects -> only `15` objects with valid image evidence, `34` evidence rows. Rank-1 evidence labels: `car=12`, `railing=3`.
+   - no-evidence failure counts: `low_projected_before_image_filter=9,893`, `low_projected_in_image=6,420`, `low_projected_after_depth_filter=3,174`, `bbox_too_small=12`, `sky_ratio_too_high=1`.
+   - Mimo review result on the 15 reliable-evidence objects: parse `15/15`; controlled labels `car=4`, `building_part=4`, `unknown=2`, `tree_or_shrub=1`, `floor=1`, `hvac_outdoor_unit=1`, `railing=1`, `wall=1`; actions `keep=5`, `relabel=8`, `review_manually=2`.
+   - interpretation: this validates the bug diagnosis. Proper same-frame visibility removes most old v23 evidence candidates, so v23's broad automatic relabel should remain invalid. v24 is useful as a conservative object-review dataset, not as a full-scene automatic semantic overwrite.
+   - local audit table: `server_parking_priority_s10/mimo_review_v24_depthgate_highctx/mimo_review_summary.tsv`
 
 ## Current Metrics
 
