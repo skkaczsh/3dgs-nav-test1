@@ -12,9 +12,12 @@ from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
 
+from project_priority_masks_to_lx import PRIORITY_COLORS, PRIORITY_NAMES
+
 
 FINE_LABELS = {"car", "railing"}
 SURFACE_LABELS = {"ground", "wall", "grass"}
+PRIORITY_BY_NAME = {name: idx for idx, name in PRIORITY_NAMES.items()}
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -145,10 +148,58 @@ def resolve_path(workdir: Path, path: str) -> Path:
     return p if p.is_absolute() else workdir / p
 
 
-def crop_target_image(workdir: Path, candidate: dict[str, Any], target: dict[str, Any], output: Path, margin: int) -> Path | None:
+def source_priority_id(target: dict[str, Any]) -> int | None:
+    raw_label = str(target.get("raw_label") or target.get("refined_from_label") or "").strip()
+    if raw_label in PRIORITY_BY_NAME:
+        return int(PRIORITY_BY_NAME[raw_label])
+    for key in ("source_priority_label_id", "priority_label_id", "mask_id"):
+        value = target.get(key)
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def apply_source_mask_overlay(
+    workdir: Path,
+    target: dict[str, Any],
+    crop: Image.Image,
+    crop_box: tuple[int, int, int, int],
+    alpha: float,
+) -> tuple[Image.Image, str]:
+    if alpha <= 0:
+        return crop, "disabled"
+    mask_path = resolve_path(workdir, str(target.get("mask_path") or ""))
+    label_id = source_priority_id(target)
+    if label_id is None or not mask_path.exists():
+        return crop, "missing"
+    with Image.open(mask_path) as mask_im:
+        mask_im = mask_im.convert("L")
+        mask_crop = mask_im.crop(crop_box)
+    mask_data = mask_crop.point(lambda p: 255 if p == label_id else 0)
+    if not mask_data.getbbox():
+        return crop, "empty"
+    color = PRIORITY_COLORS.get(label_id, (255, 40, 40))
+    alpha_value = int(max(0.0, min(1.0, alpha)) * 255)
+    overlay = Image.new("RGBA", crop.size, (*color, 0))
+    overlay.putalpha(mask_data.point(lambda p: alpha_value if p else 0))
+    base = crop.convert("RGBA")
+    base.alpha_composite(overlay)
+    return base.convert("RGB"), f"source_priority_{label_id}"
+
+
+def crop_target_image(
+    workdir: Path,
+    candidate: dict[str, Any],
+    target: dict[str, Any],
+    output: Path,
+    margin: int,
+    mask_overlay_alpha: float,
+) -> tuple[Path | None, str]:
     image_path = resolve_path(workdir, str(target.get("image_path") or ""))
     if not image_path.exists():
-        return None
+        return None, "missing_image"
     bbox = ((target.get("bbox_2d") or {}).get("xyxy") or [0, 0, 0, 0])
     x0, y0, x1, y1 = [int(round(float(x))) for x in bbox]
     with Image.open(image_path) as im:
@@ -156,7 +207,9 @@ def crop_target_image(workdir: Path, candidate: dict[str, Any], target: dict[str
         w, h = im.size
         cx0, cy0 = max(0, x0 - margin), max(0, y0 - margin)
         cx1, cy1 = min(w - 1, x1 + margin), min(h - 1, y1 + margin)
-        crop = im.crop((cx0, cy0, cx1 + 1, cy1 + 1))
+        crop_box = (cx0, cy0, cx1 + 1, cy1 + 1)
+        crop = im.crop(crop_box)
+        crop, overlay_status = apply_source_mask_overlay(workdir, target, crop, crop_box, mask_overlay_alpha)
         draw = ImageDraw.Draw(crop)
         draw.rectangle((x0 - cx0, y0 - cy0, x1 - cx0, y1 - cy0), outline=(255, 30, 30), width=3)
         title = (
@@ -168,7 +221,7 @@ def crop_target_image(workdir: Path, candidate: dict[str, Any], target: dict[str
         draw.text((6, 8), title[:140], fill=(255, 255, 255))
         output.parent.mkdir(parents=True, exist_ok=True)
         crop.save(output, quality=92)
-    return output
+    return output, overlay_status
 
 
 def make_contact_sheet(image_paths: list[Path], output: Path, thumb: tuple[int, int]) -> None:
@@ -219,6 +272,7 @@ def main() -> None:
     parser.add_argument("--candidate-limit", type=int, default=120)
     parser.add_argument("--evidence-per-object", type=int, default=3)
     parser.add_argument("--crop-margin", type=int, default=48)
+    parser.add_argument("--mask-overlay-alpha", type=float, default=0.35)
     parser.add_argument("--thumb-width", type=int, default=360)
     parser.add_argument("--thumb-height", type=int, default=260)
     args = parser.parse_args()
@@ -240,7 +294,7 @@ def main() -> None:
             for target in evidence_targets:
                 crop_name = f"{candidate['object_id']}_{target['target_id']}.jpg"
                 crop_path = args.output_dir / "crops" / crop_name
-                made = crop_target_image(args.workdir, candidate, target, crop_path, args.crop_margin)
+                made, overlay_status = crop_target_image(args.workdir, candidate, target, crop_path, args.crop_margin, args.mask_overlay_alpha)
                 row = {
                     "object_id": candidate["object_id"],
                     "semantic_label": candidate["semantic_label"],
@@ -253,6 +307,9 @@ def main() -> None:
                     "cluster_size": target.get("cluster_size"),
                     "bbox_2d": target.get("bbox_2d"),
                     "image_path": target.get("image_path"),
+                    "mask_path": target.get("mask_path"),
+                    "mask_overlay": overlay_status,
+                    "mask_overlay_note": "overlay shows the source priority class mask, not the exact 3D-refined child target",
                     "crop_path": str(made) if made else "",
                 }
                 if made:

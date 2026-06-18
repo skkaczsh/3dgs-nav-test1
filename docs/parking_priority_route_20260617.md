@@ -847,6 +847,18 @@ Use the geometry-guided mask refinement as the next controlled experiment:
   - viewer labels: `ground=217,161`, `wall=546,379`, `ceiling=20,655`, `car=23,950`, `grass=97,289`, `railing=14,247`.
   - QA risk reasons: `large_single_target_object=90`, `car_extent_suspicious=23`, `railing_extent_too_large=6`, `railing_not_linear=3`, `ground_has_large_height_span=6`.
   - interpretation: v5 is the current best review baseline. It keeps the useful v4 fine-label cleanup while avoiding the worst ceiling-to-ground pollution.
+- v6-v8 surface height split experiments:
+  - code path: `scripts/refine_frame_targets_by_geometry.py`
+  - added `ground/ceiling` height-layer splitting and an opt-in `--split-horizontal-wall-by-height`.
+  - v6 (`threshold=1.2m`, `bin=0.7m`) changed object counts only slightly and did not reduce risk distribution.
+  - v8 (`threshold=0.8m`, `bin=0.4m`, horizontal wall split enabled) increased target count to `10,080` and reduced `ground_has_large_height_span` from `6` to `5`, but lowered ceiling point recall (`20,655 -> 12,215`) and did not materially improve QA.
+  - decision: keep the height split implementation as an explicit experiment knob, but do not promote v6/v8 over v5.
+- v5 QA mask overlay:
+  - script update: `scripts/build_frame_local_object_qa_pack.py` now overlays the source priority class mask on evidence crops, in addition to the bbox.
+  - remote output: `/root/epfs/work_MT20260616-175807/frame_local_object_qa_full_s10_v5_geometry_ceiling_overlay`
+  - local output: `server_parking_priority_s10/frame_local_object_qa_full_s10_v5_geometry_ceiling_overlay`
+  - important limitation: overlay shows the source priority mask class, not the exact 3D-refined child target. This is intentional because refined targets are 3D point subsets, not standalone 2D masks.
+  - interpretation: overlay QA confirms many failures originate in the source priority mask swallowing adjacent regions; the viewer/QA bbox display was insufficient but not the root cause.
 
 ## Next Step
 
@@ -854,6 +866,8 @@ Use v5 as the current review baseline:
 
 - open local viewer with:
   - `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_priority_full_s10_v5_geometry_ceiling/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_priority_full_s10_v5_geometry_ceiling/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5`
+- review source masks with:
+  - `server_parking_priority_s10/frame_local_object_qa_full_s10_v5_geometry_ceiling_overlay/frame_local_object_qa_contact.jpg`
 - next correction should stay before fusion:
   - split remaining large `ground` targets by local height/plane continuity so ramps, floors, and ceiling fragments do not become one target,
   - keep `railing` only when the component is thin/linear or has multi-frame support,

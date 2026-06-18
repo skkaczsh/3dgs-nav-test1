@@ -2,6 +2,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+from PIL import Image
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
@@ -64,3 +66,34 @@ def test_pick_evidence_targets_uses_largest_targets_first():
     picked = module.pick_evidence_targets(candidate, targets, per_object=1)
 
     assert [x["target_id"] for x in picked] == ["t2"]
+
+
+def test_crop_target_image_overlays_source_priority_mask(tmp_path: Path):
+    module = load_module()
+    image = tmp_path / "image.jpg"
+    mask = tmp_path / "mask.png"
+    output = tmp_path / "crop.jpg"
+    Image.new("RGB", (20, 20), (100, 100, 100)).save(image)
+    mask_im = Image.new("L", (20, 20), 0)
+    for x in range(5, 15):
+        for y in range(5, 15):
+            mask_im.putpixel((x, y), 5)
+    mask_im.save(mask)
+    candidate = {"object_id": "obj_1", "semantic_label": "railing", "risk_score": 1}
+    target = {
+        "target_id": "t1",
+        "frame_id": 1,
+        "cam_id": 0,
+        "label": "railing",
+        "raw_label": "railing",
+        "cluster_size": 10,
+        "image_path": str(image),
+        "mask_path": str(mask),
+        "bbox_2d": {"xyxy": [5, 5, 14, 14]},
+    }
+
+    made, overlay_status = module.crop_target_image(tmp_path, candidate, target, output, margin=0, mask_overlay_alpha=0.5)
+
+    assert made == output
+    assert output.exists()
+    assert overlay_status == "source_priority_5"

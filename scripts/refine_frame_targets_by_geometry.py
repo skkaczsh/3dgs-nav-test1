@@ -69,11 +69,23 @@ def target_should_split(target: dict[str, Any], args: argparse.Namespace) -> boo
     pca = target.get("pca") or {}
     linearity = float(pca.get("linearity") or 0.0)
     planarity = float(pca.get("planarity") or 0.0)
+    normal = pca.get("normal") or [0.0, 0.0, 1.0]
+    normal_z = abs(float(normal[2])) if len(normal) >= 3 else 1.0
     if label == "railing":
         return linearity < args.railing_min_linearity or float(dims.max()) > args.railing_max_extent
     if label == "car":
         return float(dims.max()) > args.car_max_extent or (planarity > args.surface_planarity and linearity < args.car_surface_max_linearity)
-    if label in {"ground", "wall"}:
+    if label in {"ground", "ceiling"} and float(dims[2]) > args.surface_height_split_threshold:
+        return n >= int(args.surface_min_split_points)
+    if (
+        label == "wall"
+        and bool(getattr(args, "split_horizontal_wall_by_height", False))
+        and normal_z >= args.wall_max_normal_z
+        and planarity >= args.surface_planarity
+        and float(dims[2]) > args.surface_height_split_threshold
+    ):
+        return n >= int(args.surface_min_split_points)
+    if label in {"ground", "wall", "ceiling"}:
         return float(dims.max()) > args.surface_max_extent and n >= int(args.surface_min_split_points)
     return False
 
@@ -189,13 +201,71 @@ def split_target(base: dict[str, Any], points: np.ndarray, point_indices: np.nda
     label = str(base.get("label") or "unknown")
     if not target_should_split(base, args):
         return [(points, point_indices)]
+    horizontal_wall = False
+    if label == "wall" and bool(getattr(args, "split_horizontal_wall_by_height", False)):
+        pca = pca_stats(points)
+        normal_z = abs(float((pca.get("normal") or [0, 0, 1])[2]))
+        horizontal_wall = normal_z >= args.wall_max_normal_z and float(pca.get("planarity") or 0.0) >= args.surface_planarity
+    if label in {"ground", "ceiling"} or horizontal_wall:
+        if float(points[:, 2].max() - points[:, 2].min()) > args.surface_height_split_threshold:
+            return split_horizontal_surface_by_height(base, points, point_indices, args)
     voxel = {
         "railing": args.railing_split_voxel,
         "car": args.car_split_voxel,
         "ground": args.surface_split_voxel,
         "wall": args.surface_split_voxel,
+        "ceiling": args.surface_split_voxel,
     }.get(label, args.split_voxel)
-    min_points = int(args.surface_split_min_points if label in {"ground", "wall"} else args.split_min_points)
+    min_points = int(args.surface_split_min_points if label in {"ground", "wall", "ceiling"} else args.split_min_points)
+    comps, residual = connected_components(points, voxel, min_points)
+    out = [(points[comp], point_indices[comp]) for comp in comps]
+    if bool(args.keep_residual) and residual.any():
+        residual_idx = np.where(residual)[0]
+        out.append((points[residual_idx], point_indices[residual_idx]))
+    return out or [(points, point_indices)]
+
+
+def split_horizontal_surface_by_height(
+    base: dict[str, Any],
+    points: np.ndarray,
+    point_indices: np.ndarray,
+    args: argparse.Namespace,
+) -> list[tuple[np.ndarray, np.ndarray]]:
+    z = points[:, 2]
+    z_min = float(z.min())
+    bins = np.floor((z - z_min) / max(float(args.surface_height_bin), 1e-6)).astype(np.int64)
+    out: list[tuple[np.ndarray, np.ndarray]] = []
+    residual_points: list[np.ndarray] = []
+    for bin_id in sorted(set(int(x) for x in bins.tolist())):
+        local = np.where(bins == bin_id)[0]
+        if len(local) < int(args.surface_split_min_points):
+            residual_points.append(local)
+            continue
+        comps, residual = connected_components(points[local], args.surface_split_voxel, args.surface_split_min_points)
+        for comp in comps:
+            selected = local[comp]
+            out.append((points[selected], point_indices[selected]))
+        if residual.any():
+            residual_points.append(local[np.where(residual)[0]])
+    if bool(args.keep_residual) and residual_points:
+        residual = np.concatenate(residual_points)
+        if len(residual) >= int(args.min_output_points):
+            out.append((points[residual], point_indices[residual]))
+    if len(out) <= 1:
+        return split_target_without_height(base, points, point_indices, args)
+    return sorted(out, key=lambda pair: len(pair[0]), reverse=True)
+
+
+def split_target_without_height(base: dict[str, Any], points: np.ndarray, point_indices: np.ndarray, args: argparse.Namespace) -> list[tuple[np.ndarray, np.ndarray]]:
+    label = str(base.get("label") or "unknown")
+    voxel = {
+        "railing": args.railing_split_voxel,
+        "car": args.car_split_voxel,
+        "ground": args.surface_split_voxel,
+        "wall": args.surface_split_voxel,
+        "ceiling": args.surface_split_voxel,
+    }.get(label, args.split_voxel)
+    min_points = int(args.surface_split_min_points if label in {"ground", "wall", "ceiling"} else args.split_min_points)
     comps, residual = connected_components(points, voxel, min_points)
     out = [(points[comp], point_indices[comp]) for comp in comps]
     if bool(args.keep_residual) and residual.any():
@@ -281,6 +351,9 @@ def main() -> None:
     parser.add_argument("--min-split-points", type=int, default=400)
     parser.add_argument("--surface-min-split-points", type=int, default=3000)
     parser.add_argument("--surface-max-extent", type=float, default=12.0)
+    parser.add_argument("--surface-height-split-threshold", type=float, default=1.2)
+    parser.add_argument("--surface-height-bin", type=float, default=0.7)
+    parser.add_argument("--split-horizontal-wall-by-height", action="store_true")
     parser.add_argument("--surface-planarity", type=float, default=0.55)
     parser.add_argument("--railing-min-linearity", type=float, default=0.45)
     parser.add_argument("--railing-max-extent", type=float, default=6.0)

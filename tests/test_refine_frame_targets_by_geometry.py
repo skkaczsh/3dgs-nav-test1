@@ -33,6 +33,8 @@ def args(**overrides):
         "min_split_points": 3,
         "surface_min_split_points": 3,
         "surface_max_extent": 12.0,
+        "surface_height_split_threshold": 1.2,
+        "surface_height_bin": 0.7,
         "surface_planarity": 0.45,
         "railing_min_linearity": 0.45,
         "railing_max_extent": 1.0,
@@ -135,3 +137,81 @@ def test_high_wall_with_up_normal_relabels_to_ceiling():
 
     assert label == "ceiling"
     assert "wall_normal_to_ceiling" in reasons
+
+
+def test_ground_target_splits_by_height_layers():
+    module = load_module()
+    low = np.array([[0, 0, 0], [0.05, 0, 0], [0, 0.05, 0], [0.05, 0.05, 0]], dtype=np.float32)
+    high = np.array([[0, 0, 2], [0.05, 0, 2], [0, 0.05, 2], [0.05, 0.05, 2]], dtype=np.float32)
+    points = np.vstack([low, high])
+    base = target(label="ground")
+    base["mask_id"] = 1
+    base["priority_label_id"] = 1
+    base["parent_class"] = "surface"
+    base["point_indices"] = list(range(len(points)))
+    base["cluster_size"] = len(points)
+    base["bbox_3d"] = {"min": [0, 0, 0], "max": [0.05, 0.05, 2]}
+    base["pca"] = {"normal": [0, 0, 1], "linearity": 0.0, "planarity": 1.0}
+    ply_points = {0: {"points": points, "point_indices": np.arange(len(points), dtype=np.int64)}}
+
+    rows, _by_target, summary = module.refine_targets(
+        [base],
+        ply_points,
+        args(surface_split_voxel=0.10, split_horizontal_wall_by_height=True),
+    )
+
+    assert len(rows) == 2
+    assert [row["target_index"] for row in rows] == [0, 1]
+    assert all(row["label"] == "ground" for row in rows)
+    assert sorted(round(row["centroid"][2], 1) for row in rows) == [0.0, 2.0]
+    assert summary["split_source_targets"] == 1
+
+
+def test_horizontal_wall_splits_by_height_before_relabel():
+    module = load_module()
+    low = np.array([[0, 0, 0], [0.05, 0, 0], [0, 0.05, 0], [0.05, 0.05, 0]], dtype=np.float32)
+    high = np.array([[0, 0, 8], [0.05, 0, 8], [0, 0.05, 8], [0.05, 0.05, 8]], dtype=np.float32)
+    points = np.vstack([low, high])
+    base = target(label="wall")
+    base["mask_id"] = 2
+    base["priority_label_id"] = 2
+    base["parent_class"] = "surface"
+    base["point_indices"] = list(range(len(points)))
+    base["cluster_size"] = len(points)
+    base["bbox_3d"] = {"min": [0, 0, 0], "max": [0.05, 0.05, 8]}
+    base["pca"] = {"normal": [0, 0, 1], "linearity": 0.0, "planarity": 1.0}
+    ply_points = {0: {"points": points, "point_indices": np.arange(len(points), dtype=np.int64)}}
+
+    rows, _by_target, summary = module.refine_targets(
+        [base],
+        ply_points,
+        args(surface_split_voxel=0.10, split_horizontal_wall_by_height=True),
+    )
+
+    assert len(rows) == 2
+    assert sorted(row["label"] for row in rows) == ["ceiling", "ground"]
+    assert sorted(round(row["centroid"][2], 1) for row in rows) == [0.0, 8.0]
+    assert summary["split_source_targets"] == 1
+    assert summary["relabelled_targets"] == 2
+
+
+def test_horizontal_wall_height_split_is_opt_in():
+    module = load_module()
+    low = np.array([[0, 0, 0], [0.05, 0, 0], [0, 0.05, 0], [0.05, 0.05, 0]], dtype=np.float32)
+    high = np.array([[0, 0, 8], [0.05, 0, 8], [0, 0.05, 8], [0.05, 0.05, 8]], dtype=np.float32)
+    points = np.vstack([low, high])
+    base = target(label="wall")
+    base["mask_id"] = 2
+    base["priority_label_id"] = 2
+    base["parent_class"] = "surface"
+    base["point_indices"] = list(range(len(points)))
+    base["cluster_size"] = len(points)
+    base["bbox_3d"] = {"min": [0, 0, 0], "max": [0.05, 0.05, 8]}
+    base["pca"] = {"normal": [0, 0, 1], "linearity": 0.0, "planarity": 1.0}
+    ply_points = {0: {"points": points, "point_indices": np.arange(len(points), dtype=np.int64)}}
+
+    rows, _by_target, summary = module.refine_targets([base], ply_points, args(surface_split_voxel=0.10, split_horizontal_wall_by_height=False))
+
+    assert len(rows) == 1
+    assert rows[0]["label"] == "wall"
+    assert summary["split_source_targets"] == 0
