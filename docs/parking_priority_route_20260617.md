@@ -789,3 +789,54 @@ Use the geometry-guided mask refinement as the next controlled experiment:
 - keep stable ground/wall/grass from `drivability_cpp` and v19 as trusted priors
 - restrict DINO/GroundingDINO/SAM to the much smaller residual/fine-object set after v20 surface-hole filling
 - do not use DINOv3 14x14 seed maps as segmentation boundaries; use them only as weak evidence metadata unless a higher-resolution feature extractor is introduced
+
+## 2026-06-18 Frame-Local Target/Object Route
+
+- Correct route restored:
+  - target generation now uses same-frame `.lx` points plus same-frame priority masks, not global object projection into unrelated images.
+  - script: `scripts/build_frame_targets_from_priority.py`
+  - remote target output: `/root/epfs/work_MT20260616-175807/frame_targets_priority_full_s10_v1`
+  - result: `619` sampled frames, `9,707` targets, `9,196,812` target points.
+  - target labels: `ground=901`, `wall=3025`, `car=1117`, `grass=4111`, `railing=553`.
+- Object fusion v1:
+  - script: `scripts/fuse_targets_to_objects.py`
+  - remote output: `/root/epfs/work_MT20260616-175807/frame_objects_priority_full_s10_v1`
+  - result: `2,721` objects, merge ratio `0.7197`, `55` ambiguous objects.
+  - viewer export: `/root/epfs/work_MT20260616-175807/frame_object_viewer_priority_full_s10_v1`
+  - viewer point labels at stride 10: `ground=122,500`, `wall=478,407`, `car=24,295`, `grass=97,288`, `railing=17,544`, `ambiguous=179,648`.
+- QA pack:
+  - script: `scripts/build_frame_local_object_qa_pack.py`
+  - output: `/root/epfs/work_MT20260616-175807/frame_local_object_qa_full_s10_v1`
+  - top risk objects showed large `ground/wall` mixed surfaces and suspicious large `railing/car` single-target objects.
+  - interpretation: the remaining bad labels are mostly born at the priority-mask/target level; fusion can expose them but should not hide them by loose cross-surface merges.
+- v2 strict-surface experiment:
+  - output: `/root/epfs/work_MT20260616-175807/frame_objects_priority_full_s10_v2_strict_surface`
+  - result was identical to v1.
+  - root cause: strict-surface rules included `floor/wall/building`, but this dataset emits `ground`, so `ground <-> wall` merges were not blocked.
+- v3 strict-surface-ground fix:
+  - code fix: `SURFACE_LABELS = {"floor", "ground", "wall", "building"}`.
+  - regression test added: strict mode blocks same-parent `ground` and `wall` target merges even when point indices overlap.
+  - remote object output: `/root/epfs/work_MT20260616-175807/frame_objects_priority_full_s10_v3_strict_surface_ground`
+  - remote viewer output: `/root/epfs/work_MT20260616-175807/frame_object_viewer_priority_full_s10_v3_strict_surface_ground`
+  - local viewer files: `server_parking_priority_s10/frame_object_viewer_priority_full_s10_v3_strict_surface_ground/frame_object_points_stride10.ply` and `frame_objects_viewer.jsonl`.
+  - result: `2,813` objects, merge ratio `0.7102`, `0` ambiguous objects.
+  - viewer point labels at stride 10: `ground=210,615`, `wall=569,940`, `car=24,295`, `grass=97,288`, `railing=17,544`.
+  - QA output: `/root/epfs/work_MT20260616-175807/frame_local_object_qa_full_s10_v3_strict_surface_ground`
+  - remaining risk reasons: `large_single_target_object=81`, `railing_not_linear=13`, `railing_extent_too_large=9`, `car_extent_suspicious=22`, plus small ground/wall geometry mismatches.
+- Current bottleneck:
+  - not primarily a calibration/projection error in this route; QA crop boxes generally land on real image regions.
+  - the bottleneck is coarse or wrong priority target generation: single masks/targets can still absorb broad wall/ground/railing/car-adjacent regions.
+  - fusion is now conservative enough to stop producing ambiguous ground/wall objects, but it cannot repair a single target whose own mask already swallowed multiple physical structures.
+
+## Next Step
+
+Use v3 as the current review baseline:
+
+- open local viewer with:
+  - `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_priority_full_s10_v3_strict_surface_ground/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_priority_full_s10_v3_strict_surface_ground/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5`
+- next correction should happen before fusion:
+  - split large priority targets by 3D plane/line/compact geometry before object fusion,
+  - reject `railing` targets that are broad planar regions,
+  - reject `car` targets that are large planar surfaces or mostly ground/wall-like,
+  - keep `ground/wall` trusted surfaces separate unless labels match.
+- do not spend another pass on global-object image projection or free VLM relabel until target splitting is corrected.

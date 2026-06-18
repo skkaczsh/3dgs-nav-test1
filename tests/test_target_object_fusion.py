@@ -233,6 +233,35 @@ def test_fuse_targets_marks_same_parent_label_conflict_ambiguous():
     assert finalized[0]["status"] == "ambiguous_object"
 
 
+def test_fuse_targets_strict_surface_labels_blocks_ground_wall_merge():
+    module = load_module(SCRIPTS / "fuse_targets_to_objects.py", "fuse_targets_strict_surface_for_repo_test")
+    args = type("Args", (), {
+        "centroid_distance": 0.35,
+        "bbox_distance": 0.35,
+        "color_distance": 70.0,
+        "normal_angle": 25.0,
+        "zone_size": 100,
+        "active_zone_window": 1,
+        "strict_surface_labels": True,
+    })()
+
+    objects, decisions = module.fuse_targets(
+        [
+            _target("t1", 0, "ground", [0, 0, 0], parent="surface", point_start=0),
+            _target("t2", 0, "wall", [0.10, 0, 0], parent="surface", point_start=0),
+        ],
+        args,
+    )
+    finalized = [module.finalize_object(o) for o in objects]
+    match, score = module.match_score(objects[0], _target("t2", 0, "wall", [0.10, 0, 0], parent="surface", point_start=0), args)
+
+    assert len(finalized) == 2
+    assert decisions[1]["action"] == "new_object"
+    assert match is False
+    assert score["reason"] == "no_match"
+    assert score["surface_cross_label_blocked"] is True
+
+
 def test_fuse_targets_does_not_merge_low_confidence_target_by_geometry_only():
     module = load_module(SCRIPTS / "fuse_targets_to_objects.py", "fuse_targets_quality_for_repo_test")
     args = type("Args", (), {

@@ -17,7 +17,7 @@ from project_semantic import LABEL_COLORS, LABEL_NAMES
 
 
 SURFACE_PARENT_CLASSES = {"surface", "structure"}
-SURFACE_LABELS = {"floor", "wall", "building"}
+SURFACE_LABELS = {"floor", "ground", "wall", "building"}
 DEFAULT_MIN_MERGE_CONFIDENCE = 0.5
 IDENTITY_GATE_LABELS = {"equipment", "pipe", "railing", "vehicle", "furniture", "person", "tree", "grass", "other"}
 IDENTITY_STOPWORDS = {
@@ -595,7 +595,7 @@ def main() -> None:
     parser.add_argument(
         "--strict-surface-labels",
         action="store_true",
-        help="Do not merge floor/wall/building targets across labels via parent-class surface rules.",
+        help="Do not merge floor/ground/wall/building targets across labels via parent-class surface rules.",
     )
     parser.add_argument("--write-ply", action="store_true")
     args = parser.parse_args()
