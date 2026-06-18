@@ -116,7 +116,18 @@
    - method: voxelize drivability red/white/blue PCD, vote it onto every full-scene object, and relabel only when drivability prior and object PCA geometry agree.
    - result: `51` objects / `9,272` preview points changed.
    - important corrections: `car->wall=3`, `railing->wall=6`, `fine_candidate->floor/wall=15`, `unknown->floor/wall=16`; this directly targets the observed wall/ground-as-railing/car failure.
-   - default viewer: `tools/parking_full_scene_viewer.html` now opens this v13 output.
+   - historical default: `tools/parking_full_scene_viewer.html` opened this v13 output before v18/v19 fine-candidate review.
+19. Apply point-level trusted surface guard after fine-object review:
+   - script: `scripts/apply_surface_trust_guard_to_ply.py`
+   - local/remote output: `server_parking_priority_s10/full_scene_surface_trust_guard_v19`
+   - input: v18 full-scene fine review plus full-point `drivability_cpp` prior `MT20260616-175807_drivable_points_collision_arm64_wallbfs.pcd`
+   - method: only labels `unknown`, `fine_candidate`, `car`, and `railing` are eligible for point-level overwrite; prior ground/wall points are restored to `floor`/`wall`, while prior `other`/`unknown` points are preserved as fine/object candidates.
+   - reason: user review showed some trusted large surfaces still appeared under fine-object labels after v17/v18. This pass trusts the already-validated ground/wall preprocessing without globally deleting true cars or railings.
+   - result: `114,685` points restored to trusted surface labels.
+   - corrected counts: `floor=363,767`, `wall=401,379`, `unknown=104,947`, `ceiling=2,616`, `grass=82,088`, `fine_candidate=53,587`, `car=148,762`, `railing=928`.
+   - object-level status counts: `unknown_to_wall=7`, `unknown_to_floor=21`, `fine_candidate_to_wall=12`, `fine_candidate_to_floor=17`, `railing_to_wall=1`, `railing_to_floor=2`, `mixed_fine_candidate_with_surface_points=196`.
+   - implementation note: the voxel-only drivability PCD does not contain wall labels in this dataset; v19 must use the full-point wallbfs prior.
+   - default viewer: `tools/parking_full_scene_viewer.html` now opens this v19 output.
 
 ## Current Metrics
 
@@ -686,7 +697,14 @@ Object-level scene-context review:
   - method: remove v13 parent fine-candidate objects and append v17 reviewed split points/objects; stable floor/wall/grass objects from the drivability-guarded base are preserved.
   - output vertices: `1,158,074`; objects: `1,380`.
   - corrected PLY semantic counts: `unknown=152,726`, `wall=341,665`, `floor=308,796`, `ceiling=2,616`, `grass=82,088`, `car=173,151`, `railing=2,399`, `fine_candidate=94,633`; no id `7`.
-  - `tools/parking_full_scene_viewer.html` now opens this v18 output by default.
+  - historical default: `tools/parking_full_scene_viewer.html` opened this v18 output before the v19 point-level surface guard.
+- v19 point-level trusted surface guard:
+  - script: `scripts/apply_surface_trust_guard_to_ply.py`
+  - output: `server_parking_priority_s10/full_scene_surface_trust_guard_v19`
+  - remote reusable output: `/root/epfs/work_MT20260616-175807/full_scene_surface_trust_guard_v19`
+  - purpose: enforce the trusted `drivability_cpp` ground/wall prior after v18, because v18 can still contain surface points inside fine-candidate split objects.
+  - result: `114,685` points restored to trusted surfaces; final PLY point counts are `floor=363,767`, `wall=401,379`, `unknown=104,947`, `ceiling=2,616`, `grass=82,088`, `fine_candidate=53,587`, `car=148,762`, `railing=928`.
+  - `tools/parking_full_scene_viewer.html` now opens v19 by default.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,

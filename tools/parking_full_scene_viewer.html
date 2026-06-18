@@ -34,14 +34,14 @@
 <body>
   <main>
     <h1>Parking Full Scene Object Viewer</h1>
-    <p>Redirecting to the current full-scene object view. Stable ground/wall structure is guarded by the C++ drivability geometry prior; fine candidates are replaced only by conservative local-geometry review results.</p>
+    <p>Redirecting to the current full-scene object view. Stable ground/wall structure is guarded by the C++ drivability geometry prior, then enforced again at point level after fine-candidate review.</p>
     <p>Use residual or semantic-review candidate files only for debugging filtered leftovers.</p>
     <p><a id="target" href="#">Open full-scene viewer</a></p>
   </main>
   <script>
     const guardedTarget = 'semantic_ply_viewer.html'
-      + '?file=/server_parking_priority_s10/full_scene_fine_review_v18/full_scene_fine_review_v18.ply'
-      + '&objects=/server_parking_priority_s10/full_scene_fine_review_v18/full_scene_fine_review_v18.jsonl'
+      + '?file=/server_parking_priority_s10/full_scene_surface_trust_guard_v19/full_scene_surface_trust_guard_v19.ply'
+      + '&objects=/server_parking_priority_s10/full_scene_surface_trust_guard_v19/full_scene_surface_trust_guard_v19.jsonl'
       + '&mode=semantic&stride=1&pointSize=1.5';
     document.getElementById('target').href = guardedTarget;
     window.location.replace(guardedTarget);
