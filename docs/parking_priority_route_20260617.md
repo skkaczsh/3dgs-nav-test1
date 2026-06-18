@@ -91,6 +91,11 @@
    - local full-scene preview: `server_parking_priority_s10/full_scene_objects_s10_full_v6_local_geometry_split_v2`
    - method: recompute conflicts with `railing_clean_horizontal_surface`, split selected floor/wall/grass/railing objects by local `0.80m` voxel PCA and 6-neighbor connected components.
    - result: priority objects `585 -> 1128`; priority railing points `124,493 -> 111,642`; remaining railing geometry conflicts are small fragments totaling `2,709` points.
+15. Apply railing-only geometry conflict demotion:
+   - script: `scripts/apply_geometry_conflict_relabels.py --only-label railing`
+   - local full-scene preview: `server_parking_priority_s10/full_scene_objects_s10_full_v7_local_geometry_railing_demote`
+   - method: only apply relabels for residual `railing` conflicts after local geometry split; do not demote wall/car/grass conflicts in this pass.
+   - result: `17` residual railing objects relabeled; stride10 preview changes `271` points, with `15` clean horizontal railing fragments converted to `floor` and `2` surface-like railing fragments converted to `unknown`.
 
 ## Current Metrics
 
@@ -284,6 +289,23 @@ Local geometry split v2:
 - user-reported issue addressed: several floor/wall regions were being shown as `railing`; the updated QA flags `railing_clean_horizontal_surface` and the split stage converts local horizontal surface voxels to `floor` or `unknown`.
 - remaining `railing` geometry conflicts: `17` objects, `2,709` points total. These are small fragments and should be handled by a later small-object merge/demotion pass, not by broad class-level relabel.
 
+Railing-only demotion v7:
+
+- source preview: `server_parking_priority_s10/full_scene_objects_s10_full_v6_local_geometry_split_v2`
+- relabel count: `17` objects
+- changed stride10 preview points: `271`
+- relabel reasons:
+  - `railing_clean_horizontal_surface_to_floor`: `15`
+  - `railing_surface_like_to_unknown`: `2`
+- object labels after relabel:
+  - floor: `232`
+  - wall: `201`
+  - grass: `177`
+  - car: `141`
+  - railing: `182`
+  - unknown: `396`
+- interpretation: this is the current default review preview for the user-reported "ground/wall labeled as railing" issue. It deliberately touches only railing conflicts to avoid the overly aggressive behavior of the older all-conflict relabel preview.
+
 ## Review Assets
 
 Local previews:
@@ -340,6 +362,10 @@ Local review outputs:
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v6_local_geometry_split_v2/full_scene_objects_stride10.ply`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v6_local_geometry_split_v2/full_scene_objects.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v6_local_geometry_split_v2/full_scene_objects_report.json`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v7_local_geometry_railing_demote/full_scene_objects_railing_demote.ply`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v7_local_geometry_railing_demote/full_scene_objects_railing_demote.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v7_local_geometry_railing_demote/full_scene_objects_railing_demote_report.json`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v7_local_geometry_railing_demote/full_scene_objects_railing_demote_relabels.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/priority_objects_s10_full_v4_local_geometry_v2/priority_objects_local_geometry_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/priority_objects_s10_full_v4_local_geometry_v2/priority_geometry_conflict_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded_ascii.ply`
@@ -365,6 +391,10 @@ Conservative geometry relabel preview:
 Local geometry split v2 preview:
 
 `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v6_local_geometry_split_v2/full_scene_objects_stride10.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v6_local_geometry_split_v2/full_scene_objects.jsonl&mode=semantic&stride=1&pointSize=1.5`
+
+Railing-only demotion v7 preview:
+
+`http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v7_local_geometry_railing_demote/full_scene_objects_railing_demote.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v7_local_geometry_railing_demote/full_scene_objects_railing_demote.jsonl&mode=semantic&stride=1&pointSize=1.5`
 
 Guarded local light review:
 
@@ -401,6 +431,7 @@ Object-level scene-context review:
 - Finer priority voxel connectivity helps but is not sufficient. It splits some large components and reduces high-severity conflict points, but many medium conflicts remain because connected mixed surfaces still need plane/local-normal splitting.
 - Conservative geometry relabel preview is useful for QA because it removes confident false labels, but it should not be mistaken for final semantics: the large `unknown` region is a signal that geometry splitting is still missing.
 - Local geometry split v2 is the better default preview than conservative relabel: it keeps more geometry-specific labels while correcting large mixed priority objects. It still leaves small railing/floor/wall fragments for a later merge/demotion pass.
+- Railing-only demotion v7 is the current default user-review preview for the reported "ground/wall labeled as railing" problem. It avoids the older all-conflict relabel pass because that pass demotes unrelated car/wall/grass conflicts too aggressively.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,

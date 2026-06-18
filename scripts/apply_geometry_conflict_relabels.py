@@ -81,7 +81,11 @@ def choose_relabel(finding: dict[str, Any], args: argparse.Namespace) -> tuple[s
 
 def load_relabels(path: Path, args: argparse.Namespace) -> dict[int, dict[str, Any]]:
     relabels: dict[int, dict[str, Any]] = {}
+    only_labels = set(args.only_label or [])
     for finding in read_jsonl(path):
+        label = str(finding.get("semantic_label") or "unknown")
+        if only_labels and label not in only_labels:
+            continue
         object_id = int(finding["object_id"])
         new_label, reason = choose_relabel(finding, args)
         if not new_label:
@@ -202,6 +206,12 @@ def main() -> None:
     parser.add_argument("--output-prefix", default="geometry_relabel")
     parser.add_argument("--clean-horizontal-planarity", type=float, default=0.80)
     parser.add_argument("--clean-horizontal-thickness", type=float, default=0.50)
+    parser.add_argument(
+        "--only-label",
+        action="append",
+        default=[],
+        help="Only apply relabels for this semantic label. Repeat for multiple labels.",
+    )
     args = parser.parse_args()
 
     relabels = load_relabels(args.conflicts_jsonl, args)
