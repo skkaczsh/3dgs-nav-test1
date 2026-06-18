@@ -102,6 +102,12 @@
    - method: only apply generated `wall_clean_horizontal_surface_to_*` relabels; low horizontal wall fragments (`z < 6m`) become `floor`, high horizontal wall fragments become `ceiling`; no mixed/low-planarity wall is demoted in this pass.
    - result: `19` wall objects relabeled; stride10 preview changes `3,219` points; high-severity geometry conflicts drop from `29` to `10`.
    - scene context now assigns `ground_zone`, `transition_zone`, and `upper_zone` metadata for floor/wall/ceiling objects so downstream DINO/VLM review can operate on residual/fine targets instead of stable surfaces.
+17. Mask unconfirmed fine-object candidates for user QA:
+   - script: `scripts/mask_unconfirmed_fine_candidates.py`
+   - local full-scene preview: `server_parking_priority_s10/full_scene_objects_s10_full_v9_candidate_safe`
+   - reason: v8 displayed `car` / `railing` candidate labels as if they were confirmed semantic labels, causing wall/surface false positives to appear as cars or railings.
+   - method: objects routed to `dino_fine_object_review` with labels `car` or `railing` are displayed as `fine_candidate`; original labels are preserved as `candidate_label`.
+   - result: `323` unconfirmed fine-object candidates masked (`car=141`, `railing=182`); semantic label counts no longer include final `car` or `railing` until visual confirmation promotes them.
 
 ## Current Metrics
 
@@ -346,6 +352,23 @@ Clean horizontal wall refinement v8:
   - residual objects after surface removal: `396`
 - interpretation: this is the current default preview. It moves the route closer to the intended structure-first split: stable floor/wall/ceiling/vegetation surfaces carry scene metadata, while car/railing/unknown remain routed to DINO/fine-object review.
 
+Candidate-safe v9:
+
+- source preview: `server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine`
+- masked objects: `323`
+- masked candidate labels:
+  - car: `141`
+  - railing: `182`
+- object labels after masking:
+  - floor: `241`
+  - wall: `182`
+  - ceiling: `10`
+  - grass: `177`
+  - fine_candidate: `323`
+  - unknown: `396`
+- changed stride10 preview points: `34,670`
+- interpretation: this is the current default user-review preview. It prevents unconfirmed `car` / `railing` candidate labels from being read as final semantics. Real cars and railings should be promoted back only after DINO/GroundingDINO or manual visual confirmation.
+
 ## Review Assets
 
 Local previews:
@@ -415,6 +438,10 @@ Local review outputs:
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/scene_context_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/all_review_candidates.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/dino_review_candidates.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v9_candidate_safe/full_scene_objects_candidate_safe.ply`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v9_candidate_safe/full_scene_objects_candidate_safe.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v9_candidate_safe/full_scene_objects_candidate_safe_report.json`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v9_candidate_safe/full_scene_objects_candidate_safe_masked.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/priority_objects_s10_full_v4_local_geometry_v2/priority_objects_local_geometry_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/priority_objects_s10_full_v4_local_geometry_v2/priority_geometry_conflict_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded_ascii.ply`
@@ -448,6 +475,10 @@ Railing-only demotion v7 preview:
 Clean horizontal wall refinement v8 preview:
 
 `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/full_scene_objects_surface_refine.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/full_scene_objects_surface_refine_enriched.jsonl&mode=semantic&stride=1&pointSize=1.5`
+
+Candidate-safe v9 preview:
+
+`http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v9_candidate_safe/full_scene_objects_candidate_safe.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v9_candidate_safe/full_scene_objects_candidate_safe.jsonl&mode=semantic&stride=1&pointSize=1.5`
 
 Guarded local light review:
 
@@ -487,6 +518,7 @@ Object-level scene-context review:
 - Railing-only demotion v7 is the current default user-review preview for the reported "ground/wall labeled as railing" problem. It avoids the older all-conflict relabel pass because that pass demotes unrelated car/wall/grass conflicts too aggressively.
 - Clean horizontal wall refinement v8 is now the default user-review preview. It addresses the next structural error class after railing cleanup: clean horizontal wall fragments are not kept as wall; low fragments become floor and high fragments become ceiling / overhead deck.
 - Scene-context enrichment now uses coarse height zones in addition to floor-layer clustering because parking lots, ramps, and upper decks can form a continuous z distribution. This avoids incorrectly treating all floor objects as one undifferentiated ground layer.
+- Candidate-safe v9 corrects a display/semantic contract problem: priority `car` and `railing` outputs are not confirmed labels. They should be shown as fine-object candidates until crop-level visual review promotes them. This directly addresses the user-observed v8 issue where wall fragments appeared as cars or railings.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
