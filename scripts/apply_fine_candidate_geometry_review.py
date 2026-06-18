@@ -24,9 +24,9 @@ SEMANTIC_IDS = {
     "unknown": 0,
     "wall": 2,
     "floor": 3,
-    "fine_candidate": 7,
     "car": 8,
     "railing": 9,
+    "fine_candidate": 17,
 }
 
 DISPLAY_COLORS = {
@@ -199,7 +199,10 @@ def rewrite_ply(input_ply: Path, output_ply: Path, objects_by_id: dict[int, dict
             if obj is not None:
                 review_label = str(obj.get("review_label") or obj.get("semantic_label") or "fine_candidate")
                 color = DISPLAY_COLORS.get(review_label, DISPLAY_COLORS["fine_candidate"])
-                sem = SEMANTIC_IDS.get(str(obj.get("semantic_label") or "fine_candidate"), 7)
+                sem = SEMANTIC_IDS.get(
+                    str(obj.get("semantic_label") or "fine_candidate"),
+                    SEMANTIC_IDS["fine_candidate"],
+                )
                 if {"red", "green", "blue"}.issubset(idx):
                     parts[idx["red"]] = str(color[0])
                     parts[idx["green"]] = str(color[1])

@@ -35,9 +35,9 @@ SEMANTIC_IDS = {
     "wall": 2,
     "floor": 3,
     "grass": 5,
-    "fine_candidate": 7,
     "car": 8,
     "railing": 9,
+    "fine_candidate": 17,
 }
 
 
@@ -360,7 +360,10 @@ def main() -> None:
             })
             output_objects.append(out)
             r, g, b = color_for_subobject(oid, geom)
-            sem = SEMANTIC_IDS.get(candidate_label, SEMANTIC_IDS.get(semantic_label, 7))
+            sem = SEMANTIC_IDS.get(
+                candidate_label,
+                SEMANTIC_IDS.get(semantic_label, SEMANTIC_IDS["fine_candidate"]),
+            )
             for p in sub_pts:
                 ply_rows.append((float(p[0]), float(p[1]), float(p[2]), r, g, b, oid, sem))
 

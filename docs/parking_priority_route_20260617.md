@@ -675,6 +675,18 @@ Object-level scene-context review:
 - Viewer update:
   - `tools/semantic_ply_viewer.html` now displays `parent_object_id`, `review_label`, `review_status`, `review_reasons`, `candidate_label`, `geometry_class`, `image_evidence_count`, and `best_evidence` from object JSONL metadata.
   - This is required for v17 review because non-final labels intentionally remain `fine_candidate` in the semantic field while their review state explains why they were held or demoted.
+- Semantic ID correction:
+  - user review showed held fine candidates displayed as `person`; the object JSONL had no `person` labels.
+  - root cause: v16/v17 PLY writers encoded `fine_candidate` as semantic id `7`, while the viewer reserves id `7` for `person`.
+  - fix: `fine_candidate` is encoded as semantic id `17`; all fallback paths in v16/v17 writers now use `17`, not `7`.
+  - rebuilt local/remote v16/v17/v18 outputs. Corrected v17 PLY semantic counts are `car=173,151`, `railing=2,399`, `fine_candidate=94,454`, with no id `7`.
+- v18 full-scene merge:
+  - script: `scripts/merge_full_scene_with_fine_review.py`
+  - output: `server_parking_priority_s10/full_scene_fine_review_v18`
+  - method: remove v13 parent fine-candidate objects and append v17 reviewed split points/objects; stable floor/wall/grass objects from the drivability-guarded base are preserved.
+  - output vertices: `1,158,074`; objects: `1,380`.
+  - corrected PLY semantic counts: `unknown=152,726`, `wall=341,665`, `floor=308,796`, `ceiling=2,616`, `grass=82,088`, `car=173,151`, `railing=2,399`, `fine_candidate=94,633`; no id `7`.
+  - `tools/parking_full_scene_viewer.html` now opens this v18 output by default.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
