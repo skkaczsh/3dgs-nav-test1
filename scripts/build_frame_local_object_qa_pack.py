@@ -104,7 +104,7 @@ def object_risk(obj: dict[str, Any]) -> tuple[float, list[str]]:
     return score, reasons
 
 
-def select_candidates(objects: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+def select_candidates(objects: list[dict[str, Any]], limit: int | None = None) -> list[dict[str, Any]]:
     candidates = []
     for obj in objects:
         score, reasons = object_risk(obj)
@@ -130,7 +130,7 @@ def select_candidates(objects: list[dict[str, Any]], limit: int) -> list[dict[st
         }
         candidates.append(row)
     candidates.sort(key=lambda r: (-float(r["risk_score"]), -int(r.get("point_count") or 0), str(r["object_id"])))
-    return candidates[:limit]
+    return candidates if limit is None else candidates[:limit]
 
 
 def target_map(targets: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -244,18 +244,28 @@ def make_contact_sheet(image_paths: list[Path], output: Path, thumb: tuple[int, 
     sheet.save(output, quality=92)
 
 
-def summarize(objects: list[dict[str, Any]], candidates: list[dict[str, Any]]) -> dict[str, Any]:
+def summarize(
+    objects: list[dict[str, Any]],
+    candidates: list[dict[str, Any]],
+    all_candidates: list[dict[str, Any]],
+) -> dict[str, Any]:
     labels = Counter(str(o.get("semantic_label") or "unknown") for o in objects)
     statuses = Counter(str(o.get("status") or "unknown") for o in objects)
     risk_reasons = Counter(reason for c in candidates for reason in c.get("risk_reasons", []))
+    all_risk_reasons = Counter(reason for c in all_candidates for reason in c.get("risk_reasons", []))
     by_label = Counter(str(c.get("semantic_label") or "unknown") for c in candidates)
+    all_by_label = Counter(str(c.get("semantic_label") or "unknown") for c in all_candidates)
     return {
         "objects": len(objects),
         "semantic_label_counts": dict(labels),
         "status_counts": dict(statuses),
         "candidate_count": len(candidates),
         "candidate_label_counts": dict(by_label),
+        "all_candidate_count": len(all_candidates),
+        "all_candidate_label_counts": dict(all_by_label),
         "risk_reason_counts": dict(risk_reasons),
+        "candidate_risk_reason_counts": dict(risk_reasons),
+        "all_risk_reason_counts": dict(all_risk_reasons),
         "top_candidates": [
             {k: c.get(k) for k in ("object_id", "semantic_label", "risk_score", "risk_reasons", "target_count", "point_count", "label_votes")}
             for c in candidates[:20]
@@ -280,7 +290,8 @@ def main() -> None:
     objects = read_jsonl(args.objects_jsonl)
     targets = read_jsonl(args.targets_jsonl)
     targets_by_id = target_map(targets)
-    candidates = select_candidates(objects, args.candidate_limit)
+    all_candidates = select_candidates(objects)
+    candidates = all_candidates[: args.candidate_limit]
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     candidates_path = args.output_dir / "frame_local_object_qa_candidates.jsonl"
@@ -318,7 +329,7 @@ def main() -> None:
 
     contact = args.output_dir / "frame_local_object_qa_contact.jpg"
     make_contact_sheet(crop_paths[: min(len(crop_paths), 80)], contact, (args.thumb_width, args.thumb_height))
-    report = summarize(objects, candidates)
+    report = summarize(objects, candidates, all_candidates)
     report.update({
         "targets": len(targets),
         "candidate_limit": args.candidate_limit,

@@ -24,6 +24,7 @@ def args(**overrides):
         "flat_wall_min_extent": 1.5,
         "ceiling_min_z": 2.5,
         "wall_floor_max_ceiling_ratio": 0.10,
+        "wall_floor_max_z_span": 0.8,
         "wall_floor_min_area": 4.0,
         "wall_floor_min_extent": 2.0,
     }
@@ -82,3 +83,33 @@ def test_vertical_wall_is_kept():
 
     assert label == "wall"
     assert reason == "geometry_vertical_surface"
+
+
+def test_wall_ground_text_does_not_override_tall_surface():
+    obj = make_obj(
+        "wall",
+        [-4.0, -2.0, -0.4],
+        [4.0, 2.0, 2.0],
+        [0.0, 0.0, 1.0],
+    )
+    obj["description"] = "large rooftop floor concrete surface"
+
+    label, reason = module.choose_label(obj, {}, args())
+
+    assert label == "wall"
+    assert reason != "wall_text_ground_large_surface"
+
+
+def test_wall_ground_text_can_relabel_low_surface():
+    obj = make_obj(
+        "wall",
+        [-4.0, -2.0, -0.4],
+        [4.0, 2.0, 0.2],
+        [0.0, 0.0, 0.5],
+    )
+    obj["description"] = "large rooftop floor concrete surface"
+
+    label, reason = module.choose_label(obj, {}, args())
+
+    assert label == "ground"
+    assert reason == "wall_text_ground_large_surface"

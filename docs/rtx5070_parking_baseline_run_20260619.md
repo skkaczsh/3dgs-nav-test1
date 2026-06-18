@@ -360,14 +360,15 @@ Result:
   - `wall: 569,838 -> 566,089`
   - `ground: 183,693 -> 186,245`
   - `ceiling: 22,677 -> 23,874`
-- QA risks:
+- Top160 QA candidate risks:
   - `wall_too_flat_low_height: 7 -> 0`
   - `wall_normal_too_up: 7 -> 0`
   - `ground_has_large_height_span: 20 -> 25`
 
 Interpretation: object-level relabel is useful as an audit/local correction tool
-for obvious flat wall mistakes, but it should not become the default yet because
-it pushes some unresolved geometry into `ground_has_large_height_span`.
+for obvious flat wall mistakes. The apparent `ground_has_large_height_span`
+increase is a Top160 candidate-selection effect, not a global-risk increase;
+see the full-object QA comparison below.
 
 Object-relabel viewer:
 
@@ -422,8 +423,8 @@ Result from full guarded_v2 targets, followed by strict-surface fusion:
   - `wall_normal_too_up`: unchanged at `7`
 
 Interpretation: this is a low-risk target-level patch for a small class of line
-artifacts, but it does not address flat wall mistakes. Keep it opt-in until a
-viewer pass confirms the new `other` points are acceptable.
+artifacts, but it does not address flat wall mistakes by itself. Keep it opt-in
+until a viewer pass confirms the new `other` points are acceptable.
 
 Viewer:
 
@@ -459,9 +460,27 @@ Result:
   - `wall_normal_too_up: 7 -> 0`
   - `ground_has_large_height_span: 17 -> 22`
 
-Interpretation: the two fixes are not fully complementary. Object-level relabel
-still moves some unresolved high-span geometry back into `ground`. This combined
-version should not replace the strict-surface default.
+Initial interpretation was based on `risk_reason_counts`, which only described
+the selected Top160 evidence candidates. `build_frame_local_object_qa_pack.py`
+now also reports `all_risk_reason_counts` over every risky object. The full
+counts show that object-level relabel does not increase the global
+`ground_has_large_height_span`; it only moves more ground-risk objects into the
+Top160 review set.
+
+Full-object QA comparison:
+
+| version | all risky objects | ground high span | wall flat low height | wall normal up |
+| --- | ---: | ---: | ---: | ---: |
+| strict surface default | `965` | `41` | `31` | `36` |
+| strict surface + object relabel | `944` | `41` | `9` | `28` |
+| ground artifact guard + strict surface | `963` | `36` | `31` | `36` |
+| ground artifact guard + object relabel | `942` | `36` | `9` | `28` |
+
+Interpretation: the combined version is the best full-QA candidate so far: it
+keeps the target-level reduction in high-span ground artifacts and also removes
+most flat/up-normal wall risks. It should be treated as the next candidate for
+viewer review, not blindly as the committed default, because it introduces
+`other=344` viewer points and changes surface label balance.
 
 Combined viewer:
 
@@ -469,8 +488,21 @@ Combined viewer:
 http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_guarded_v2_full_s10_ground_guard_object_relabel_rtx5070/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_guarded_v2_full_s10_ground_guard_object_relabel_rtx5070/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5
 ```
 
-Current default remains unchanged:
+Full-risk comparison report:
+
+```text
+server_parking_priority_s10/guarded_v2_surface_refinement_all_risk_compare.local.json
+```
+
+Current default remains unchanged until visual review accepts the combined
+candidate:
 
 ```text
 guarded_v2 priority masks -> target geometry refinement -> fuse_targets_to_objects --strict-surface-labels
+```
+
+Candidate default under review:
+
+```text
+guarded_v2 priority masks -> target geometry refinement --guard-linear-ground-artifacts -> fuse_targets_to_objects --strict-surface-labels -> refine_target_fusion_objects --geometry-relabel-flat-wall --horizontal-surface-label ground
 ```

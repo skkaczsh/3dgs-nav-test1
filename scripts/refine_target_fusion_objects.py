@@ -190,6 +190,8 @@ def choose_label(obj: dict[str, Any], context: dict[str, Any], args: argparse.Na
     if has_ceiling and bool(geom["is_horizontal"]):
         return "ceiling", "text_ceiling_horizontal"
     if original in {"floor", "ground", "wall", "building", "ambiguous"} and has_ground and bool(geom["is_horizontal"]):
+        if original == "wall" and float(geom["z_span"]) > float(args.wall_floor_max_z_span):
+            return original, "wall_ground_text_rejected_tall_span"
         return horizontal_label, "text_ground_horizontal"
     if has_wall and bool(geom["is_vertical"]):
         return "wall", "text_wall_vertical"
@@ -207,7 +209,11 @@ def choose_label(obj: dict[str, Any], context: dict[str, Any], args: argparse.Na
 
     # Strong correction for "rooftop floor" text trapped inside a tall merged wall object.
     if original == "wall" and has_ground and vote_ratio(obj, "ceiling") < args.wall_floor_max_ceiling_ratio:
-        if geom["horiz_area"] >= args.wall_floor_min_area and geom["max_extent"] >= args.wall_floor_min_extent:
+        if (
+            float(geom["z_span"]) <= float(args.wall_floor_max_z_span)
+            and geom["horiz_area"] >= args.wall_floor_min_area
+            and geom["max_extent"] >= args.wall_floor_min_extent
+        ):
             return horizontal_label, "wall_text_ground_large_surface"
 
     # Building is often used as a fallback surface bucket. Resolve by geometry + text.
@@ -239,6 +245,7 @@ def main() -> None:
     parser.add_argument("--ceiling-min-points", type=int, default=120)
     parser.add_argument("--ceiling-max-no-text-points", type=int, default=800)
     parser.add_argument("--wall-floor-max-ceiling-ratio", type=float, default=0.10)
+    parser.add_argument("--wall-floor-max-z-span", type=float, default=0.8)
     parser.add_argument("--wall-floor-min-area", type=float, default=4.0)
     parser.add_argument("--wall-floor-min-extent", type=float, default=2.0)
     parser.add_argument("--horizontal-surface-label", choices=["ground", "floor"], default="ground")
