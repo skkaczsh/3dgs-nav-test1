@@ -104,3 +104,59 @@ server_parking_priority_s10/frame_local_object_qa_full_s10_v5_geometry_ceiling_r
 - This run reproduces the current validated route with no missing target-point mapping.
 - The bottleneck remains source mask quality and surface/fine-object confusion, not calibration or global point projection.
 - Next optimization should compare source priority mask refinements on selected bad windows before any new full run.
+
+## Batch Size Benchmark
+
+Measured on `60` undistorted frames with Mask2Former Mapillary priority segmentation:
+
+| batch size | elapsed | max RSS | result |
+| --- | ---: | ---: | --- |
+| 1 | `12.37s` | `2,106,072KB` | ok |
+| 2 | `12.04s` | `1,982,436KB` | ok |
+| 4 | `11.69s` | `2,109,460KB` | ok |
+| 8 | `11.62s` | `2,125,896KB` | ok |
+
+Batch `8` is safe on the 5070Ti but only marginally faster than batch `4`.
+Use batch `8` for long full-scene priority segmentation when VRAM is otherwise idle;
+use batch `4` when sharing the GPU with another lightweight task.
+
+## Bad-Window Geometry-Guided Mask Refinement
+
+Tested six high-risk windows: `2200_2300`, `3400_3500`, `4000_4100`,
+`5380_5420`, `5680_5800`, `5980_6040`.
+
+Modes:
+
+- `safe`: fill only residual holes from trusted projected surface prior.
+- `diag045`: diagnostic upper bound; allow trusted surfaces to overwrite `residual/car/railing`.
+- `guarded_v2`: production candidate; allow fine-label overwrite only inside projected fine components strongly supported by nearby trusted surface priors.
+
+Aggregate projected point counts across the six windows:
+
+| mode | ground | wall | grass | car | railing | residual |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| safe | `266,471` | `913,190` | `112,820` | `55,112` | `58,147` | `23,054` |
+| guarded_v2 | `266,471` | `934,083` | `112,821` | `48,952` | `43,413` | `23,054` |
+| diag045 | `267,586` | `942,439` | `113,690` | `46,668` | `35,358` | `23,053` |
+
+`guarded_v2` changed `20,893` points back to wall, primarily by reducing false
+`railing` (`-14,734`) and false `car` (`-6,160`). It is intentionally less
+aggressive than `diag045`, which is useful as a diagnostic ceiling but too broad
+for default production.
+
+Important implementation detail: the fine/surface support ratio must be computed
+over projected LiDAR pixels inside the 2D component, not over the full dense 2D
+mask area. Otherwise sparse 3D priors are diluted by image pixels and the guard
+never triggers.
+
+Local QA artifacts:
+
+```text
+server_parking_priority_s10/mask_refine_guarded_v2_bad_windows_rtx5070/mask_refine_guarded_v2_bad_windows_summary_rtx5070.json
+server_parking_priority_s10/mask_refine_guarded_v2_bad_windows_rtx5070/<range>/guarded_v2_contact.jpg
+server_parking_priority_s10/mask_refine_guarded_v2_bad_windows_rtx5070/<range>/safe_contact.jpg
+```
+
+Next step: run `guarded_v2` on a medium slice and rebuild target/object outputs,
+then verify in the viewer that wall/ground recovery does not erase real railing
+or cars.

@@ -106,6 +106,88 @@ def count_priority_pixels(mask: np.ndarray) -> dict[str, int]:
     }
 
 
+def guarded_fine_surface_override(
+    refined: np.ndarray,
+    prior_priority: np.ndarray,
+    surface_prior: np.ndarray,
+    valid_bool: np.ndarray,
+    args: argparse.Namespace,
+) -> tuple[int, Counter[str], list[dict[str, Any]]]:
+    """Recover obvious surface pixels from oversized fine-label components.
+
+    The model sometimes labels large wall/ground regions as railing/car.  A
+    blanket overwrite is too aggressive, so this only acts on connected fine
+    components whose projected surface-prior overlap is both large enough and
+    internally dominated by one surface class.
+    """
+    if not args.guarded_fine_surface_override:
+        return 0, Counter(), []
+
+    support_priority = prior_priority.copy()
+    support_mask = surface_prior.copy()
+    if args.fine_surface_neighbor_radius > 0:
+        kernel_size = args.fine_surface_neighbor_radius * 2 + 1
+        kernel = np.ones((kernel_size, kernel_size), dtype=np.uint8)
+        class_counts = []
+        for surface_label in sorted(SURFACE_PRIORITY):
+            class_map = ((prior_priority == surface_label) & surface_prior).astype(np.uint8)
+            class_counts.append(cv2.filter2D(class_map, -1, kernel, borderType=cv2.BORDER_CONSTANT))
+        counts = np.stack(class_counts, axis=0)
+        best_index = np.argmax(counts, axis=0)
+        best_count = np.max(counts, axis=0)
+        labels = np.array(sorted(SURFACE_PRIORITY), dtype=np.uint8)
+        neighbor_support = best_count >= args.fine_surface_neighbor_min_support
+        support_priority = np.where(neighbor_support, labels[best_index], support_priority).astype(np.uint8)
+        support_mask = support_mask | neighbor_support
+
+    total = 0
+    pairs: Counter[str] = Counter()
+    components: list[dict[str, Any]] = []
+    for label in sorted(FINE_PRIORITY):
+        component_mask = refined == label
+        n, labels, stats, _centroids = cv2.connectedComponentsWithStats(component_mask.astype(np.uint8), connectivity=8)
+        for i in range(1, n):
+            area = int(stats[i, cv2.CC_STAT_AREA])
+            if area <= 0:
+                continue
+            component = labels == i
+            projected = component & valid_bool
+            projected_area = int(projected.sum())
+            if projected_area <= 0:
+                continue
+            overlap = projected & support_mask
+            overlap_area = int(overlap.sum())
+            overlap_ratio = overlap_area / float(projected_area)
+            if overlap_area < args.fine_surface_min_pixels or overlap_ratio < args.fine_surface_min_ratio:
+                continue
+
+            prior_vals = support_priority[overlap]
+            prior_counts = Counter(int(x) for x in prior_vals.tolist())
+            dominant_label, dominant_count = prior_counts.most_common(1)[0]
+            dominant_ratio = dominant_count / float(overlap_area)
+            if dominant_ratio < args.fine_surface_dominant_ratio:
+                continue
+
+            old_vals = refined[overlap]
+            new_vals = support_priority[overlap]
+            pairs.update(
+                f"{PRIORITY_NAMES.get(int(o), o)}->{PRIORITY_NAMES.get(int(n), n)}"
+                for o, n in zip(old_vals.tolist(), new_vals.tolist())
+            )
+            refined[overlap] = new_vals
+            total += overlap_area
+            components.append({
+                "source_label": PRIORITY_NAMES.get(label, str(label)),
+                "surface_label": PRIORITY_NAMES.get(dominant_label, str(dominant_label)),
+                "component_area": area,
+                "projected_component_area": projected_area,
+                "overlap_area": overlap_area,
+                "overlap_ratio": overlap_ratio,
+                "surface_dominant_ratio": dominant_ratio,
+            })
+    return total, pairs, components
+
+
 def refine(priority: np.ndarray, semantic: np.ndarray, valid: np.ndarray, edge: np.ndarray, args: argparse.Namespace) -> tuple[np.ndarray, dict[str, Any]]:
     if semantic.shape != priority.shape:
         semantic = cv2.resize(semantic, (priority.shape[1], priority.shape[0]), interpolation=cv2.INTER_NEAREST)
@@ -123,6 +205,15 @@ def refine(priority: np.ndarray, semantic: np.ndarray, valid: np.ndarray, edge: 
     new_vals = prior_priority[eligible]
     override_pairs = Counter(f"{PRIORITY_NAMES.get(int(o), o)}->{PRIORITY_NAMES.get(int(n), n)}" for o, n in zip(old_vals.tolist(), new_vals.tolist()))
     refined[eligible] = prior_priority[eligible]
+
+    guarded_pixels, guarded_pairs, guarded_components = guarded_fine_surface_override(
+        refined,
+        prior_priority,
+        surface_prior,
+        valid_bool,
+        args,
+    )
+    override_pairs.update(guarded_pairs)
 
     cut_pixels = 0
     if args.cut_fine_at_depth_edge:
@@ -155,6 +246,8 @@ def refine(priority: np.ndarray, semantic: np.ndarray, valid: np.ndarray, edge: 
     return refined, {
         "override_pixels": int(eligible.sum()),
         "override_pairs": dict(override_pairs),
+        "guarded_fine_surface_override_pixels": guarded_pixels,
+        "guarded_fine_surface_components": guarded_components,
         "depth_edge_cut_pixels": cut_pixels,
         "small_fine_component_removed_pixels": small_removed,
         "fine_surface_overlap_before": fine_surface_overlap,
@@ -218,6 +311,17 @@ def main() -> None:
         default=False,
         help="Diagnostic/aggressive mode: demote fine labels on projected depth edges.",
     )
+    parser.add_argument(
+        "--guarded-fine-surface-override",
+        action="store_true",
+        default=False,
+        help="Overwrite fine-label pixels only inside components strongly supported by trusted surface priors.",
+    )
+    parser.add_argument("--fine-surface-min-pixels", type=int, default=240)
+    parser.add_argument("--fine-surface-min-ratio", type=float, default=0.35)
+    parser.add_argument("--fine-surface-dominant-ratio", type=float, default=0.70)
+    parser.add_argument("--fine-surface-neighbor-radius", type=int, default=0)
+    parser.add_argument("--fine-surface-neighbor-min-support", type=int, default=1)
     parser.add_argument("--min-fine-component-area", type=int, default=24)
     parser.add_argument("--component-min-area", type=int, default=80)
     parser.add_argument("--overlay-alpha", type=float, default=0.45)
@@ -281,12 +385,14 @@ def main() -> None:
     status_counts = Counter(row["status"] for row in rows)
     aggregate_override = Counter()
     total_override = 0
+    total_guarded = 0
     total_cut = 0
     total_overlap = 0
     for row in rows:
         if row.get("status") != "ok":
             continue
         total_override += int(row.get("override_pixels") or 0)
+        total_guarded += int(row.get("guarded_fine_surface_override_pixels") or 0)
         total_cut += int(row.get("depth_edge_cut_pixels") or 0)
         total_overlap += int(row.get("fine_surface_overlap_before") or 0)
         aggregate_override.update(row.get("override_pairs", {}))
@@ -302,6 +408,7 @@ def main() -> None:
         "status_counts": dict(status_counts),
         "image_count": len(rows),
         "total_surface_override_pixels": total_override,
+        "total_guarded_fine_surface_override_pixels": total_guarded,
         "total_depth_edge_cut_pixels": total_cut,
         "total_fine_surface_overlap_before": total_overlap,
         "override_pairs": dict(aggregate_override),
@@ -317,6 +424,7 @@ def main() -> None:
         "image_count": len(rows),
         "status_counts": dict(status_counts),
         "total_surface_override_pixels": total_override,
+        "total_guarded_fine_surface_override_pixels": total_guarded,
         "total_depth_edge_cut_pixels": total_cut,
         "override_pairs": dict(aggregate_override),
     }, ensure_ascii=False, indent=2))
