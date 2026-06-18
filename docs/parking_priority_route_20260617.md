@@ -163,7 +163,9 @@
    - v23 application: `39` objects / `157,871` full-scene points changed.
    - v23 relabel points: `wall=116,715`, `grass=17,317`, `unknown=4,616`, `tree=4,120`, `railing=1,455`, `equipment=9,695`, `floor=31`, `car=3,922`.
    - v23 label counts: `wall=5,825,254`, `floor=2,009,454`, `grass=1,054,466`, `car=130,861`, `railing=78,095`, `unknown=48,873`, `equipment=9,695`, `tree=4,120`.
-   - default viewer: `tools/parking_full_scene_viewer.html` now opens v23.
+   - invalidation note: user review found projected red evidence points on sky / far buildings outside the current LiDAR frame range. Root cause is the evidence builder projected global object points into nearby camera frames, while the validated color route projects only the same-frame `.lx` section points. v23 must not be used as an automatic relabel source.
+   - fix started: `scripts/build_object_image_evidence.py` now supports priority-mask sky filtering and `.lx` frame-local depth visibility gating (`--lx`, `--depth-tolerance`, `--depth-neighborhood`). Spotcheck with 5 problematic objects reduced valid evidence from `5/5` objects to `3/5`, filtering candidates that were not visible in the same LiDAR section.
+   - default viewer: `tools/parking_full_scene_viewer.html` is rolled back to v21 surface guard until Mimo evidence is rebuilt with frame-local LiDAR visibility.
 
 ## Current Metrics
 

@@ -34,14 +34,14 @@
 <body>
   <main>
     <h1>Parking Full Scene Object Viewer</h1>
-    <p>Redirecting to the current full-scene object view. Residual surface holes are filled by projected geometry guidance, then fine-object candidates are reviewed with high-context Mimo rich-label evidence.</p>
+    <p>Redirecting to the current full-scene object view. Mimo auto-relabel previews are disabled until object evidence is rebuilt with frame-local LiDAR depth visibility.</p>
     <p>Use residual or semantic-review candidate files only for debugging filtered leftovers.</p>
     <p><a id="target" href="#">Open full-scene viewer</a></p>
   </main>
   <script>
     const guardedTarget = 'semantic_ply_viewer.html'
-      + '?file=/server_parking_priority_s10/full_scene_objects_refined_v23_mimo_rich_highctx/full_scene_objects_refined_v23_mimo_rich_highctx_stride10.ply'
-      + '&objects=/server_parking_priority_s10/full_scene_objects_refined_v23_mimo_rich_highctx/full_scene_objects_refined_v23_mimo_rich_highctx.jsonl'
+      + '?file=/server_parking_priority_s10/full_scene_objects_refined_v21_surface_guard/full_scene_objects_refined_v21_surface_guard_stride10.ply'
+      + '&objects=/server_parking_priority_s10/full_scene_objects_refined_v21_surface_guard/full_scene_objects_refined_v21_surface_guard.jsonl'
       + '&mode=semantic&stride=1&pointSize=1.5';
     document.getElementById('target').href = guardedTarget;
     window.location.replace(guardedTarget);

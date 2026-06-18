@@ -25,6 +25,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
+from project_priority_masks_to_lx import read_lx_points, read_lx_sections
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -134,8 +135,52 @@ def project_points(points_world: np.ndarray, pose: dict[str, Any], cam_id: int, 
     return uv, depth
 
 
+def build_frame_depth_buffer(
+    points_world: np.ndarray,
+    pose: dict[str, Any],
+    cam_id: int,
+    min_depth: float,
+    width: int,
+    height: int,
+) -> np.ndarray:
+    uv, depth = project_points(points_world, pose, cam_id, min_depth)
+    depth_buffer = np.full((height, width), np.inf, dtype=np.float32)
+    if len(uv) == 0:
+        return depth_buffer
+    in_img = (uv[:, 0] >= 0) & (uv[:, 0] < width) & (uv[:, 1] >= 0) & (uv[:, 1] < height)
+    if not np.any(in_img):
+        return depth_buffer
+    uu = np.clip(np.rint(uv[in_img, 0]).astype(np.int32), 0, width - 1)
+    vv = np.clip(np.rint(uv[in_img, 1]).astype(np.int32), 0, height - 1)
+    np.minimum.at(depth_buffer, (vv, uu), depth[in_img])
+    return depth_buffer
+
+
+def min_depth_neighborhood(depth_buffer: np.ndarray, uu: np.ndarray, vv: np.ndarray, radius: int) -> np.ndarray:
+    if radius <= 0:
+        return depth_buffer[vv, uu]
+    height, width = depth_buffer.shape[:2]
+    out = np.full(len(uu), np.inf, dtype=np.float32)
+    for dy in range(-radius, radius + 1):
+        yy = np.clip(vv + dy, 0, height - 1)
+        for dx in range(-radius, radius + 1):
+            xx = np.clip(uu + dx, 0, width - 1)
+            out = np.minimum(out, depth_buffer[yy, xx])
+    return out
+
+
+def lx_section_points(lx_handle, sections: list[dict[str, Any]], frame_id: int) -> np.ndarray | None:
+    if frame_id < 0 or frame_id >= len(sections):
+        return None
+    return read_lx_points(lx_handle, sections[frame_id])
+
+
 def frame_path(frame_root: Path, cam_id: int, frame_id: int) -> Path:
     return frame_root / f"cam{cam_id}" / f"frame_{frame_id:06d}.jpg"
+
+
+def priority_mask_path(priority_dir: Path, cam_id: int, frame_id: int, suffix: str) -> Path:
+    return priority_dir / "priority" / f"cam{cam_id}_{frame_id:06d}{suffix}.png"
 
 
 def choose_frame_pool(points: np.ndarray, poses: list[dict[str, Any]], max_frames: int, max_distance: float) -> list[dict[str, Any]]:
@@ -253,6 +298,11 @@ def main() -> None:
     parser.add_argument("--object-ply", type=Path, required=True)
     parser.add_argument("--frame-root", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--priority-dir", type=Path, default=None, help="Optional priority/refined mask dir. When set, projected sky pixels are rejected.")
+    parser.add_argument("--priority-suffix", default="_priority_refined", help="Priority mask suffix before .png.")
+    parser.add_argument("--lx", type=Path, default=None, help="Optional MANIFOLD .lx stream. When set, evidence points must be visible in the same frame section depth buffer.")
+    parser.add_argument("--depth-tolerance", type=float, default=0.45, help="Max object-vs-frame depth difference when --lx is enabled.")
+    parser.add_argument("--depth-neighborhood", type=int, default=1, help="Pixel radius for local section depth lookup when --lx is enabled.")
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--end", type=int, default=None)
     parser.add_argument("--frame-stride", type=int, default=10)
@@ -266,6 +316,7 @@ def main() -> None:
     parser.add_argument("--min-bbox-area", type=float, default=1600.0)
     parser.add_argument("--bbox-percentile", type=float, default=0.0, help="Use percentile bbox, e.g. 2 means 2nd-98th percentile. 0 keeps min/max.")
     parser.add_argument("--max-bbox-area-ratio", type=float, default=0.0, help="Reject evidence boxes larger than this image-area ratio when >0.")
+    parser.add_argument("--max-sky-ratio", type=float, default=0.0, help="Reject evidence when sky-filtered projected ratio exceeds this threshold. 0 disables ratio rejection.")
     parser.add_argument("--score-mode", choices=["legacy", "tight"], default="legacy")
     parser.add_argument("--crop-margin", type=int, default=48)
     parser.add_argument("--save-projected-samples", type=int, default=0, help="Store up to this many projected uv/depth samples per evidence row for patch-level feature binding.")
@@ -290,123 +341,195 @@ def main() -> None:
         pose_end = int(all_poses[-1]["frame_id"])
     poses = [p for p in config.load_img_pos(args.start, pose_end) if int(p["frame_id"]) % args.frame_stride == 0]
     object_map = {int(obj["object_id"]): obj for obj in objects}
+    lx_sections = read_lx_sections(args.lx) if args.lx else []
+    lx_handle = args.lx.open("rb") if args.lx else None
+    depth_cache: dict[tuple[int, int], np.ndarray] = {}
 
-    rows = []
-    missing_points = []
-    failure_counts = Counter()
-    objects_without_evidence = []
-    for object_id in sorted(object_ids):
-        obj = object_map[object_id]
-        points = point_samples.get(object_id)
-        if points is None or len(points) == 0:
-            missing_points.append(object_id)
-            failure_counts["missing_points"] += 1
-            continue
-        frame_pool = choose_frame_pool(points, poses, args.max_frame_pool, args.max_frame_distance)
-        object_failures = Counter()
-        object_attempts = 0
-        object_accepted = 0
-        if not frame_pool:
-            object_failures["empty_frame_pool"] += 1
-        obs = []
-        for pose in frame_pool:
-            frame_id = int(pose["frame_id"])
-            for cam_id in args.cams:
-                object_attempts += 1
-                img_path = frame_path(args.frame_root, cam_id, frame_id)
-                if not img_path.exists():
-                    object_failures["missing_image"] += 1
-                    continue
-                uv, depth = project_points(points, pose, cam_id, args.min_depth)
-                if len(uv) < args.min_projected_points:
-                    object_failures["low_projected_before_image_filter"] += 1
-                    continue
-                w = config.IMAGE_WIDTH
-                h = config.IMAGE_HEIGHT
-                in_img = (uv[:, 0] >= 0) & (uv[:, 0] < w) & (uv[:, 1] >= 0) & (uv[:, 1] < h)
-                if int(in_img.sum()) < args.min_projected_points:
-                    object_failures["low_projected_in_image"] += 1
-                    continue
-                uv_in = uv[in_img]
-                depth_in = depth[in_img]
-                bbox, raw_bbox, bbox_inlier_ratio = bbox_from_points(uv_in, w, h, args.bbox_percentile)
-                x0, y0, x1, y1 = bbox
-                rx0, ry0, rx1, ry1 = raw_bbox
-                area = float(max(0, x1 - x0 + 1) * max(0, y1 - y0 + 1))
-                raw_area = float(max(0, rx1 - rx0 + 1) * max(0, ry1 - ry0 + 1))
-                area_ratio = area / float(max(1, w * h))
-                if args.max_bbox_area_ratio > 0 and area_ratio > args.max_bbox_area_ratio:
-                    object_failures["bbox_too_large"] += 1
-                    continue
-                if area < args.min_bbox_area:
-                    object_failures["bbox_too_small"] += 1
-                    continue
-                score = evidence_score(len(uv_in), area, area_ratio, float(np.median(depth_in)), args.score_mode)
-                obs.append({
-                    "object_id": object_id,
-                    "frame_id": frame_id,
-                    "cam_id": int(cam_id),
-                    "image_path": str(img_path),
-                    "bbox_xyxy": [int(x0), int(y0), int(x1), int(y1)],
-                    "raw_bbox_xyxy": [int(rx0), int(ry0), int(rx1), int(ry1)],
-                    "projected_points": int(len(uv_in)),
-                    "sample_points": int(len(points)),
-                    "bbox_area": area,
-                    "raw_bbox_area": raw_area,
-                    "bbox_area_ratio": area_ratio,
-                    "bbox_inlier_ratio": bbox_inlier_ratio,
-                    "median_depth": float(np.median(depth_in)),
-                    "score": score,
-                    "uv": uv_in,
-                    "depth": depth_in,
-                })
-        obs.sort(key=lambda row: row["score"], reverse=True)
-        for rank, row in enumerate(obs[:args.top_k], 1):
-            image = cv2.imread(row["image_path"], cv2.IMREAD_COLOR)
-            if image is None:
-                object_failures["crop_image_read_failed"] += 1
+    try:
+        rows = []
+        missing_points = []
+        failure_counts = Counter()
+        objects_without_evidence = []
+        for object_id in sorted(object_ids):
+            obj = object_map[object_id]
+            points = point_samples.get(object_id)
+            if points is None or len(points) == 0:
+                missing_points.append(object_id)
+                failure_counts["missing_points"] += 1
                 continue
-            bbox = tuple(row["bbox_xyxy"])
-            crop, crop_bbox = crop_with_margin(image, bbox, args.crop_margin)
-            overlay = image.copy()
-            x0, y0, x1, y1 = bbox
-            cv2.rectangle(overlay, (x0, y0), (x1, y1), (0, 255, 255), 3)
-            for uv in row["uv"][::max(1, len(row["uv"]) // 400)]:
-                cv2.circle(overlay, (int(round(uv[0])), int(round(uv[1]))), 2, (0, 0, 255), -1)
-            object_dir = args.output_dir / "objects" / str(object_id)
-            object_dir.mkdir(parents=True, exist_ok=True)
-            stem = f"obj{object_id}_rank{rank}_cam{row['cam_id']}_frame{row['frame_id']:06d}"
-            crop_path = object_dir / f"{stem}_crop.jpg"
-            overlay_path = object_dir / f"{stem}_overlay.jpg"
-            cv2.imwrite(str(crop_path), crop)
-            cv2.imwrite(str(overlay_path), overlay)
-            out = {
-                **{k: v for k, v in row.items() if k not in {"uv", "depth"}},
-                "rank": rank,
-                "crop_path": str(crop_path),
-                "overlay_path": str(overlay_path),
-                "crop_bbox_xyxy": list(crop_bbox),
-                **sampled_projection_payload(row["uv"], row["depth"], args.save_projected_samples),
-                "semantic_label": obj.get("semantic_label", ""),
-                "scene_context": obj.get("scene_context", ""),
-                "downstream_stage": obj.get("downstream_stage", ""),
-                "review_priority": obj.get("review_priority", ""),
-                "dino_prompt_group": obj.get("dino_prompt_group", ""),
-                "dino_prompts": obj.get("dino_prompts", []),
-            }
-            rows.append(out)
-            object_accepted += 1
+            frame_pool = choose_frame_pool(points, poses, args.max_frame_pool, args.max_frame_distance)
+            object_failures = Counter()
+            object_attempts = 0
+            object_accepted = 0
+            if not frame_pool:
+                object_failures["empty_frame_pool"] += 1
+            obs = []
+            for pose in frame_pool:
+                frame_id = int(pose["frame_id"])
+                frame_section_points: np.ndarray | None = None
+                if lx_handle is not None:
+                    frame_section_points = lx_section_points(lx_handle, lx_sections, frame_id)
+                    if frame_section_points is None or len(frame_section_points) == 0:
+                        object_failures["missing_lx_section"] += 1
+                        continue
+                for cam_id in args.cams:
+                    object_attempts += 1
+                    img_path = frame_path(args.frame_root, cam_id, frame_id)
+                    if not img_path.exists():
+                        object_failures["missing_image"] += 1
+                        continue
+                    uv, depth = project_points(points, pose, cam_id, args.min_depth)
+                    if len(uv) < args.min_projected_points:
+                        object_failures["low_projected_before_image_filter"] += 1
+                        continue
+                    w = config.IMAGE_WIDTH
+                    h = config.IMAGE_HEIGHT
+                    in_img = (uv[:, 0] >= 0) & (uv[:, 0] < w) & (uv[:, 1] >= 0) & (uv[:, 1] < h)
+                    if int(in_img.sum()) < args.min_projected_points:
+                        object_failures["low_projected_in_image"] += 1
+                        continue
+                    uv_in = uv[in_img]
+                    depth_in = depth[in_img]
 
-        if object_accepted == 0:
-            failure_counts.update(object_failures)
-            objects_without_evidence.append({
-                "object_id": object_id,
-                "semantic_label": obj.get("semantic_label", ""),
-                "candidate_label": obj.get("candidate_label", ""),
-                "dino_prompt_group": obj.get("dino_prompt_group", ""),
-                "attempts": object_attempts,
-                "top_failure_reasons": dict(object_failures.most_common(5)),
-            })
+                    depth_filtered_points = 0
+                    depth_visible_ratio = 1.0
+                    if frame_section_points is not None:
+                        cache_key = (frame_id, int(cam_id))
+                        depth_buffer = depth_cache.get(cache_key)
+                        if depth_buffer is None:
+                            depth_buffer = build_frame_depth_buffer(
+                                frame_section_points,
+                                pose,
+                                cam_id,
+                                args.min_depth,
+                                config.IMAGE_WIDTH,
+                                config.IMAGE_HEIGHT,
+                            )
+                            depth_cache[cache_key] = depth_buffer
+                        uu_depth = np.clip(np.rint(uv_in[:, 0]).astype(np.int32), 0, config.IMAGE_WIDTH - 1)
+                        vv_depth = np.clip(np.rint(uv_in[:, 1]).astype(np.int32), 0, config.IMAGE_HEIGHT - 1)
+                        local_depth = min_depth_neighborhood(depth_buffer, uu_depth, vv_depth, args.depth_neighborhood)
+                        depth_keep = np.isfinite(local_depth) & (np.abs(depth_in - local_depth) <= args.depth_tolerance)
+                        depth_filtered_points = int((~depth_keep).sum())
+                        depth_visible_ratio = float(depth_keep.mean()) if len(depth_keep) else 0.0
+                        uv_in = uv_in[depth_keep]
+                        depth_in = depth_in[depth_keep]
+                        if len(uv_in) < args.min_projected_points:
+                            object_failures["low_projected_after_depth_filter"] += 1
+                            continue
+
+                    sky_filtered_points = 0
+                    sky_ratio = 0.0
+                    if args.priority_dir is not None:
+                        pri_path = priority_mask_path(args.priority_dir, cam_id, frame_id, args.priority_suffix)
+                        if not pri_path.exists():
+                            object_failures["missing_priority_mask"] += 1
+                            continue
+                        priority = cv2.imread(str(pri_path), cv2.IMREAD_GRAYSCALE)
+                        if priority is None:
+                            object_failures["priority_mask_read_failed"] += 1
+                            continue
+                        if priority.shape[:2] != (config.IMAGE_HEIGHT, config.IMAGE_WIDTH):
+                            priority = cv2.resize(priority, (config.IMAGE_WIDTH, config.IMAGE_HEIGHT), interpolation=cv2.INTER_NEAREST)
+                        uu = np.clip(np.rint(uv_in[:, 0]).astype(np.int32), 0, config.IMAGE_WIDTH - 1)
+                        vv = np.clip(np.rint(uv_in[:, 1]).astype(np.int32), 0, config.IMAGE_HEIGHT - 1)
+                        non_sky = priority[vv, uu] != 6
+                        sky_filtered_points = int((~non_sky).sum())
+                        sky_ratio = sky_filtered_points / max(len(non_sky), 1)
+                        if args.max_sky_ratio > 0 and sky_ratio > args.max_sky_ratio:
+                            object_failures["sky_ratio_too_high"] += 1
+                            continue
+                        uv_in = uv_in[non_sky]
+                        depth_in = depth_in[non_sky]
+                        if len(uv_in) < args.min_projected_points:
+                            object_failures["low_projected_after_sky_filter"] += 1
+                            continue
+
+                    bbox, raw_bbox, bbox_inlier_ratio = bbox_from_points(uv_in, w, h, args.bbox_percentile)
+                    x0, y0, x1, y1 = bbox
+                    rx0, ry0, rx1, ry1 = raw_bbox
+                    area = float(max(0, x1 - x0 + 1) * max(0, y1 - y0 + 1))
+                    raw_area = float(max(0, rx1 - rx0 + 1) * max(0, ry1 - ry0 + 1))
+                    area_ratio = area / float(max(1, w * h))
+                    if args.max_bbox_area_ratio > 0 and area_ratio > args.max_bbox_area_ratio:
+                        object_failures["bbox_too_large"] += 1
+                        continue
+                    if area < args.min_bbox_area:
+                        object_failures["bbox_too_small"] += 1
+                        continue
+                    score = evidence_score(len(uv_in), area, area_ratio, float(np.median(depth_in)), args.score_mode)
+                    obs.append({
+                        "object_id": object_id,
+                        "frame_id": frame_id,
+                        "cam_id": int(cam_id),
+                        "image_path": str(img_path),
+                        "bbox_xyxy": [int(x0), int(y0), int(x1), int(y1)],
+                        "raw_bbox_xyxy": [int(rx0), int(ry0), int(rx1), int(ry1)],
+                        "projected_points": int(len(uv_in)),
+                        "sample_points": int(len(points)),
+                        "bbox_area": area,
+                        "raw_bbox_area": raw_area,
+                        "bbox_area_ratio": area_ratio,
+                        "bbox_inlier_ratio": bbox_inlier_ratio,
+                        "median_depth": float(np.median(depth_in)),
+                        "sky_filtered_points": sky_filtered_points,
+                        "sky_filtered_ratio": sky_ratio,
+                        "depth_filtered_points": depth_filtered_points,
+                        "depth_visible_ratio": depth_visible_ratio,
+                        "score": score,
+                        "uv": uv_in,
+                        "depth": depth_in,
+                    })
+            obs.sort(key=lambda row: row["score"], reverse=True)
+            for rank, row in enumerate(obs[:args.top_k], 1):
+                image = cv2.imread(row["image_path"], cv2.IMREAD_COLOR)
+                if image is None:
+                    object_failures["crop_image_read_failed"] += 1
+                    continue
+                bbox = tuple(row["bbox_xyxy"])
+                crop, crop_bbox = crop_with_margin(image, bbox, args.crop_margin)
+                overlay = image.copy()
+                x0, y0, x1, y1 = bbox
+                cv2.rectangle(overlay, (x0, y0), (x1, y1), (0, 255, 255), 3)
+                for uv in row["uv"][::max(1, len(row["uv"]) // 400)]:
+                    cv2.circle(overlay, (int(round(uv[0])), int(round(uv[1]))), 2, (0, 0, 255), -1)
+                object_dir = args.output_dir / "objects" / str(object_id)
+                object_dir.mkdir(parents=True, exist_ok=True)
+                stem = f"obj{object_id}_rank{rank}_cam{row['cam_id']}_frame{row['frame_id']:06d}"
+                crop_path = object_dir / f"{stem}_crop.jpg"
+                overlay_path = object_dir / f"{stem}_overlay.jpg"
+                cv2.imwrite(str(crop_path), crop)
+                cv2.imwrite(str(overlay_path), overlay)
+                out = {
+                    **{k: v for k, v in row.items() if k not in {"uv", "depth"}},
+                    "rank": rank,
+                    "crop_path": str(crop_path),
+                    "overlay_path": str(overlay_path),
+                    "crop_bbox_xyxy": list(crop_bbox),
+                    **sampled_projection_payload(row["uv"], row["depth"], args.save_projected_samples),
+                    "semantic_label": obj.get("semantic_label", ""),
+                    "scene_context": obj.get("scene_context", ""),
+                    "downstream_stage": obj.get("downstream_stage", ""),
+                    "review_priority": obj.get("review_priority", ""),
+                    "dino_prompt_group": obj.get("dino_prompt_group", ""),
+                    "dino_prompts": obj.get("dino_prompts", []),
+                }
+                rows.append(out)
+                object_accepted += 1
+
+            if object_accepted == 0:
+                failure_counts.update(object_failures)
+                objects_without_evidence.append({
+                    "object_id": object_id,
+                    "semantic_label": obj.get("semantic_label", ""),
+                    "candidate_label": obj.get("candidate_label", ""),
+                    "dino_prompt_group": obj.get("dino_prompt_group", ""),
+                    "attempts": object_attempts,
+                    "top_failure_reasons": dict(object_failures.most_common(5)),
+                })
+    finally:
+        if lx_handle is not None:
+            lx_handle.close()
 
     manifest = args.output_dir / "object_image_evidence.jsonl"
     with manifest.open("w", encoding="utf-8") as f:
@@ -437,6 +560,12 @@ def main() -> None:
             "min_bbox_area": args.min_bbox_area,
             "bbox_percentile": args.bbox_percentile,
             "max_bbox_area_ratio": args.max_bbox_area_ratio,
+            "priority_dir": str(args.priority_dir) if args.priority_dir else "",
+            "priority_suffix": args.priority_suffix,
+            "max_sky_ratio": args.max_sky_ratio,
+            "lx": str(args.lx) if args.lx else "",
+            "depth_tolerance": args.depth_tolerance,
+            "depth_neighborhood": args.depth_neighborhood,
             "score_mode": args.score_mode,
             "save_projected_samples": args.save_projected_samples,
         },

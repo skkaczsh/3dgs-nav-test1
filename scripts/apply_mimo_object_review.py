@@ -174,6 +174,7 @@ def should_apply_relabel(
     new_label: str,
     min_confidence: float,
     surface_guard_ratio: float,
+    require_surface_prior_for_fine_to_surface: bool,
 ) -> tuple[bool, str]:
     confidence = float(parsed.get("confidence") or 0.0)
     action = str(parsed.get("action") or "")
@@ -186,6 +187,15 @@ def should_apply_relabel(
 
     old_label = str(obj.get("semantic_label") or "unknown")
     trusted_surface = is_geometry_trusted_surface(obj, surface_guard_ratio)
+    majority = str(obj.get("surface_trust_guard_majority_label") or "")
+    majority_ratio = float(obj.get("surface_trust_guard_majority_ratio") or 0.0)
+    if (
+        require_surface_prior_for_fine_to_surface
+        and old_label in FINE_LABELS
+        and new_label in SURFACE_LABELS
+        and not (majority == new_label and majority_ratio >= surface_guard_ratio)
+    ):
+        return False, "blocked_fine_to_surface_without_matching_prior"
     if trusted_surface and new_label in FINE_LABELS:
         return False, "blocked_fine_label_on_trusted_surface"
     if old_label in SURFACE_LABELS and new_label in FINE_LABELS:
@@ -209,6 +219,7 @@ def apply_to_objects(
     reviews: dict[int, dict[str, Any]],
     min_confidence: float,
     surface_guard_ratio: float,
+    require_surface_prior_for_fine_to_surface: bool,
 ) -> tuple[list[dict[str, Any]], dict[int, str], Counter[str]]:
     relabels: dict[int, str] = {}
     reasons: Counter[str] = Counter()
@@ -222,7 +233,14 @@ def apply_to_objects(
             continue
         parsed = dict(review["parsed"])
         new_label = normalized_review_label(parsed)
-        ok, reason = should_apply_relabel(out, parsed, new_label, min_confidence, surface_guard_ratio)
+        ok, reason = should_apply_relabel(
+            out,
+            parsed,
+            new_label,
+            min_confidence,
+            surface_guard_ratio,
+            require_surface_prior_for_fine_to_surface,
+        )
         reasons[reason] += 1
         out["mimo_review"] = {
             "input_semantic_label": review.get("input_semantic_label"),
@@ -286,6 +304,11 @@ def main() -> None:
     parser.add_argument("--output-name", default="full_scene_objects_mimo_reviewed")
     parser.add_argument("--min-confidence", type=float, default=0.72)
     parser.add_argument("--surface-guard-ratio", type=float, default=0.55)
+    parser.add_argument(
+        "--allow-fine-to-surface-without-prior",
+        action="store_true",
+        help="Allow Mimo alone to relabel car/railing/equipment/tree into floor/wall/grass. Default is conservative.",
+    )
     parser.add_argument("--no-recolor", action="store_true")
     args = parser.parse_args()
 
@@ -296,6 +319,7 @@ def main() -> None:
         reviews,
         args.min_confidence,
         args.surface_guard_ratio,
+        require_surface_prior_for_fine_to_surface=not args.allow_fine_to_surface_without_prior,
     )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -322,6 +346,7 @@ def main() -> None:
         "decision_reasons": dict(reasons),
         "min_confidence": args.min_confidence,
         "surface_guard_ratio": args.surface_guard_ratio,
+        "require_surface_prior_for_fine_to_surface": not args.allow_fine_to_surface_without_prior,
     }
     (args.output_dir / f"{args.output_name}_report.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2),
