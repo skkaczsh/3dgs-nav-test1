@@ -146,6 +146,24 @@
    - residual clustering after refinement: `67,580` residual points -> `149` objects, `58,855` assigned points, `8,725` noise points; only `1` small residual object was absorbed as ground by drivability prior.
    - priority object clustering after refinement: `595` priority objects (`floor=31`, `wall=72`, `grass=152`, `car=141`, `railing=199`), `9,101,963` priority points.
    - full-scene v20 preview: `9,169,543` points total; stride10 preview has `916,955` points and is the current viewer default for visual QA.
+22. Apply point-level trusted surface guard after v20:
+   - script: `scripts/apply_surface_trust_guard_to_ply.py`
+   - remote/local output: `server_parking_priority_s10/full_scene_objects_refined_v21_surface_guard`
+   - method: use the full-point `drivability_cpp` wallbfs prior as a hard surface guard after priority-mask projection; only `wall/car/railing/unknown` candidates can be overwritten by trusted floor/wall prior points.
+   - result: `1,170,178` full-scene points restored or guarded by surface prior.
+   - label count changes: `floor 1,994,967 -> 3,057,200`, `wall 5,649,666 -> 4,759,112`, `car 237,670 -> 168,501`, `railing 182,709 -> 86,711`, `unknown 67,382 -> 60,870`.
+   - interpretation: this materially reduces surface pollution from fine labels, but still leaves image-mask/classification errors in fine-object candidates.
+23. Run high-context Mimo object review on fine/anomalous candidates:
+   - scripts: `scripts/run_mimo_object_review.py`, `scripts/apply_mimo_object_review.py`
+   - evidence source: `object_image_evidence_mimo_v21_v1`, `top-k=2`, overlay+crop evidence.
+   - model/provider: OpenAI-compatible `mimo-v2.5`; high-quality mode requires large output budget (`max_tokens=16384`). Lower budgets caused `finish_reason=length` with empty assistant content.
+   - first high-context result: `mimo_review_v21_full80_highctx_top2_both`, `70/70` parsed, but the controlled label space lacked HVAC/equipment so some equipment collapsed to `wall`.
+   - current rich-label result: `mimo_review_v23_highctx_rich_labels_top2_both`, `70/70` parsed; controlled labels include `equipment`, `hvac_outdoor_unit`, `door_or_window`, and `sign_or_box`.
+   - v23 output: `server_parking_priority_s10/full_scene_objects_refined_v23_mimo_rich_highctx`
+   - v23 application: `39` objects / `157,871` full-scene points changed.
+   - v23 relabel points: `wall=116,715`, `grass=17,317`, `unknown=4,616`, `tree=4,120`, `railing=1,455`, `equipment=9,695`, `floor=31`, `car=3,922`.
+   - v23 label counts: `wall=5,825,254`, `floor=2,009,454`, `grass=1,054,466`, `car=130,861`, `railing=78,095`, `unknown=48,873`, `equipment=9,695`, `tree=4,120`.
+   - default viewer: `tools/parking_full_scene_viewer.html` now opens v23.
 
 ## Current Metrics
 
