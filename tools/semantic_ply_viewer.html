@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Semantic PLY/Object Viewer</title>
+  <title>语义点云 / Object Viewer</title>
   <style>
     :root {
       color-scheme: dark;
@@ -149,50 +149,50 @@
 <body>
   <div id="app">
     <aside>
-      <h1>Semantic PLY/Object Viewer</h1>
+      <h1>语义点云 / Object Viewer</h1>
       <div id="drop" class="drop">
-        Drop ASCII PLY and optional objects JSONL here<br>
+        拖入 ASCII PLY 和可选 objects JSONL<br>
         <span class="mono">x y z red green blue object semantic frame</span>
       </div>
       <input id="file" type="file" accept=".ply,.jsonl,.json,.txt" multiple>
 
-      <h2>Display</h2>
-      <label for="colorMode">Color mode</label>
+      <h2>显示</h2>
+      <label for="colorMode">颜色模式</label>
       <select id="colorMode">
-        <option value="rgb">PLY RGB / object mean color</option>
-        <option value="semantic">Semantic label</option>
-        <option value="object">Object id</option>
-        <option value="status">Object status</option>
+        <option value="rgb">PLY RGB / object 均色</option>
+        <option value="semantic">语义标签</option>
+        <option value="object">Object ID</option>
+        <option value="status">Object 状态</option>
       </select>
       <div class="row">
         <div>
-          <label for="pointSize">Point size</label>
+          <label for="pointSize">点大小</label>
           <input id="pointSize" type="range" min="1" max="8" step="0.5" value="2">
         </div>
         <div>
-          <label for="sampleStride">Stride</label>
+          <label for="sampleStride">采样步长</label>
           <input id="sampleStride" type="number" min="1" value="1">
         </div>
       </div>
-      <label for="labelFilter">Label filter</label>
-      <select id="labelFilter"><option value="">All labels</option></select>
+      <label for="labelFilter">标签筛选</label>
+      <select id="labelFilter"><option value="">全部标签</option></select>
       <div class="row">
-        <button id="fit">Fit view</button>
-        <button id="resetFilter">Clear filter</button>
+        <button id="fit">适配视图</button>
+        <button id="resetFilter">清除筛选</button>
       </div>
 
-      <h2>Stats</h2>
-      <div id="stats" class="stats">No file loaded.</div>
+      <h2>统计</h2>
+      <div id="stats" class="stats">尚未加载文件。</div>
 
-      <h2>Selected</h2>
-      <div id="details" class="details">Click a point to inspect object and label.</div>
+      <h2>选中点 / 对象</h2>
+      <div id="details" class="details">点击点云查看 object 与标签。</div>
 
-      <h2>Legend</h2>
+      <h2>图例</h2>
       <div id="legend" class="legend"></div>
     </aside>
     <main>
       <div id="viewport"></div>
-      <div id="hud">Left drag: orbit. Wheel: zoom. Right drag: pan. Click a point to inspect label/object.</div>
+      <div id="hud">左键拖拽旋转，滚轮缩放，右键拖拽平移。点击点查看标签 / object。</div>
     </main>
   </div>
 
@@ -213,6 +213,12 @@
       13: "water", 14: "furniture", 15: "pipe", 16: "equipment", 255: "ignore"
     };
     const LABEL_IDS = Object.fromEntries(Object.entries(LABELS).map(([k, v]) => [v, Number(k)]));
+    const LABEL_ZH = {
+      unknown: "未知", other: "其他", wall: "墙面", floor: "地面", ceiling: "天花板",
+      grass: "草地", tree: "树木", person: "人", car: "汽车", railing: "栏杆/护栏",
+      building: "建筑", sky: "天空", road: "路面", water: "水体", furniture: "家具",
+      pipe: "管线", equipment: "设备", ignore: "忽略", ambiguous: "模糊"
+    };
     const LABEL_COLORS = {
       unknown: [120, 120, 120], other: [210, 210, 210], wall: [160, 160, 165], floor: [139, 100, 60],
       ceiling: [180, 180, 210], grass: [70, 150, 80], tree: [40, 120, 60], person: [230, 80, 80],
@@ -224,6 +230,46 @@
       stable: [80, 190, 130],
       single_target: [80, 150, 230],
       ambiguous_object: [230, 40, 210]
+    };
+    const STATUS_ZH = {
+      stable: "稳定对象",
+      single_target: "单 target 对象",
+      ambiguous_object: "模糊对象",
+      needs_semantic_review: "待语义复审",
+      priority_car_object: "优先层: 汽车",
+      priority_railing_object: "优先层: 栏杆/护栏",
+      priority_grass_object: "优先层: 草地",
+      priority_ground_object: "优先层: 地面",
+      priority_wall_object: "优先层: 墙面",
+      absorbed_by_drivability_ground: "并入地面: 可通行先验",
+      absorbed_by_drivability_ground_fragment: "并入地面: 地面碎片",
+      absorbed_by_drivability_ground_loose: "并入地面: 宽松先验",
+      absorbed_by_drivability_ground_contaminated: "并入地面: 混杂但地面占优",
+      absorbed_by_geometry_ground_unmatched: "并入地面: 几何兜底",
+      absorbed_by_drivability_wall: "并入墙面: 墙面先验",
+      absorbed_by_drivability_wall_loose: "并入墙面: 宽松先验"
+    };
+    const DOWNSTREAM_ZH = {
+      stable_surface: "稳定大面",
+      stable_context_object: "稳定场景目标",
+      dino_fine_object_review: "DINO 细目标复审",
+      fine_semantic_review: "细目标语义复审",
+      geometry_review: "几何复审"
+    };
+    const REVIEW_PRIORITY_ZH = { high: "高", medium: "中", low: "低" };
+    const GEOMETRY_QUALITY_ZH = {
+      clean: "几何清晰",
+      unclassified_candidate: "未分类候选",
+      mixed_or_overmerged: "混杂/过合并"
+    };
+    const SCENE_CONTEXT_ZH = {
+      outdoor_parking_ground_or_pavement: "室外停车场地面/铺装",
+      upper_level_floor_or_deck: "上层平台/楼板",
+      building_or_indoor_wall_surface: "建筑/室内墙面",
+      parking_lot_vegetation: "停车场植被",
+      parked_vehicle_candidate: "停放车辆候选",
+      guardrail_or_fence_candidate: "护栏/围栏候选",
+      residual_object_candidate_after_surface_removal: "大面剔除后的剩余候选"
     };
 
     const viewport = document.querySelector("#viewport");
@@ -278,6 +324,55 @@
     function labelFromSemantic(value) {
       const n = Number(value);
       return LABELS[n] || String(value || "unknown");
+    }
+
+    function displayLabel(value) {
+      const raw = String(value || "unknown");
+      return LABEL_ZH[raw] || raw;
+    }
+
+    function displayStatus(value) {
+      const raw = String(value || "");
+      return raw ? (STATUS_ZH[raw] || raw) : "";
+    }
+
+    function displayDownstream(value) {
+      const raw = String(value || "");
+      return raw ? (DOWNSTREAM_ZH[raw] || raw) : "";
+    }
+
+    function displayReviewPriority(value) {
+      const raw = String(value || "");
+      return raw ? (REVIEW_PRIORITY_ZH[raw] || raw) : "";
+    }
+
+    function displayGeometryQuality(value) {
+      const raw = String(value || "");
+      return raw ? (GEOMETRY_QUALITY_ZH[raw] || raw) : "";
+    }
+
+    function displaySceneContext(value) {
+      const raw = String(value || "");
+      return raw ? (SCENE_CONTEXT_ZH[raw] || raw) : "";
+    }
+
+    function displayPromptGroup(value) {
+      const raw = String(value || "");
+      return raw ? displayLabel(raw) : "";
+    }
+
+    function displayLabelVotes(votes) {
+      if (!votes || !Object.keys(votes).length) return "";
+      return Object.entries(votes)
+        .map(([label, count]) => `${displayLabel(label)} ${count}`)
+        .join(", ");
+    }
+
+    function displayDescriptionVotes(votes) {
+      if (!votes || !Object.keys(votes).length) return "";
+      return Object.entries(votes)
+        .map(([label, count]) => `${label} ${count}`)
+        .join(", ");
     }
 
     function objectKeys(value) {
@@ -520,27 +615,28 @@
         if (r.status) statuses.set(r.status, (statuses.get(r.status) || 0) + 1);
       }
       els.stats.innerHTML = [
-        kv("loaded rows", rawRows.length.toLocaleString()),
-        kv("visible rows", filteredIndices.length.toLocaleString()),
-        kv("labels", labels.size),
-        kv("bounds", bounds ? `${bounds.size.x.toFixed(2)}, ${bounds.size.y.toFixed(2)}, ${bounds.size.z.toFixed(2)}` : "")
-      ].join("") + "<h2>Label Counts</h2>" + [...labels.entries()]
+        kv("加载行数", rawRows.length.toLocaleString()),
+        kv("可见行数", filteredIndices.length.toLocaleString()),
+        kv("标签数", labels.size),
+        kv("边界尺寸", bounds ? `${bounds.size.x.toFixed(2)}, ${bounds.size.y.toFixed(2)}, ${bounds.size.z.toFixed(2)}` : "")
+      ].join("") + "<h2>标签计数</h2>" + [...labels.entries()]
         .sort((a, b) => b[1] - a[1])
-        .map(([label, count]) => `<span class="pill">${escapeHtml(label)} ${count.toLocaleString()}</span>`)
-        .join("") + (statuses.size ? "<h2>Status Counts</h2>" + [...statuses.entries()]
+        .map(([label, count]) => `<span class="pill">${escapeHtml(displayLabel(label))} ${count.toLocaleString()}</span>`)
+        .join("") + (statuses.size ? "<h2>状态计数</h2>" + [...statuses.entries()]
           .sort((a, b) => b[1] - a[1])
-          .map(([status, count]) => `<span class="pill">${escapeHtml(status)} ${count.toLocaleString()}</span>`)
+          .map(([status, count]) => `<span class="pill">${escapeHtml(displayStatus(status))} ${count.toLocaleString()}</span>`)
           .join("") : "");
     }
 
     function renderLegend() {
       const mode = els.colorMode.value;
       const values = mode === "status"
-        ? Object.keys(STATUS_COLORS)
+        ? [...new Set(rawRows.map(r => r.status).filter(Boolean))].sort()
         : [...new Set(rawRows.map(r => r.label))].sort();
       els.legend.innerHTML = values.map(value => {
         const rgb = mode === "status" ? STATUS_COLORS[value] : colorForRow({ label: value, objectId: value }, mode);
-        return `<span class="pill"><span class="swatch" style="background: rgb(${rgb.join(",")})"></span>${escapeHtml(value)}</span>`;
+        const text = mode === "status" ? displayStatus(value) : displayLabel(value);
+        return `<span class="pill"><span class="swatch" style="background: rgb(${rgb.join(",")})"></span>${escapeHtml(text)}</span>`;
       }).join("");
     }
 
@@ -553,7 +649,7 @@
 
     function updateLabelOptions() {
       const labels = [...new Set(rawRows.map(r => r.label))].sort();
-      els.labelFilter.innerHTML = '<option value="">All labels</option>' + labels.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join("");
+      els.labelFilter.innerHTML = '<option value="">全部标签</option>' + labels.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(displayLabel(l))}</option>`).join("");
     }
 
     function applyUrlDisplayParams(params) {
@@ -574,7 +670,7 @@
 
     async function loadFiles(files) {
       const list = [...files];
-      els.stats.textContent = `Loading ${list.map(file => file.name).join(", ")} ...`;
+      els.stats.textContent = `正在加载 ${list.map(file => file.name).join(", ")} ...`;
       const loaded = await parseFiles(list);
       rawRows = loaded.rows;
       if (!rawRows.length) throw new Error("No points/objects parsed.");
@@ -583,7 +679,7 @@
       applyUrlLabelParam(new URLSearchParams(window.location.search));
       rebuildGeometry();
       fitView();
-      els.details.innerHTML = kv("file", loaded.names.join(", ")) + kv("type", rawRows[0].source);
+      els.details.innerHTML = kv("文件", loaded.names.join(", ")) + kv("类型", rawRows[0].source);
     }
 
     async function fetchUrlRows(url) {
@@ -595,7 +691,7 @@
     }
 
     async function loadUrl(url) {
-      els.stats.textContent = `Loading ${decodeURIComponent(url.split("/").pop() || "remote.ply")} ...`;
+      els.stats.textContent = `正在加载 ${decodeURIComponent(url.split("/").pop() || "remote.ply")} ...`;
       const loaded = await fetchUrlRows(url);
       rawRows = loaded.rows;
       if (!rawRows.length) throw new Error("No points/objects parsed.");
@@ -604,11 +700,11 @@
       applyUrlLabelParam(new URLSearchParams(window.location.search));
       rebuildGeometry();
       fitView();
-      els.details.innerHTML = kv("file", loaded.name) + kv("url", url) + kv("type", rawRows[0].source);
+      els.details.innerHTML = kv("文件", loaded.name) + kv("URL", url) + kv("类型", rawRows[0].source);
     }
 
     async function loadUrls(urls) {
-      els.stats.textContent = `Loading ${urls.length} files ...`;
+      els.stats.textContent = `正在加载 ${urls.length} 个文件 ...`;
       const parsed = [];
       for (const url of urls) parsed.push(await fetchUrlRows(url));
       const pointRows = parsed.flatMap(item => item.rows.filter(row => row.source === "ply"));
@@ -621,9 +717,9 @@
       rebuildGeometry();
       fitView();
       els.details.innerHTML = [
-        kv("file", parsed.map(item => item.name).join(", ")),
-        kv("url", urls.join(", ")),
-        kv("type", rawRows[0].source)
+        kv("文件", parsed.map(item => item.name).join(", ")),
+        kv("URL", urls.join(", ")),
+        kv("类型", rawRows[0].source)
       ].join("");
     }
 
@@ -640,35 +736,38 @@
       if (!hit) return;
       const row = rawRows[filteredIndices[hit.index]];
       els.details.innerHTML = [
-        kv("object", row.objectId),
-        kv("label", row.label),
-        kv("semantic", row.semanticId),
-        kv("status", row.status),
-        kv("frame", row.frame),
-        kv("object frame", row.objectFrame || ""),
-        kv("points", row.pointCount ?? ""),
-        kv("targets", row.targetCount ?? ""),
-        kv("dominant ratio", row.dominantLabelRatio != null ? Number(row.dominantLabelRatio).toFixed(3) : ""),
-        kv("identity", row.displayIdentity || row.identityHint || ""),
-        kv("description", row.description || ""),
-        kv("scene", row.sceneContext || ""),
-        kv("scene description", row.sceneDescription || ""),
-        kv("height layer", row.heightLayer && Object.keys(row.heightLayer).length ? JSON.stringify(row.heightLayer) : ""),
-        kv("downstream", row.downstreamStage || ""),
-        kv("review priority", row.reviewPriority || ""),
-        kv("geometry quality", row.geometryQuality || ""),
-        kv("geometry flags", row.geometryFlags && row.geometryFlags.length ? row.geometryFlags.join(", ") : ""),
-        kv("DINO group", row.dinoPromptGroup || ""),
+        kv("Object", row.objectId),
+        kv("标签", displayLabel(row.label)),
+        kv("机器标签", row.label),
+        kv("语义 ID", row.semanticId),
+        kv("状态", displayStatus(row.status)),
+        kv("原始状态", row.status),
+        kv("帧", row.frame),
+        kv("Object 帧", row.objectFrame || ""),
+        kv("点数", row.pointCount ?? ""),
+        kv("Targets", row.targetCount ?? ""),
+        kv("主标签占比", row.dominantLabelRatio != null ? Number(row.dominantLabelRatio).toFixed(3) : ""),
+        kv("身份", row.displayIdentity || row.identityHint || ""),
+        kv("描述", row.description || ""),
+        kv("场景", displaySceneContext(row.sceneContext)),
+        kv("原始场景", row.sceneContext || ""),
+        kv("场景描述", row.sceneDescription || ""),
+        kv("高度层", row.heightLayer && Object.keys(row.heightLayer).length ? JSON.stringify(row.heightLayer) : ""),
+        kv("下游阶段", displayDownstream(row.downstreamStage)),
+        kv("复审优先级", displayReviewPriority(row.reviewPriority)),
+        kv("几何质量", displayGeometryQuality(row.geometryQuality)),
+        kv("几何标记", row.geometryFlags && row.geometryFlags.length ? row.geometryFlags.join(", ") : ""),
+        kv("DINO 组", displayPromptGroup(row.dinoPromptGroup)),
         kv("DINO prompts", row.dinoPrompts && row.dinoPrompts.length ? row.dinoPrompts.join(", ") : ""),
-        kv("original label", row.semanticLabelOriginal || ""),
-        kv("refine reason", row.refineReason || ""),
-        kv("description ratio", row.descriptionVoteRatio != null ? Number(row.descriptionVoteRatio).toFixed(3) : ""),
-        kv("identity hint", row.identityHint || ""),
-        kv("attributes", row.attributes && Object.keys(row.attributes).length ? JSON.stringify(row.attributes) : ""),
-        kv("geometry", row.geometryStats && Object.keys(row.geometryStats).length ? JSON.stringify(row.geometryStats) : ""),
+        kv("原始标签字段", row.semanticLabelOriginal || ""),
+        kv("修正原因", row.refineReason || ""),
+        kv("描述占比", row.descriptionVoteRatio != null ? Number(row.descriptionVoteRatio).toFixed(3) : ""),
+        kv("身份提示", row.identityHint || ""),
+        kv("属性", row.attributes && Object.keys(row.attributes).length ? JSON.stringify(row.attributes) : ""),
+        kv("几何", row.geometryStats && Object.keys(row.geometryStats).length ? JSON.stringify(row.geometryStats) : ""),
         kv("xyz", `${row.x.toFixed(3)}, ${row.y.toFixed(3)}, ${row.z.toFixed(3)}`),
-        kv("votes", row.labelVotes ? JSON.stringify(row.labelVotes) : ""),
-        kv("description votes", row.descriptionVotes && Object.keys(row.descriptionVotes).length ? JSON.stringify(row.descriptionVotes) : "")
+        kv("标签投票", displayLabelVotes(row.labelVotes)),
+        kv("描述投票", displayDescriptionVotes(row.descriptionVotes))
       ].join("");
     });
 
