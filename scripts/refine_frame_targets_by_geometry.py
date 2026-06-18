@@ -114,6 +114,14 @@ def refined_label(label: str, points: np.ndarray, args: argparse.Namespace) -> t
         if normal_z <= args.ground_min_normal_z and planarity >= args.surface_planarity:
             out = "wall"
             reasons.append("ground_normal_to_wall")
+        elif (
+            bool(getattr(args, "guard_linear_ground_artifacts", False))
+            and float(dims[2]) >= args.ground_artifact_min_height_span
+            and linearity >= args.ground_artifact_min_linearity
+            and planarity <= args.ground_artifact_max_planarity
+        ):
+            out = "wall" if normal_z <= args.ground_artifact_wall_max_normal_z else "other"
+            reasons.append(f"linear_ground_artifact_to_{out}")
     elif label == "wall":
         if normal_z >= args.wall_max_normal_z and planarity >= args.surface_planarity:
             centroid_z = float(points[:, 2].mean())
@@ -360,6 +368,11 @@ def main() -> None:
     parser.add_argument("--car-max-extent", type=float, default=8.0)
     parser.add_argument("--car-surface-max-linearity", type=float, default=0.20)
     parser.add_argument("--ground-min-normal-z", type=float, default=0.55)
+    parser.add_argument("--guard-linear-ground-artifacts", action="store_true")
+    parser.add_argument("--ground-artifact-min-height-span", type=float, default=1.2)
+    parser.add_argument("--ground-artifact-min-linearity", type=float, default=0.75)
+    parser.add_argument("--ground-artifact-max-planarity", type=float, default=0.25)
+    parser.add_argument("--ground-artifact-wall-max-normal-z", type=float, default=0.72)
     parser.add_argument("--wall-max-normal-z", type=float, default=0.72)
     parser.add_argument("--enable-ceiling-label", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--ceiling-min-z", type=float, default=2.5)

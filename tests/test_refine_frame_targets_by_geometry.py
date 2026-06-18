@@ -41,6 +41,11 @@ def args(**overrides):
         "car_max_extent": 8.0,
         "car_surface_max_linearity": 0.20,
         "ground_min_normal_z": 0.55,
+        "guard_linear_ground_artifacts": False,
+        "ground_artifact_min_height_span": 1.2,
+        "ground_artifact_min_linearity": 0.75,
+        "ground_artifact_max_planarity": 0.25,
+        "ground_artifact_wall_max_normal_z": 0.72,
         "wall_max_normal_z": 0.72,
         "enable_ceiling_label": True,
         "ceiling_min_z": 2.5,
@@ -215,3 +220,43 @@ def test_horizontal_wall_height_split_is_opt_in():
     assert len(rows) == 1
     assert rows[0]["label"] == "wall"
     assert summary["split_source_targets"] == 0
+
+
+def test_linear_ground_artifact_relabels_to_other_when_normal_is_up():
+    module = load_module()
+    points = np.column_stack(
+        [
+            np.linspace(0, 4, 12),
+            np.zeros(12),
+            np.linspace(0, 2, 12),
+        ]
+    ).astype(np.float32)
+
+    label, reasons = module.refined_label(
+        "ground",
+        points,
+        args(
+            guard_linear_ground_artifacts=True,
+            ground_artifact_min_height_span=1.0,
+            ground_artifact_min_linearity=0.70,
+            ground_artifact_max_planarity=0.30,
+        ),
+    )
+
+    assert label == "other"
+    assert "linear_ground_artifact_to_other" in reasons
+
+
+def test_planar_ground_is_not_artifact_relabelled():
+    module = load_module()
+    xs, ys = np.meshgrid(np.linspace(0, 2, 8), np.linspace(0, 2, 8))
+    points = np.column_stack([xs.ravel(), ys.ravel(), np.zeros(xs.size)]).astype(np.float32)
+
+    label, reasons = module.refined_label(
+        "ground",
+        points,
+        args(guard_linear_ground_artifacts=True),
+    )
+
+    assert label == "ground"
+    assert not any(reason.startswith("linear_ground_artifact") for reason in reasons)

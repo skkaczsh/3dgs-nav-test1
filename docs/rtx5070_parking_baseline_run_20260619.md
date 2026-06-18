@@ -390,3 +390,87 @@ guarded_v2 priority masks -> target geometry refinement -> fuse_targets_to_objec
 Next real improvement should target `ground_has_large_height_span` at the target
 level, likely by splitting large ground targets using local PCA/height layers and
 only relabelling subclusters whose normals are clearly vertical or overhead.
+
+## Ground Artifact Guard Follow-Up
+
+`refine_frame_targets_by_geometry.py` now has an opt-in guard for linear,
+high-span `ground` targets:
+
+```text
+refine_frame_targets_by_geometry.py --guard-linear-ground-artifacts
+```
+
+The rule is intentionally narrow. It only fires when a target labelled `ground`
+has high Z span, high linearity, and low planarity. Up-facing line artifacts are
+demoted to `other`; non-up line artifacts are relabelled to `wall`.
+
+### Target-Level Guard Only
+
+Result from full guarded_v2 targets, followed by strict-surface fusion:
+
+- target relabels added by this guard:
+  - `linear_ground_artifact_to_wall: 3`
+  - `linear_ground_artifact_to_other: 4`
+- object count: `3,198 -> 3,197`
+- viewer label counts:
+  - `ground: 183,693 -> 182,951`
+  - `wall: 569,838 -> 570,236`
+  - `other: 0 -> 344`
+- QA risks:
+  - `ground_has_large_height_span: 20 -> 17`
+  - `wall_too_flat_low_height`: unchanged at `7`
+  - `wall_normal_too_up`: unchanged at `7`
+
+Interpretation: this is a low-risk target-level patch for a small class of line
+artifacts, but it does not address flat wall mistakes. Keep it opt-in until a
+viewer pass confirms the new `other` points are acceptable.
+
+Viewer:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_guarded_v2_full_s10_ground_artifact_guard_strict_rtx5070/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_guarded_v2_full_s10_ground_artifact_guard_strict_rtx5070/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5
+```
+
+### Target Guard Plus Object Relabel
+
+The target-level guard was also combined with object-level surface relabel:
+
+```text
+refine_frame_targets_by_geometry.py --guard-linear-ground-artifacts
+fuse_targets_to_objects.py --strict-surface-labels
+refine_target_fusion_objects.py --geometry-relabel-flat-wall --horizontal-surface-label ground
+```
+
+Result:
+
+- changed objects in object relabel: `46 / 3,197`
+- object label counts:
+  - `ground: 79 -> 95`
+  - `wall: 787 -> 741`
+  - `ceiling: 31 -> 61`
+  - `other: 4 -> 4`
+- viewer label counts:
+  - `ground: 182,951 -> 185,503`
+  - `wall: 570,236 -> 566,487`
+  - `ceiling: 22,677 -> 23,874`
+  - `other: 344 -> 344`
+- QA risks:
+  - `wall_too_flat_low_height: 7 -> 0`
+  - `wall_normal_too_up: 7 -> 0`
+  - `ground_has_large_height_span: 17 -> 22`
+
+Interpretation: the two fixes are not fully complementary. Object-level relabel
+still moves some unresolved high-span geometry back into `ground`. This combined
+version should not replace the strict-surface default.
+
+Combined viewer:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_guarded_v2_full_s10_ground_guard_object_relabel_rtx5070/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_guarded_v2_full_s10_ground_guard_object_relabel_rtx5070/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5
+```
+
+Current default remains unchanged:
+
+```text
+guarded_v2 priority masks -> target geometry refinement -> fuse_targets_to_objects --strict-surface-labels
+```
