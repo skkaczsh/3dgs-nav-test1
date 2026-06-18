@@ -827,16 +827,36 @@ Use the geometry-guided mask refinement as the next controlled experiment:
   - not primarily a calibration/projection error in this route; QA crop boxes generally land on real image regions.
   - the bottleneck is coarse or wrong priority target generation: single masks/targets can still absorb broad wall/ground/railing/car-adjacent regions.
   - fusion is now conservative enough to stop producing ambiguous ground/wall objects, but it cannot repair a single target whose own mask already swallowed multiple physical structures.
+- v4 geometry target refinement:
+  - script: `scripts/refine_frame_targets_by_geometry.py`
+  - purpose: refine targets before fusion, using 3D connected components and conservative PCA rules.
+  - remote target output: `/root/epfs/work_MT20260616-175807/frame_targets_priority_full_s10_v4_geometry_refined`
+  - remote object output: `/root/epfs/work_MT20260616-175807/frame_objects_priority_full_s10_v4_geometry_refined`
+  - result: `9,707 -> 9,939` targets, `128` source targets split, `149` targets relabelled.
+  - relabel reasons: `wall_normal_to_ground=103`, `broad_planar_railing_to_surface=28`, `planar_car_to_surface=16`, `split_broad_railing=16`, `ground_normal_to_wall=2`.
+  - viewer labels: `ground=237,816`, `wall=546,379`, `car=23,950`, `grass=97,289`, `railing=14,247`.
+  - interpretation: v4 reduces broad false railing/car labels, but over-converts high horizontal wall/ceiling structures into `ground`.
+- v5 geometry + ceiling refinement:
+  - code change: `ceiling` is a surface label and high horizontal `wall` targets can be relabelled to `ceiling` instead of `ground`.
+  - remote target output: `/root/epfs/work_MT20260616-175807/frame_targets_priority_full_s10_v5_geometry_ceiling`
+  - remote object output: `/root/epfs/work_MT20260616-175807/frame_objects_priority_full_s10_v5_geometry_ceiling`
+  - remote viewer output: `/root/epfs/work_MT20260616-175807/frame_object_viewer_priority_full_s10_v5_geometry_ceiling`
+  - local viewer files: `server_parking_priority_s10/frame_object_viewer_priority_full_s10_v5_geometry_ceiling/frame_object_points_stride10.ply` and `frame_objects_viewer.jsonl`.
+  - result: `9,939` refined targets, `2,900` objects, merge ratio `0.708`, `0` ambiguous objects.
+  - relabel reasons: `wall_normal_to_ground=44`, `wall_normal_to_ceiling=59`, `broad_planar_railing_to_surface=28`, `planar_car_to_surface=16`, `split_broad_railing=16`, `ground_normal_to_wall=2`.
+  - viewer labels: `ground=217,161`, `wall=546,379`, `ceiling=20,655`, `car=23,950`, `grass=97,289`, `railing=14,247`.
+  - QA risk reasons: `large_single_target_object=90`, `car_extent_suspicious=23`, `railing_extent_too_large=6`, `railing_not_linear=3`, `ground_has_large_height_span=6`.
+  - interpretation: v5 is the current best review baseline. It keeps the useful v4 fine-label cleanup while avoiding the worst ceiling-to-ground pollution.
 
 ## Next Step
 
-Use v3 as the current review baseline:
+Use v5 as the current review baseline:
 
 - open local viewer with:
-  - `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_priority_full_s10_v3_strict_surface_ground/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_priority_full_s10_v3_strict_surface_ground/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5`
-- next correction should happen before fusion:
-  - split large priority targets by 3D plane/line/compact geometry before object fusion,
-  - reject `railing` targets that are broad planar regions,
-  - reject `car` targets that are large planar surfaces or mostly ground/wall-like,
-  - keep `ground/wall` trusted surfaces separate unless labels match.
+  - `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_priority_full_s10_v5_geometry_ceiling/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_priority_full_s10_v5_geometry_ceiling/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5`
+- next correction should stay before fusion:
+  - split remaining large `ground` targets by local height/plane continuity so ramps, floors, and ceiling fragments do not become one target,
+  - keep `railing` only when the component is thin/linear or has multi-frame support,
+  - keep `car` only when the component is compact and not planar-surface-like,
+  - use VLM/Mimo only for high-risk candidates after geometry filtering, not for full-scene relabel.
 - do not spend another pass on global-object image projection or free VLM relabel until target splitting is corrected.
