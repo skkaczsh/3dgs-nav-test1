@@ -553,3 +553,25 @@ Primary comparison report:
 ```text
 /home/zsh/Work/SCAN/work_MT20260616-175807/guarded_v2_surface_refinement_all_risk_compare/qa_compare.md
 ```
+
+To pull the review-sized candidate artifacts back to the local viewer workspace:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+scripts/pull_rtx5070_parking_candidate_surface_route.sh
+```
+
+The pull script syncs the candidate viewer PLY/JSONL, compact QA files, and the
+full-risk comparison report into `server_parking_priority_s10/`. It skips QA
+crop images by default to avoid local disk growth. To pull crops for offline
+image review:
+
+```bash
+PULL_QA_CROPS=1 scripts/pull_rtx5070_parking_candidate_surface_route.sh
+```
+
+Use `DRY_RUN=1` before large syncs or when changing network routes:
+
+```bash
+DRY_RUN=1 scripts/pull_rtx5070_parking_candidate_surface_route.sh
+```
