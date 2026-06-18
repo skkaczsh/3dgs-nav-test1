@@ -62,6 +62,15 @@
    - local guarded review output: `server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local`
    - full result: `68` candidates -> `29` geometry-plausible, `23` visual-review, `16` geometry-rejected.
    - full guarded PLY keeps all `9,236,274` points; `144,092` points from rejected priority objects are demoted from `car/railing` to `unknown`.
+11. Run GroundingDINO crop-level visual review on guarded ambiguous candidates:
+   - script: `scripts/run_groundingdino_evidence_review.py`
+   - model/config: `/root/epfs/vlm_seg_project/weights/groundingdino_swint_ogc.pth`, `GroundingDINO_SwinT_OGC.py`
+   - runtime: `/root/epfs/conda_envs/vlm_seg`, GPU1
+   - output: `/root/epfs/work_MT20260616-175807/groundingdino_review_v1`
+   - result: `23` candidates, `69` crop evidence rows, `22` visual-confirmed, `1` weak.
+   - merge script: `scripts/merge_visual_review_into_objects.py`
+   - merged full object metadata: `/root/epfs/work_MT20260616-175807/full_scene_objects_s10_full_v2_priority_guarded/full_scene_objects_guarded_visual.jsonl`
+   - compatibility note: current `transformers` removed older BERT helpers used by GroundingDINO 0.4, so the runner applies local process-only compatibility patches for `get_head_mask` and `get_extended_attention_mask`.
 
 ## Current Metrics
 
@@ -188,6 +197,19 @@ Priority candidate guard:
   - railing: `31`
   - unknown: `141`
 
+GroundingDINO visual review:
+
+- reviewed candidates: `23`
+- crop evidence rows: `69`
+- visual confirmed: `22`
+  - car: `11`
+  - railing: `11`
+- visual weak: `1`
+  - railing: `1`
+- full guarded visual metadata merge:
+  - merged object rows: `23 / 303`
+  - not visual reviewed: `280`
+
 ## Review Assets
 
 Local previews:
@@ -234,8 +256,13 @@ Local review outputs:
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/priority_candidate_guard_v1/priority_candidate_guard_all.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/full_scene_guard_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/full_scene_objects_guarded.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/full_scene_objects_guarded_visual.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/visual_merge_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded_ascii.ply`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/groundingdino_review_v1/groundingdino_review_report.json`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/groundingdino_review_v1/groundingdino_object_review.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/groundingdino_review_v1/groundingdino_review_contact.jpg`
 
 Viewer URL:
 
@@ -273,6 +300,7 @@ Object-level scene-context review:
 - The next DINO-style stage should consume `dino_review_candidates.jsonl` first. It contains only car/railing fine-object candidates, while `all_review_candidates.jsonl` also includes geometry-review surfaces and residual semantic candidates.
 - Image evidence shows the current priority layer still has false fine-object positives: some wall seams, ceiling panels, indoor boards, and clutter are labeled as `car` or `railing`. Treat `car/railing` priority objects as candidates until a crop-level detector/reviewer confirms them.
 - Geometry/evidence guard now blocks the clearest false positives from becoming stable car/railing labels. This is deliberately conservative: plausible objects and ambiguous objects are kept for DINO/GroundingDINO/visual review rather than removed.
+- GroundingDINO is useful as a crop-level reviewer, but it should not directly override geometry guard. Contact-sheet inspection still shows some line/structure crops where a weak detector response is plausible but not decisive. Current policy: geometry-rejected stays demoted; visual review metadata is attached for manual/model audit and later threshold tuning.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,

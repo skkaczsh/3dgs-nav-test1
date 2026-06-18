@@ -267,6 +267,12 @@
       needs_visual_review: "待视觉复审",
       geometry_rejected: "几何拒绝"
     };
+    const VISUAL_REVIEW_ZH = {
+      visual_confirmed: "视觉确认",
+      visual_weak: "弱视觉证据",
+      visual_not_detected: "视觉未检出",
+      missing_crop: "缺少 crop"
+    };
     const GEOMETRY_QUALITY_ZH = {
       clean: "几何清晰",
       unclassified_candidate: "未分类候选",
@@ -366,6 +372,11 @@
       return raw ? (PRIORITY_GUARD_ZH[raw] || raw) : "";
     }
 
+    function displayVisualReview(value) {
+      const raw = String(value || "");
+      return raw ? (VISUAL_REVIEW_ZH[raw] || raw) : "";
+    }
+
     function displaySceneContext(value) {
       const raw = String(value || "");
       return raw ? (SCENE_CONTEXT_ZH[raw] || raw) : "";
@@ -453,6 +464,10 @@
           priorityGuardStatus: meta.priorityGuardStatus,
           priorityGuardReasons: meta.priorityGuardReasons,
           evidenceRank1: meta.evidenceRank1,
+          visualReviewStatus: meta.visualReviewStatus,
+          visualReviewBestScore: meta.visualReviewBestScore,
+          visualReviewBestPhrase: meta.visualReviewBestPhrase,
+          visualReviewEvidenceCount: meta.visualReviewEvidenceCount,
           objectFrame: meta.frame,
           objectBbox: meta.bbox,
           source: "ply+objects_jsonl"
@@ -542,6 +557,10 @@
           priorityGuardStatus: obj.priority_guard_status || "",
           priorityGuardReasons: obj.priority_guard_reasons || [],
           evidenceRank1: obj.evidence_rank1 || {},
+          visualReviewStatus: obj.visual_review_status || "",
+          visualReviewBestScore: obj.visual_review_best_score,
+          visualReviewBestPhrase: obj.visual_review_best_phrase || "",
+          visualReviewEvidenceCount: obj.visual_review_evidence_count,
           bbox: obj.bbox_3d,
           source: "objects_jsonl"
         });
@@ -783,6 +802,10 @@
         kv("Priority guard", displayPriorityGuard(row.priorityGuardStatus)),
         kv("Guard 原因", row.priorityGuardReasons && row.priorityGuardReasons.length ? row.priorityGuardReasons.join(", ") : ""),
         kv("图像证据", row.evidenceRank1 && Object.keys(row.evidenceRank1).length ? JSON.stringify(row.evidenceRank1) : ""),
+        kv("视觉复审", displayVisualReview(row.visualReviewStatus)),
+        kv("视觉分数", row.visualReviewBestScore != null ? Number(row.visualReviewBestScore).toFixed(3) : ""),
+        kv("视觉短语", row.visualReviewBestPhrase || ""),
+        kv("视觉证据数", row.visualReviewEvidenceCount ?? ""),
         kv("原始标签字段", row.semanticLabelOriginal || ""),
         kv("修正原因", row.refineReason || ""),
         kv("描述占比", row.descriptionVoteRatio != null ? Number(row.descriptionVoteRatio).toFixed(3) : ""),
