@@ -108,6 +108,15 @@
    - reason: v8 displayed `car` / `railing` candidate labels as if they were confirmed semantic labels, causing wall/surface false positives to appear as cars or railings.
    - method: objects routed to `dino_fine_object_review` with labels `car` or `railing` are displayed as `fine_candidate`; original labels are preserved as `candidate_label`.
    - result: `323` unconfirmed fine-object candidates masked (`car=141`, `railing=182`); semantic label counts no longer include final `car` or `railing` until visual confirmation promotes them.
+18. Apply full-scene `drivability_cpp` ground/wall prior guard:
+   - script: `scripts/apply_drivability_prior_to_full_scene.py`
+   - local/remote output: `server_parking_priority_s10/full_scene_objects_s10_full_v13_drivability_full_scene_guard`
+   - remote reusable output: `/root/epfs/work_MT20260616-175807/full_scene_objects_s10_full_v13_drivability_full_scene_guard`
+   - geometry prior: `MT20260616-175807_drivable_points_collision_arm64_wallbfs.pcd`
+   - method: voxelize drivability red/white/blue PCD, vote it onto every full-scene object, and relabel only when drivability prior and object PCA geometry agree.
+   - result: `51` objects / `9,272` preview points changed.
+   - important corrections: `car->wall=3`, `railing->wall=6`, `fine_candidate->floor/wall=15`, `unknown->floor/wall=16`; this directly targets the observed wall/ground-as-railing/car failure.
+   - default viewer: `tools/parking_full_scene_viewer.html` now opens this v13 output.
 
 ## Current Metrics
 
@@ -587,6 +596,14 @@ Object-level scene-context review:
   - v13 point ROI check: all `80` QA rows used projected-point ROI (`roi_source=points`), with about `36-158` DINO patches per object.
   - v13 result: all `80` rows were still flagged risky by ROI/context feature separation.
   - interpretation: even projected-point ROI does not make the current ROI-vs-context metric reliable. DINO features should be used as local patch descriptors for object-internal split/merge, not as a standalone accept/reject classifier.
+- Full-scene drivability prior guard v13:
+  - script: `scripts/apply_drivability_prior_to_full_scene.py`
+  - output: `server_parking_priority_s10/full_scene_objects_s10_full_v13_drivability_full_scene_guard`
+  - input: v12 tight visual geometry guard full-scene bundle.
+  - point prior votes on preview PLY: `ground=320,751`, `wall=194,138`, `other=258,339`, `unknown=142,145`.
+  - changed objects: `51`; changed preview points: `9,272`.
+  - after relabel preview counts: `floor=308,796`, `wall=341,665`, `unknown=152,726`, `ceiling=2,616`, `grass=82,088`, `car=18,382`, `fine_candidate=6,857`, `railing=2,243`.
+  - interpretation: this is the first full-scene use of the successful `drivability_cpp` wall/floor prior, not just residual cleanup. It reduces visually promoted fine-object false positives when the 3D object is actually a ground/wall surface.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
