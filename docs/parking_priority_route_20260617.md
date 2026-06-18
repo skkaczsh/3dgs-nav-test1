@@ -96,6 +96,12 @@
    - local full-scene preview: `server_parking_priority_s10/full_scene_objects_s10_full_v7_local_geometry_railing_demote`
    - method: only apply relabels for residual `railing` conflicts after local geometry split; do not demote wall/car/grass conflicts in this pass.
    - result: `17` residual railing objects relabeled; stride10 preview changes `271` points, with `15` clean horizontal railing fragments converted to `floor` and `2` surface-like railing fragments converted to `unknown`.
+16. Apply clean horizontal wall surface refinement and scene-context enrichment:
+   - scripts: `scripts/apply_geometry_conflict_relabels.py`, `scripts/enrich_scene_object_context.py`
+   - local full-scene preview: `server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine`
+   - method: only apply generated `wall_clean_horizontal_surface_to_*` relabels; low horizontal wall fragments (`z < 6m`) become `floor`, high horizontal wall fragments become `ceiling`; no mixed/low-planarity wall is demoted in this pass.
+   - result: `19` wall objects relabeled; stride10 preview changes `3,219` points; high-severity geometry conflicts drop from `29` to `10`.
+   - scene context now assigns `ground_zone`, `transition_zone`, and `upper_zone` metadata for floor/wall/ceiling objects so downstream DINO/VLM review can operate on residual/fine targets instead of stable surfaces.
 
 ## Current Metrics
 
@@ -306,6 +312,40 @@ Railing-only demotion v7:
   - unknown: `396`
 - interpretation: this is the current default review preview for the user-reported "ground/wall labeled as railing" issue. It deliberately touches only railing conflicts to avoid the overly aggressive behavior of the older all-conflict relabel preview.
 
+Clean horizontal wall refinement v8:
+
+- source preview: `server_parking_priority_s10/full_scene_objects_s10_full_v7_local_geometry_railing_demote`
+- relabel count: `19` objects
+- changed stride10 preview points: `3,219`
+- relabel reasons:
+  - `wall_clean_horizontal_surface_to_floor`: `9`
+  - `wall_clean_horizontal_surface_to_ceiling`: `10`
+- object labels after relabel:
+  - floor: `241`
+  - wall: `182`
+  - ceiling: `10`
+  - grass: `177`
+  - car: `141`
+  - railing: `182`
+  - unknown: `396`
+- QA after relabel:
+  - ok objects: `879`
+  - medium findings: `440`
+  - high findings: `10`
+  - high-severity points: `338,629`
+- scene-context counts:
+  - outdoor parking ground / pavement: `99`
+  - parking ramp / transition floor: `32`
+  - upper parking deck floor: `110`
+  - ground-zone wall: `56`
+  - transition-zone wall: `46`
+  - upper-zone wall: `80`
+  - ceiling / overhead deck surface: `10`
+  - parked vehicle candidates: `141`
+  - guardrail / fence candidates: `182`
+  - residual objects after surface removal: `396`
+- interpretation: this is the current default preview. It moves the route closer to the intended structure-first split: stable floor/wall/ceiling/vegetation surfaces carry scene metadata, while car/railing/unknown remain routed to DINO/fine-object review.
+
 ## Review Assets
 
 Local previews:
@@ -366,6 +406,15 @@ Local review outputs:
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v7_local_geometry_railing_demote/full_scene_objects_railing_demote.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v7_local_geometry_railing_demote/full_scene_objects_railing_demote_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v7_local_geometry_railing_demote/full_scene_objects_railing_demote_relabels.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/full_scene_objects_surface_refine.ply`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/full_scene_objects_surface_refine.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/full_scene_objects_surface_refine_enriched.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/full_scene_objects_surface_refine_report.json`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/full_scene_objects_surface_refine_relabels.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/full_scene_objects_v8_geometry_conflict_report.json`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/scene_context_report.json`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/all_review_candidates.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/dino_review_candidates.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/priority_objects_s10_full_v4_local_geometry_v2/priority_objects_local_geometry_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/priority_objects_s10_full_v4_local_geometry_v2/priority_geometry_conflict_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v5_priority_guarded_local/full_scene_objects_guarded_ascii.ply`
@@ -395,6 +444,10 @@ Local geometry split v2 preview:
 Railing-only demotion v7 preview:
 
 `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v7_local_geometry_railing_demote/full_scene_objects_railing_demote.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v7_local_geometry_railing_demote/full_scene_objects_railing_demote.jsonl&mode=semantic&stride=1&pointSize=1.5`
+
+Clean horizontal wall refinement v8 preview:
+
+`http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/full_scene_objects_surface_refine.ply&objects=/server_parking_priority_s10/full_scene_objects_s10_full_v8_surface_geometry_refine/full_scene_objects_surface_refine_enriched.jsonl&mode=semantic&stride=1&pointSize=1.5`
 
 Guarded local light review:
 
@@ -432,6 +485,8 @@ Object-level scene-context review:
 - Conservative geometry relabel preview is useful for QA because it removes confident false labels, but it should not be mistaken for final semantics: the large `unknown` region is a signal that geometry splitting is still missing.
 - Local geometry split v2 is the better default preview than conservative relabel: it keeps more geometry-specific labels while correcting large mixed priority objects. It still leaves small railing/floor/wall fragments for a later merge/demotion pass.
 - Railing-only demotion v7 is the current default user-review preview for the reported "ground/wall labeled as railing" problem. It avoids the older all-conflict relabel pass because that pass demotes unrelated car/wall/grass conflicts too aggressively.
+- Clean horizontal wall refinement v8 is now the default user-review preview. It addresses the next structural error class after railing cleanup: clean horizontal wall fragments are not kept as wall; low fragments become floor and high fragments become ceiling / overhead deck.
+- Scene-context enrichment now uses coarse height zones in addition to floor-layer clustering because parking lots, ramps, and upper decks can form a continuous z distribution. This avoids incorrectly treating all floor objects as one undifferentiated ground layer.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,

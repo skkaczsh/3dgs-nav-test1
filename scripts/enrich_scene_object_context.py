@@ -101,6 +101,9 @@ def geometry_quality(obj: dict[str, Any], label: str) -> tuple[str, list[str]]:
     if label in {"wall", "grass"} and (planarity < 0.70 or thickness > 1.5):
         quality = "mixed_or_overmerged"
         flags.append("low_planarity_surface")
+    if label == "ceiling" and (planarity < 0.70 or thickness > 1.0):
+        quality = "mixed_or_overmerged"
+        flags.append("low_planarity_ceiling_surface")
     if label == "floor" and z_extent > 5.0:
         quality = "mixed_or_overmerged"
         flags.append("large_vertical_extent_on_floor")
@@ -112,12 +115,31 @@ def geometry_quality(obj: dict[str, Any], label: str) -> tuple[str, list[str]]:
     return quality, flags
 
 
+def height_zone(z: float, args: argparse.Namespace) -> dict[str, Any]:
+    if z <= args.ground_zone_z_max:
+        return {
+            "name": "ground_zone",
+            "description": "parking-lot ground / low indoor level",
+        }
+    if z >= args.upper_zone_z_min:
+        return {
+            "name": "upper_zone",
+            "description": "upper parking deck / overhead structure zone",
+        }
+    return {
+        "name": "transition_zone",
+        "description": "ramp / intermediate transition level",
+    }
+
+
 def assign_context(obj: dict[str, Any], layers: list[dict[str, Any]], args: argparse.Namespace) -> dict[str, Any]:
     label = str(obj.get("semantic_label", "unknown"))
     status = str(obj.get("status", ""))
     z = centroid_z(obj)
     layer = nearest_layer(z, layers)
     layer_name = layer["name"] if layer else "unknown_layer"
+    zone = height_zone(z, args)
+    zone_name = str(zone["name"])
     quality, flags = geometry_quality(obj, label)
 
     context = "residual_fine_object_candidate"
@@ -129,18 +151,27 @@ def assign_context(obj: dict[str, Any], layers: list[dict[str, Any]], args: argp
 
     if label == "floor":
         stable_surface = quality == "clean"
-        if layer_name == "ground_level":
+        if zone_name == "ground_zone":
             context = "outdoor_parking_ground_or_pavement"
             description = "parking-lot ground / pavement surface"
+        elif zone_name == "upper_zone":
+            context = "upper_parking_deck_floor"
+            description = "upper parking deck / elevated floor surface"
         else:
-            context = "upper_level_floor_or_deck"
-            description = f"{layer_name.replace('_', ' ')} floor / deck surface"
+            context = "parking_ramp_or_transition_floor"
+            description = "parking ramp / intermediate transition floor surface"
         downstream_stage = "stable_surface" if stable_surface else "geometry_review"
         review_priority = "low" if stable_surface else "medium"
     elif label == "wall":
         stable_surface = quality == "clean"
-        context = "building_or_indoor_wall_surface"
-        description = "building / indoor wall surface in the parking-scene scan"
+        context = f"{zone_name}_building_or_indoor_wall_surface"
+        description = f"{zone['description']} wall / vertical building surface"
+        downstream_stage = "stable_surface" if stable_surface else "geometry_review"
+        review_priority = "low" if stable_surface else "medium"
+    elif label == "ceiling":
+        stable_surface = quality == "clean"
+        context = "ceiling_or_overhead_deck_surface"
+        description = "ceiling / overhead deck horizontal surface in the parking-scene scan"
         downstream_stage = "stable_surface" if stable_surface else "geometry_review"
         review_priority = "low" if stable_surface else "medium"
     elif label == "grass":
@@ -177,6 +208,11 @@ def assign_context(obj: dict[str, Any], layers: list[dict[str, Any]], args: argp
         "z_median": layer.get("z_median") if layer else None,
         "object_z": z,
     }
+    out["height_zone"] = {
+        "name": zone["name"],
+        "description": zone["description"],
+        "object_z": z,
+    }
     out["geometry_quality"] = quality
     out["geometry_flags"] = flags
     out["downstream_stage"] = downstream_stage
@@ -198,6 +234,8 @@ def main() -> None:
     parser.add_argument("--scene-id", default="MT20260616-175807")
     parser.add_argument("--scene-name", default="outdoor parking lot with connected indoor/upper-level areas")
     parser.add_argument("--height-layer-gap", type=float, default=3.0)
+    parser.add_argument("--ground-zone-z-max", type=float, default=1.5)
+    parser.add_argument("--upper-zone-z-min", type=float, default=6.0)
     parser.add_argument("--large-residual-points", type=int, default=1000)
     args = parser.parse_args()
 

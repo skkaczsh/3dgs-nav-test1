@@ -60,10 +60,14 @@ def choose_relabel(finding: dict[str, Any], args: argparse.Namespace) -> tuple[s
     metrics = finding.get("metrics") or {}
     planarity = float(metrics.get("planarity") or 0.0)
     thickness = float(metrics.get("thickness_rms") or 0.0)
+    centroid_z = float(metrics.get("centroid_z") or 0.0)
 
     if label == "wall":
         if "wall_has_horizontal_normal" in reasons and planarity >= args.clean_horizontal_planarity and thickness <= args.clean_horizontal_thickness:
-            return "floor", "wall_clean_horizontal_surface_to_floor"
+            new_label = args.wall_horizontal_low_label
+            if args.wall_horizontal_z_split is not None and centroid_z >= args.wall_horizontal_z_split:
+                new_label = args.wall_horizontal_high_label
+            return new_label, f"wall_clean_horizontal_surface_to_{new_label}"
         if reasons & {"wall_has_horizontal_normal", "wall_low_planarity", "wall_high_thickness", "wall_oblique_normal"}:
             return "unknown", "wall_geometry_conflict_to_unknown"
     if label == "grass" and reasons & {"grass_large_vertical_extent", "grass_low_planarity"}:
@@ -82,6 +86,7 @@ def choose_relabel(finding: dict[str, Any], args: argparse.Namespace) -> tuple[s
 def load_relabels(path: Path, args: argparse.Namespace) -> dict[int, dict[str, Any]]:
     relabels: dict[int, dict[str, Any]] = {}
     only_labels = set(args.only_label or [])
+    only_reasons = set(args.only_relabel_reason or [])
     for finding in read_jsonl(path):
         label = str(finding.get("semantic_label") or "unknown")
         if only_labels and label not in only_labels:
@@ -89,6 +94,8 @@ def load_relabels(path: Path, args: argparse.Namespace) -> dict[int, dict[str, A
         object_id = int(finding["object_id"])
         new_label, reason = choose_relabel(finding, args)
         if not new_label:
+            continue
+        if only_reasons and reason not in only_reasons:
             continue
         relabels[object_id] = {
             "object_id": object_id,
@@ -207,10 +214,23 @@ def main() -> None:
     parser.add_argument("--clean-horizontal-planarity", type=float, default=0.80)
     parser.add_argument("--clean-horizontal-thickness", type=float, default=0.50)
     parser.add_argument(
+        "--wall-horizontal-z-split",
+        type=float,
+        help="When set, clean horizontal wall conflicts below this z use --wall-horizontal-low-label and above/equal use --wall-horizontal-high-label.",
+    )
+    parser.add_argument("--wall-horizontal-low-label", default="floor")
+    parser.add_argument("--wall-horizontal-high-label", default="floor")
+    parser.add_argument(
         "--only-label",
         action="append",
         default=[],
         help="Only apply relabels for this semantic label. Repeat for multiple labels.",
+    )
+    parser.add_argument(
+        "--only-relabel-reason",
+        action="append",
+        default=[],
+        help="Only apply generated relabels with this reason. Repeat for multiple reasons.",
     )
     args = parser.parse_args()
 
