@@ -136,6 +136,16 @@
    - result on `0..190`, `stride=10`, `3` cameras: `60/60` images processed; `4,961` pixels restored to trusted surfaces; `2,196` fine-object pixels cut at depth edges.
    - correction breakdown: `residual->ground=3,047`, `residual->wall=874`, `railing->ground=352`, `railing->wall=106`, `car->ground=278`, `car->wall=88`, plus smaller grass corrections.
    - interpretation: this is the first successful reverse-depth constraint on the 2D mask stage. It is intentionally conservative and should be used to evaluate contamination reduction before any new full-scene production run.
+   - follow-up correction: the first prototype was still too aggressive for fine targets. On car/railing-heavy windows it changed `car 39,149 -> 5` and `railing 23,298 -> 0`, caused by deleting fine pixels on sparse depth edges and allowing surface priors to overwrite fine labels. The safe default now only fills `residual` pixels and leaves `car/railing` intact unless explicitly requested for diagnostics.
+21. Build v20 full-scene preview from safe geometry-refined priority masks:
+   - scripts: `scripts/refine_priority_masks_with_geometry.py`, `scripts/project_priority_masks_to_lx.py`, `scripts/cluster_residual_points.py`, `scripts/cluster_priority_points.py`, `scripts/make_full_scene_object_view.py`
+   - remote outputs: `/root/epfs/work_MT20260616-175807/geometry_refine_v1_s10_full_safe`, `/root/epfs/work_MT20260616-175807/priority_projection_refined_v1_s10_full_safe`, `/root/epfs/work_MT20260616-175807/full_scene_objects_refined_v20`
+   - local viewer output: `server_parking_priority_s10/full_scene_objects_refined_v20/full_scene_objects_refined_v20_stride10.ply`
+   - full safe refinement result: `1,857/1,857` images processed; `552,224` residual pixels restored to surfaces (`residual->ground=448,531`, `residual->wall=97,324`, `residual->grass=6,369`); no depth-edge fine deletion.
+   - point projection comparison vs baseline priority masks: `residual 582,345 -> 67,580`, `ground 1,583,954 -> 2,003,781`, `wall 5,638,059 -> 5,727,535`, `grass 1,095,672 -> 1,101,141`, `car 249,403 -> 249,400`, `railing 191,729 -> 191,725`.
+   - residual clustering after refinement: `67,580` residual points -> `149` objects, `58,855` assigned points, `8,725` noise points; only `1` small residual object was absorbed as ground by drivability prior.
+   - priority object clustering after refinement: `595` priority objects (`floor=31`, `wall=72`, `grass=152`, `car=141`, `railing=199`), `9,101,963` priority points.
+   - full-scene v20 preview: `9,169,543` points total; stride10 preview has `916,955` points and is the current viewer default for visual QA.
 
 ## Current Metrics
 
@@ -723,8 +733,8 @@ Object-level scene-context review:
 
 Use the geometry-guided mask refinement as the next controlled experiment:
 
-- rerun priority projection on the 60-image refined mask set and compare point-level contamination against v19
-- if contamination drops, scale the refinement to the full `stride=10` parking dataset
+- visually QA `full_scene_objects_refined_v20` against v19/v13
+- if v20 improves residual clutter without introducing car/railing false positives, promote it as the new parking baseline
 - keep stable ground/wall/grass from `drivability_cpp` and v19 as trusted priors
-- restrict DINO/GroundingDINO/SAM to residual and fine-object candidates after surface removal
+- restrict DINO/GroundingDINO/SAM to the much smaller residual/fine-object set after v20 surface-hole filling
 - do not use DINOv3 14x14 seed maps as segmentation boundaries; use them only as weak evidence metadata unless a higher-resolution feature extractor is introduced

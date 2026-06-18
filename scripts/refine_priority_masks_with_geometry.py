@@ -4,8 +4,9 @@
 This is a conservative prototype for geometry-guided 2D segmentation:
 
 - keep the original segmentation model as a candidate generator
-- use trusted projected 3D surface labels to undo fine-object surface bleed
-- optionally cut car/railing masks at strong depth edges
+- use trusted projected 3D surface labels to fill residual surface holes
+- report fine-object / surface-prior conflicts without deleting fine targets by default
+- optionally cut car/railing masks at strong depth edges for diagnostics only
 
 It writes refined priority PNGs plus review contact sheets so the effect can be
 judged visually before any full-scene production run.
@@ -96,6 +97,15 @@ def component_count(mask: np.ndarray, min_area: int) -> int:
     return count
 
 
+def count_priority_pixels(mask: np.ndarray) -> dict[str, int]:
+    counts = np.bincount(mask.reshape(-1), minlength=max(PRIORITY_NAMES) + 1)
+    return {
+        PRIORITY_NAMES.get(int(label), str(int(label))): int(count)
+        for label, count in enumerate(counts)
+        if count
+    }
+
+
 def refine(priority: np.ndarray, semantic: np.ndarray, valid: np.ndarray, edge: np.ndarray, args: argparse.Namespace) -> tuple[np.ndarray, dict[str, Any]]:
     if semantic.shape != priority.shape:
         semantic = cv2.resize(semantic, (priority.shape[1], priority.shape[0]), interpolation=cv2.INTER_NEAREST)
@@ -131,8 +141,8 @@ def refine(priority: np.ndarray, semantic: np.ndarray, valid: np.ndarray, edge: 
                     refined[labels == i] = 0
                     small_removed += area
 
-    before_counts = Counter(PRIORITY_NAMES.get(int(x), str(int(x))) for x in priority.reshape(-1).tolist())
-    after_counts = Counter(PRIORITY_NAMES.get(int(x), str(int(x))) for x in refined.reshape(-1).tolist())
+    before_counts = count_priority_pixels(priority)
+    after_counts = count_priority_pixels(refined)
     before_components = {
         PRIORITY_NAMES[label]: component_count(priority == label, args.component_min_area)
         for label in sorted(FINE_PRIORITY)
@@ -148,8 +158,8 @@ def refine(priority: np.ndarray, semantic: np.ndarray, valid: np.ndarray, edge: 
         "depth_edge_cut_pixels": cut_pixels,
         "small_fine_component_removed_pixels": small_removed,
         "fine_surface_overlap_before": fine_surface_overlap,
-        "priority_counts_before": dict(before_counts),
-        "priority_counts_after": dict(after_counts),
+        "priority_counts_before": before_counts,
+        "priority_counts_after": after_counts,
         "fine_component_count_before": before_components,
         "fine_component_count_after": after_components,
     }
@@ -195,11 +205,23 @@ def main() -> None:
     parser.add_argument("--end", type=int, required=True)
     parser.add_argument("--stride", type=int, default=10)
     parser.add_argument("--cams", type=int, nargs="+", default=[0, 1, 2])
-    parser.add_argument("--surface-override-from", type=int, nargs="+", default=[0, 4, 5])
-    parser.add_argument("--cut-fine-at-depth-edge", action="store_true", default=True)
+    parser.add_argument(
+        "--surface-override-from",
+        type=int,
+        nargs="+",
+        default=[0],
+        help="Priority ids that trusted projected surfaces may overwrite. Default only fills residual holes.",
+    )
+    parser.add_argument(
+        "--cut-fine-at-depth-edge",
+        action="store_true",
+        default=False,
+        help="Diagnostic/aggressive mode: demote fine labels on projected depth edges.",
+    )
     parser.add_argument("--min-fine-component-area", type=int, default=24)
     parser.add_argument("--component-min-area", type=int, default=80)
     parser.add_argument("--overlay-alpha", type=float, default=0.45)
+    parser.add_argument("--skip-overlays", action="store_true", help="Do not write per-image overlay JPGs; contact sheet is still written.")
     parser.add_argument("--max-review-panels", type=int, default=24)
     args = parser.parse_args()
 
@@ -236,7 +258,8 @@ def main() -> None:
             out_mask = args.output_dir / "priority" / f"{image_id}_priority_refined.png"
             out_overlay = args.output_dir / "overlay" / f"{image_id}_overlay_refined.jpg"
             cv2.imwrite(str(out_mask), refined)
-            cv2.imwrite(str(out_overlay), overlay(image, refined, args.overlay_alpha))
+            if not args.skip_overlays:
+                cv2.imwrite(str(out_overlay), overlay(image, refined, args.overlay_alpha))
             depth_viz_path = args.geometry_dir / "depth_viz" / f"{image_id}_depth.jpg"
             depth_viz = cv2.imread(str(depth_viz_path))
             if depth_viz is None:
@@ -251,7 +274,7 @@ def main() -> None:
                 "priority_path": str(pri_path),
                 "geometry_path": str(geom_path),
                 "refined_priority_path": str(out_mask),
-                "refined_overlay_path": str(out_overlay),
+                "refined_overlay_path": "" if args.skip_overlays else str(out_overlay),
                 **stats,
             })
 

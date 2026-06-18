@@ -100,8 +100,8 @@ def read_lx_points(handle, section: dict) -> np.ndarray:
     return points
 
 
-def priority_path(base: Path, cam_id: int, frame_id: int) -> Path:
-    return base / "priority" / f"cam{cam_id}_{frame_id:06d}_priority.png"
+def priority_path(base: Path, cam_id: int, frame_id: int, suffix: str = "_priority") -> Path:
+    return base / "priority" / f"cam{cam_id}_{frame_id:06d}{suffix}.png"
 
 
 def frame_path(base: Path, cam_id: int, frame_id: int) -> Path:
@@ -147,7 +147,7 @@ def project_frame(points: np.ndarray, pose: dict, frame_id: int, args: argparse.
     zbuffer_kept = 0
 
     for cam_id in args.cams:
-        mask_file = priority_path(args.priority_dir, cam_id, frame_id)
+        mask_file = priority_path(args.priority_dir, cam_id, frame_id, args.priority_suffix)
         img_file = frame_path(args.frame_root, cam_id, frame_id)
         if not mask_file.exists() or not img_file.exists():
             masks_missing += 1
@@ -266,6 +266,7 @@ def main() -> None:
     parser.add_argument("--lx", type=Path, required=True)
     parser.add_argument("--frame-root", type=Path, required=True)
     parser.add_argument("--priority-dir", type=Path, required=True)
+    parser.add_argument("--priority-suffix", default="_priority", help="Mask filename suffix before .png")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--end", type=int, default=None)

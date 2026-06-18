@@ -37,28 +37,56 @@ RESIDUAL_LABEL_TO_SEMANTIC = {
     "residual_surface_candidate": ("unknown", 0),
 }
 
+PLY_TYPE_MAP = {
+    "float": "<f4", "float32": "<f4", "double": "<f8",
+    "uchar": "u1", "uint8": "u1", "char": "i1", "int8": "i1",
+    "ushort": "<u2", "uint16": "<u2", "short": "<i2", "int16": "<i2",
+    "uint": "<u4", "uint32": "<u4", "int": "<i4", "int32": "<i4",
+}
 
-def read_ascii_ply(path: Path) -> tuple[np.ndarray, list[str], int]:
-    with path.open("r", encoding="utf-8", errors="ignore") as f:
+
+def read_ply(path: Path) -> tuple[np.ndarray, list[str], int]:
+    with path.open("rb") as f:
+        fmt = "ascii"
         props: list[str] = []
+        prop_types: list[str] = []
         vertex_count = 0
         header_lines = 0
         in_vertex = False
-        for line in f:
+        while True:
+            raw = f.readline()
+            if not raw:
+                raise ValueError(f"Invalid PLY header: {path}")
             header_lines += 1
-            parts = line.strip().split()
-            if len(parts) >= 3 and parts[0] == "element" and parts[1] == "vertex":
+            line = raw.decode("ascii", errors="ignore").strip()
+            parts = line.split()
+            if len(parts) >= 2 and parts[0] == "format":
+                fmt = parts[1]
+            elif len(parts) >= 3 and parts[0] == "element" and parts[1] == "vertex":
                 vertex_count = int(parts[2])
                 in_vertex = True
             elif len(parts) >= 2 and parts[0] == "element":
                 in_vertex = False
             elif in_vertex and len(parts) >= 3 and parts[0] == "property":
+                prop_types.append(parts[1])
                 props.append(parts[-1])
-            elif line.strip() == "end_header":
+            elif line == "end_header":
                 break
-    data = np.loadtxt(path, skiprows=header_lines, dtype=np.float64, max_rows=vertex_count)
-    if data.ndim == 1:
-        data = data.reshape(1, -1)
+
+    if fmt == "ascii":
+        data = np.loadtxt(path, skiprows=header_lines, dtype=np.float64, max_rows=vertex_count)
+        if data.ndim == 1:
+            data = data.reshape(1, -1)
+        return data, props, header_lines
+
+    if fmt != "binary_little_endian":
+        raise ValueError(f"Unsupported PLY format: {fmt}")
+    dtype = np.dtype([(name, PLY_TYPE_MAP[ptype]) for ptype, name in zip(prop_types, props)])
+    with path.open("rb") as f:
+        while f.readline().strip() != b"end_header":
+            pass
+        arr = np.frombuffer(f.read(vertex_count * dtype.itemsize), dtype=dtype, count=vertex_count)
+    data = np.column_stack([arr[name] for name in props]).astype(np.float64)
     return data, props, header_lines
 
 
@@ -136,15 +164,15 @@ def append_object_rows(f, data: np.ndarray, props: list[str], objects: dict[int,
 
 def write_outputs(args: argparse.Namespace) -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    residual, residual_props, _ = read_ascii_ply(args.residual_ply)
+    residual, residual_props, _ = read_ply(args.residual_ply)
     residual_objects = load_objects(args.objects_jsonl)
 
     using_priority_objects = args.priority_objects_ply is not None
     if using_priority_objects:
-        priority, priority_props, _ = read_ascii_ply(args.priority_objects_ply)
+        priority, priority_props, _ = read_ply(args.priority_objects_ply)
         priority_objects = load_objects(args.priority_objects_jsonl)
     else:
-        priority, priority_props, _ = read_ascii_ply(args.priority_ply)
+        priority, priority_props, _ = read_ply(args.priority_ply)
         priority_objects = {}
 
     out_ply = args.output_dir / "full_scene_objects_ascii.ply"
