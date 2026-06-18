@@ -243,3 +243,77 @@ server_parking_priority_s10/guarded_v2_full_reports/guarded_v2_full_summary.loca
 Recommended next step: keep `guarded_v2` as the default priority-mask correction
 candidate, then improve object fusion for large surfaces with a stricter
 plane/normal/height-aware split before label voting.
+
+## Strict Surface Fusion Check
+
+The full guarded_v2 target set was re-fused with `--strict-surface-labels`,
+without rerunning mask refinement, projection, or target generation.
+
+Command effect:
+
+- Blocks `ground/wall/ceiling/building` targets from merging across surface
+  labels through the relaxed parent-class rule.
+- Keeps fine-object labels unchanged.
+- Turns surface vote conflicts into separate objects instead of `ambiguous`
+  objects.
+
+Results:
+
+| metric | guarded_v2 default fusion | guarded_v2 strict surface |
+| --- | ---: | ---: |
+| objects | `3,100` | `3,198` |
+| merge ratio | `0.677` | `0.667` |
+| ambiguous objects | `62` | `0` |
+| stable objects | `1,537` | `1,663` |
+| single-target objects | `1,501` | `1,535` |
+
+Viewer label counts:
+
+| label | default fusion | strict surface | change |
+| --- | ---: | ---: | ---: |
+| ambiguous | `143,754` | `0` | `-143,754` |
+| wall | `498,786` | `569,838` | `+71,052` |
+| ground | `127,949` | `183,693` | `+55,744` |
+| ceiling | `5,719` | `22,677` | `+16,958` |
+| car | `20,491` | `20,491` | `0` |
+| railing | `8,228` | `8,228` | `0` |
+| grass | `98,460` | `98,460` | `0` |
+
+Interpretation:
+
+- `strict_surface` fixes the main remaining fusion artifact: large
+  ground/wall/ceiling targets were being merged into one object and then marked
+  `ambiguous`.
+- It does not change the fine-object mask result, so it preserves the guarded_v2
+  reduction of false `railing` and false `car`.
+- The next remaining risk is not ambiguity but surface over-splitting and
+  geometry-label errors, visible in QA as `ground_has_large_height_span`,
+  `wall_too_flat_low_height`, and `wall_normal_too_up`.
+
+Current recommended review URL:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_guarded_v2_full_s10_strict_surface_rtx5070/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_guarded_v2_full_s10_strict_surface_rtx5070/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5
+```
+
+Strict-surface QA contact sheet:
+
+```text
+server_parking_priority_s10/frame_local_object_qa_guarded_v2_full_s10_strict_surface_rtx5070/frame_local_object_qa_contact.jpg
+```
+
+Local comparison report:
+
+```text
+server_parking_priority_s10/guarded_v2_strict_surface_reports/guarded_v2_strict_surface_compare.local.json
+```
+
+Recommended default for the parking route is now:
+
+```text
+guarded_v2 priority masks -> target geometry refinement -> fuse_targets_to_objects --strict-surface-labels
+```
+
+Next optimization should focus on surface target refinement, especially splitting
+large horizontal/vertical surfaces before fusion so that `wall_too_flat_low_height`
+and `ground_has_large_height_span` are handled earlier.
