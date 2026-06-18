@@ -511,3 +511,45 @@ Candidate default under review:
 ```text
 guarded_v2 priority masks -> target geometry refinement --guard-linear-ground-artifacts -> fuse_targets_to_objects --strict-surface-labels -> refine_target_fusion_objects --geometry-relabel-flat-wall --horizontal-surface-label ground
 ```
+
+## Reproducible Candidate Rebuild
+
+The candidate surface route can now be rebuilt on `scan-rtx5070` with:
+
+```bash
+cd /home/zsh/Work/SCAN/new_route
+scripts/run_rtx5070_parking_candidate_surface_route.sh
+```
+
+The script starts from the validated full guarded_v2 target set:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_targets_guarded_v2_full_s10_geometry_ceiling_rtx5070
+```
+
+It intentionally does not rerun expensive priority segmentation/projection.
+Instead, it rebuilds or reuses these cheap surface-object branches:
+
+- `strict_surface`
+- `strict_surface_object_relabel`
+- `ground_artifact_guard_strict`
+- `ground_guard_object_relabel`
+
+Useful options:
+
+```bash
+CHECK_ONLY=1 scripts/run_rtx5070_parking_candidate_surface_route.sh
+FORCE=1 scripts/run_rtx5070_parking_candidate_surface_route.sh
+```
+
+Primary candidate output:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_guarded_v2_full_s10_ground_guard_object_relabel_rtx5070
+```
+
+Primary comparison report:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/guarded_v2_surface_refinement_all_risk_compare/qa_compare.md
+```
