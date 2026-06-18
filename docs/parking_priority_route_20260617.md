@@ -71,6 +71,12 @@
    - merge script: `scripts/merge_visual_review_into_objects.py`
    - merged full object metadata: `/root/epfs/work_MT20260616-175807/full_scene_objects_s10_full_v2_priority_guarded/full_scene_objects_guarded_visual.jsonl`
    - compatibility note: current `transformers` removed older BERT helpers used by GroundingDINO 0.4, so the runner applies local process-only compatibility patches for `get_head_mask` and `get_extended_attention_mask`.
+12. Run priority-object geometry conflict QA:
+   - script: `scripts/qa_priority_geometry_conflicts.py`
+   - local report: `server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/priority_geometry_conflict_report.json`
+   - local findings: `server_parking_priority_s10/full_scene_objects_s10_full_v2_priority_guarded/priority_geometry_conflicts.jsonl`
+   - result: `65/303` objects flagged, including `8` high-severity objects.
+   - high-severity conflicts account for `7,175,595` points, dominated by overmerged/misclassified priority surfaces rather than residual-object clustering.
 
 ## Current Metrics
 
@@ -210,6 +216,20 @@ GroundingDINO visual review:
   - merged object rows: `23 / 303`
   - not visual reviewed: `280`
 
+Priority geometry conflict QA:
+
+- objects inspected: `303`
+- findings: `65`
+- severity counts:
+  - high: `8`
+  - medium: `57`
+  - ok: `238`
+- high-severity point count: `7,175,595`
+- top high-impact conflict:
+  - object `1200009`, label `wall`, points `5,568,831`
+  - reasons: `wall_has_horizontal_normal`, `wall_high_thickness`
+  - interpretation: the priority segmenter produced a huge mixed/horizontal component under `wall`; this must be split before trusting wall/floor semantics.
+
 ## Review Assets
 
 Local previews:
@@ -306,6 +326,7 @@ Object-level scene-context review:
 - Image evidence shows the current priority layer still has false fine-object positives: some wall seams, ceiling panels, indoor boards, and clutter are labeled as `car` or `railing`. Treat `car/railing` priority objects as candidates until a crop-level detector/reviewer confirms them.
 - Geometry/evidence guard now blocks the clearest false positives from becoming stable car/railing labels. This is deliberately conservative: plausible objects and ambiguous objects are kept for DINO/GroundingDINO/visual review rather than removed.
 - GroundingDINO is useful as a crop-level reviewer, but it should not directly override geometry guard. Contact-sheet inspection still shows some line/structure crops where a weak detector response is plausible but not decisive. Current policy: geometry-rejected stays demoted; visual review metadata is attached for manual/model audit and later threshold tuning.
+- Geometry conflict QA shows the largest remaining error is upstream priority overmerge/misclassification, especially a huge `wall` object with horizontal PCA normal. This cannot be fixed by a crop-level detector alone; the next correction must split/relabel priority surfaces by 3D geometry before object-level semantic review.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
