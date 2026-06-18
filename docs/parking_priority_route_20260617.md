@@ -196,7 +196,7 @@
    - script: `scripts/run_remote_frame_local_priority_targets.sh`
    - purpose: sync the minimal route scripts and launch target build -> object fusion -> viewer export on a remote server with either `tmux` or `nohup` fallback.
    - verified on `scan-train` output above and `scan-vlm` smoke (`0..100`, stride10): `150` targets, `50` objects, viewer export `12,472` points.
-   - `scan-vlm` full stride10 duplicate run was started in background as `frame_local_priority_full_s10_vlm`, writing to `_vlm` suffixed output directories. This gives the second server a reusable copy and validates the route outside `scan-train`.
+   - verified full duplicate on `scan-vlm` as `frame_local_priority_full_s10_vlm`, writing to `_vlm` suffixed output directories. The duplicate matched `scan-train`: `619` frames, `9,707` targets, `2,721` objects, viewer export `919,682` stride10 points, `missing_target_points=0`.
 
 ## Current Metrics
 
