@@ -50,6 +50,12 @@
    - adds height-layer context, parking-scene descriptions, geometry quality flags, downstream routing, and DINO prompt groups.
    - server full output: `/root/epfs/work_MT20260616-175807/full_scene_objects_s10_full_v1/full_scene_objects_enriched.jsonl`
    - DINO/fine-object input: `/root/epfs/work_MT20260616-175807/full_scene_objects_s10_full_v1/dino_review_candidates.jsonl`
+9. Build image evidence for DINO/fine-object review:
+   - script: `scripts/build_object_image_evidence.py`
+   - projects each candidate object back into undistorted frames and writes top-k crop/overlay evidence.
+   - server output: `/root/epfs/work_MT20260616-175807/object_image_evidence_dino_v1`
+   - local summary copy: `server_parking_priority_s10/object_image_evidence_dino_v1`
+   - result: `68/68` DINO candidates have evidence, `204` evidence rows, rank-1 labels `car=32`, `railing=36`.
 
 ## Current Metrics
 
@@ -195,6 +201,9 @@ Local review outputs:
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v1/all_review_candidates.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v1/dino_review_candidates.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v1/scene_context_report.json`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/object_image_evidence_dino_v1/object_image_evidence_report.json`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/object_image_evidence_dino_v1/object_image_evidence.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/object_image_evidence_dino_v1/object_image_evidence_contact.jpg`
 
 Viewer URL:
 
@@ -226,6 +235,7 @@ Object-level scene-context review:
 - Reviewing only class-level priority objects is also insufficient for downstream target reasoning. `cluster_priority_points.py` now gives priority-layer classes object ids, so the next stage can reason over individual car/railing/grass components.
 - Scene-context enrichment gives stable surfaces descriptive roles before any VLM/DINO work: parking-lot ground, upper-level floor/deck, building/indoor wall, vegetation, parked vehicle candidates, guardrail/fence candidates, and residual fine-object candidates.
 - The next DINO-style stage should consume `dino_review_candidates.jsonl` first. It contains only car/railing fine-object candidates, while `all_review_candidates.jsonl` also includes geometry-review surfaces and residual semantic candidates.
+- Image evidence shows the current priority layer still has false fine-object positives: some wall seams, ceiling panels, indoor boards, and clutter are labeled as `car` or `railing`. Treat `car/railing` priority objects as candidates until a crop-level detector/reviewer confirms them.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
