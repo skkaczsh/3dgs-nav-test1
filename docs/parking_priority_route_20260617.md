@@ -540,6 +540,14 @@ Object-level scene-context review:
   - main demotion reasons: horizontal surface fragments, dense/thick railing clusters, broad railing volume, wall-like railing plane
   - changed points from v10: `5,760`
   - final point counts: `floor=307,238`, `wall=334,648`, `ceiling=2,616`, `grass=82,414`, `car=22,863`, `railing=4,606`, `fine_candidate=7,201`, `unknown=153,787`
+- Fine-object QA v11:
+  - script: `scripts/build_fine_object_qa_pack.py`
+  - local QA pack: `server_parking_priority_s10/fine_object_qa_v11`
+  - checked objects: `323`
+  - final labels in QA set: `car=57`, `railing=20`, `fine_candidate=246`
+  - contact sheets: `fine_object_qa_top_crops.jpg`, `fine_object_qa_top_overlays.jpg`
+  - finding: the highest-risk cases are often loose image-evidence boxes over walls, stairs, building panels, or nearby railings. GroundingDINO can confirm something present in the crop without proving that the projected 3D object is that thing.
+  - implication: the next correction should tighten projection evidence with point-overlay coverage, depth/edge continuity, and smaller crop boxes before detector review; it should not be another text-threshold-only detector sweep.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
