@@ -45,6 +45,11 @@
    - local review output: `server_parking_priority_s10/priority_objects_s10_v1`
    - server full output: `/root/epfs/work_MT20260616-175807/priority_objects_s10_full_v1`
    - object ids are assigned per 3D connected component inside each priority class, so `car` and `railing` are visible as independent objects instead of a single class-level pseudo object.
+8. Enrich object metadata with scene context:
+   - script: `scripts/enrich_scene_object_context.py`
+   - adds height-layer context, parking-scene descriptions, geometry quality flags, downstream routing, and DINO prompt groups.
+   - server full output: `/root/epfs/work_MT20260616-175807/full_scene_objects_s10_full_v1/full_scene_objects_enriched.jsonl`
+   - DINO/fine-object input: `/root/epfs/work_MT20260616-175807/full_scene_objects_s10_full_v1/dino_review_candidates.jsonl`
 
 ## Current Metrics
 
@@ -130,6 +135,27 @@ Server full reusable object dataset:
   - car: `32`
   - railing: `36`
 
+Scene-context enrichment:
+
+- server enriched objects: `303`
+- height layers:
+  - `ground_level`: median z `-0.405`, `50` floor objects
+  - `upper_level_1`: median z `11.105`, `19` floor objects
+- scene contexts:
+  - outdoor parking ground / pavement: `52`
+  - upper-level floor / deck: `17`
+  - building / indoor wall: `19`
+  - parking-lot vegetation: `22`
+  - parked vehicle candidates: `32`
+  - guardrail / fence candidates: `36`
+  - residual objects after surface removal: `125`
+- downstream stages:
+  - stable surfaces: `84`
+  - stable context objects: `13`
+  - DINO fine-object review: `68`
+  - fine semantic review: `125`
+  - geometry review: `13`
+
 ## Review Assets
 
 Local previews:
@@ -160,8 +186,15 @@ Local review outputs:
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/priority_objects_s10_v1/priority_objects.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v4_clustered_priority/full_scene_objects_ascii.ply`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v4_clustered_priority/full_scene_objects.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v4_clustered_priority/full_scene_objects_enriched.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v4_clustered_priority/all_review_candidates.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_v4_clustered_priority/dino_review_candidates.jsonl`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v1/full_scene_objects_report.json`
 - `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v1/full_scene_objects.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v1/full_scene_objects_enriched.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v1/all_review_candidates.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v1/dino_review_candidates.jsonl`
+- `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_s10_full_v1/scene_context_report.json`
 
 Viewer URL:
 
@@ -173,6 +206,10 @@ Object-level review:
 
 `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_v4_clustered_priority/full_scene_objects_ascii.ply&objects=/server_parking_priority_s10/full_scene_objects_v4_clustered_priority/full_scene_objects.jsonl&mode=object&stride=1&pointSize=1.5`
 
+Object-level scene-context review:
+
+`http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/full_scene_objects_v4_clustered_priority/full_scene_objects_ascii.ply&objects=/server_parking_priority_s10/full_scene_objects_v4_clustered_priority/full_scene_objects_enriched.jsonl&mode=object&stride=1&pointSize=1.5`
+
 ## Findings
 
 - This route is materially better structured than free clustering over the whole cloud: most stable surfaces and known large classes are removed before residual object clustering.
@@ -182,6 +219,8 @@ Object-level review:
 - The current fix is object-level geometry absorption, not another VLM pass. The remaining review candidates are mostly `other`, `unknown`, or mixed object geometry; high-confidence ground-like fragments are now small (`288` points in the v3 report).
 - Reviewing only `semantic_review_candidates_ascii.ply` is misleading because it intentionally hides priority-layer objects such as cars and railings. Use the unified full-scene view for user QA, and use the candidate-only view only for debugging the next semantic clustering stage.
 - Reviewing only class-level priority objects is also insufficient for downstream target reasoning. `cluster_priority_points.py` now gives priority-layer classes object ids, so the next stage can reason over individual car/railing/grass components.
+- Scene-context enrichment gives stable surfaces descriptive roles before any VLM/DINO work: parking-lot ground, upper-level floor/deck, building/indoor wall, vegetation, parked vehicle candidates, guardrail/fence candidates, and residual fine-object candidates.
+- The next DINO-style stage should consume `dino_review_candidates.jsonl` first. It contains only car/railing fine-object candidates, while `all_review_candidates.jsonl` also includes geometry-review surfaces and residual semantic candidates.
 - The next useful correction is not another free VLM label pass. It is a geometry guard for priority classes:
   - ground should be low horizontal surfaces,
   - wall/building should be near-vertical planar surfaces,
