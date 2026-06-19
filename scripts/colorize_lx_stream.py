@@ -341,6 +341,8 @@ def main():
     parser.add_argument("--sky-upper-ratio", type=float, default=0.72)
     parser.add_argument("--progress-every", type=int, default=50)
     args = parser.parse_args()
+    if args.require_frame_map and args.frame_map_jsonl is None:
+        raise SystemExit("--frame-map-jsonl is required when --require-frame-map is used")
 
     t0 = time.time()
     sections = read_lx_sections(args.lx_file)

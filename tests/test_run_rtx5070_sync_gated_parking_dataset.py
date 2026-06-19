@@ -24,6 +24,10 @@ def test_gated_parking_dataset_uses_frame_map_for_image_and_color_steps():
     assert "--require-frame-map" in text
     assert "scripts/extract_undistorted_frames_jpeg.py" in text
     assert "scripts/colorize_lx_stream.py" in text
+    colorize_pos = text.index("scripts/colorize_lx_stream.py")
+    colorize_block = text[colorize_pos:text.index("if [[ $(quote \"${DO_PRIORITY}\")", colorize_pos)]
+    assert "--frame-map-jsonl $(quote \"${FRAME_MAP}\")" in colorize_block
+    assert "--require-frame-map" in colorize_block
 
 
 def test_gated_parking_dataset_runs_priority_and_safe_route_after_frames():

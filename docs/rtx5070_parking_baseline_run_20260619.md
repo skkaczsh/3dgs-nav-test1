@@ -183,6 +183,11 @@ It writes:
 - `server_parking_priority_s10/sync_gated_parking_status.json`
 - `server_parking_priority_s10/sync_gated_parking_status.md`
 
+The status script resolves the newest
+`/Users/skkac/Downloads/accepted_sync_anchors*.jsonl`, matching
+`scripts/stage_accepted_sync_anchors.py`.  This avoids a stale status report
+when the browser exports files such as `accepted_sync_anchors (1).jsonl`.
+
 The current status is `waiting_for_manual_anchors`, so the next command remains
 `python3 scripts/stage_accepted_sync_anchors.py --force --run-solver` after
 exporting accepted anchors from the review page.
@@ -212,8 +217,11 @@ local JSON report such as
 the remote tmux job.  Set `RUN_PREFLIGHT=0` only for diagnostics.
 
 It then uses `expanded_frame_map.jsonl` with `--require-frame-map` for
-sync-correct frame extraction and optional colorization.  By default it prepares
-the reusable synchronized frames and Mapillary priority masks only:
+sync-correct frame extraction and optional colorization.  The extraction and
+stream colorization scripts now fail fast if `--require-frame-map` is set
+without `--frame-map-jsonl`; production must not silently fall back to
+`frame_id == video_idx` or uniform video timing.  By default it prepares the
+reusable synchronized frames and Mapillary priority masks only:
 
 - `frames_jpeg_sync_absprior_s10`
 - `priority_surface_mapillary_sync_absprior_s10`

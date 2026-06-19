@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import sys
+import time
 from pathlib import Path
 
 
@@ -50,6 +52,28 @@ def test_status_waits_for_manual_anchors_when_none_exist(tmp_path: Path):
 
     assert report["next_action"]["status"] == "waiting_for_manual_anchors"
     assert "stage_accepted_sync_anchors.py" in report["next_action"]["command"]
+
+
+def test_status_discovers_latest_downloaded_anchor_export(tmp_path: Path):
+    module = load_module()
+    a = args(tmp_path)
+    old_export = a.downloads_anchor
+    new_export = old_export.parent / "accepted_sync_anchors (1).jsonl"
+    write_jsonl(old_export, [{"frame_id": 10, "cam_id": 0, "anchor_status": "accepted", "selected_video_idx": 12}])
+    write_jsonl(new_export, [
+        {"frame_id": 10, "cam_id": 0, "anchor_status": "accepted", "selected_video_idx": 12},
+        {"frame_id": 10, "cam_id": 1, "anchor_status": "accepted", "selected_video_idx": 13},
+    ])
+    now = time.time()
+    os.utime(old_export, (now - 10, now - 10))
+    os.utime(new_export, (now, now))
+
+    report = module.build_report(a)
+
+    assert report["downloads"]["path"] == str(new_export)
+    assert report["downloads"]["requested_path"] == str(old_export)
+    assert report["downloads"]["accepted_count"] == 2
+    assert report["next_action"]["status"] == "stage_latest_anchors"
 
 
 def test_status_reports_failed_readiness(tmp_path: Path):

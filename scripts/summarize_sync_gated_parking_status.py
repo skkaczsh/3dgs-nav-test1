@@ -52,6 +52,23 @@ def count_jsonl(path: Path | None) -> dict[str, Any]:
     }
 
 
+def discover_download_anchor(path: Path | None) -> Path | None:
+    """Resolve the latest accepted_sync_anchors export, matching staging behavior."""
+    if path is None:
+        return None
+    if path.is_dir():
+        search_dir = path
+        explicit_anchor = False
+    else:
+        search_dir = path.parent
+        explicit_anchor = path.name.startswith("accepted_sync_anchors")
+    if explicit_anchor or path.is_dir():
+        candidates = sorted(search_dir.glob("accepted_sync_anchors*.jsonl"))
+        if candidates:
+            return max(candidates, key=lambda item: (item.stat().st_mtime, item.name))
+    return path
+
+
 def read_exit_code(path: Path | None) -> dict[str, Any]:
     if path is None:
         return {"exists": False, "path": None, "value": None}
@@ -126,7 +143,10 @@ def derive_next_action(report: dict[str, Any]) -> dict[str, str]:
 
 
 def build_report(args: argparse.Namespace) -> dict[str, Any]:
-    downloads = count_jsonl(args.downloads_anchor)
+    downloads_anchor = discover_download_anchor(args.downloads_anchor)
+    downloads = count_jsonl(downloads_anchor)
+    if downloads_anchor != args.downloads_anchor:
+        downloads["requested_path"] = str(args.downloads_anchor)
     staged = count_jsonl(args.staged_anchor)
     validation = read_json(args.anchor_validation)
     readiness = read_json(args.readiness_json)

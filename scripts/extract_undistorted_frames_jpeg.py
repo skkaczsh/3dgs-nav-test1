@@ -305,6 +305,8 @@ def main() -> None:
     parser.add_argument("--allow-rejected-frame-map", action="store_true",
                         help="Diagnostic only: allow rejected/unstable sync rows instead of failing fast.")
     args = parser.parse_args()
+    if args.sync_mode == "frame-map" and args.require_frame_map and args.frame_map_jsonl is None:
+        raise SystemExit("--frame-map-jsonl is required when --sync-mode frame-map --require-frame-map is used")
 
     if args.end is None:
         poses = config.load_img_pos(args.start, None)

@@ -1,4 +1,5 @@
 import importlib.util
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -70,3 +71,20 @@ def test_extract_cam_uses_explicit_frame_map_without_direct_fallback(tmp_path: P
     assert writes == [(str(tmp_path / "cam0" / "frame_000010.jpg"), 12)]
     assert result["frame_map"][0]["video_idx"] == 12
     assert result["frame_map"][1]["status"] == "missing_frame_map"
+
+
+def test_cli_requires_frame_map_jsonl_when_frame_map_is_required(tmp_path: Path, monkeypatch):
+    module = load_module()
+    monkeypatch.setattr(sys, "argv", [
+        "extract_undistorted_frames_jpeg.py",
+        "--output-dir", str(tmp_path),
+        "--sync-mode", "frame-map",
+        "--require-frame-map",
+    ])
+
+    try:
+        module.main()
+    except SystemExit as exc:
+        assert str(exc) == "--frame-map-jsonl is required when --sync-mode frame-map --require-frame-map is used"
+    else:
+        raise AssertionError("main() should reject missing --frame-map-jsonl")
