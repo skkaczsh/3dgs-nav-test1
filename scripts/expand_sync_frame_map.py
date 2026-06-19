@@ -39,6 +39,7 @@ def cam_model_from_path(
     path_rows: list[dict[str, Any]],
     solver_report: dict[str, Any],
     cam_id: int,
+    allow_rejected_solver: bool = False,
 ) -> dict[str, float]:
     cam_rows = [row for row in path_rows if int(row["cam_id"]) == int(cam_id)]
     if not cam_rows:
@@ -46,7 +47,7 @@ def cam_model_from_path(
     cam_report = solver_report.get("cam_reports", {}).get(str(cam_id))
     if not cam_report:
         raise ValueError(f"solver report missing cam{cam_id}")
-    if not bool(cam_report.get("accepted")):
+    if not bool(cam_report.get("accepted")) and not allow_rejected_solver:
         raise ValueError(f"cam{cam_id} solver report is not accepted")
     timestamps = [float(row["sync_timestamp"]) for row in cam_rows if row.get("sync_timestamp") is not None]
     if not timestamps:
@@ -83,7 +84,10 @@ def build_rows(args: argparse.Namespace) -> tuple[list[dict[str, Any]], dict[str
     if missing:
         raise ValueError(f"img_pos timestamps missing for frame ids: {missing[:10]}")
 
-    models = {cam_id: cam_model_from_path(path_rows, solver_report, cam_id) for cam_id in cams}
+    models = {
+        cam_id: cam_model_from_path(path_rows, solver_report, cam_id, args.allow_rejected_solver)
+        for cam_id in cams
+    }
     rows: list[dict[str, Any]] = []
     clipped = 0
     for frame_id in frames:

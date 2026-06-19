@@ -104,3 +104,14 @@ def test_rejects_unaccepted_solver_by_default(tmp_path: Path):
 
     with pytest.raises(ValueError, match="not accepted"):
         module.build_rows(args)
+
+
+def test_can_expand_rejected_solver_for_diagnostics(tmp_path: Path):
+    module = load_module()
+    args = make_args(tmp_path, status="rejected")
+    args.allow_rejected_solver = True
+
+    rows, report = module.build_rows(args)
+
+    assert report["row_count"] == 3
+    assert [row["video_idx"] for row in rows] == [100, 106, 112]
