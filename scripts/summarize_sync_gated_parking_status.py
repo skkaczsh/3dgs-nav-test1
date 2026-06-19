@@ -88,6 +88,7 @@ def nested(data: dict[str, Any], *keys: str, default: Any = None) -> Any:
 
 
 def derive_next_action(report: dict[str, Any]) -> dict[str, str]:
+    review = report["review"]
     downloads = report["downloads"]
     staged = report["staged_anchors"]
     validation = report["anchor_validation"]
@@ -96,6 +97,11 @@ def derive_next_action(report: dict[str, Any]) -> dict[str, str]:
     preflight = report["preflight"]
     production = report["production_outputs"]
 
+    if not review["exists"]:
+        return {
+            "status": "missing_sync_review_page",
+            "command": "Regenerate the sync anchor review pack before manual anchor export.",
+        }
     if not downloads["exists"] and not staged["exists"]:
         return {
             "status": "waiting_for_manual_anchors",
@@ -143,6 +149,11 @@ def derive_next_action(report: dict[str, Any]) -> dict[str, str]:
 
 
 def build_report(args: argparse.Namespace) -> dict[str, Any]:
+    review = {
+        "exists": bool(args.review_path and args.review_path.exists()),
+        "path": str(args.review_path) if args.review_path else None,
+        "url": args.review_url,
+    }
     downloads_anchor = discover_download_anchor(args.downloads_anchor)
     downloads = count_jsonl(downloads_anchor)
     if downloads_anchor != args.downloads_anchor:
@@ -160,6 +171,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "review_url": args.review_url,
+        "review": review,
         "downloads": downloads,
         "staged_anchors": staged,
         "anchor_validation": validation,
@@ -186,6 +198,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- next status: `{next_action['status']}`",
         f"- next command: `{next_action['command']}`",
         f"- review URL: `{report['review_url']}`",
+        f"- review exists: `{nested(report, 'review', 'exists')}` path `{nested(report, 'review', 'path')}`",
         "",
         "## Anchors",
         "",
@@ -226,6 +239,7 @@ def main() -> None:
     parser.add_argument("--frames-summary", type=Path, default=base / "frames_jpeg_sync_absprior_s10" / "extract_report.json")
     parser.add_argument("--priority-summary", type=Path, default=base / "priority_surface_mapillary_sync_absprior_s10" / "priority_segmentation_summary.json")
     parser.add_argument("--review-url", default=f"http://127.0.0.1:8765/server_parking_priority_s10/{default_review}/anchor_review_priority.html")
+    parser.add_argument("--review-path", type=Path, default=base / default_review / "anchor_review_priority.html")
     parser.add_argument("--output-json", type=Path, default=base / "sync_gated_parking_status.json")
     parser.add_argument("--output-md", type=Path, default=base / "sync_gated_parking_status.md")
     args = parser.parse_args()

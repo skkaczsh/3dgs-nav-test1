@@ -42,21 +42,36 @@ def args(tmp_path: Path) -> argparse.Namespace:
         frames_summary=tmp_path / "frames" / "extract_report.json",
         priority_summary=tmp_path / "priority" / "priority_segmentation_summary.json",
         review_url="http://review",
+        review_path=tmp_path / "review" / "anchor_review_priority.html",
     )
 
 
 def test_status_waits_for_manual_anchors_when_none_exist(tmp_path: Path):
     module = load_module()
+    a = args(tmp_path)
+    a.review_path.parent.mkdir(parents=True, exist_ok=True)
+    a.review_path.write_text("<html></html>", encoding="utf-8")
 
-    report = module.build_report(args(tmp_path))
+    report = module.build_report(a)
 
     assert report["next_action"]["status"] == "waiting_for_manual_anchors"
     assert "stage_accepted_sync_anchors.py" in report["next_action"]["command"]
 
 
+def test_status_reports_missing_review_page_before_anchor_wait(tmp_path: Path):
+    module = load_module()
+
+    report = module.build_report(args(tmp_path))
+
+    assert report["next_action"]["status"] == "missing_sync_review_page"
+    assert report["review"]["exists"] is False
+
+
 def test_status_discovers_latest_downloaded_anchor_export(tmp_path: Path):
     module = load_module()
     a = args(tmp_path)
+    a.review_path.parent.mkdir(parents=True, exist_ok=True)
+    a.review_path.write_text("<html></html>", encoding="utf-8")
     old_export = a.downloads_anchor
     new_export = old_export.parent / "accepted_sync_anchors (1).jsonl"
     write_jsonl(old_export, [{"frame_id": 10, "cam_id": 0, "anchor_status": "accepted", "selected_video_idx": 12}])
@@ -79,6 +94,8 @@ def test_status_discovers_latest_downloaded_anchor_export(tmp_path: Path):
 def test_status_reports_failed_readiness(tmp_path: Path):
     module = load_module()
     a = args(tmp_path)
+    a.review_path.parent.mkdir(parents=True, exist_ok=True)
+    a.review_path.write_text("<html></html>", encoding="utf-8")
     write_jsonl(a.staged_anchor, [{"frame_id": 10, "cam_id": 0, "anchor_status": "accepted", "selected_video_idx": 12}])
     write_json(a.anchor_validation, {"passed": True})
     a.readiness_exit.parent.mkdir(parents=True, exist_ok=True)
@@ -94,6 +111,8 @@ def test_status_reports_failed_readiness(tmp_path: Path):
 def test_status_ready_for_dataset_build_after_sync_gate(tmp_path: Path):
     module = load_module()
     a = args(tmp_path)
+    a.review_path.parent.mkdir(parents=True, exist_ok=True)
+    a.review_path.write_text("<html></html>", encoding="utf-8")
     write_jsonl(a.staged_anchor, [{"frame_id": 10, "cam_id": 0, "anchor_status": "accepted", "selected_video_idx": 12}])
     write_json(a.anchor_validation, {"passed": True})
     a.readiness_exit.parent.mkdir(parents=True, exist_ok=True)
