@@ -395,6 +395,7 @@ def fill_first_touch_holes(
     depth_range_threshold: float,
     min_neighbors: int,
     min_mean_depth: float = 0.0,
+    candidate_mask: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Fill small holes inside the accepted first-touch surface layer.
 
@@ -421,6 +422,8 @@ def fill_first_touch_holes(
     )
     if min_mean_depth > 0:
         fill &= mean_depth >= float(min_mean_depth)
+    if candidate_mask is not None:
+        fill &= candidate_mask
     if not np.any(fill):
         return depth, valid, fill
     filled_depth = depth.copy()
@@ -442,6 +445,7 @@ def splat_visible_surface(
     far_depth_start: float,
     far_radius: int,
     far_color_lab_threshold: float,
+    candidate_mask: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Expand accepted first-touch samples into adjacent image pixels.
 
@@ -483,6 +487,8 @@ def splat_visible_surface(
         dst_yx = (slice(y_dst0, y_dst1), slice(x_dst0, x_dst1))
         src_valid = base_valid[src_yx]
         dst_empty = ~out_valid[dst_yx]
+        if candidate_mask is not None:
+            dst_empty = dst_empty & candidate_mask[dst_yx]
         if not np.any(src_valid & dst_empty):
             continue
         src_depth = depth[src_yx]
@@ -514,6 +520,27 @@ def splat_visible_surface(
         dst_valid[take] = True
         dst_filled[take] = True
     return out_depth, out_point_index, out_semantic, out_rgb, out_valid, filled
+
+
+def build_expansion_candidate_mask(image_bgr: np.ndarray, max_upper_ratio: float, sky_blue_guard: bool) -> np.ndarray:
+    """Pixels eligible for synthetic surface expansion.
+
+    Real first-touch samples are never removed here.  This only constrains
+    splat/fill expansion so sparse depth cannot grow into sky-heavy regions.
+    """
+    h, w = image_bgr.shape[:2]
+    mask = np.ones((h, w), dtype=bool)
+    if max_upper_ratio > 0:
+        top = int(round(h * max_upper_ratio))
+        if top > 0:
+            mask[:top, :] = False
+    if sky_blue_guard:
+        b = image_bgr[:, :, 0].astype(np.int16)
+        g = image_bgr[:, :, 1].astype(np.int16)
+        r = image_bgr[:, :, 2].astype(np.int16)
+        blue_sky = (b > 90) & (b > r + 18) & (g > r + 8)
+        mask &= ~blue_sky
+    return mask
 
 
 def depth_to_viz(depth: np.ndarray, valid: np.ndarray) -> np.ndarray:
@@ -617,6 +644,11 @@ def project_one_camera(
         semantic[rejected] = 0
         rendered_rgb[rejected] = 0
         valid_map[rejected] = 0
+    expansion_candidate = build_expansion_candidate_mask(
+        image,
+        args.view_surface_expand_block_upper_ratio,
+        args.view_surface_expand_sky_blue_guard,
+    )
     valid_bool = valid_map > 0
     depth, local_point_index, semantic, rendered_rgb, splat_valid, splatted_surface = splat_visible_surface(
         depth,
@@ -630,6 +662,7 @@ def project_one_camera(
         args.view_surface_far_depth_start,
         args.view_surface_far_splat_radius,
         args.view_surface_far_splat_color_lab_threshold,
+        expansion_candidate,
     )
     if np.any(splatted_surface):
         valid_map[splatted_surface] = 255
@@ -640,6 +673,8 @@ def project_one_camera(
         args.view_surface_fill_radius,
         args.view_surface_fill_depth_range,
         args.view_surface_fill_min_neighbors,
+        0.0,
+        expansion_candidate,
     )
     if np.any(filled_surface):
         valid_map[filled_surface] = 255
@@ -650,6 +685,7 @@ def project_one_camera(
         args.view_surface_far_fill_depth_range,
         args.view_surface_far_fill_min_neighbors,
         args.view_surface_far_depth_start,
+        expansion_candidate,
     )
     if np.any(far_filled_surface):
         valid_map[far_filled_surface] = 255
@@ -746,15 +782,18 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--view-surface-min-neighbors", type=int, default=8)
     parser.add_argument("--view-surface-splat-radius", type=int, default=1)
     parser.add_argument("--view-surface-splat-color-lab-threshold", type=float, default=18.0)
-    parser.add_argument("--view-surface-far-depth-start", type=float, default=18.0)
-    parser.add_argument("--view-surface-far-splat-radius", type=int, default=2)
-    parser.add_argument("--view-surface-far-splat-color-lab-threshold", type=float, default=24.0)
+    parser.add_argument("--view-surface-far-depth-start", type=float, default=0.0,
+                        help="Enable diagnostic far-distance relaxation from this depth. Production default 0 disables it.")
+    parser.add_argument("--view-surface-far-splat-radius", type=int, default=1)
+    parser.add_argument("--view-surface-far-splat-color-lab-threshold", type=float, default=18.0)
     parser.add_argument("--view-surface-fill-radius", type=int, default=3)
     parser.add_argument("--view-surface-fill-depth-range", type=float, default=0.10)
     parser.add_argument("--view-surface-fill-min-neighbors", type=int, default=6)
-    parser.add_argument("--view-surface-far-fill-radius", type=int, default=5)
-    parser.add_argument("--view-surface-far-fill-depth-range", type=float, default=0.25)
+    parser.add_argument("--view-surface-far-fill-radius", type=int, default=0)
+    parser.add_argument("--view-surface-far-fill-depth-range", type=float, default=0.10)
     parser.add_argument("--view-surface-far-fill-min-neighbors", type=int, default=8)
+    parser.add_argument("--view-surface-expand-block-upper-ratio", type=float, default=0.18)
+    parser.add_argument("--view-surface-expand-sky-blue-guard", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--edge-depth-threshold", type=float, default=0.35)
     parser.add_argument("--color-edge-lab-threshold", type=float, default=16.0)
     parser.add_argument("--mark-invalid-boundary", action="store_true")
@@ -946,6 +985,8 @@ def main() -> None:
         "view_surface_far_fill_radius": args.view_surface_far_fill_radius,
         "view_surface_far_fill_depth_range": args.view_surface_far_fill_depth_range,
         "view_surface_far_fill_min_neighbors": args.view_surface_far_fill_min_neighbors,
+        "view_surface_expand_block_upper_ratio": args.view_surface_expand_block_upper_ratio,
+        "view_surface_expand_sky_blue_guard": args.view_surface_expand_sky_blue_guard,
         "image_count": len(rows),
         "status_counts": dict(status_counts),
         "elapsed_sec": time.time() - t0,
