@@ -2935,3 +2935,60 @@ Interpretation:
   plausible but unsupported mapping.
 - Next step remains: recover authoritative camera timing or add manual anchors
   plus visual QA to constrain the optimizer.
+
+## Manual Sync Anchor Review Pack
+
+Date: 2026-06-19
+
+Reusable review-pack script added:
+
+```text
+scripts/build_sync_anchor_review_pack.py
+```
+
+Purpose:
+
+- consume sync candidates and optional smooth path;
+- for every `(section_id, cam_id)` probe, render deduplicated choices:
+  `direct`, `independent_best`, `smooth_path`, and top score candidates;
+- output a human-fillable `manual_anchor_manifest.jsonl`;
+- output one contact sheet for fast visual review.
+
+5070Ti command:
+
+```bash
+export SCAN_IMAGE_DIR=/home/zsh/Work/SCAN/datasets/MT20260616-175807/image
+export SCAN_VIDEO_DIR=/home/zsh/Work/SCAN/datasets/MT20260616-175807/image
+export PYTHONPATH=$PWD/scripts
+
+/home/zsh/Work/SCAN/.venvs/scan-semantic/bin/python \
+  scripts/build_sync_anchor_review_pack.py \
+  --lx-file /home/zsh/Work/SCAN/datasets/MT20260616-175807/MANIFOLD_MT20260616-175807.lx \
+  --candidates-jsonl /home/zsh/Work/SCAN/work_MT20260616-175807/tmp_sync_review_inputs/sync_candidates.jsonl \
+  --smooth-path-jsonl /home/zsh/Work/SCAN/work_MT20260616-175807/tmp_sync_review_inputs/sync_smooth_paths.jsonl \
+  --output-dir /home/zsh/Work/SCAN/work_MT20260616-175807/sync_anchor_review_small_20260619 \
+  --top-n 4 \
+  --sheet-cols 4
+```
+
+Mirrored local QA:
+
+```text
+server_parking_priority_s10/sync_anchor_review_small_20260619/manual_anchor_review_sheet.jpg
+server_parking_priority_s10/sync_anchor_review_small_20260619/manual_anchor_manifest.jsonl
+server_parking_priority_s10/sync_anchor_review_small_20260619/manual_anchor_review_report.json
+```
+
+Result:
+
+- probe count: `27`
+- rendered candidate panels: `152`
+- manifest rows: `27`
+
+Next use:
+
+- Review the sheet and fill reliable rows in `manual_anchor_manifest.jsonl`:
+  set `anchor_status` to `accepted`, set `selected_option_idx` and
+  `selected_video_idx`, and leave uncertain rows as `unreviewed`.
+- The next optimizer should use accepted anchors as hard or high-weight
+  constraints, not as another soft score.
