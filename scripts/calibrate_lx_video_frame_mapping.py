@@ -291,6 +291,42 @@ def fit_affine_mapping(
     }
 
 
+def annotate_direct_rank(candidate_rows: list[dict[str, Any]], best_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    by_probe: dict[tuple[int, int], list[dict[str, Any]]] = {}
+    for row in candidate_rows:
+        by_probe.setdefault((int(row["frame_id"]), int(row["cam_id"])), []).append(row)
+    ranks = []
+    for key, rows in by_probe.items():
+        rows.sort(key=lambda row: float(row["score"]), reverse=True)
+        direct_rank = None
+        direct_score = None
+        direct_video_idx = None
+        for i, row in enumerate(rows, start=1):
+            if int(row["offset"]) == 0:
+                direct_rank = i
+                direct_score = float(row["score"])
+                direct_video_idx = int(row["video_idx"])
+                break
+        for best in best_rows:
+            if (int(best["frame_id"]), int(best["cam_id"])) == key:
+                best["direct_rank"] = direct_rank
+                best["direct_score"] = direct_score
+                best["direct_video_idx"] = direct_video_idx
+                if direct_rank is not None:
+                    ranks.append(int(direct_rank))
+                break
+    if not ranks:
+        return {"count": 0}
+    values = np.asarray(ranks, dtype=np.float64)
+    return {
+        "count": int(len(ranks)),
+        "min": int(np.min(values)),
+        "p50": float(np.percentile(values, 50)),
+        "mean": float(np.mean(values)),
+        "max": int(np.max(values)),
+    }
+
+
 def write_sheet(panels: list[np.ndarray], output: Path, cols: int) -> None:
     if not panels:
         return
@@ -381,6 +417,7 @@ def main() -> None:
             args.max_fit_abs_residual,
             args.min_fit_samples,
         )
+    direct_rank_summary = annotate_direct_rank(candidate_rows, best_rows)
     all_accepted = bool(fit_by_cam) and all(item.get("accepted") for item in fit_by_cam.values())
     report = {
         "status": "accepted" if all_accepted else "rejected",
@@ -395,6 +432,7 @@ def main() -> None:
         "fit_by_cam": fit_by_cam,
         "candidate_count": len(candidate_rows),
         "best_count": len(best_rows),
+        "direct_rank_summary": direct_rank_summary,
     }
 
     with (args.output_dir / "sync_candidates.jsonl").open("w", encoding="utf-8") as f:

@@ -2799,6 +2799,11 @@ Result:
 - status: `rejected`
 - candidates: `594`
 - best rows: `27`
+- direct-index rank among candidates:
+  - count: `27`
+  - median rank: `12`
+  - mean rank: `11.63`
+  - max rank: `23`
 - per-camera affine fit:
   - cam0: `rmse=674.64`, `max_abs_residual=1212.22`,
     `slope=1.2056`, `intercept=-1010.0`
@@ -2820,3 +2825,62 @@ Interpretation:
     metadata, or
   - build a stronger visual-LiDAR synchronization optimizer with temporal
     smoothness and manual anchor support.
+
+## Raw Timing Source Audit
+
+Date: 2026-06-19
+
+Reusable audit script added:
+
+```text
+scripts/audit_dataset_timing_sources.py
+```
+
+5070Ti command:
+
+```bash
+export SCAN_IMAGE_DIR=/home/zsh/Work/SCAN/datasets/MT20260616-175807/image
+export SCAN_VIDEO_DIR=/home/zsh/Work/SCAN/datasets/MT20260616-175807/image
+export PYTHONPATH=$PWD/scripts
+
+/home/zsh/Work/SCAN/.venvs/scan-semantic/bin/python \
+  scripts/audit_dataset_timing_sources.py \
+  --lx-file /home/zsh/Work/SCAN/datasets/MT20260616-175807/MANIFOLD_MT20260616-175807.lx \
+  --output-dir /home/zsh/Work/SCAN/work_MT20260616-175807/timing_sources_audit_20260619
+```
+
+Mirrored local QA:
+
+```text
+server_parking_priority_s10/timing_sources_audit_20260619/timing_sources_report.json
+server_parking_priority_s10/timing_sources_audit_20260619/lx_headers_sample.jsonl
+```
+
+Findings:
+
+- `.lx` sections: `6,181`
+- `img_pos` rows: `6,181`
+- each camera MKV frames: `6,181`, `fps=10`, duration by frame count `618.1s`
+- `.lx` header pose matches `img_pos`:
+  - position error max: `2.63e-6m`
+  - quaternion error max: `4.32e-8`
+  - header `uint8` matches `frame_id`: `100%`
+- `.lx` header `uint9` correlates with `img_pos.timestamp` and appears to be
+  a device tick counter around `2^22 ticks/sec`.
+- `img_pos.timestamp` span: `835.32s`
+- `img_pos` adjacent interval:
+  - median: `0.100016s`
+  - mean: `0.135166s`
+  - max: `2.000313s`
+  - intervals `>0.15s`: `1,507`
+  - intervals `>0.5s`: `63`
+
+Interpretation:
+
+- `.lx` and `img_pos` are internally consistent; the pose source is not the
+  cause of the mismatch.
+- The camera videos are fixed 10fps streams with continuous PTS, while
+  `img_pos/.lx` device time contains many long gaps.  The current route has no
+  authoritative mapping from device-time sections to compressed video frames.
+- Continue to block production semantic projection until this mapping is
+  recovered or calibrated with stronger temporal constraints.

@@ -48,3 +48,18 @@ def test_fit_affine_mapping_rejects_unstable_best_offsets():
 def test_parse_int_range_supports_lists_and_ranges():
     module = load_module()
     assert module.parse_int_range("-4:4:4,10") == [-4, 0, 4, 10]
+
+
+def test_annotate_direct_rank_adds_summary_and_best_fields():
+    module = load_module()
+    candidates = [
+        {"frame_id": 10, "cam_id": 0, "offset": -1, "video_idx": 9, "score": 0.9},
+        {"frame_id": 10, "cam_id": 0, "offset": 0, "video_idx": 10, "score": 0.5},
+        {"frame_id": 10, "cam_id": 0, "offset": 1, "video_idx": 11, "score": 0.7},
+    ]
+    best = [{"frame_id": 10, "cam_id": 0, "offset": -1, "video_idx": 9, "score": 0.9}]
+    summary = module.annotate_direct_rank(candidates, best)
+    assert summary["count"] == 1
+    assert summary["p50"] == 3.0
+    assert best[0]["direct_rank"] == 3
+    assert best[0]["direct_score"] == 0.5
