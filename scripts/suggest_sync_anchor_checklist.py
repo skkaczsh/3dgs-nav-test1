@@ -130,6 +130,17 @@ def public_row(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def diagnostic_anchor_row(row: dict[str, Any]) -> dict[str, Any]:
+    option = recommended_option(row) or {}
+    out = dict(row)
+    out["anchor_status"] = "accepted"
+    out["selected_option_idx"] = option.get("option_idx")
+    out["selected_video_idx"] = option.get("video_idx")
+    out["diagnostic_only"] = True
+    out["notes"] = "diagnostic suggestion from suggest_sync_anchor_checklist.py; inspect manually before staging"
+    return out
+
+
 def render_markdown(rows: list[dict[str, Any]], review_url: str | None) -> str:
     lines = [
         "# Sync Anchor Checklist",
@@ -156,12 +167,18 @@ def render_markdown(rows: list[dict[str, Any]], review_url: str | None) -> str:
 
 def build(args: argparse.Namespace) -> dict[str, Any]:
     rows = read_jsonl(args.review_jsonl)
-    selected = [public_row(row) for row in select_rows(rows, args.per_cam, args.bins)]
+    selected_full = select_rows(rows, args.per_cam, args.bins)
+    selected = [public_row(row) for row in selected_full]
     args.output_jsonl.parent.mkdir(parents=True, exist_ok=True)
     with args.output_jsonl.open("w", encoding="utf-8") as f:
         for row in selected:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
     args.output_md.write_text(render_markdown(selected, args.review_url), encoding="utf-8")
+    if args.diagnostic_accepted_jsonl:
+        args.diagnostic_accepted_jsonl.parent.mkdir(parents=True, exist_ok=True)
+        with args.diagnostic_accepted_jsonl.open("w", encoding="utf-8") as f:
+            for row in selected_full:
+                f.write(json.dumps(diagnostic_anchor_row(row), ensure_ascii=False) + "\n")
     by_cam: dict[str, int] = {}
     for row in selected:
         cam = str(row["cam_id"])
@@ -175,6 +192,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         "per_cam": int(args.per_cam),
         "bins": int(args.bins),
         "review_url": args.review_url,
+        "diagnostic_accepted_jsonl": str(args.diagnostic_accepted_jsonl) if args.diagnostic_accepted_jsonl else None,
     }
 
 
@@ -186,6 +204,8 @@ def main() -> None:
     parser.add_argument("--per-cam", type=int, default=3)
     parser.add_argument("--bins", type=int, default=3)
     parser.add_argument("--review-url", default="")
+    parser.add_argument("--diagnostic-accepted-jsonl", type=Path,
+                        help="Optional diagnostic-only accepted-anchor JSONL for validator prechecks. Do not stage directly.")
     args = parser.parse_args()
     print(json.dumps(build(args), ensure_ascii=False, indent=2))
 

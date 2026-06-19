@@ -135,6 +135,7 @@ python3 scripts/suggest_sync_anchor_checklist.py \
   --review-jsonl server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/anchor_review_priority_batch.jsonl \
   --output-jsonl server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/suggested_anchor_checklist.jsonl \
   --output-md server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/suggested_anchor_checklist.md \
+  --diagnostic-accepted-jsonl server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/diagnostic_suggested_anchors_DO_NOT_STAGE.jsonl \
   --per-cam 3 \
   --bins 3 \
   --review-url http://127.0.0.1:8765/server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/anchor_review_priority.html
@@ -142,7 +143,22 @@ python3 scripts/suggest_sync_anchor_checklist.py \
 
 This checklist is only a manual review aid.  It must not be staged directly as
 accepted anchors; inspect the corresponding rows in the review page and export
-from the page after accepting them.
+from the page after accepting them.  The optional
+`diagnostic_suggested_anchors_DO_NOT_STAGE.jsonl` is intentionally named to
+prevent accidental staging; it is only for local validator prechecks.
+
+The current 9-row diagnostic suggestion passes local timing validation with
+`phase=1.0` and `expected_fps=6.0`:
+
+- accepted anchors: `3` per camera
+- negative video steps: `0`
+- implied fps ranges:
+  - cam0: `5.9597..6.0079`
+  - cam1: `5.8978..5.9597`
+  - cam2: `5.8420..5.9597`
+
+This makes it a reasonable human-review starting point, not a production truth
+source.
 
 This discovers the newest `/Users/skkac/Downloads/accepted_sync_anchors*.jsonl`,
 validates it, stages it to the current review directory, and runs
