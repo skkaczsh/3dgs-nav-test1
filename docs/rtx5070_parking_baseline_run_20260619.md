@@ -1187,3 +1187,82 @@ Current read:
   especially `wall_too_flat` and `ground_large_z_span`.
 - Next optimization should target surface-plane partition and wall/ground/ceiling
   geometry rules, not VLM relabeling.
+
+## Surface Target Repair Probe
+
+Date: 2026-06-19
+
+New script:
+
+```text
+scripts/repair_surface_target_labels.py
+```
+
+Purpose:
+
+- JSONL-only repair after fine fragment cleanup and before object fusion
+- fix only geometry-obvious surface contradictions
+- keep target provenance with `raw_label`, `surface_repaired_from_label`, and
+  `surface_repair_reason`
+
+Input:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_targets_guarded_v3_full_s10_fine_surface_guard_absorbed_demote_rtx5070/frame_targets_absorbed.jsonl
+```
+
+Output:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_targets_guarded_v3_full_s10_absorbed_demote_surface_repair_rtx5070
+```
+
+Surface repair summary:
+
+- repaired targets: `83`
+- label flows: `wall->ground=47`, `wall->ceiling=28`, `ceiling->wall=8`
+- target conflict findings after repair: `306`
+- previous cleanup-only target conflict findings: `381`
+
+Remaining conflict labels:
+
+```text
+wall=246
+ground=50
+railing=5
+car=4
+ceiling=1
+```
+
+Viewer candidate:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_guarded_v3_full_s10_absorbed_demote_surface_repair_rtx5070
+```
+
+Local viewer URL:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_absorbed_demote_surface_repair_rtx5070/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_absorbed_demote_surface_repair_rtx5070/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5
+```
+
+Viewer export label counts:
+
+```text
+ground=136956
+ambiguous=135974
+wall=500737
+unknown=3666
+grass=98466
+car=17668
+ceiling=2232
+railing=7085
+other=344
+```
+
+Current read:
+
+- This is a measurable but smaller win than fine fragment demotion.
+- The easy horizontal-wall errors are partly fixed.
+- The remaining surface issue likely needs true plane/component splitting for
+  mixed large targets, not only whole-target relabeling.
