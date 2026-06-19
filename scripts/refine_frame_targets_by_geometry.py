@@ -116,6 +116,11 @@ def refined_label(label: str, points: np.ndarray, args: argparse.Namespace) -> t
         elif broad:
             reasons.append("split_broad_railing")
     elif label == "car":
+        car_max_centroid_z = getattr(args, "car_max_centroid_z", None)
+        if car_max_centroid_z is not None and float(points[:, 2].mean()) > float(car_max_centroid_z):
+            out = "unknown"
+            reasons.append("high_car_to_unknown")
+            return out, reasons
         if planarity >= args.surface_planarity and linearity <= args.car_surface_max_linearity:
             out = surface_label_from_normal(pca["normal"])
             reasons.append("planar_car_to_surface")
@@ -375,6 +380,12 @@ def main() -> None:
     parser.add_argument("--railing-min-linearity", type=float, default=0.45)
     parser.add_argument("--railing-max-extent", type=float, default=6.0)
     parser.add_argument("--car-max-extent", type=float, default=8.0)
+    parser.add_argument(
+        "--car-max-centroid-z",
+        type=float,
+        default=None,
+        help="Optional scene prior: demote car targets above this centroid z to unknown.",
+    )
     parser.add_argument("--car-surface-max-linearity", type=float, default=0.20)
     parser.add_argument("--ground-min-normal-z", type=float, default=0.55)
     parser.add_argument("--guard-linear-ground-artifacts", action="store_true")

@@ -55,6 +55,19 @@ def test_select_candidates_orders_by_risk_score():
     assert "railing_extent_too_large" in candidates[0]["risk_reasons"]
 
 
+def test_select_candidates_force_includes_low_risk_object_past_limit():
+    module = load_module()
+    objects = [
+        {"object_id": "obj_high", "semantic_label": "ambiguous", "status": "ambiguous_object", "target_count": 2, "point_count": 100, "label_votes": {"wall": 50, "ground": 50}},
+        {"object_id": "obj_forced", "semantic_label": "wall", "status": "stable", "target_count": 2, "point_count": 10, "label_votes": {"wall": 10}},
+    ]
+
+    candidates = module.select_candidates(objects, limit=1, include_object_ids={"obj_forced"})
+
+    assert [row["object_id"] for row in candidates] == ["obj_high", "obj_forced"]
+    assert candidates[1]["forced_review"] is True
+
+
 def test_pick_evidence_targets_uses_largest_targets_first():
     module = load_module()
     candidate = {"targets": ["t1", "t2", "missing"]}

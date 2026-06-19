@@ -104,11 +104,18 @@ def object_risk(obj: dict[str, Any]) -> tuple[float, list[str]]:
     return score, reasons
 
 
-def select_candidates(objects: list[dict[str, Any]], limit: int | None = None) -> list[dict[str, Any]]:
+def select_candidates(
+    objects: list[dict[str, Any]],
+    limit: int | None = None,
+    include_object_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    include_object_ids = include_object_ids or set()
     candidates = []
     for obj in objects:
         score, reasons = object_risk(obj)
-        if score <= 0:
+        object_id = str(obj.get("object_id"))
+        forced = object_id in include_object_ids
+        if score <= 0 and not forced:
             continue
         row = {
             "object_id": obj.get("object_id"),
@@ -116,6 +123,7 @@ def select_candidates(objects: list[dict[str, Any]], limit: int | None = None) -
             "status": obj.get("status"),
             "risk_score": round(float(score), 3),
             "risk_reasons": reasons,
+            "forced_review": forced,
             "target_count": obj.get("target_count"),
             "point_count": obj.get("point_count"),
             "frames": obj.get("frames"),
@@ -130,7 +138,15 @@ def select_candidates(objects: list[dict[str, Any]], limit: int | None = None) -
         }
         candidates.append(row)
     candidates.sort(key=lambda r: (-float(r["risk_score"]), -int(r.get("point_count") or 0), str(r["object_id"])))
-    return candidates if limit is None else candidates[:limit]
+    if limit is None:
+        return candidates
+    selected = candidates[:limit]
+    selected_ids = {str(row.get("object_id")) for row in selected}
+    forced_tail = [
+        row for row in candidates[limit:]
+        if str(row.get("object_id")) in include_object_ids and str(row.get("object_id")) not in selected_ids
+    ]
+    return selected + forced_tail
 
 
 def target_map(targets: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -280,6 +296,12 @@ def main() -> None:
     parser.add_argument("--workdir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--candidate-limit", type=int, default=120)
+    parser.add_argument(
+        "--object-id",
+        action="append",
+        default=[],
+        help="Force include a viewer object id in the QA pack. Can be repeated.",
+    )
     parser.add_argument("--evidence-per-object", type=int, default=3)
     parser.add_argument("--crop-margin", type=int, default=48)
     parser.add_argument("--mask-overlay-alpha", type=float, default=0.35)
@@ -290,8 +312,9 @@ def main() -> None:
     objects = read_jsonl(args.objects_jsonl)
     targets = read_jsonl(args.targets_jsonl)
     targets_by_id = target_map(targets)
-    all_candidates = select_candidates(objects)
-    candidates = all_candidates[: args.candidate_limit]
+    include_object_ids = {str(value) for value in args.object_id}
+    all_candidates = select_candidates(objects, include_object_ids=include_object_ids)
+    candidates = select_candidates(objects, limit=args.candidate_limit, include_object_ids=include_object_ids)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     candidates_path = args.output_dir / "frame_local_object_qa_candidates.jsonl"
@@ -333,6 +356,7 @@ def main() -> None:
     report.update({
         "targets": len(targets),
         "candidate_limit": args.candidate_limit,
+        "forced_object_ids": sorted(include_object_ids),
         "evidence_images": len(crop_paths),
         "candidates_jsonl": str(candidates_path),
         "evidence_jsonl": str(evidence_rows_path),

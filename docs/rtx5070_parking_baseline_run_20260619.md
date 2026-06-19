@@ -1608,3 +1608,76 @@ Pipeline stages encoded in the runner:
 7. remap PLY object ids and JSONL metadata together
 8. resolve surface-only ambiguous objects
 9. run `qa_viewer_candidate.py` as the final consistency gate
+
+## Parking Car Height Guard
+
+Date: 2026-06-19
+
+Evidence from the focused QA pack showed one large false `car` object:
+
+```text
+object 2997:
+  label=car
+  points=10,416
+  centroid_z=10.3966
+  bbox_z=9.525..11.621
+  source crop: large high wall/panel surface, not a parking-lot car
+```
+
+The actual `car` object z distribution had a clear gap:
+
+```text
+car centroid z p90 ~= 0.99
+next outliers: 2.71, then 9.17+
+```
+
+Change:
+
+- `scripts/refine_frame_targets_by_geometry.py` now supports opt-in
+  `--car-max-centroid-z`.
+- Default is `None`, so non-parking/general datasets are unaffected.
+- `scripts/run_parking_frame_local_best_route.sh` enables
+  `--car-max-centroid-z 2.5` for this parking dataset.
+
+Full rerun on `scan-rtx5070`:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_ambresolved_rtx5070_carz25_20260619_125444
+```
+
+Result:
+
+- refine stage: `high_car_to_unknown=18`
+- car objects: `196 -> 180`
+- car points: `176,654 -> 149,376`
+- unknown points: `36,681 -> 63,959`
+- PLY/object QA: `ok`
+- PLY vertices: `903,115`
+- object records: `3,214`
+- semantic mismatch: `0`
+- remaining ambiguous objects: `29`
+- remaining large fine object: only the stair/handrail object `2828`, visually
+  valid from the QA crop
+
+Local viewer URL:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_ambresolved_rtx5070_carz25_20260619_125444/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_ambresolved_rtx5070_carz25_20260619_125444/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5
+```
+
+Focused QA pack:
+
+```text
+server_parking_priority_s10/frame_object_qa_best_carz25_focus_rtx5070/frame_local_object_qa_contact.jpg
+server_parking_priority_s10/frame_object_qa_best_carz25_focus_rtx5070/frame_local_object_qa_report.json
+```
+
+Current read:
+
+- The car height guard fixes a concrete false-positive class without changing
+  wall/ground/ceiling totals.
+- It should replace the previous ambresolved viewer as the current best
+  candidate.
+- Remaining work is still the 29 ambiguous wall/ground/ceiling objects; evidence
+  shows they are mostly multi-plane boundary/height-layer targets, not global
+  calibration failures.

@@ -101,6 +101,7 @@ main() {
     --guard-fine-surface-artifacts \
     --surface-planarity 0.30 \
     --wall-max-normal-z 0.75 \
+    --car-max-centroid-z 2.5 \
     --ceiling-min-z 2.2 \
     --surface-height-split-threshold 0.8 \
     --surface-height-bin 0.45 \

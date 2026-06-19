@@ -39,6 +39,7 @@ def args(**overrides):
         "railing_min_linearity": 0.45,
         "railing_max_extent": 1.0,
         "car_max_extent": 8.0,
+        "car_max_centroid_z": None,
         "car_surface_max_linearity": 0.20,
         "ground_min_normal_z": 0.55,
         "guard_linear_ground_artifacts": False,
@@ -161,6 +162,24 @@ def test_low_wall_with_up_normal_relabels_to_ground():
 
     assert label == "ground"
     assert "wall_normal_to_ground" in reasons
+
+
+def test_high_car_guard_is_opt_in():
+    module = load_module()
+    points = np.array(
+        [
+            [0, 0, 10],
+            [1, 0, 10],
+            [0, 1, 11],
+            [1, 1, 11],
+        ],
+        dtype=np.float32,
+    )
+
+    label, reasons = module.refined_label("car", points, args(car_max_centroid_z=2.5))
+
+    assert label == "unknown"
+    assert "high_car_to_unknown" in reasons
 
 
 def test_high_wall_with_up_normal_relabels_to_ceiling():
