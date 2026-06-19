@@ -161,6 +161,21 @@ scripts/run_rtx5070_sync_gated_parking_dataset.sh
 RUN=1 scripts/run_rtx5070_sync_gated_parking_dataset.sh
 ```
 
+For a single read-only status snapshot of the whole sync-gated route:
+
+```bash
+python3 scripts/summarize_sync_gated_parking_status.py
+```
+
+It writes:
+
+- `server_parking_priority_s10/sync_gated_parking_status.json`
+- `server_parking_priority_s10/sync_gated_parking_status.md`
+
+The current status is `waiting_for_manual_anchors`, so the next command remains
+`python3 scripts/stage_accepted_sync_anchors.py --force --run-solver` after
+exporting accepted anchors from the review page.
+
 This launcher refuses to run unless:
 
 - `sync_frame_map_readiness.exit_code` is `0`
