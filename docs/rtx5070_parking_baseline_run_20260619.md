@@ -1983,3 +1983,47 @@ Interpretation:
   longer accepted as railing
 - this strengthens the case for local-geometry as a guard stage, but visual QA
   must decide whether the `railing` recall loss is acceptable
+
+## Local-Geometry Candidate Evidence Pack
+
+Date: 2026-06-19
+
+Evidence pack generated on `scan-rtx5070` and mirrored locally:
+
+```text
+server_parking_priority_s10/frame_object_qa_localgeom_candidate_ids_20260619/
+```
+
+Forced object IDs:
+
+```text
+2828, 2916, 2934, 3001, 3046, 3103, 3130, 3178, 3179, 3193
+```
+
+Summary:
+
+- candidates: `10`
+- evidence crop images: `23`
+- candidate labels: all `railing`
+- risk reasons:
+  - `railing_not_linear`: `10`
+  - `large_single_target_object`: `3`
+  - `railing_extent_too_large`: `1`
+
+Visual read from the contact sheet:
+
+- multiple source masks swallow stair treads, wall/door panels, corrugated
+  panels, floor patches, or loose background material together with true rail
+  structure
+- this explains why local-geometry reduces `railing` aggressively: it is
+  removing mask spillover rather than only removing random true rail points
+- the upstream priority/fine mask is currently the limiting stage for railing
+  recall and precision
+
+Next engineering direction:
+
+- keep local-geometry as a guard against fine-mask spillover
+- improve the source fine-target mask stage for railing/handrail before
+  promoting more railing points
+- avoid object-level relabel from only image crops when the source crop already
+  contains mixed wall/floor/stair evidence
