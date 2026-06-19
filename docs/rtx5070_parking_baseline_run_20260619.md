@@ -945,6 +945,35 @@ Interpretation: score-only automatic anchors are not reliable enough for this
 dataset. They can help prioritize human review, but must not be used as
 production synchronization truth.
 
+Video/time-model audit:
+
+- `ffprobe` shows all three MKV files are constant `10fps`, PTS starts at `0`,
+  and container duration is `618.1s`; there is no hidden variable-frame-rate PTS
+  stream to recover the missing timing.
+- `analyze_sync_time_models.py` compared simple models against visual sync
+  candidates. None is reliable:
+  - direct `frame_id`: exact candidate always present, but median rank `12`,
+    mean score loss `0.246`, max score loss `0.550`
+  - `img_pos.timestamp * 10fps`: exact candidate ratio `0.111`, median nearest
+    distance `19` frames
+  - timestamp compressed to video span: exact candidate ratio `0.111`, median
+    nearest distance `15` frames
+  - `cam_info` values: exact candidate ratio `0`; median nearest distance about
+    `1990` frames, so these fields are not direct video frame indices
+  - affine fit to independent best: no exact candidates and median nearest
+    distance `30` frames
+
+Report artifacts:
+
+```text
+server_parking_priority_s10/sync_time_model_analysis_20260619/sync_time_model_report.json
+server_parking_priority_s10/sync_time_model_analysis_20260619/sync_time_model_details.jsonl
+```
+
+Conclusion: current evidence rules out a cheap deterministic time model. The
+next sync step still needs human anchors or a stronger visual sequence matching
+method.
+
 ## Reproducible Candidate Rebuild
 
 Before starting or resuming remote jobs, run the runtime healthcheck from the
