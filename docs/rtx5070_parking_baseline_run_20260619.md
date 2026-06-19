@@ -2348,3 +2348,69 @@ Current route implication:
   small-window detector gate.
 - Point-cloud local geometry remains the required guard for mixed fine masks,
   especially `railing/handrail` masks that swallow stairs, walls, or floors.
+
+## Fine-Mask Evaluation Manifest
+
+Date: 2026-06-19
+
+New script:
+
+```text
+scripts/build_fine_mask_eval_manifest.py
+```
+
+Purpose:
+
+- convert object-QA evidence into a stable small sample set for the next
+  SAM2-loop / coverage-completion experiment
+- preserve object id, target id, frame/camera, current source mask path, crop
+  path, 2D bbox, and risk reasons
+- avoid ad hoc hand-picked frames when testing fine-mask improvements
+
+Input evidence:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_qa_localgeom_candidate_ids_20260619/frame_local_object_qa_evidence.jsonl
+```
+
+Remote manifest:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/fine_mask_eval_manifest_localgeom_railing_20260619/manifest.json
+/home/zsh/Work/SCAN/work_MT20260616-175807/fine_mask_eval_manifest_localgeom_railing_20260619/manifest.md
+```
+
+Local mirror:
+
+```text
+server_parking_priority_s10/fine_mask_eval_manifest_localgeom_railing_20260619/manifest.json
+server_parking_priority_s10/fine_mask_eval_manifest_localgeom_railing_20260619/manifest.md
+```
+
+Command:
+
+```bash
+python scripts/build_fine_mask_eval_manifest.py \
+  --evidence-jsonl frame_object_qa_localgeom_candidate_ids_20260619/frame_local_object_qa_evidence.jsonl \
+  --output-json fine_mask_eval_manifest_localgeom_railing_20260619/manifest.json \
+  --output-md fine_mask_eval_manifest_localgeom_railing_20260619/manifest.md \
+  --labels railing car \
+  --limit 40 \
+  --per-object-limit 3
+```
+
+Result:
+
+- samples: `21`
+- objects: `10`
+- labels: `railing=21`, `car=0`
+
+Interpretation:
+
+- The current high-risk fine-mask sample set is railing/handrail dominated.
+- The next SAM2-loop test should run on these 21 samples first, not on a broad
+  full-scene slice.
+- Promotion gate: the new masks must reduce source-mask spillover into
+  stairs/walls/floors while preserving obvious handrail coverage. If the mask
+  still swallows adjacent surfaces, keep local-geometry suppression as the
+  precision guard and do not promote the 2D mask change.
