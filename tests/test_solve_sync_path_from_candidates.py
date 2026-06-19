@@ -225,6 +225,23 @@ def test_load_frame_timestamps_from_img_pos(tmp_path):
     assert module.load_frame_timestamps(path) == {0: 10.0, 2: 10.2}
 
 
+def test_apply_timestamp_phase_uses_local_nonuniform_intervals():
+    module = load_module()
+    shifted = module.apply_timestamp_phase({0: 10.0, 1: 10.1, 2: 10.4}, 0.5)
+
+    assert {key: round(value, 6) for key, value in shifted.items()} == {0: 10.05, 1: 10.25, 2: 10.55}
+
+
+def test_attach_frame_times_preserves_raw_timestamp_after_phase():
+    module = load_module()
+    grouped = {0: {1: [{"frame_id": 1, "cam_id": 0, "video_idx": 7, "score": 0.9}]}}
+
+    out = module.attach_frame_times(grouped, {1: 10.25}, {1: 10.1})
+
+    assert out[0][1][0]["sync_timestamp"] == 10.25
+    assert out[0][1][0]["raw_sync_timestamp"] == 10.1
+
+
 def test_apply_anchors_rejects_missing_candidate():
     module = load_module()
     grouped = {0: {10: [{"frame_id": 10, "cam_id": 0, "video_idx": 10, "score": 0.9}]}}

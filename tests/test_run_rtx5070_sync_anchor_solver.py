@@ -9,6 +9,7 @@ def test_sync_anchor_solver_runner_gates_production_with_readiness():
 
     assert "scripts/check_sync_frame_map_readiness.py" in text
     assert "--time-mode $(quote \"${SOLVER_TIME_MODE}\")" in text
+    assert "--timestamp-phase-fraction $(quote \"${SOLVER_TIMESTAMP_PHASE_FRACTION}\")" in text
     assert "--absolute-intercept-source $(quote \"${SOLVER_ABSOLUTE_INTERCEPT_SOURCE}\")" in text
     assert 'SOLVER_ABSOLUTE_INTERCEPT_SOURCE="${SOLVER_ABSOLUTE_INTERCEPT_SOURCE:-anchors}"' in text
     assert "scripts/expand_sync_frame_map.py" in text
@@ -37,6 +38,7 @@ def test_sync_anchor_solver_runner_defaults_to_absprior_review():
     assert 'REVIEW_NAME="${REVIEW_NAME:-sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619}"' in text
     assert 'RUN_NAME="${RUN_NAME:-sync_anchor_constrained_timestamp_absprior_dot3_20260619}"' in text
     assert 'DOT_PX="${DOT_PX:-3}"' in text
+    assert 'SOLVER_TIMESTAMP_PHASE_FRACTION="${SOLVER_TIMESTAMP_PHASE_FRACTION:-1.0}"' in text
     assert 'MAP_START="${MAP_START:-0}"' in text
     assert 'MAP_END="${MAP_END:-6180}"' in text
     assert 'MAP_STRIDE="${MAP_STRIDE:-10}"' in text

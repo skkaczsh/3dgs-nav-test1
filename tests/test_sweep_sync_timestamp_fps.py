@@ -46,6 +46,7 @@ def test_solve_for_fps_prefers_matching_timestamp_rate():
         max_ratio_deviation=0.2,
         max_score_loss_mean=0.20,
         max_score_loss_max=0.30,
+        timestamp_phase_fraction=0.0,
     )
 
     report7, paths7 = module.solve_for_fps(grouped, args, 7.0)
@@ -86,10 +87,12 @@ def test_solve_for_fps_can_sweep_absolute_intercept():
         intercept_values="100:100:100",
         absolute_prior_weight=1.0,
         absolute_prior_tolerance=25.0,
+        timestamp_phase_fraction=0.5,
     )
 
     report, paths = module.solve_for_fps(grouped, args, 10.0)
 
     assert report["cam_intercepts"] == {"0": 100.0}
+    assert report["timestamp_phase_fraction"] == 0.5
     assert [row["video_idx"] for row in paths[0]] == [100, 110, 120]
     assert report["cam_reports"]["0"]["absolute_prior_error"]["mean"] == 0.0

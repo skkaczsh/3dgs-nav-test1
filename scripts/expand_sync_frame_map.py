@@ -20,7 +20,7 @@ import math
 from pathlib import Path
 from typing import Any
 
-from solve_sync_path_from_candidates import load_frame_timestamps, load_jsonl
+from solve_sync_path_from_candidates import apply_timestamp_phase, load_frame_timestamps, load_jsonl
 
 
 def parse_cams(values: list[int]) -> list[int]:
@@ -73,7 +73,10 @@ def build_rows(args: argparse.Namespace) -> tuple[list[dict[str, Any]], dict[str
     if str(solver_report.get("status")) != "accepted" and not args.allow_rejected_solver:
         raise ValueError(f"solver report is not accepted: {solver_report.get('status')}")
     path_rows = load_jsonl(args.path_jsonl)
-    timestamps = load_frame_timestamps(args.img_pos_file)
+    raw_timestamps = load_frame_timestamps(args.img_pos_file)
+    phase_arg = getattr(args, "timestamp_phase_fraction", None)
+    phase = phase_arg if phase_arg is not None else float(solver_report.get("timestamp_phase_fraction", 0.0))
+    timestamps = apply_timestamp_phase(raw_timestamps, phase)
     frames = frame_ids(args.start, args.end, args.stride)
     cams = parse_cams(args.cams)
     missing = [frame_id for frame_id in frames if frame_id not in timestamps]
@@ -99,6 +102,7 @@ def build_rows(args: argparse.Namespace) -> tuple[list[dict[str, Any]], dict[str
                 "status": "ok",
                 "source": "expanded_timestamp_absprior",
                 "sync_timestamp": ts,
+                "raw_sync_timestamp": float(raw_timestamps[frame_id]),
                 "absolute_expected_video_idx": float(expected),
                 "absolute_prior_error": abs(float(video_idx) - float(expected)),
                 "time_origin": model["time_origin"],
@@ -117,6 +121,7 @@ def build_rows(args: argparse.Namespace) -> tuple[list[dict[str, Any]], dict[str
         "frame_count": len(frames),
         "row_count": len(rows),
         "video_frame_count": args.video_frame_count,
+        "timestamp_phase_fraction": float(phase),
         "clipped_count": int(clipped),
         "models": {str(k): v for k, v in models.items()},
     }
@@ -142,6 +147,8 @@ def main() -> None:
     parser.add_argument("--stride", type=int, default=10)
     parser.add_argument("--cams", type=int, nargs="+", default=[0, 1, 2])
     parser.add_argument("--video-frame-count", type=int)
+    parser.add_argument("--timestamp-phase-fraction", type=float,
+                        help="Override solver report timestamp phase fraction.")
     parser.add_argument("--allow-rejected-solver", action="store_true")
     args = parser.parse_args()
 

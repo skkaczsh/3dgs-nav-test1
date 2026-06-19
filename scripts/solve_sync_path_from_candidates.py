@@ -61,9 +61,41 @@ def load_frame_timestamps(path: Path | None) -> dict[int, float]:
     return timestamps
 
 
+def apply_timestamp_phase(
+    timestamps: dict[int, float],
+    phase_fraction: float = 0.0,
+) -> dict[int, float]:
+    """Shift timestamps inside each local section interval.
+
+    A constant timestamp offset is absorbed by the absolute intercept.  The
+    useful uncertainty is whether img_pos time refers to the start/middle/end
+    of a nonuniform section interval:
+
+      adjusted_t[i] = raw_t[i] + phase_fraction * (raw_t[i + 1] - raw_t[i])
+
+    The last frame reuses the previous interval.  phase 0.0 preserves existing
+    behavior.
+    """
+    phase = float(phase_fraction)
+    if not timestamps or abs(phase) < 1e-12:
+        return dict(timestamps)
+    frames = sorted(timestamps)
+    out: dict[int, float] = {}
+    last_dt = 0.0
+    for idx, frame_id in enumerate(frames):
+        if idx + 1 < len(frames):
+            dt = float(timestamps[frames[idx + 1]]) - float(timestamps[frame_id])
+            last_dt = dt
+        else:
+            dt = last_dt
+        out[frame_id] = float(timestamps[frame_id]) + phase * dt
+    return out
+
+
 def attach_frame_times(
     grouped: dict[int, dict[int, list[dict[str, Any]]]],
     timestamps: dict[int, float],
+    raw_timestamps: dict[int, float] | None = None,
 ) -> dict[int, dict[int, list[dict[str, Any]]]]:
     if not timestamps:
         return grouped
@@ -74,7 +106,15 @@ def attach_frame_times(
             if frame_id not in timestamps:
                 missing.append(frame_id)
                 continue
-            out[cam_id][frame_id] = [dict(row, sync_timestamp=float(timestamps[frame_id])) for row in rows]
+            raw_timestamp = None if raw_timestamps is None else raw_timestamps.get(frame_id)
+            out[cam_id][frame_id] = [
+                dict(
+                    row,
+                    sync_timestamp=float(timestamps[frame_id]),
+                    raw_sync_timestamp=float(raw_timestamp) if raw_timestamp is not None else float(timestamps[frame_id]),
+                )
+                for row in rows
+            ]
     if missing:
         unique = sorted(set(missing))
         raise ValueError(f"timestamps missing for frame ids: {unique[:10]}")
@@ -396,6 +436,8 @@ def main() -> None:
                         help="img_pos.txt used when --time-mode timestamp.")
     parser.add_argument("--video-fps", type=float, default=10.0,
                         help="Video frames per second for timestamp-mode expected video_idx deltas.")
+    parser.add_argument("--timestamp-phase-fraction", type=float, default=0.0,
+                        help="Local section phase: 0=start, 0.5=middle, 1=end of the next img_pos interval.")
     parser.add_argument("--absolute-prior-weight", type=float, default=0.0,
                         help="Penalty weight for absolute timestamp->video index prior. Default off.")
     parser.add_argument("--absolute-prior-tolerance", type=float, default=100.0,
@@ -411,8 +453,9 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     rows = load_jsonl(args.candidates_jsonl)
     anchors = load_accepted_anchors(args.anchors_jsonl)
-    timestamps = load_frame_timestamps(args.img_pos_file)
-    grouped = attach_frame_times(apply_anchors(group_candidates(rows), anchors), timestamps)
+    raw_timestamps = load_frame_timestamps(args.img_pos_file)
+    timestamps = apply_timestamp_phase(raw_timestamps, args.timestamp_phase_fraction)
+    grouped = attach_frame_times(apply_anchors(group_candidates(rows), anchors), timestamps, raw_timestamps)
     report = {
         "candidates_jsonl": str(args.candidates_jsonl),
         "anchors_jsonl": str(args.anchors_jsonl) if args.anchors_jsonl else None,
@@ -425,6 +468,7 @@ def main() -> None:
         "time_mode": args.time_mode,
         "img_pos_file": str(args.img_pos_file) if args.img_pos_file else None,
         "video_fps": args.video_fps,
+        "timestamp_phase_fraction": args.timestamp_phase_fraction,
         "absolute_prior_weight": args.absolute_prior_weight,
         "absolute_prior_tolerance": args.absolute_prior_tolerance,
         "absolute_intercept": args.absolute_intercept,

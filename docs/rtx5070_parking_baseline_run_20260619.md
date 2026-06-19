@@ -35,8 +35,10 @@ Interpretation:
   - effective video fps / time scale from `img_pos.timestamp` to video frames
   - global video offset
   - possible per-camera offset
-  - exposure phase relative to a LiDAR section, i.e. start/middle/end of scan;
-    this is equivalent to a small constant timestamp offset.
+  - exposure phase relative to a LiDAR section, i.e. start/middle/end of the
+    local nonuniform scan interval.  This must be modeled as
+    `timestamp + phase_fraction * local_dt`; a pure constant offset is absorbed
+    by the absolute intercept and cannot distinguish start/middle/end.
 - Uniform frame-id stepping can still be used as a diagnostic baseline, but it is
   not a valid production assumption for this dataset.
 
@@ -45,11 +47,14 @@ Implemented sync tooling:
 - `scripts/solve_sync_path_from_candidates.py`
   - supports `--time-mode frame-id|timestamp`
   - supports `--img-pos-file` and `--video-fps`
+  - supports `--timestamp-phase-fraction` where `0=start`, `0.5=middle`, and
+    `1=end` of the local `img_pos` interval
   - supports an optional absolute timestamp prior:
     `video_idx ~= (timestamp - t0) * fps + intercept`
   - accepted manual anchors remain hard constraints
 - `scripts/sweep_sync_timestamp_fps.py`
   - sweeps effective fps values in timestamp mode
+  - can sweep timestamp phase fractions with `--phase-values 0,0.5,1`
   - can also sweep per-camera intercepts when the absolute prior is enabled
   - writes the best path plus a sweep report
 - `scripts/summarize_sync_option_sources.py`
@@ -63,6 +68,17 @@ Current automatic results:
 - timestamp smooth at `10fps` + sky penalty:
   - status: `rejected`
   - max step deviation by camera reaches about `0.45`
+- timestamp phase sweep on 5070Ti with sky-penalty fullprobe candidates:
+  - output: `server_parking_priority_s10/sync_phase_sweep_sky_penalty_20260619/`
+  - swept `fps=5.5..7.0` and `phase=0,0.5,1`
+  - best automatic setting: `fps=6.0`, `phase=1.0`, cam intercepts
+    `cam0=700`, `cam1=600`, `cam2=800`
+  - status remains `rejected`; use this as a diagnostic prior only, not as a
+    production sync map without accepted manual anchors.
+  - `scripts/run_rtx5070_sync_anchor_solver.sh` now defaults
+    `SOLVER_TIMESTAMP_PHASE_FRACTION=1.0` so the constrained anchor run starts
+    from this best current phase prior. Override the variable if manual anchors
+    contradict it.
 - timestamp fps sweep:
   - best effective fps: `10.25`
   - status: `rejected`

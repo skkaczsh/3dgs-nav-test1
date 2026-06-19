@@ -58,6 +58,7 @@ def solve_for_fps(
     )
     report = {
         "fps": float(fps),
+        "timestamp_phase_fraction": float(getattr(args, "timestamp_phase_fraction", 0.0)),
         "status": "accepted" if all_accepted else "rejected",
         "accepted": bool(all_accepted),
         "mean_score_loss": mean_loss,
@@ -136,6 +137,8 @@ def main() -> None:
     parser.add_argument("--img-pos-file", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--fps-values", default="6.0:10.5:0.25")
+    parser.add_argument("--phase-values", default="0",
+                        help="Local timestamp phase fractions to sweep, e.g. 0,0.5,1 for start/middle/end.")
     parser.add_argument("--intercept-values", default="0:1800:100",
                         help="Expected video_idx at first probe timestamp; swept independently per camera.")
     parser.add_argument("--target-ratio", type=float, default=1.0)
@@ -151,27 +154,32 @@ def main() -> None:
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     rows = solver.load_jsonl(args.candidates_jsonl)
-    timestamps = solver.load_frame_timestamps(args.img_pos_file)
-    grouped = solver.attach_frame_times(solver.group_candidates(rows), timestamps)
+    raw_timestamps = solver.load_frame_timestamps(args.img_pos_file)
+    base_grouped = solver.group_candidates(rows)
     sweep = []
     best_report = None
     best_paths = None
-    for fps in parse_float_range(args.fps_values):
-        report, paths = solve_for_fps(grouped, args, fps)
-        sweep.append(report)
-        key = (not report["accepted"], report["mean_score_loss"], report["max_step_deviation"])
-        if best_report is None or key < (
-            not best_report["accepted"],
-            best_report["mean_score_loss"],
-            best_report["max_step_deviation"],
-        ):
-            best_report = report
-            best_paths = paths
+    for phase in parse_float_range(args.phase_values):
+        args.timestamp_phase_fraction = phase
+        timestamps = solver.apply_timestamp_phase(raw_timestamps, phase)
+        grouped = solver.attach_frame_times(base_grouped, timestamps, raw_timestamps)
+        for fps in parse_float_range(args.fps_values):
+            report, paths = solve_for_fps(grouped, args, fps)
+            sweep.append(report)
+            key = (not report["accepted"], report["mean_score_loss"], report["max_step_deviation"])
+            if best_report is None or key < (
+                not best_report["accepted"],
+                best_report["mean_score_loss"],
+                best_report["max_step_deviation"],
+            ):
+                best_report = report
+                best_paths = paths
     assert best_report is not None and best_paths is not None
     result = {
         "candidates_jsonl": str(args.candidates_jsonl),
         "img_pos_file": str(args.img_pos_file),
         "fps_values": parse_float_range(args.fps_values),
+        "phase_values": parse_float_range(args.phase_values),
         "intercept_values": parse_float_range(args.intercept_values),
         "absolute_prior_weight": args.absolute_prior_weight,
         "absolute_prior_tolerance": args.absolute_prior_tolerance,
@@ -189,6 +197,7 @@ def main() -> None:
             "status": best_report["status"],
             "time_mode": "timestamp",
             "video_fps": best_report["fps"],
+            "timestamp_phase_fraction": best_report["timestamp_phase_fraction"],
             "cam_intercepts": best_report["cam_intercepts"],
             "absolute_prior_weight": args.absolute_prior_weight,
             "absolute_prior_tolerance": args.absolute_prior_tolerance,
@@ -199,6 +208,7 @@ def main() -> None:
     )
     print(json.dumps({
         "best_fps": best_report["fps"],
+        "best_timestamp_phase_fraction": best_report["timestamp_phase_fraction"],
         "best_status": best_report["status"],
         "mean_score_loss": best_report["mean_score_loss"],
         "max_step_deviation": best_report["max_step_deviation"],

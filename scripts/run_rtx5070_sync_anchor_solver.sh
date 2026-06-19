@@ -37,6 +37,7 @@ READINESS_CAMS="${READINESS_CAMS:-0 1 2}"
 MIN_ACCEPTED_PER_CAM="${MIN_ACCEPTED_PER_CAM:-2}"
 SOLVER_TIME_MODE="${SOLVER_TIME_MODE:-timestamp}"
 SOLVER_VIDEO_FPS="${SOLVER_VIDEO_FPS:-6.0}"
+SOLVER_TIMESTAMP_PHASE_FRACTION="${SOLVER_TIMESTAMP_PHASE_FRACTION:-1.0}"
 SOLVER_ABSOLUTE_PRIOR_WEIGHT="${SOLVER_ABSOLUTE_PRIOR_WEIGHT:-1.0}"
 SOLVER_ABSOLUTE_PRIOR_TOLERANCE="${SOLVER_ABSOLUTE_PRIOR_TOLERANCE:-200}"
 SOLVER_ABSOLUTE_INTERCEPT="${SOLVER_ABSOLUTE_INTERCEPT:-0}"
@@ -80,6 +81,7 @@ $(quote "${REMOTE_VENV}/bin/python") scripts/solve_sync_path_from_candidates.py 
   --time-mode $(quote "${SOLVER_TIME_MODE}") \
   --img-pos-file $(quote "${REMOTE_DATASET}/image/img_pos.txt") \
   --video-fps $(quote "${SOLVER_VIDEO_FPS}") \
+  --timestamp-phase-fraction $(quote "${SOLVER_TIMESTAMP_PHASE_FRACTION}") \
   --absolute-prior-weight $(quote "${SOLVER_ABSOLUTE_PRIOR_WEIGHT}") \
   --absolute-prior-tolerance $(quote "${SOLVER_ABSOLUTE_PRIOR_TOLERANCE}") \
   --absolute-intercept $(quote "${SOLVER_ABSOLUTE_INTERCEPT}") \
@@ -137,6 +139,7 @@ remote_cmd=${remote_cmd}
 remote_candidates=${REMOTE_CANDIDATES}
 solver_time_mode=${SOLVER_TIME_MODE}
 solver_video_fps=${SOLVER_VIDEO_FPS}
+solver_timestamp_phase_fraction=${SOLVER_TIMESTAMP_PHASE_FRACTION}
 solver_absolute_prior_weight=${SOLVER_ABSOLUTE_PRIOR_WEIGHT}
 solver_absolute_prior_tolerance=${SOLVER_ABSOLUTE_PRIOR_TOLERANCE}
 solver_absolute_intercept=${SOLVER_ABSOLUTE_INTERCEPT}
