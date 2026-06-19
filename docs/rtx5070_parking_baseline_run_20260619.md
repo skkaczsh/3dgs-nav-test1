@@ -514,6 +514,33 @@ guarded_v2 priority masks -> target geometry refinement --guard-linear-ground-ar
 
 ## Reproducible Candidate Rebuild
 
+Before starting or resuming remote jobs, run the runtime healthcheck from the
+local repo:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+python3 scripts/check_rtx5070_parking_runtime.py \
+  --output server_parking_priority_s10/parking_candidate_manifest_rtx5070/rtx5070_runtime_check.json
+```
+
+Current healthcheck result:
+
+- passed: `true`
+- host: `scan-rtx5070` / `zsh-AORUS`
+- GPU: `NVIDIA GeForce RTX 5070 Ti`
+- VRAM: `1,288MiB / 16,303MiB`, free `15,015MiB`
+- GPU utilization: `3%`
+- tmux session: `scan_migrate`
+- remote workdir size: `8.8G`
+- remote venv CUDA: `torch_cuda_available=1`, `torch_cuda_version=13.0`
+- proxy: port `7897` listening
+- required remote candidate artifacts: all present
+
+The healthcheck also verifies that the candidate source targets, viewer PLY,
+viewer objects JSONL, viewer export report, QA report, and full-risk comparison
+JSON exist on the 5070Ti workdir. Treat a failed healthcheck as a pre-run blocker
+unless the failing artifact is intentionally being regenerated.
+
 The candidate surface route can now be rebuilt on `scan-rtx5070` with:
 
 ```bash
