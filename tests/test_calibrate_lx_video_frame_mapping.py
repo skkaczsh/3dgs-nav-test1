@@ -1,0 +1,50 @@
+from __future__ import annotations
+
+import importlib.util
+import sys
+from pathlib import Path
+
+
+def load_module():
+    path = Path(__file__).resolve().parents[1] / "scripts" / "calibrate_lx_video_frame_mapping.py"
+    spec = importlib.util.spec_from_file_location("calibrate_lx_video_frame_mapping", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_fit_affine_mapping_accepts_stable_linear_mapping():
+    module = load_module()
+    rows = [
+        {"frame_id": 1000, "video_idx": 900, "score": 0.6},
+        {"frame_id": 2000, "video_idx": 1901, "score": 0.7},
+        {"frame_id": 3000, "video_idx": 2900, "score": 0.8},
+        {"frame_id": 4000, "video_idx": 3902, "score": 0.7},
+    ]
+    fit = module.fit_affine_mapping(rows, max_rmse=5.0, max_abs_residual=8.0, min_samples=4)
+    assert fit["accepted"] is True
+    assert fit["status"] == "accepted"
+    assert abs(fit["slope"] - 1.0) < 0.01
+    assert fit["rmse"] < 2.0
+
+
+def test_fit_affine_mapping_rejects_unstable_best_offsets():
+    module = load_module()
+    rows = [
+        {"frame_id": 1000, "video_idx": 800, "score": 0.6},
+        {"frame_id": 2000, "video_idx": 800, "score": 0.7},
+        {"frame_id": 3400, "video_idx": 2600, "score": 0.8},
+        {"frame_id": 5000, "video_idx": 5400, "score": 0.7},
+        {"frame_id": 6000, "video_idx": 5400, "score": 0.6},
+    ]
+    fit = module.fit_affine_mapping(rows, max_rmse=150.0, max_abs_residual=300.0, min_samples=4)
+    assert fit["accepted"] is False
+    assert fit["status"] == "rejected_unstable_fit"
+    assert fit["rmse"] > 150.0 or fit["max_abs_residual"] > 300.0
+
+
+def test_parse_int_range_supports_lists_and_ranges():
+    module = load_module()
+    assert module.parse_int_range("-4:4:4,10") == [-4, 0, 4, 10]

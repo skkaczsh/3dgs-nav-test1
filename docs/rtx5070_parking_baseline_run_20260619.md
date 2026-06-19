@@ -2745,3 +2745,78 @@ Interpretation:
 - It does not solve the image/LiDAR synchronization blocker.  It only prevents
   unguarded full-global reverse projection from adding additional cross-time
   evidence pollution.
+
+## Sync Calibration Gate
+
+Date: 2026-06-19
+
+Reusable calibration script added:
+
+```text
+scripts/calibrate_lx_video_frame_mapping.py
+```
+
+Purpose:
+
+- search candidate video frames for selected `.lx` sections;
+- score each candidate by projecting same-section LiDAR rings onto the
+  undistorted image and measuring distance to image edges;
+- write explicit candidates, best matches, affine fit diagnostics, and a QA
+  contact sheet;
+- reject the dataset for production image projection when best matches cannot
+  be explained by a stable per-camera mapping.
+
+5070Ti command:
+
+```bash
+export SCAN_IMAGE_DIR=/home/zsh/Work/SCAN/datasets/MT20260616-175807/image
+export SCAN_VIDEO_DIR=/home/zsh/Work/SCAN/datasets/MT20260616-175807/image
+export PYTHONPATH=$PWD/scripts
+
+/home/zsh/Work/SCAN/.venvs/scan-semantic/bin/python \
+  scripts/calibrate_lx_video_frame_mapping.py \
+  --lx-file /home/zsh/Work/SCAN/datasets/MT20260616-175807/MANIFOLD_MT20260616-175807.lx \
+  --output-dir /home/zsh/Work/SCAN/work_MT20260616-175807/sync_calibration_small_20260619 \
+  --frames 1000 1600 2200 2800 3400 4000 4600 5200 5800 6200 \
+  --cams 0 1 2 \
+  --offsets=-1400:800:100 \
+  --panels-per-probe 3 \
+  --sheet-cols 4
+```
+
+Mirrored local QA:
+
+```text
+server_parking_priority_s10/sync_calibration_small_20260619/sync_calibration_report.json
+server_parking_priority_s10/sync_calibration_small_20260619/sync_fit.json
+server_parking_priority_s10/sync_calibration_small_20260619/sync_best.jsonl
+server_parking_priority_s10/sync_calibration_small_20260619/sync_candidates.jsonl
+server_parking_priority_s10/sync_calibration_small_20260619/sync_probe_sheet.jpg
+```
+
+Result:
+
+- status: `rejected`
+- candidates: `594`
+- best rows: `27`
+- per-camera affine fit:
+  - cam0: `rmse=674.64`, `max_abs_residual=1212.22`,
+    `slope=1.2056`, `intercept=-1010.0`
+  - cam1: `rmse=716.44`, `max_abs_residual=1142.22`,
+    `slope=1.1556`, `intercept=-984.44`
+  - cam2: `rmse=595.87`, `max_abs_residual=1022.22`,
+    `slope=1.1111`, `intercept=-722.22`
+
+Interpretation:
+
+- The current parking image cache remains unsuitable as production semantic
+  evidence.
+- A constant offset or single affine mapping is not enough.
+- Edge-score matching is a useful automatic gate, but it can still choose
+  visually plausible local mismatches.  Use the contact sheet as required QA
+  before accepting a mapping.
+- Next technical step is either:
+  - recover authoritative timestamp/frame mapping from MANIFOLD export or MKV
+    metadata, or
+  - build a stronger visual-LiDAR synchronization optimizer with temporal
+    smoothness and manual anchor support.
