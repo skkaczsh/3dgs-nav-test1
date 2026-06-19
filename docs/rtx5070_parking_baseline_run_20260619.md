@@ -934,6 +934,17 @@ server_parking_priority_s10/sync_anchor_constrained_from_review_v2/
 Only after that constrained path is visually accepted should priority masks,
 frame-local targets, or object fusion be rerun.
 
+Automatic high-confidence anchor diagnostic from the v2 manifest:
+
+- probes: `27`
+- candidates with `score >= 0.55` and top-vs-second margin `>= 0.08`: `3`
+- selected offsets among those strong candidates ranged from `-1300` to `+800`
+- per-frame top offsets are not temporally smooth
+
+Interpretation: score-only automatic anchors are not reliable enough for this
+dataset. They can help prioritize human review, but must not be used as
+production synchronization truth.
+
 ## Reproducible Candidate Rebuild
 
 Before starting or resuming remote jobs, run the runtime healthcheck from the
