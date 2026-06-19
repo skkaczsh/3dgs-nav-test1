@@ -1266,3 +1266,96 @@ Current read:
 - The easy horizontal-wall errors are partly fixed.
 - The remaining surface issue likely needs true plane/component splitting for
   mixed large targets, not only whole-target relabeling.
+
+## Surface Repair Threshold And Split Sweep
+
+Date: 2026-06-19
+
+Tested variants after fine fragment cleanup:
+
+| Variant | Target conflict findings | Notes |
+| --- | ---: | --- |
+| cleanup only | 381 | after weak fine demotion |
+| surface repair default | 306 | `wall->ground=47`, `wall->ceiling=28` |
+| repair default + split | 305 | split alone did not help with conservative planarity |
+| split with `surface_planarity=0.30` | 252 | better, but still leaves many horizontal wall fragments |
+| repair `horizontal_surface_min_planarity=0.08` | 219 | cheaper and stronger than split alone |
+| repair p008 + low-planarity split | 165 | best current geometry QA result |
+
+Best current target output:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_targets_guarded_v3_full_s10_absorbed_demote_surface_repair_p008_split_lowplanar_rtx5070
+```
+
+Commands:
+
+```bash
+python scripts/repair_surface_target_labels.py \
+  --targets-jsonl frame_targets_absorbed.jsonl \
+  --output-jsonl frame_targets_repaired.jsonl \
+  --report surface_repair_report.json \
+  --horizontal-surface-min-planarity 0.08
+
+python scripts/refine_frame_targets_by_geometry.py \
+  --targets-jsonl frame_targets_repaired.jsonl \
+  --target-ply frame_targets_refined.ply \
+  --output-dir frame_targets_surface_repair_p008_split_lowplanar \
+  --split-horizontal-wall-by-height \
+  --guard-linear-ground-artifacts \
+  --guard-fine-surface-artifacts \
+  --surface-planarity 0.30 \
+  --wall-max-normal-z 0.75 \
+  --ceiling-min-z 2.2 \
+  --surface-height-split-threshold 0.8 \
+  --surface-height-bin 0.45 \
+  --surface-min-split-points 800 \
+  --surface-split-min-points 100 \
+  --surface-split-voxel 0.16 \
+  --keep-residual
+```
+
+Best current metrics:
+
+- surface repair p008 repaired targets: `177`
+- split source targets: `247`
+- output targets after split: `10,359`
+- relabelled targets during split: `183`
+- target conflict findings: `165`
+- remaining conflicts: `wall=102`, `ground=53`, `railing=5`, `car=4`,
+  `ceiling=1`
+
+Best current viewer candidate:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_guarded_v3_full_s10_absorbed_demote_surface_repair_p008_split_lowplanar_rtx5070
+```
+
+Local viewer URL:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_absorbed_demote_surface_repair_p008_split_lowplanar_rtx5070/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_absorbed_demote_surface_repair_p008_split_lowplanar_rtx5070/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5
+```
+
+Viewer export label counts:
+
+```text
+ground=145472
+wall=456025
+ceiling=7978
+unknown=3669
+grass=98473
+ambiguous=166353
+car=17667
+railing=7050
+other=428
+```
+
+Tradeoff:
+
+- Geometry conflict findings are much lower than the previous candidate.
+- Object fusion ambiguity increased (`ambiguous` points rose to `166,353`),
+  likely because target splitting creates more fragmented object evidence.
+- The next step should compare visual quality in the viewer before making this
+  the default route. If visual quality is better, object fusion needs a
+  same-surface post-consolidation pass to reduce ambiguity after splitting.
