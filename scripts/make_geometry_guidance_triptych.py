@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
+import os
 from pathlib import Path
 
 import cv2
@@ -112,12 +114,75 @@ def make_triptych(
     }
 
 
+def relpath_for_html(path: str, html_path: Path) -> str:
+    try:
+        return os.path.relpath(path, start=html_path.parent)
+    except ValueError:
+        return path
+
+
+def write_review_html(summary: dict, html_path: Path, title: str) -> None:
+    rows = []
+    for item in summary.get("items", []):
+        image_pixels = max(int(item.get("image_pixels") or 1), 1)
+        overlay_pixels = int(item.get("valid_overlay_pixels") or 0)
+        coverage = overlay_pixels / image_pixels
+        src = relpath_for_html(str(item["output_path"]), html_path)
+        rows.append(
+            "<article class=\"card\">"
+            f"<h2>{html.escape(Path(item['output_path']).stem)}</h2>"
+            f"<img src=\"{html.escape(src)}\" loading=\"lazy\" />"
+            "<dl>"
+            f"<dt>overlay source</dt><dd>{html.escape(str(item.get('overlay_source', '')))}</dd>"
+            f"<dt>overlay coverage</dt><dd>{coverage:.3f}</dd>"
+            f"<dt>valid overlay pixels</dt><dd>{overlay_pixels:,}</dd>"
+            "</dl>"
+            "</article>"
+        )
+    body = "\n".join(rows)
+    html_text = f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{html.escape(title)}</title>
+<style>
+body {{ margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0d1117; color: #e6edf3; }}
+header {{ position: sticky; top: 0; z-index: 2; padding: 14px 18px; background: rgba(13, 17, 23, 0.94); border-bottom: 1px solid #30363d; }}
+h1 {{ margin: 0; font-size: 18px; }}
+p {{ color: #9da7b3; margin: 6px 0 0; }}
+main {{ padding: 16px; display: grid; gap: 18px; }}
+.card {{ border: 1px solid #30363d; border-radius: 8px; background: #151b23; overflow: hidden; }}
+.card h2 {{ font-size: 15px; margin: 0; padding: 10px 12px; border-bottom: 1px solid #30363d; background: #1b2430; }}
+.card img {{ display: block; width: 100%; height: auto; background: #010409; }}
+dl {{ display: grid; grid-template-columns: 160px 1fr; gap: 4px 12px; margin: 0; padding: 10px 12px 14px; font-size: 13px; }}
+dt {{ color: #8b949e; }}
+dd {{ margin: 0; }}
+</style>
+</head>
+<body>
+<header>
+  <h1>{html.escape(title)}</h1>
+  <p>Diagnostic reverse-depth triptychs. Left: undistorted frame. Middle: full-cloud z-buffer depth. Right: projection overlay.</p>
+</header>
+<main>
+{body}
+</main>
+</body>
+</html>
+"""
+    html_path.parent.mkdir(parents=True, exist_ok=True)
+    html_path.write_text(html_text, encoding="utf-8")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--guidance-report", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--alpha", type=float, default=0.75)
     parser.add_argument("--max-items", type=int, default=9)
+    parser.add_argument("--html", type=Path, default=None)
+    parser.add_argument("--title", default="Reverse Depth Triptych Review")
     args = parser.parse_args()
 
     report = json.loads(args.guidance_report.read_text(encoding="utf-8"))
@@ -142,6 +207,8 @@ def main() -> None:
         "items": outputs,
     }
     (args.output_dir / "triptych_report.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    if args.html:
+        write_review_html(summary, args.html, args.title)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

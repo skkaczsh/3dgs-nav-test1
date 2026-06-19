@@ -68,3 +68,29 @@ def test_make_triptych_falls_back_to_depth_valid_overlay(tmp_path: Path):
     assert summary["valid_render_pixels"] == 0
     assert summary["valid_overlay_pixels"] == 6
     assert summary["overlay_source"] == "depth_valid"
+
+
+def test_write_review_html_uses_relative_image_paths(tmp_path: Path):
+    module = load_module()
+    image = tmp_path / "triptych" / "cam0_000001_triptych.jpg"
+    image.parent.mkdir()
+    image.write_bytes(b"fake")
+    html_path = tmp_path / "triptych" / "review.html"
+    module.write_review_html(
+        {
+            "items": [
+                {
+                    "output_path": str(image),
+                    "overlay_source": "depth_valid",
+                    "valid_overlay_pixels": 5,
+                    "image_pixels": 10,
+                }
+            ]
+        },
+        html_path,
+        "Review",
+    )
+
+    text = html_path.read_text(encoding="utf-8")
+    assert "cam0_000001_triptych.jpg" in text
+    assert "overlay coverage" in text
