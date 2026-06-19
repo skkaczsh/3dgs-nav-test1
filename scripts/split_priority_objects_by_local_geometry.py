@@ -30,6 +30,7 @@ LABEL_TO_SEMANTIC = {
     "unknown": 0,
     "wall": 2,
     "floor": 3,
+    "ground": 3,
     "grass": 5,
     "car": 8,
     "railing": 9,
@@ -234,13 +235,13 @@ def classify_local_voxel(source_label: str, points: np.ndarray, args: argparse.N
 
     if source_label == "wall":
         if nz >= args.horizontal_normal_z and planarity >= args.min_surface_planarity and thickness <= args.max_horizontal_thickness:
-            return "floor"
+            return args.horizontal_label
         if nz <= args.vertical_normal_z and planarity >= args.min_vertical_planarity:
             return "wall"
         return "unknown"
     if source_label == "floor":
         if nz >= args.floor_keep_normal_z and planarity >= args.min_surface_planarity:
-            return "floor"
+            return args.horizontal_label
         if nz <= args.vertical_normal_z and planarity >= args.min_vertical_planarity:
             return "wall"
         return "unknown"
@@ -248,7 +249,7 @@ def classify_local_voxel(source_label: str, points: np.ndarray, args: argparse.N
         if planarity < args.grass_min_planarity and thickness <= args.max_grass_thickness:
             return "grass"
         if nz >= args.horizontal_normal_z and planarity >= args.min_surface_planarity:
-            return "floor"
+            return args.horizontal_label
         return "unknown"
     if source_label == "railing":
         if (
@@ -256,7 +257,7 @@ def classify_local_voxel(source_label: str, points: np.ndarray, args: argparse.N
             and planarity >= args.min_surface_planarity
             and (linearity < args.railing_keep_linearity or xy_minor >= args.railing_max_minor_extent)
         ):
-            return "floor"
+            return args.horizontal_label
         if nz <= args.vertical_normal_z and planarity >= args.min_vertical_planarity and linearity < args.railing_keep_linearity:
             return "wall"
         if linearity >= args.railing_keep_linearity and xy_minor <= args.railing_max_minor_extent:
@@ -275,13 +276,13 @@ def classify_from_local_stats(
 ) -> str:
     if source_label == "wall":
         if nz >= args.horizontal_normal_z and planarity >= args.min_surface_planarity and thickness <= args.max_horizontal_thickness:
-            return "floor"
+            return args.horizontal_label
         if nz <= args.vertical_normal_z and planarity >= args.min_vertical_planarity:
             return "wall"
         return "unknown"
     if source_label == "floor":
         if nz >= args.floor_keep_normal_z and planarity >= args.min_surface_planarity:
-            return "floor"
+            return args.horizontal_label
         if nz <= args.vertical_normal_z and planarity >= args.min_vertical_planarity:
             return "wall"
         return "unknown"
@@ -289,11 +290,11 @@ def classify_from_local_stats(
         if planarity < args.grass_min_planarity and thickness <= args.max_grass_thickness:
             return "grass"
         if nz >= args.horizontal_normal_z and planarity >= args.min_surface_planarity:
-            return "floor"
+            return args.horizontal_label
         return "unknown"
     if source_label == "railing":
         if nz >= args.horizontal_normal_z and planarity >= args.min_surface_planarity and linearity < args.railing_keep_linearity:
-            return "floor"
+            return args.horizontal_label
         if nz <= args.vertical_normal_z and planarity >= args.min_vertical_planarity and linearity < args.railing_keep_linearity:
             return "wall"
         if linearity >= args.railing_keep_linearity:
@@ -543,6 +544,91 @@ def process_object_group(
     return next_id
 
 
+def process_ply_noncontiguous(
+    input_ply: Path,
+    output_ply: Path,
+    header: PlyHeader,
+    idx: dict[str, int],
+    objects: dict[int, dict[str, Any]],
+    split_candidates: set[int],
+    args: argparse.Namespace,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], Counter, int]:
+    """Rewrite a viewer PLY without assuming object ids are contiguous.
+
+    Viewer exports are often grouped by frame/target rather than by object. The
+    old streaming implementation treated every repeated object run as a separate
+    object, duplicating metadata and producing invalid reports.  Candidate
+    objects are small enough for this pass, so collect only their lines and
+    stream all non-candidates through immediately.
+    """
+    output_objects: list[dict[str, Any]] = []
+    split_reports: list[dict[str, Any]] = []
+    report_counts = Counter()
+    next_id = args.next_object_id_base
+    written_passthrough_objects: set[int] = set()
+    candidate_lines: dict[int, list[str]] = {oid: [] for oid in split_candidates}
+
+    with input_ply.open("r", encoding="utf-8", errors="replace") as src, output_ply.open("w", encoding="utf-8") as dst:
+        for line in src:
+            dst.write(line)
+            if line.strip() == "end_header":
+                break
+
+        for _line_no in range(header.vertex_count):
+            line = src.readline()
+            if not line:
+                break
+            parts = line.strip().split()
+            if len(parts) <= idx["object"]:
+                continue
+            object_id = int(round(float(parts[idx["object"]])))
+            if object_id in split_candidates:
+                candidate_lines.setdefault(object_id, []).append(line)
+                continue
+            dst.write(line)
+            if object_id not in written_passthrough_objects:
+                source_obj = objects.get(object_id)
+                if source_obj:
+                    output_objects.append(dict(source_obj))
+                    report_counts["passthrough_objects"] += 1
+                    written_passthrough_objects.add(object_id)
+                else:
+                    report_counts["missing_metadata_objects"] += 1
+
+        for object_id in sorted(candidate_lines):
+            lines = candidate_lines[object_id]
+            if not lines:
+                continue
+            source_obj = objects.get(object_id)
+            if not source_obj:
+                for line in lines:
+                    dst.write(line)
+                report_counts["missing_metadata_objects"] += 1
+                continue
+            print(
+                json.dumps(
+                    {
+                        "event": "split_object_start",
+                        "object_id": object_id,
+                        "label": source_obj.get("semantic_label"),
+                        "point_count": len(lines),
+                    },
+                    ensure_ascii=False,
+                ),
+                flush=True,
+            )
+            points, colors, _objects = parse_group_lines(lines, idx)
+            assignments, child_objects, next_id, split_report = split_object(points, colors, source_obj, args, next_id)
+            print(json.dumps({"event": "split_object_done", **split_report}, ensure_ascii=False), flush=True)
+            write_group_split(dst, lines, idx, assignments, child_objects, report_counts)
+            output_objects.extend(child_objects)
+            split_reports.append(split_report)
+            report_counts["split_source_objects"] += 1
+            report_counts[f"split_source_label:{source_obj.get('semantic_label', 'unknown')}"] += int(len(lines))
+
+    return output_objects, split_reports, report_counts, next_id
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-ply", type=Path, required=True)
@@ -567,6 +653,7 @@ def main() -> None:
     parser.add_argument("--max-grass-thickness", type=float, default=0.80)
     parser.add_argument("--railing-keep-linearity", type=float, default=0.82)
     parser.add_argument("--railing-max-minor-extent", type=float, default=1.20)
+    parser.add_argument("--horizontal-label", choices=["floor", "ground"], default="floor")
     args = parser.parse_args()
 
     header = read_header(args.input_ply)
@@ -583,60 +670,15 @@ def main() -> None:
     output_split_report_jsonl = args.output_dir / f"{args.output_prefix}_split_reports.jsonl"
     output_report = args.output_dir / f"{args.output_prefix}_report.json"
 
-    output_objects: list[dict[str, Any]] = []
-    split_reports: list[dict[str, Any]] = []
-    report_counts = Counter()
-    next_id = args.next_object_id_base
-
-    with args.input_ply.open("r", encoding="utf-8", errors="replace") as src, output_ply.open("w", encoding="utf-8") as dst:
-        for line in src:
-            dst.write(line)
-            if line.strip() == "end_header":
-                break
-
-        current_object: int | None = None
-        group_lines: list[str] = []
-        for line_no in range(header.vertex_count):
-            line = src.readline()
-            if not line:
-                break
-            parts = line.strip().split()
-            if len(parts) <= idx["object"]:
-                continue
-            object_id = int(round(float(parts[idx["object"]])))
-            if current_object is None:
-                current_object = object_id
-            if object_id != current_object:
-                next_id = process_object_group(
-                    dst,
-                    group_lines,
-                    current_object,
-                    idx,
-                    objects,
-                    split_candidates,
-                    output_objects,
-                    split_reports,
-                    report_counts,
-                    next_id,
-                    args,
-                )
-                current_object = object_id
-                group_lines = []
-            group_lines.append(line)
-        if current_object is not None and group_lines:
-            next_id = process_object_group(
-                dst,
-                group_lines,
-                current_object,
-                idx,
-                objects,
-                split_candidates,
-                output_objects,
-                split_reports,
-                report_counts,
-                next_id,
-                args,
-            )
+    output_objects, split_reports, report_counts, _next_id = process_ply_noncontiguous(
+        args.input_ply,
+        output_ply,
+        header,
+        idx,
+        objects,
+        split_candidates,
+        args,
+    )
 
     output_objects.sort(key=lambda row: int(row["object_id"]))
     write_jsonl(output_jsonl, output_objects)

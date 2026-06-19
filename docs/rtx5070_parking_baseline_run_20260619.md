@@ -1743,3 +1743,80 @@ Current read:
 - Remaining quality work should focus on source target quality and fine-object
   masks, not on global point reprojection or VLM relabel from already-corrupted
   evidence.
+
+## Railing Local-Geometry Probe
+
+Date: 2026-06-19
+
+Problem:
+
+- The best ambsplit candidate had no ambiguous objects, but QA still warned that
+  large `car`/`railing` objects should be inspected.
+- The remaining large `railing` cases were source-mask artifacts: the visual
+  crop often contained real handrail/guardrail, but the mask swallowed adjacent
+  stairs, panels, walls, or ground.
+- Therefore a pure height guard would be too blunt; the useful operation is
+  local 3D geometry splitting inside selected `railing` objects.
+
+Tooling fix:
+
+- `scripts/split_priority_objects_by_local_geometry.py` previously assumed PLY
+  rows were contiguous by object id.
+- Viewer PLY rows are not guaranteed to be object-contiguous, so the script
+  duplicated object metadata and produced invalid object counts.
+- The script now collects only selected split-candidate object rows and streams
+  all non-candidates through once. A regression test covers non-contiguous PLY
+  object runs.
+
+Probe input:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_ambsplit_rtx5070_carz25_20260619_125444
+```
+
+Forced split candidates:
+
+```text
+2828, 2916, 2934, 3001, 3046, 3103, 3130, 3178, 3179, 3193
+```
+
+Output:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_ambsplit_railing_localgeom_probe_v4_ground_rtx5070
+```
+
+QA result:
+
+- status: `ok`
+- PLY vertices: `903,115`
+- input objects: `3,253`
+- output objects: `3,266`
+- split source objects: `10`
+- large fine object warning: `none`
+- semantic mismatch: `0`
+
+Label movement:
+
+| label | before points | after points | delta |
+| --- | ---: | ---: | ---: |
+| railing | `70,549` | `21,609` | `-48,940` |
+| unknown | `63,959` | `67,972` | `+4,013` |
+| wall | `5,206,131` | `5,206,425` | `+294` |
+| ground | `1,637,998` | `1,638,491` | `+493` |
+
+Viewer URL:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_ambsplit_railing_localgeom_probe_v4_ground_rtx5070/frame_object_points_railing_localgeom.ply&objects=/server_parking_priority_s10/frame_object_viewer_ambsplit_railing_localgeom_probe_v4_ground_rtx5070/frame_object_points_railing_localgeom.jsonl&mode=semantic&stride=1&pointSize=1.5
+```
+
+Current read:
+
+- This is a valid candidate result, but not yet promoted to the default best
+  route because it aggressively reduces `railing`.
+- The result should be visually checked against the previous ambsplit best
+  candidate. If real railings are over-suppressed, tune local voxel thresholds
+  or apply the split only to stricter high-risk objects.
+- This probe confirms that local point geometry inside a bad fine mask is a
+  useful next optimization axis.
