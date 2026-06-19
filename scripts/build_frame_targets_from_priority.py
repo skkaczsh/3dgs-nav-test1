@@ -211,6 +211,68 @@ def split_local_indices_by_image_components(
     return groups or [local_indices]
 
 
+def split_local_indices_by_depth_support(
+    uu: np.ndarray,
+    vv: np.ndarray,
+    depths: np.ndarray,
+    local_indices: np.ndarray,
+    pixel_radius: int,
+    max_depth_gap: float,
+    min_points: int,
+) -> list[np.ndarray]:
+    """Split projected points by local image/depth support.
+
+    Two points are connected only when their projected pixels are close and
+    their camera depth is similar. This is designed for sparse LiDAR support,
+    where dense depth-edge images may contain too few edge pixels to be useful.
+    """
+    if len(local_indices) == 0:
+        return []
+    radius = max(int(pixel_radius), 1)
+    local = [int(x) for x in local_indices.tolist()]
+    by_cell: dict[tuple[int, int], list[int]] = defaultdict(list)
+    for pos, idx in enumerate(local):
+        by_cell[(int(uu[idx]) // radius, int(vv[idx]) // radius)].append(pos)
+
+    visited = np.zeros(len(local), dtype=bool)
+    components: list[np.ndarray] = []
+    residual: list[int] = []
+    for start_pos in range(len(local)):
+        if visited[start_pos]:
+            continue
+        queue = deque([start_pos])
+        visited[start_pos] = True
+        comp: list[int] = []
+        while queue:
+            pos = queue.popleft()
+            comp.append(pos)
+            idx = local[pos]
+            cell_x = int(uu[idx]) // radius
+            cell_y = int(vv[idx]) // radius
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for nxt_pos in by_cell.get((cell_x + dx, cell_y + dy), []):
+                        if visited[nxt_pos]:
+                            continue
+                        nxt_idx = local[nxt_pos]
+                        if abs(int(uu[idx]) - int(uu[nxt_idx])) > radius:
+                            continue
+                        if abs(int(vv[idx]) - int(vv[nxt_idx])) > radius:
+                            continue
+                        if abs(float(depths[idx]) - float(depths[nxt_idx])) > float(max_depth_gap):
+                            continue
+                        visited[nxt_pos] = True
+                        queue.append(nxt_pos)
+        if len(comp) >= int(min_points):
+            components.append(local_indices[np.asarray(comp, dtype=np.int64)])
+        else:
+            residual.extend(comp)
+    if residual:
+        components.append(local_indices[np.asarray(residual, dtype=np.int64)])
+    components.sort(key=len, reverse=True)
+    return components or [local_indices]
+
+
 def target_summary(points: np.ndarray, colors: np.ndarray, uu: np.ndarray, vv: np.ndarray) -> dict[str, Any]:
     bbox_min = points.min(axis=0)
     bbox_max = points.max(axis=0)
@@ -328,6 +390,7 @@ def build_frame_targets(points: np.ndarray, pose: dict[str, Any], frame_id: int,
         colors = projected["colors"]
         uu = projected["uu"]
         vv = projected["vv"]
+        depths = projected["depths"]
         cam_hist = Counter(int(x) for x in labels.tolist())
         made = 0
         small_residual = 0
@@ -351,45 +414,59 @@ def build_frame_targets(points: np.ndarray, pose: dict[str, Any], frame_id: int,
                 )
             comp_index = 0
             for image_group_id, image_group in enumerate(image_groups):
-                class_points = points[point_indices[image_group]]
-                components, residual = connected_components(class_points, voxel, min_points)
-                small_residual += int(residual.sum())
-                for comp in components:
-                    selected = image_group[comp]
-                    target_points = points[point_indices[selected]]
-                    target_colors = colors[selected]
-                    target_point_indices = point_indices[selected]
-                    target_id = f"pt_{frame_id:06d}_cam{cam_id}_p{label_id}_cc{comp_index:03d}"
-                    summary = target_summary(target_points, target_colors, uu[selected], vv[selected])
-                    row = {
-                        "target_id": target_id,
-                        "target_index": int(target_index),
-                        "frame_id": int(frame_id),
-                        "cam_id": int(cam_id),
-                        "mask_id": int(label_id),
-                        "priority_label_id": int(label_id),
-                        "label": label_name,
-                        "raw_label": label_name,
-                        "parent_class": PARENT_BY_PRIORITY.get(label_id, "other"),
-                        "confidence": 1.0,
-                        "image_path": str(projected["image_path"]),
-                        "mask_path": str(projected["mask_path"]),
-                        "raw_frame_ply": "",
-                        "colored_frame_ply": "",
-                        "point_indices": [int(x) for x in target_point_indices.tolist()],
-                        "source_point_count": int(len(points)),
-                        "projected_class_points": int(class_mask.sum()),
-                        "component_index": int(comp_index),
-                        "image_component_index": int(image_group_id),
-                        "image_component_split": bool(getattr(args, "split_by_image_components", False)),
-                        "connectivity_voxel_size": float(voxel),
-                        **summary,
-                    }
-                    rows.append(row)
-                    ply_chunks.append((target_index, label_id, cam_id, target_points, target_point_indices))
-                    target_index += 1
-                    comp_index += 1
-                    made += 1
+                depth_groups = [image_group]
+                if bool(getattr(args, "split_by_depth_support", False)):
+                    depth_groups = split_local_indices_by_depth_support(
+                        uu,
+                        vv,
+                        depths,
+                        image_group,
+                        args.depth_support_pixel_radius,
+                        args.depth_support_max_gap,
+                        args.depth_support_min_points,
+                    )
+                for depth_group_id, depth_group in enumerate(depth_groups):
+                    class_points = points[point_indices[depth_group]]
+                    components, residual = connected_components(class_points, voxel, min_points)
+                    small_residual += int(residual.sum())
+                    for comp in components:
+                        selected = depth_group[comp]
+                        target_points = points[point_indices[selected]]
+                        target_colors = colors[selected]
+                        target_point_indices = point_indices[selected]
+                        target_id = f"pt_{frame_id:06d}_cam{cam_id}_p{label_id}_cc{comp_index:03d}"
+                        summary = target_summary(target_points, target_colors, uu[selected], vv[selected])
+                        row = {
+                            "target_id": target_id,
+                            "target_index": int(target_index),
+                            "frame_id": int(frame_id),
+                            "cam_id": int(cam_id),
+                            "mask_id": int(label_id),
+                            "priority_label_id": int(label_id),
+                            "label": label_name,
+                            "raw_label": label_name,
+                            "parent_class": PARENT_BY_PRIORITY.get(label_id, "other"),
+                            "confidence": 1.0,
+                            "image_path": str(projected["image_path"]),
+                            "mask_path": str(projected["mask_path"]),
+                            "raw_frame_ply": "",
+                            "colored_frame_ply": "",
+                            "point_indices": [int(x) for x in target_point_indices.tolist()],
+                            "source_point_count": int(len(points)),
+                            "projected_class_points": int(class_mask.sum()),
+                            "component_index": int(comp_index),
+                            "image_component_index": int(image_group_id),
+                            "image_component_split": bool(getattr(args, "split_by_image_components", False)),
+                            "depth_support_component_index": int(depth_group_id),
+                            "depth_support_split": bool(getattr(args, "split_by_depth_support", False)),
+                            "connectivity_voxel_size": float(voxel),
+                            **summary,
+                        }
+                        rows.append(row)
+                        ply_chunks.append((target_index, label_id, cam_id, target_points, target_point_indices))
+                        target_index += 1
+                        comp_index += 1
+                        made += 1
 
         per_cam_stats.append({
             "cam_id": int(cam_id),
@@ -436,6 +513,10 @@ def main() -> None:
     parser.add_argument("--surface-min-points", type=int, default=80)
     parser.add_argument("--split-by-image-components", action="store_true")
     parser.add_argument("--image-component-min-pixels", type=int, default=32)
+    parser.add_argument("--split-by-depth-support", action="store_true")
+    parser.add_argument("--depth-support-pixel-radius", type=int, default=6)
+    parser.add_argument("--depth-support-max-gap", type=float, default=0.45)
+    parser.add_argument("--depth-support-min-points", type=int, default=8)
     parser.add_argument("--progress-every", type=int, default=20)
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()

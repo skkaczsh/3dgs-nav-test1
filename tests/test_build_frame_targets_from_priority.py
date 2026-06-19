@@ -49,3 +49,43 @@ def test_split_local_indices_by_image_components_keeps_small_components_as_resid
     groups = module.split_local_indices_by_image_components(label_mask, uu, vv, local_indices, min_pixels=4)
 
     assert [group.tolist() for group in groups] == [[0, 1], [2]]
+
+
+def test_split_local_indices_by_depth_support_splits_depth_jump():
+    module = load_module()
+    uu = np.array([10, 12, 14, 16], dtype=np.int32)
+    vv = np.array([10, 11, 10, 11], dtype=np.int32)
+    depths = np.array([1.0, 1.1, 4.0, 4.1], dtype=np.float32)
+    local_indices = np.arange(4, dtype=np.int64)
+
+    groups = module.split_local_indices_by_depth_support(
+        uu,
+        vv,
+        depths,
+        local_indices,
+        pixel_radius=4,
+        max_depth_gap=0.5,
+        min_points=1,
+    )
+
+    assert [group.tolist() for group in groups] == [[0, 1], [2, 3]]
+
+
+def test_split_local_indices_by_depth_support_keeps_continuous_depth():
+    module = load_module()
+    uu = np.array([10, 12, 14, 16], dtype=np.int32)
+    vv = np.array([10, 11, 10, 11], dtype=np.int32)
+    depths = np.array([1.0, 1.1, 1.2, 1.3], dtype=np.float32)
+    local_indices = np.arange(4, dtype=np.int64)
+
+    groups = module.split_local_indices_by_depth_support(
+        uu,
+        vv,
+        depths,
+        local_indices,
+        pixel_radius=4,
+        max_depth_gap=0.5,
+        min_points=1,
+    )
+
+    assert [group.tolist() for group in groups] == [[0, 1, 2, 3]]

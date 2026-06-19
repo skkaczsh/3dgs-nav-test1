@@ -419,6 +419,43 @@ Interpretation:
   discontinuities and projected point support directly, not only 2D binary mask
   connectivity.
 
+## Depth-Support Split Probe
+
+New optional target-construction flags:
+
+```bash
+python scripts/build_frame_targets_from_priority.py \
+  --split-by-image-components \
+  --split-by-depth-support \
+  --depth-support-pixel-radius 8 \
+  --depth-support-max-gap 0.6
+```
+
+The split groups projected LiDAR samples by local image proximity and camera
+depth continuity before the existing 3D voxel connectivity. This is designed to
+work with sparse projected points, where generated depth-edge PNGs are often too
+sparse to constrain masks directly.
+
+Probe on `2700-2800` after target geometry refine:
+
+| mode | findings | top cam0 findings | top cam0 score | result |
+| --- | ---: | ---: | ---: | --- |
+| neighbor-r2 only | `64` | `42` | `1335` | baseline for this probe |
+| neighbor-r2 + 2D components | `63` | `42` | `1335` | effectively unchanged |
+| depth support, radius `8`, gap `0.6` | `91` | `70` | `2065` | worse; more low-point fragments |
+| depth support, radius `16`, gap `1.2` | `148` | `118` | `3725` | much worse |
+
+Conclusion:
+
+- Sparse projected-support splitting is not suitable as a production target
+  split rule for this dataset. It fragments targets and increases low-point
+  `car` / `railing` / flat-wall conflicts.
+- Keep the flag as an experimental diagnostic tool, but do not enable it for the
+  full-scene route.
+- The next practical direction is fragment absorption / confirmation: low-point
+  fine targets should be merged into neighboring trusted surfaces or sent to a
+  stronger detector, instead of being preserved as independent objects.
+
 ## Batch Size Benchmark
 
 Measured on `60` undistorted frames with Mask2Former Mapillary priority segmentation:
