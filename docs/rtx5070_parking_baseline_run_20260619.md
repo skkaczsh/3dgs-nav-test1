@@ -2414,3 +2414,73 @@ Interpretation:
   stairs/walls/floors while preserving obvious handrail coverage. If the mask
   still swallows adjacent surfaces, keep local-geometry suppression as the
   precision guard and do not promote the 2D mask change.
+
+## Fine-Mask Input Package And Color/Shape Probe
+
+Date: 2026-06-19
+
+New scripts:
+
+```text
+scripts/prepare_fine_mask_eval_inputs.py
+scripts/probe_fine_mask_color_geometry.py
+```
+
+Prepared 5070Ti input package:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/fine_mask_eval_inputs_localgeom_railing_20260619
+```
+
+Preparation result:
+
+- samples: `21`
+- ready images: `21`
+- ready current masks: `21`
+- ready crops: `21`
+- missing: `0`
+
+Color/shape probe output:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/fine_mask_color_geometry_probe_localgeom_railing_20260619
+server_parking_priority_s10/fine_mask_color_geometry_probe_localgeom_railing_20260619
+```
+
+Probe result:
+
+| flag | count |
+| --- | ---: |
+| `high_fill_ratio` | `21 / 21` |
+| `not_thin` | `21 / 21` |
+| `large_bbox` | `17 / 21` |
+| `weak_color_boundary` | `12 / 21` |
+
+Visual read from the contact sheet:
+
+- current `railing` masks are usually large filled regions, not thin
+  railing/handrail structures
+- many masks swallow stair treads, wall panels, floors, corrugated surfaces, or
+  adjacent background
+- this matches the point-cloud local-geometry finding that most removed
+  `railing` points were mask spillover, not random label noise
+
+Decision:
+
+- The proposed visual-depth refinement should be attached after
+  `SAM2/skymask` as a mask split/guard layer.
+- Do not use VLM relabeling to fix these samples; the 2D evidence is already
+  mixed before labeling.
+- Next step is to add projected sparse depth continuity to this probe, then use
+  depth/color/3D connectedness to split or reject broad fine masks.
+
+5070Ti Python SAM2 setup status:
+
+- installed official `facebookresearch/sam2` code in editable mode:
+  `/home/zsh/Work/SCAN/deps/sam2`
+- installed with `--no-deps` after first aborting a pip attempt that tried to
+  upgrade torch
+- verified torch remained unchanged:
+  `torch 2.11.0+cu130`, CUDA `13.0`, CUDA available
+- checkpoint download target:
+  `/home/zsh/Work/SCAN/models/sam2/sam2.1_hiera_large.pt`
