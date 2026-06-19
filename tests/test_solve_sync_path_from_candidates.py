@@ -84,3 +84,38 @@ def test_summary_rejects_smooth_but_low_score_path():
     )
     assert summary["accepted"] is False
     assert summary["score_loss_from_independent_best"]["mean"] > 0.10
+
+
+def test_load_and_apply_accepted_anchors_hard_filters_candidates(tmp_path):
+    module = load_module()
+    anchors_path = tmp_path / "anchors.jsonl"
+    anchors_path.write_text(
+        '{"frame_id": 10, "cam_id": 0, "anchor_status": "accepted", '
+        '"selected_video_idx": null, "selected_option_idx": 1, '
+        '"options": [{"option_idx": 0, "video_idx": 10}, {"option_idx": 1, "video_idx": 12}]}\n',
+        encoding="utf-8",
+    )
+    anchors = module.load_accepted_anchors(anchors_path)
+    assert anchors == {(10, 0): 12}
+    grouped = {
+        0: {
+            10: [
+                {"frame_id": 10, "cam_id": 0, "video_idx": 10, "score": 0.9},
+                {"frame_id": 10, "cam_id": 0, "video_idx": 12, "score": 0.5},
+            ]
+        }
+    }
+    filtered = module.apply_anchors(grouped, anchors)
+    assert [row["video_idx"] for row in filtered[0][10]] == [12]
+    assert filtered[0][10][0]["anchor_status"] == "accepted"
+
+
+def test_apply_anchors_rejects_missing_candidate():
+    module = load_module()
+    grouped = {0: {10: [{"frame_id": 10, "cam_id": 0, "video_idx": 10, "score": 0.9}]}}
+    try:
+        module.apply_anchors(grouped, {(10, 0): 12})
+    except ValueError as exc:
+        assert "not found in candidates" in str(exc)
+    else:
+        raise AssertionError("missing anchor candidate should fail")

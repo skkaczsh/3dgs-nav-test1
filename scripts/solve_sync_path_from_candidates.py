@@ -42,6 +42,53 @@ def group_candidates(rows: list[dict[str, Any]]) -> dict[int, dict[int, list[dic
     return grouped
 
 
+def load_accepted_anchors(path: Path | None) -> dict[tuple[int, int], int]:
+    if path is None:
+        return {}
+    anchors = {}
+    for row in load_jsonl(path):
+        if str(row.get("anchor_status", "")).lower() != "accepted":
+            continue
+        selected = row.get("selected_video_idx")
+        if selected is None and row.get("selected_option_idx") is not None:
+            option_idx = int(row["selected_option_idx"])
+            for option in row.get("options", []):
+                if int(option.get("option_idx", -1)) == option_idx:
+                    selected = option.get("video_idx")
+                    break
+        if selected is None:
+            raise ValueError(f"accepted anchor missing selected video: frame={row.get('frame_id')} cam={row.get('cam_id')}")
+        key = (int(row["frame_id"]), int(row["cam_id"]))
+        value = int(selected)
+        if key in anchors and anchors[key] != value:
+            raise ValueError(f"conflicting anchors for frame={key[0]} cam={key[1]}: {anchors[key]} vs {value}")
+        anchors[key] = value
+    return anchors
+
+
+def apply_anchors(
+    grouped: dict[int, dict[int, list[dict[str, Any]]]],
+    anchors: dict[tuple[int, int], int],
+) -> dict[int, dict[int, list[dict[str, Any]]]]:
+    if not anchors:
+        return grouped
+    out: dict[int, dict[int, list[dict[str, Any]]]] = defaultdict(dict)
+    for cam_id, by_frame in grouped.items():
+        for frame_id, rows in by_frame.items():
+            selected = anchors.get((frame_id, cam_id))
+            if selected is None:
+                out[cam_id][frame_id] = rows
+                continue
+            anchored_rows = [dict(row, anchor_status="accepted") for row in rows if int(row["video_idx"]) == int(selected)]
+            if not anchored_rows:
+                raise ValueError(f"accepted anchor video_idx={selected} not found in candidates for frame={frame_id} cam={cam_id}")
+            out[cam_id][frame_id] = anchored_rows
+    unused = sorted(set(anchors) - {(frame_id, cam_id) for cam_id, by_frame in grouped.items() for frame_id in by_frame})
+    if unused:
+        raise ValueError(f"accepted anchors not present in candidates: {unused[:5]}")
+    return out
+
+
 def transition_penalty(
     prev: dict[str, Any],
     cur: dict[str, Any],
@@ -194,13 +241,17 @@ def main() -> None:
     parser.add_argument("--score-weight", type=float, default=1.0)
     parser.add_argument("--max-score-loss-mean", type=float, default=0.10)
     parser.add_argument("--max-score-loss-max", type=float, default=0.25)
+    parser.add_argument("--anchors-jsonl", type=Path, help="Manual anchor manifest; accepted rows are hard constraints.")
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     rows = load_jsonl(args.candidates_jsonl)
-    grouped = group_candidates(rows)
+    anchors = load_accepted_anchors(args.anchors_jsonl)
+    grouped = apply_anchors(group_candidates(rows), anchors)
     report = {
         "candidates_jsonl": str(args.candidates_jsonl),
+        "anchors_jsonl": str(args.anchors_jsonl) if args.anchors_jsonl else None,
+        "accepted_anchor_count": len(anchors),
         "target_ratio": args.target_ratio,
         "max_ratio_deviation": args.max_ratio_deviation,
         "velocity_weight": args.velocity_weight,

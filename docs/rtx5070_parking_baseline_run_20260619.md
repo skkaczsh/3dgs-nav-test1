@@ -2992,3 +2992,26 @@ Next use:
   `selected_video_idx`, and leave uncertain rows as `unreviewed`.
 - The next optimizer should use accepted anchors as hard or high-weight
   constraints, not as another soft score.
+
+Anchor consumption support:
+
+- `scripts/solve_sync_path_from_candidates.py` now accepts
+  `--anchors-jsonl manual_anchor_manifest.jsonl`.
+- Rows with `anchor_status == "accepted"` become hard constraints for their
+  `(frame_id, cam_id)` probe.
+- `selected_video_idx` is used directly; if omitted, the solver resolves
+  `selected_option_idx` through the row's `options`.
+- If an accepted anchor points to a video frame not present in the candidate
+  set, the solver exits with an error instead of silently ignoring the anchor.
+
+Example:
+
+```bash
+python3 scripts/solve_sync_path_from_candidates.py \
+  --candidates-jsonl server_parking_priority_s10/sync_calibration_small_20260619/sync_candidates.jsonl \
+  --anchors-jsonl server_parking_priority_s10/sync_anchor_review_small_20260619/manual_anchor_manifest.jsonl \
+  --output-dir server_parking_priority_s10/sync_smooth_path_anchor_constrained \
+  --target-ratio 1.0 \
+  --max-ratio-deviation 0.6 \
+  --velocity-weight 2.0
+```
