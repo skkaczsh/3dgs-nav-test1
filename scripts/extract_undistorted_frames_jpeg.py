@@ -34,6 +34,34 @@ import config
 from sync_frame_map import load_frame_map, resolve_video_idx
 
 
+def parse_ffprobe_timestamp_rows(text: str) -> list[tuple[int, float]]:
+    """Parse ffprobe CSV frame timestamp rows.
+
+    Different ffmpeg builds/containers expose different frame timestamp fields.
+    MKV files often have `best_effort_timestamp_time` while `pkt_pts_time` is
+    absent.  Returning an empty list here intentionally triggers the uniform-FPS
+    fallback, so this parser must accept the first usable numeric token in each
+    row instead of assuming a single field.
+    """
+    frames: list[tuple[int, float]] = []
+    for line in text.strip().splitlines():
+        if not line:
+            continue
+        ts = None
+        for token in line.split(","):
+            token = token.strip()
+            if not token or token.upper() == "N/A":
+                continue
+            try:
+                ts = float(token)
+                break
+            except ValueError:
+                continue
+        if ts is not None:
+            frames.append((len(frames), ts))
+    return frames
+
+
 def load_video_timestamps(video_path: str) -> list[tuple[int, float]]:
     cmd = [
         "ffprobe",
@@ -42,23 +70,16 @@ def load_video_timestamps(video_path: str) -> list[tuple[int, float]]:
         "-select_streams",
         "v:0",
         "-show_entries",
-        "frame=pkt_pts_time",
+        "frame=best_effort_timestamp_time,pts_time,pkt_pts_time",
         "-of",
         "csv=p=0",
         video_path,
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
-    frames: list[tuple[int, float]] = []
     if result.returncode == 0:
-        for line in result.stdout.strip().splitlines():
-            if not line:
-                continue
-            try:
-                frames.append((len(frames), float(line.split(",")[0])))
-            except (ValueError, IndexError):
-                continue
-    if frames:
-        return frames
+        frames = parse_ffprobe_timestamp_rows(result.stdout)
+        if frames:
+            return frames
 
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():

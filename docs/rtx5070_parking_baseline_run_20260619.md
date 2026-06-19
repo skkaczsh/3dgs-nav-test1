@@ -27,10 +27,25 @@ Measured `img_pos.timestamp` statistics:
 - deltas `>0.3s`: `231`
 - deltas `<0.05s`: `0`
 
+Measured video PTS/keyframe statistics from `scripts/audit_video_pts_timing.py`
+on `scan-rtx5070`:
+
+- `video_cam0.mkv`, `video_cam1.mkv`, `video_cam2.mkv`: each has `6181`
+  decoded frame rows and `0` missing PTS rows
+- PTS delta min / p50 / mean / p95 / max for each camera:
+  approximately `0.1 / 0.1 / 0.1 / 0.1 / 0.1`
+- large PTS jumps at 10fps with 20% tolerance: `0`
+- keyframes: `310` per camera, roughly one every 20 frames
+- report:
+  `server_parking_priority_s10/timing_audit_20260619/video_pts_timing_report.json`
+
 Interpretation:
 
-- The images used for derived datasets should be extracted by calibrated video
-  time/index, not by assuming `section_id == video_idx`.
+- The videos themselves can be treated as uniform 10fps frame-index streams.
+  Keyframes are not the source of the observed projection drift.
+- The images used for derived datasets should still be extracted by calibrated
+  video time/index, not by assuming `section_id == video_idx`, because the
+  scan/pose timeline is nonuniform.
 - The sync model needs to estimate at least:
   - effective video fps / time scale from `img_pos.timestamp` to video frames
   - global video offset
@@ -91,6 +106,15 @@ Current automatic results:
   - mean score loss: about `0.172`
   - max step deviation: about `0.139`
   - mean absolute prior error by camera: about `18-25` video frames
+- timestamp fps/intercept/phase sweep rerun on 5070Ti after video PTS audit:
+  - output:
+    `server_parking_priority_s10/sync_timestamp_fps_sweep_20260619/`
+  - swept `fps=5.0..10.0`, `phase=0,0.5,1.0`, intercepts `0..1800`
+  - best setting remained `fps=6.0`, `phase=1.0`, cam intercepts
+    `cam0=700`, `cam1=600`, `cam2=800`
+  - status remained `rejected`
+  - conclusion: this is a useful prior for manual anchor review, but not an
+    automatic sync truth source.
 
 Visual review of the timestamp/fps sweep contact sheet shows it captures the
 non-uniform sampling hypothesis, but still has suspicious early mappings such

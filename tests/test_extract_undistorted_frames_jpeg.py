@@ -42,3 +42,14 @@ def test_find_best_video_frame_rejects_large_delta():
     assert video_idx is None
     assert abs(delta - 0.3) < 1e-6
     assert abs(rel_ts - 0.1) < 1e-6
+
+
+def test_parse_ffprobe_timestamp_rows_accepts_best_effort_and_skips_na():
+    rows = module.parse_ffprobe_timestamp_rows(
+        "N/A,0.000000\n"
+        "0.100000,N/A\n"
+        "frame,0.200000\n"
+        "not-a-time,N/A\n"
+    )
+
+    assert rows == [(0, 0.0), (1, 0.1), (2, 0.2)]
