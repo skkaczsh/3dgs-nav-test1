@@ -567,11 +567,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--view-surface-gate",
         choices=["off", "first", "first_or_continuous"],
-        default="first_or_continuous",
-        help="Reject see-through pixels after z-buffering. first keeps local first-touch surfaces; first_or_continuous also keeps coherent deeper layers.",
+        default="first",
+        help="Reject see-through pixels after z-buffering. first is the production default; first_or_continuous is a diagnostic relaxed mode for coherent deeper layers.",
     )
-    parser.add_argument("--view-surface-radius", type=int, default=3)
-    parser.add_argument("--view-surface-first-threshold", type=float, default=0.25)
+    parser.add_argument("--view-surface-radius", type=int, default=6)
+    parser.add_argument("--view-surface-first-threshold", type=float, default=0.12)
     parser.add_argument("--view-surface-continuous-threshold", type=float, default=0.18)
     parser.add_argument("--view-surface-min-neighbors", type=int, default=8)
     parser.add_argument("--edge-depth-threshold", type=float, default=0.35)

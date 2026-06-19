@@ -45,6 +45,11 @@ PRIOR_VOXEL_SIZE="${PRIOR_VOXEL_SIZE:-0.20}"
 PRIOR_NEIGHBOR_RADIUS="${PRIOR_NEIGHBOR_RADIUS:-1}"
 EDGE_DEPTH_THRESHOLD="${EDGE_DEPTH_THRESHOLD:-0.35}"
 COLOR_EDGE_LAB_THRESHOLD="${COLOR_EDGE_LAB_THRESHOLD:-16.0}"
+VIEW_SURFACE_GATE="${VIEW_SURFACE_GATE:-first}"
+VIEW_SURFACE_RADIUS="${VIEW_SURFACE_RADIUS:-6}"
+VIEW_SURFACE_FIRST_THRESHOLD="${VIEW_SURFACE_FIRST_THRESHOLD:-0.12}"
+VIEW_SURFACE_CONTINUOUS_THRESHOLD="${VIEW_SURFACE_CONTINUOUS_THRESHOLD:-0.15}"
+VIEW_SURFACE_MIN_NEIGHBORS="${VIEW_SURFACE_MIN_NEIGHBORS:-10}"
 
 GEOMETRY_DIR="${GEOMETRY_DIR:-${WORK_DIR}/geometry_guidance_${OUT_SUFFIX}_${START}_${END}}"
 REFINE_DIR="${REFINE_DIR:-${WORK_DIR}/geometry_refine_${OUT_SUFFIX}_${START}_${END}}"
@@ -115,6 +120,7 @@ main() {
   echo "range=${START}..${END} stride=${STRIDE} cams=${CAMS}"
   echo "out_suffix=${OUT_SUFFIX}"
   echo "global_source_filter=${GLOBAL_SOURCE_FILTER_MODE} window=${GLOBAL_SOURCE_FRAME_WINDOW}"
+  echo "view_surface_gate=${VIEW_SURFACE_GATE} radius=${VIEW_SURFACE_RADIUS} first_threshold=${VIEW_SURFACE_FIRST_THRESHOLD}"
   echo "allow_fine_surface_override=${ALLOW_FINE_SURFACE_OVERRIDE}"
 
   prepare_output_dir "${GEOMETRY_DIR}"
@@ -141,6 +147,11 @@ main() {
     --end "${END}" \
     --stride "${STRIDE}" \
     --cams "${cams_array[@]}" \
+    --view-surface-gate "${VIEW_SURFACE_GATE}" \
+    --view-surface-radius "${VIEW_SURFACE_RADIUS}" \
+    --view-surface-first-threshold "${VIEW_SURFACE_FIRST_THRESHOLD}" \
+    --view-surface-continuous-threshold "${VIEW_SURFACE_CONTINUOUS_THRESHOLD}" \
+    --view-surface-min-neighbors "${VIEW_SURFACE_MIN_NEIGHBORS}" \
     --edge-depth-threshold "${EDGE_DEPTH_THRESHOLD}" \
     --color-edge-lab-threshold "${COLOR_EDGE_LAB_THRESHOLD}" \
     --prior-voxel-size "${PRIOR_VOXEL_SIZE}" \
