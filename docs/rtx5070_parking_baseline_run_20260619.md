@@ -2884,3 +2884,54 @@ Interpretation:
   authoritative mapping from device-time sections to compressed video frames.
 - Continue to block production semantic projection until this mapping is
   recovered or calibrated with stronger temporal constraints.
+
+## Temporal Smoothness Sync Solver
+
+Date: 2026-06-19
+
+Reusable solver added:
+
+```text
+scripts/solve_sync_path_from_candidates.py
+```
+
+Purpose:
+
+- consume `sync_candidates.jsonl` from the calibration gate;
+- solve a per-camera monotonic/smooth section-to-video path with dynamic
+  programming;
+- reject paths that are temporally smooth but require too much score loss from
+  the independently best visual candidates.
+
+Local sample command:
+
+```bash
+python3 scripts/solve_sync_path_from_candidates.py \
+  --candidates-jsonl server_parking_priority_s10/sync_calibration_small_20260619/sync_candidates.jsonl \
+  --output-dir server_parking_priority_s10/sync_smooth_path_small_20260619 \
+  --target-ratio 1.0 \
+  --max-ratio-deviation 0.6 \
+  --velocity-weight 2.0
+```
+
+Result:
+
+- status: `rejected`
+- the solver can produce smooth monotonic paths:
+  - cam0 step ratio mean: `0.979`, max deviation: `0.167`
+  - cam1 step ratio mean: `1.000`, max deviation: `0.000`
+  - cam2 step ratio mean: `1.000`, max deviation: `0.000`
+- but those paths lose too much image-edge evidence:
+  - cam0 score-loss mean/max: `0.158 / 0.441`
+  - cam1 score-loss mean/max: `0.227 / 0.426`
+  - cam2 score-loss mean/max: `0.171 / 0.386`
+  - default acceptance threshold: mean `<=0.10`, max `<=0.25`
+
+Interpretation:
+
+- A smooth timeline exists, but it is not visually well-supported by the
+  current edge candidate scores.
+- This prevents the route from silently replacing one bad mapping with another
+  plausible but unsupported mapping.
+- Next step remains: recover authoritative camera timing or add manual anchors
+  plus visual QA to constrain the optimizer.
