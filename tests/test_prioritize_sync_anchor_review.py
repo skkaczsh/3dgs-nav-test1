@@ -70,6 +70,8 @@ def test_prioritizer_selects_top_rows_per_camera(tmp_path: Path):
     assert {(row["frame_id"], row["cam_id"]) for row in selected} == {(20, 0), (20, 1)}
     html = (tmp_path / "out" / "anchor_review_priority.html").read_text(encoding="utf-8")
     assert "Prioritized Sync Anchor Review" in html
+    assert "accepted_sync_anchors.jsonl" in html
+    assert "Mark selected accepted" in html
     assert "panels/f20_c0_o0.jpg" in html
 
 

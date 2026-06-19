@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import os
 import statistics
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -97,46 +98,26 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-def render_html(rows: list[dict[str, Any]], source_dir: Path, title: str) -> str:
-    cards = []
+def rows_for_html(rows: list[dict[str, Any]], source_dir: Path, output_dir: Path) -> list[dict[str, Any]]:
+    out = []
     for row in rows:
-        options_html = []
+        item = dict(row)
+        item["options"] = []
         for option in row.get("options", []):
-            panel = option.get("panel_path")
-            src = panel
-            if panel and source_dir:
-                src = str((source_dir / panel).resolve())
-            src_attr = html.escape(src or "")
-            options_html.append(
-                f"""
-                <div class="option">
-                  <img src="{src_attr}" loading="lazy">
-                  <div class="meta">
-                    opt {option.get('option_idx')} / {html.escape(str(option.get('review_source')))} /
-                    video {option.get('video_idx')} / offset {option.get('offset')}<br>
-                    score {float(option.get('score', 0.0)):.3f} /
-                    edge {float(option.get('edge_hit', 0.0)):.3f} /
-                    dist {float(option.get('edge_distance_mean', 0.0)):.2f}
-                  </div>
-                </div>
-                """
-            )
-        risk = ", ".join(row.get("risk_reasons", [])) or "none"
-        cards.append(
-            f"""
-            <section class="card">
-              <h2>frame {row['frame_id']} / cam {row['cam_id']}</h2>
-              <p>
-                priority {float(row['priority_score']):.3f};
-                best opt {row.get('best_option_idx')} ({html.escape(str(row.get('best_source')))});
-                video {row.get('best_video_idx')};
-                margin {float(row.get('score_margin', 0.0)):.3f};
-                risk: {html.escape(risk)}
-              </p>
-              <div class="options">{''.join(options_html)}</div>
-            </section>
-            """
-        )
+            opt = dict(option)
+            panel = opt.get("panel_path")
+            if panel:
+                opt["panel_src"] = os.path.relpath(source_dir / str(panel), output_dir)
+            else:
+                opt["panel_src"] = ""
+            item["options"].append(opt)
+        out.append(item)
+    return out
+
+
+def render_html(rows: list[dict[str, Any]], source_dir: Path, output_dir: Path, title: str) -> str:
+    payload_rows = rows_for_html(rows, source_dir, output_dir)
+    payload = html.escape(json.dumps(payload_rows, ensure_ascii=False), quote=False)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -144,21 +125,113 @@ def render_html(rows: list[dict[str, Any]], source_dir: Path, title: str) -> str
 <title>{html.escape(title)}</title>
 <style>
 body {{ margin: 0; background: #0d1117; color: #d8dee9; font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }}
-header {{ position: sticky; top: 0; padding: 14px 18px; background: #111827; border-bottom: 1px solid #30363d; }}
+header {{ position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 18px; background: #111827; border-bottom: 1px solid #30363d; }}
 h1 {{ margin: 0; font-size: 18px; }}
+button {{ border: 1px solid #42526a; border-radius: 6px; background: #1d2736; color: #f2f4f8; padding: 8px 12px; cursor: pointer; }}
 main {{ padding: 16px; }}
 .card {{ border: 1px solid #30363d; border-radius: 8px; margin-bottom: 18px; background: #151b23; overflow: hidden; }}
 h2 {{ margin: 0; padding: 10px 12px; font-size: 15px; background: #1b2430; border-bottom: 1px solid #30363d; }}
 p {{ margin: 10px 12px; color: #aab6c5; }}
 .options {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; padding: 12px; }}
 .option {{ border: 1px solid #30363d; border-radius: 6px; overflow: hidden; background: #0d1117; }}
+.option:has(input:checked) {{ border-color: #6aa5ff; box-shadow: 0 0 0 1px #6aa5ff; }}
 img {{ width: 100%; display: block; }}
 .meta {{ padding: 8px; color: #b8c0cc; font-size: 12px; line-height: 1.45; }}
+.status {{ display: flex; gap: 10px; padding: 8px 12px; color: #aab6c5; border-bottom: 1px solid #30363d; }}
+.risk {{ color: #d29922; }}
 </style>
 </head>
 <body>
-<header><h1>{html.escape(title)}</h1></header>
-<main>{''.join(cards)}</main>
+<header>
+  <h1>{html.escape(title)}</h1>
+  <div>
+    <button id="accept-selected">Mark selected accepted</button>
+    <button id="download">Export accepted JSONL</button>
+  </div>
+</header>
+<main id="app"></main>
+<script type="application/json" id="rows-json">{payload}</script>
+<script>
+const rows = JSON.parse(document.getElementById('rows-json').textContent);
+const app = document.getElementById('app');
+
+function optionLabel(option) {{
+  return `opt ${{option.option_idx}} / ${{option.review_source}} / video ${{option.video_idx}} / offset ${{option.offset}}`;
+}}
+
+function render() {{
+  app.innerHTML = '';
+  rows.forEach((row, rowIdx) => {{
+    const card = document.createElement('section');
+    card.className = 'card';
+    const risk = row.risk_reasons && row.risk_reasons.length ? row.risk_reasons.join(', ') : 'none';
+    card.innerHTML = `
+      <h2>frame ${{row.frame_id}} / cam ${{row.cam_id}}</h2>
+      <div class="status">
+        <label><input type="radio" name="status-${{rowIdx}}" value="accepted" ${{row.anchor_status === 'accepted' ? 'checked' : ''}}> accepted</label>
+        <label><input type="radio" name="status-${{rowIdx}}" value="rejected" ${{row.anchor_status === 'rejected' ? 'checked' : ''}}> rejected</label>
+        <label><input type="radio" name="status-${{rowIdx}}" value="unreviewed" ${{row.anchor_status === 'unreviewed' ? 'checked' : ''}}> unreviewed</label>
+      </div>
+      <p>
+        priority ${{Number(row.priority_score).toFixed(3)}};
+        best opt ${{row.best_option_idx}} (${{row.best_source}});
+        video ${{row.best_video_idx}};
+        margin ${{Number(row.score_margin).toFixed(3)}};
+        risk: <span class="risk">${{risk}}</span>
+      </p>
+      <div class="options"></div>
+    `;
+    card.querySelectorAll('input[type="radio"][name^="status-"]').forEach(input => {{
+      input.addEventListener('change', event => row.anchor_status = event.target.value);
+    }});
+    const options = card.querySelector('.options');
+    row.options.forEach(option => {{
+      const label = document.createElement('label');
+      label.className = 'option';
+      const checked = row.selected_option_idx === option.option_idx ? 'checked' : '';
+      const image = option.panel_src ? `<img src="${{option.panel_src}}" loading="lazy">` : '';
+      label.innerHTML = `
+        ${{image}}
+        <div class="meta">
+          <input type="radio" name="option-${{rowIdx}}" value="${{option.option_idx}}" ${{checked}}>
+          ${{optionLabel(option)}}<br>
+          score ${{Number(option.score).toFixed(3)}} /
+          edge ${{Number(option.edge_hit || 0).toFixed(3)}} /
+          dist ${{Number(option.edge_distance_mean || 0).toFixed(2)}}
+        </div>
+      `;
+      label.querySelector('input').addEventListener('change', () => {{
+        row.selected_option_idx = option.option_idx;
+        row.selected_video_idx = option.video_idx;
+      }});
+      options.appendChild(label);
+    }});
+    app.appendChild(card);
+  }});
+}}
+
+document.getElementById('accept-selected').addEventListener('click', () => {{
+  rows.forEach(row => {{
+    if (row.selected_option_idx !== null && row.selected_option_idx !== undefined) {{
+      row.anchor_status = 'accepted';
+    }}
+  }});
+  render();
+}});
+
+document.getElementById('download').addEventListener('click', () => {{
+  const accepted = rows.filter(row => row.anchor_status === 'accepted' && row.selected_video_idx !== null && row.selected_video_idx !== undefined);
+  const text = accepted.map(row => JSON.stringify(row)).join('\\n') + (accepted.length ? '\\n' : '');
+  const blob = new Blob([text], {{type: 'application/x-ndjson'}});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'accepted_sync_anchors.jsonl';
+  link.click();
+  URL.revokeObjectURL(link.href);
+}});
+
+render();
+</script>
 </body>
 </html>"""
 
@@ -169,7 +242,12 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
     selected = select_review_batch(rows, args.per_cam)
     write_jsonl(args.output_dir / "anchor_review_priority_all.jsonl", rows_sorted)
     write_jsonl(args.output_dir / "anchor_review_priority_batch.jsonl", selected)
-    html_text = render_html(selected, args.source_dir or args.manifest.parent, "Prioritized Sync Anchor Review")
+    html_text = render_html(
+        selected,
+        args.source_dir or args.manifest.parent,
+        args.output_dir,
+        "Prioritized Sync Anchor Review",
+    )
     (args.output_dir / "anchor_review_priority.html").write_text(html_text, encoding="utf-8")
     margins = [float(row["score_margin"]) for row in rows]
     by_cam = Counter(int(row["cam_id"]) for row in selected)

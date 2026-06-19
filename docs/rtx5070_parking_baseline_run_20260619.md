@@ -2963,6 +2963,11 @@ Manual review prioritizer:
   anchor review rows without auto-accepting any anchor.
 - It reuses existing panel images and outputs a small first-pass batch by
   camera, so manual work can focus on the most informative probes.
+- `anchor_review_priority.html` is now interactive: select an option, mark the
+  row accepted/rejected/unreviewed, then export `accepted_sync_anchors.jsonl`
+  directly from the page.
+- Panel image paths are relative to the priority output directory, so the page
+  can be served from the existing local static server.
 - Current local output:
 
 ```text
@@ -2975,9 +2980,8 @@ server_parking_priority_s10/sync_anchor_review_priority_20260619/
   - `anchor_review_priority_all.jsonl`
   - `anchor_review_priority_report.json`
 - Current batch: `12` rows, `4` per camera.
-- This is a review accelerator only. It does not generate
-  `accepted_sync_anchors.jsonl`; accepted anchors must still be explicitly
-  selected before constrained solving.
+- This is a review accelerator only. It does not auto-accept anchors; accepted
+  anchors must still be explicitly selected before constrained solving.
 
 Command:
 
