@@ -575,3 +575,20 @@ Use `DRY_RUN=1` before large syncs or when changing network routes:
 ```bash
 DRY_RUN=1 scripts/pull_rtx5070_parking_candidate_surface_route.sh
 ```
+
+After pulling, build the local review manifest:
+
+```bash
+python3 scripts/build_rtx5070_parking_candidate_manifest.py
+```
+
+Current manifest outputs:
+
+```text
+server_parking_priority_s10/parking_candidate_manifest_rtx5070/manifest.md
+server_parking_priority_s10/parking_candidate_manifest_rtx5070/manifest.json
+```
+
+The manifest records the candidate viewer paths, compact QA artifacts, full-risk
+comparison metrics, and the fixed rebuild/pull commands. It is the current
+handoff point for this candidate route before visual acceptance.
