@@ -9,7 +9,9 @@ from the interactive review page.
 from __future__ import annotations
 
 import argparse
+import html
 import json
+import os
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -165,6 +167,107 @@ def render_markdown(rows: list[dict[str, Any]], review_url: str | None) -> str:
     return "\n".join(lines) + "\n"
 
 
+def rows_for_html(rows: list[dict[str, Any]], source_dir: Path, output_html: Path) -> list[dict[str, Any]]:
+    out = []
+    output_dir = output_html.parent
+    for row in rows:
+        item = public_row(row)
+        item["options"] = []
+        for option in sorted(row.get("options", []), key=lambda opt: float(opt.get("score", 0.0)), reverse=True):
+            opt = dict(option)
+            panel = opt.get("panel_path")
+            opt["panel_src"] = os.path.relpath(source_dir / str(panel), output_dir) if panel else ""
+            opt["is_recommended"] = opt.get("option_idx") == item.get("recommended_option_idx")
+            item["options"].append(opt)
+        out.append(item)
+    return out
+
+
+def render_html(rows: list[dict[str, Any]], source_dir: Path, output_html: Path, review_url: str | None) -> str:
+    payload = html.escape(json.dumps(rows_for_html(rows, source_dir, output_html), ensure_ascii=False), quote=False)
+    review_link = f'<a href="{html.escape(review_url)}">open main review page</a>' if review_url else ""
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sync Anchor Checklist</title>
+<style>
+body {{ margin: 0; background: #0d1117; color: #d8dee9; font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }}
+header {{ position: sticky; top: 0; z-index: 2; padding: 14px 18px; background: #111827; border-bottom: 1px solid #30363d; }}
+h1 {{ margin: 0 0 8px; font-size: 18px; }}
+a {{ color: #8ab4ff; }}
+main {{ padding: 16px; }}
+.notice {{ color: #ffcc66; }}
+.card {{ border: 1px solid #30363d; border-radius: 8px; margin-bottom: 18px; background: #151b23; overflow: hidden; }}
+h2 {{ margin: 0; padding: 10px 12px; font-size: 15px; background: #1b2430; border-bottom: 1px solid #30363d; }}
+.summary {{ padding: 10px 12px; color: #aab6c5; border-bottom: 1px solid #30363d; }}
+.risk {{ color: #d29922; }}
+.options {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; padding: 12px; }}
+.option {{ border: 1px solid #30363d; border-radius: 6px; overflow: hidden; background: #0d1117; }}
+.option.recommended {{ border-color: #2f8f5b; box-shadow: 0 0 0 1px #2f8f5b; }}
+img {{ width: 100%; display: block; }}
+.meta {{ padding: 8px; color: #b8c0cc; font-size: 12px; line-height: 1.45; }}
+.tag {{ display: inline-block; border: 1px solid #3b4a60; border-radius: 999px; padding: 2px 7px; margin-right: 5px; }}
+.tag.rec {{ color: #8bd49c; border-color: #2f8f5b; }}
+</style>
+</head>
+<body>
+<header>
+  <h1>Sync Anchor Checklist</h1>
+  <div class="notice">Manual review aid only. Do not stage these suggestions directly. {review_link}</div>
+</header>
+<main id="app"></main>
+<script type="application/json" id="rows-json">{payload}</script>
+<script>
+const rows = JSON.parse(document.getElementById('rows-json').textContent);
+const app = document.getElementById('app');
+function fmt(value, digits=3) {{
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return 'n/a';
+  return Number(value).toFixed(digits);
+}}
+rows.forEach(row => {{
+  const risk = row.risk_reasons && row.risk_reasons.length ? row.risk_reasons.join(', ') : 'none';
+  const card = document.createElement('section');
+  card.className = 'card';
+  card.innerHTML = `
+    <h2>frame ${{row.frame_id}} / cam ${{row.cam_id}}</h2>
+    <div class="summary">
+      suggested video ${{row.recommended_video_idx}} /
+      source ${{row.recommended_source}} /
+      score ${{fmt(row.score)}} /
+      margin ${{fmt(row.score_margin)}} /
+      risk <span class="risk">${{risk}}</span>
+    </div>
+    <div class="options"></div>
+  `;
+  const options = card.querySelector('.options');
+  row.options.forEach(option => {{
+    const div = document.createElement('div');
+    div.className = `option ${{option.is_recommended ? 'recommended' : ''}}`;
+    const image = option.panel_src ? `<img src="${{option.panel_src}}" loading="lazy">` : '';
+    div.innerHTML = `
+      ${{image}}
+      <div class="meta">
+        ${{option.is_recommended ? '<span class="tag rec">recommended</span>' : ''}}
+        <span class="tag">opt ${{option.option_idx}}</span>
+        <span class="tag">${{option.review_source}}</span><br>
+        video ${{option.video_idx}} / offset ${{option.offset}}<br>
+        score ${{fmt(option.score)}} /
+        edge ${{fmt(option.edge_hit)}} /
+        dist ${{fmt(option.edge_distance_mean, 2)}}<br>
+        prior exp ${{fmt(option.absolute_expected_video_idx, 1)}} /
+        err ${{fmt(option.absolute_prior_error, 1)}}
+      </div>
+    `;
+    options.appendChild(div);
+  }});
+  app.appendChild(card);
+}});
+</script>
+</body>
+</html>"""
+
+
 def build(args: argparse.Namespace) -> dict[str, Any]:
     rows = read_jsonl(args.review_jsonl)
     selected_full = select_rows(rows, args.per_cam, args.bins)
@@ -174,6 +277,10 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         for row in selected:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
     args.output_md.write_text(render_markdown(selected, args.review_url), encoding="utf-8")
+    if args.output_html:
+        args.output_html.parent.mkdir(parents=True, exist_ok=True)
+        source_dir = args.source_dir or args.review_jsonl.parent
+        args.output_html.write_text(render_html(selected_full, source_dir, args.output_html, args.review_url), encoding="utf-8")
     if args.diagnostic_accepted_jsonl:
         args.diagnostic_accepted_jsonl.parent.mkdir(parents=True, exist_ok=True)
         with args.diagnostic_accepted_jsonl.open("w", encoding="utf-8") as f:
@@ -192,6 +299,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         "per_cam": int(args.per_cam),
         "bins": int(args.bins),
         "review_url": args.review_url,
+        "output_html": str(args.output_html) if args.output_html else None,
         "diagnostic_accepted_jsonl": str(args.diagnostic_accepted_jsonl) if args.diagnostic_accepted_jsonl else None,
     }
 
@@ -201,6 +309,8 @@ def main() -> None:
     parser.add_argument("--review-jsonl", type=Path, required=True)
     parser.add_argument("--output-jsonl", type=Path, required=True)
     parser.add_argument("--output-md", type=Path, required=True)
+    parser.add_argument("--output-html", type=Path)
+    parser.add_argument("--source-dir", type=Path, help="Directory containing panel paths from the review JSONL.")
     parser.add_argument("--per-cam", type=int, default=3)
     parser.add_argument("--bins", type=int, default=3)
     parser.add_argument("--review-url", default="")

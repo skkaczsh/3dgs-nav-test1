@@ -57,12 +57,15 @@ def test_selects_temporally_spread_rows_per_camera(tmp_path: Path):
     write_jsonl(review, rows)
     out_jsonl = tmp_path / "checklist.jsonl"
     out_md = tmp_path / "checklist.md"
+    out_html = tmp_path / "checklist.html"
     diag_jsonl = tmp_path / "diagnostic_accepted.jsonl"
 
     report = module.build(argparse.Namespace(
         review_jsonl=review,
         output_jsonl=out_jsonl,
         output_md=out_md,
+        output_html=out_html,
+        source_dir=tmp_path,
         diagnostic_accepted_jsonl=diag_jsonl,
         per_cam=3,
         bins=3,
@@ -73,6 +76,7 @@ def test_selects_temporally_spread_rows_per_camera(tmp_path: Path):
 
     assert report["selected_by_cam"] == {"0": 3, "1": 3}
     assert report["diagnostic_accepted_jsonl"] == str(diag_jsonl)
+    assert report["output_html"] == str(out_html)
     assert {item["cam_id"] for item in selected} == {0, 1}
     assert {item["frame_id"] for item in selected if item["cam_id"] == 0} == {1000, 2000, 3000}
     assert selected[0]["recommended_video_idx"] == 1012
@@ -80,6 +84,11 @@ def test_selects_temporally_spread_rows_per_camera(tmp_path: Path):
     assert diagnostic[0]["diagnostic_only"] is True
     assert diagnostic[0]["selected_video_idx"] == 1012
     assert "manual review aid" in out_md.read_text(encoding="utf-8")
+    html_text = out_html.read_text(encoding="utf-8")
+    assert "Sync Anchor Checklist" in html_text
+    assert "recommended" in html_text
+    assert "f1000_c0.jpg" in html_text
+    assert "accepted_sync_anchors" not in html_text
 
 
 def test_prefers_selected_smooth_path_over_unselected_best_option():

@@ -135,6 +135,7 @@ python3 scripts/suggest_sync_anchor_checklist.py \
   --review-jsonl server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/anchor_review_priority_batch.jsonl \
   --output-jsonl server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/suggested_anchor_checklist.jsonl \
   --output-md server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/suggested_anchor_checklist.md \
+  --output-html server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/suggested_anchor_checklist.html \
   --diagnostic-accepted-jsonl server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/diagnostic_suggested_anchors_DO_NOT_STAGE.jsonl \
   --per-cam 3 \
   --bins 3 \
@@ -146,6 +147,12 @@ accepted anchors; inspect the corresponding rows in the review page and export
 from the page after accepting them.  The optional
 `diagnostic_suggested_anchors_DO_NOT_STAGE.jsonl` is intentionally named to
 prevent accidental staging; it is only for local validator prechecks.
+
+The image checklist page is available at:
+
+```text
+http://127.0.0.1:8765/server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/suggested_anchor_checklist.html
+```
 
 The current 9-row diagnostic suggestion passes local timing validation with
 `phase=1.0` and `expected_fps=6.0`:
