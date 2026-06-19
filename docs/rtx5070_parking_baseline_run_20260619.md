@@ -541,7 +541,36 @@ viewer objects JSONL, viewer export report, QA report, and full-risk comparison
 JSON exist on the 5070Ti workdir. Treat a failed healthcheck as a pre-run blocker
 unless the failing artifact is intentionally being regenerated.
 
-The candidate surface route can now be rebuilt on `scan-rtx5070` with:
+The preferred local launcher is:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+scripts/start_rtx5070_parking_candidate_surface_route.sh
+```
+
+It runs the runtime healthcheck, runs the remote candidate script in
+`CHECK_ONLY=1` mode, then starts the rebuild inside tmux session
+`rtx5070_parking_candidate`.
+
+Useful local launcher options:
+
+```bash
+DRY_RUN=1 scripts/start_rtx5070_parking_candidate_surface_route.sh
+RESTART=1 scripts/start_rtx5070_parking_candidate_surface_route.sh
+FORCE=1 scripts/start_rtx5070_parking_candidate_surface_route.sh
+```
+
+Current launcher verification:
+
+- healthcheck passed
+- remote `CHECK_ONLY=1` passed
+- tmux session `rtx5070_parking_candidate` started successfully
+- the run completed immediately because all candidate artifacts already existed
+- remote log:
+  `/home/zsh/Work/SCAN/work_MT20260616-175807/logs/rtx5070_parking_candidate.log`
+
+For direct remote debugging, the candidate surface route can still be rebuilt on
+`scan-rtx5070` with:
 
 ```bash
 cd /home/zsh/Work/SCAN/new_route
