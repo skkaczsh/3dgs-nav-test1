@@ -569,7 +569,7 @@ def main() -> None:
                 cv2.imwrite(str(color_edge_path), out["color_edge"])
                 cv2.imwrite(str(semantic_path), semantic_to_rgb(out["semantic"])[:, :, ::-1])
                 if len(contact_paths) < 48:
-                    contact_paths.extend([depth_viz_path, edge_path, rendered_rgb_path, color_edge_path, semantic_path])
+                    contact_paths.extend([img_path, depth_viz_path, edge_path, rendered_rgb_path, color_edge_path, semantic_path])
                 hist = Counter(int(x) for x in out["semantic"][out["valid"] > 0].tolist())
                 rows.append({
                     "frame_id": frame_id,
@@ -616,7 +616,7 @@ def main() -> None:
         json.dumps(report, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    write_contact_sheet(contact_paths[:48], args.output_dir / "geometry_guidance_contact.jpg")
+    write_contact_sheet(contact_paths[:48], args.output_dir / "geometry_guidance_contact.jpg", cols=6)
     print(json.dumps({
         "output_dir": str(args.output_dir),
         "image_count": len(rows),
