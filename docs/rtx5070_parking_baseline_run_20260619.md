@@ -2191,3 +2191,83 @@ scripts/compare_frame_target_geometry_conflicts.py
 Use this gate for future source-mask experiments. A candidate should not be
 promoted if target findings or top-window score increase on the probe windows,
 even if image overlays look cleaner.
+
+## GroundingDINO Frame-Level Fine-Object Probe
+
+Date: 2026-06-19
+
+New script:
+
+```text
+scripts/run_groundingdino_frame_probe.py
+```
+
+Purpose:
+
+- test whether a text-conditioned detector can provide narrower source
+  candidates for `railing/handrail` and `car`
+- produce annotated frame contact sheets and box-area statistics
+- avoid modifying point-cloud artifacts until the detector passes a small
+  visual/quantitative gate
+
+Environment:
+
+- host: `scan-rtx5070`
+- model: `IDEA-Research/grounding-dino-tiny`
+- implementation: Transformers `AutoModelForZeroShotObjectDetection`
+- proxy: remote Clash/Mihomo listens on `127.0.0.1:7897`
+- note: `127.0.0.1:7890` is not valid on this host
+
+Window:
+
+```text
+3400..3500 stride=10, cams=0/1/2
+```
+
+Loose prompt/threshold:
+
+```text
+box_threshold=0.22
+text_threshold=0.18
+```
+
+Result:
+
+- images: `33`
+- detections: `railing=143`, `car=37`, `unknown=8`
+- visual read: many large false-positive boxes over walls, doors, stairs, and
+  floors
+
+Strict prompt/threshold:
+
+```text
+box_threshold=0.35
+text_threshold=0.25
+railing prompts=handrail, stair railing, metal handrail, guardrail
+car prompts=car, vehicle
+```
+
+Result:
+
+- images: `33`
+- detections: `railing=23`, `unknown=1`
+- `railing` large boxes (`>=12%` image area): `16/23`
+- mean `railing` box area ratio: `0.298`
+- visual read: still contains broad boxes on wall/stair/floor regions
+
+Local outputs:
+
+```text
+server_parking_priority_s10/groundingdino_frame_probe_3400_3500_tiny_fullwindow/
+server_parking_priority_s10/groundingdino_frame_probe_3400_3500_tiny_strict_v3/
+```
+
+Decision:
+
+- do not promote GroundingDINO-tiny frame boxes into the source mask pipeline
+  yet
+- it is useful as a diagnostic/evidence generator, but not precise enough for
+  `railing` source candidates on this dataset
+- next detector attempt should use a stronger open-vocabulary detector or a
+  segmentation-specific model, and must pass the same box-area/contact-sheet
+  gate before SAM/mask projection
