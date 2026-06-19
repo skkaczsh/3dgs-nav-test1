@@ -617,6 +617,39 @@ cd /Users/skkac/Work/SCAN/new_route
 scripts/pull_rtx5070_parking_candidate_surface_route.sh
 ```
 
+Preferred local refresh command after any remote run:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+scripts/refresh_rtx5070_parking_candidate_review.sh
+```
+
+This runs the 5070Ti healthcheck, pulls review-sized artifacts, rebuilds
+`manifest.json` / `manifest.md`, validates the manifest, and prints the viewer
+URL. Use `DRY_RUN=1` to verify the remote pull plan while still validating the
+current local package:
+
+```bash
+DRY_RUN=1 scripts/refresh_rtx5070_parking_candidate_review.sh
+```
+
+Current refresh dry-run result:
+
+- remote runtime/artifact healthcheck passed
+- rsync dry-run completed
+- local manifest rebuilt
+- local manifest validation passed
+- viewer URL printed for the current candidate
+
+The output handoff files are:
+
+```text
+server_parking_priority_s10/parking_candidate_manifest_rtx5070/rtx5070_runtime_check.json
+server_parking_priority_s10/parking_candidate_manifest_rtx5070/manifest.json
+server_parking_priority_s10/parking_candidate_manifest_rtx5070/manifest.md
+server_parking_priority_s10/parking_candidate_manifest_rtx5070/validation.json
+```
+
 The pull script syncs the candidate viewer PLY/JSONL, compact QA files, and the
 full-risk comparison report into `server_parking_priority_s10/`. It skips QA
 crop images by default to avoid local disk growth. To pull crops for offline
