@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run the parking semantic dataset route only after sync readiness has passed.
+# Run the parking semantic dataset route.
 #
 # Default is dry-run. Use RUN=1 to start the remote tmux job.
-# The route always uses expanded_frame_map.jsonl with --require-frame-map.
+# Parking dataset note, 2026-06-19:
+#   The .mkv frame count matches img_pos rows.  Video PTS is a uniform encoding
+#   timeline and must not be fitted to nonuniform img_pos timestamps.  The
+#   default route therefore uses direct video index == img_pos frame_id.
+#   Set SYNC_MODE=frame-map only for explicitly validated external mappings.
 
 SERVER="${SERVER:-scan-rtx5070}"
 LOCAL_REPO="${LOCAL_REPO:-/Users/skkac/Work/SCAN/new_route}"
@@ -16,6 +20,7 @@ SYNC_RUN_NAME="${SYNC_RUN_NAME:-sync_anchor_constrained_timestamp_absprior_dot3_
 REMOTE_SYNC_DIR="${REMOTE_SYNC_DIR:-${REMOTE_WORK}/${SYNC_RUN_NAME}}"
 BIND_ADDRESS="${BIND_ADDRESS:-}"
 CONNECT_TIMEOUT="${CONNECT_TIMEOUT:-8}"
+SYNC_MODE="${SYNC_MODE:-opencv-index}"
 
 RUN="${RUN:-0}"
 WAIT="${WAIT:-0}"
@@ -26,7 +31,7 @@ START="${START:-0}"
 END="${END:-6180}"
 STRIDE="${STRIDE:-10}"
 CAMS="${CAMS:-0 1 2}"
-OUT_SUFFIX="${OUT_SUFFIX:-sync_absprior_s10}"
+OUT_SUFFIX="${OUT_SUFFIX:-direct_index_s10}"
 
 DO_EXTRACT_FRAMES="${DO_EXTRACT_FRAMES:-1}"
 DO_COLORIZE="${DO_COLORIZE:-0}"
@@ -62,7 +67,8 @@ quote() {
   printf '%q' "$1"
 }
 
-remote_check=$(cat <<EOF
+if [[ "${SYNC_MODE}" == "frame-map" ]]; then
+  remote_check=$(cat <<EOF
 set -euo pipefail
 test -f $(quote "${READINESS_EXIT}") || { echo missing_readiness_exit=$(quote "${READINESS_EXIT}"); exit 2; }
 test "\$(cat $(quote "${READINESS_EXIT}"))" = "0" || { echo readiness_not_passing=$(quote "${READINESS_EXIT}"); cat $(quote "${READINESS_JSON}") 2>/dev/null || true; exit 3; }
@@ -70,6 +76,25 @@ test -f $(quote "${READINESS_JSON}") || { echo missing_readiness_json=$(quote "$
 test -f $(quote "${FRAME_MAP}") || { echo missing_frame_map=$(quote "${FRAME_MAP}"); exit 2; }
 EOF
 )
+elif [[ "${SYNC_MODE}" == "opencv-index" ]]; then
+  remote_check="set -euo pipefail"
+else
+  echo "unsupported SYNC_MODE=${SYNC_MODE}; expected opencv-index or frame-map" >&2
+  exit 2
+fi
+
+extract_sync_args=("--sync-mode" "${SYNC_MODE}")
+color_sync_args=()
+if [[ "${SYNC_MODE}" == "frame-map" ]]; then
+  extract_sync_args+=("--frame-map-jsonl" "${FRAME_MAP}" "--require-frame-map")
+  color_sync_args+=("--frame-map-jsonl" "${FRAME_MAP}" "--require-frame-map")
+fi
+extract_sync_args_text="$(printf '    %q \\\n' "${extract_sync_args[@]}" | sed '$ s/ \\$//')"
+if (( ${#color_sync_args[@]} )); then
+  color_sync_args_text="$(printf '    %q \\\n' "${color_sync_args[@]}")"
+else
+  color_sync_args_text=""
+fi
 
 remote_job=$(cat <<EOF
 set -euo pipefail
@@ -96,9 +121,7 @@ if [[ $(quote "${DO_EXTRACT_FRAMES}") == "1" ]]; then
     --workers 3 \
     --quality 92 \
     --skip-existing \
-    --sync-mode frame-map \
-    --frame-map-jsonl $(quote "${FRAME_MAP}") \
-    --require-frame-map
+${extract_sync_args_text}
 fi
 
 if [[ $(quote "${DO_COLORIZE}") == "1" ]]; then
@@ -113,8 +136,7 @@ if [[ $(quote "${DO_COLORIZE}") == "1" ]]; then
     --voxel-output $(quote "${COLOR_VOXEL_PLY}") \
     --voxel-size 0.01 \
     --report $(quote "${COLOR_REPORT}") \
-    --frame-map-jsonl $(quote "${FRAME_MAP}") \
-    --require-frame-map \
+${color_sync_args_text}\
     --sky-filter heuristic
 fi
 
@@ -155,6 +177,7 @@ server=${SERVER}
 run=${RUN}
 session=${SESSION_NAME}
 sync_dir=${REMOTE_SYNC_DIR}
+sync_mode=${SYNC_MODE}
 frame_map=${FRAME_MAP}
 readiness_json=${READINESS_JSON}
 range=${START}..${END} stride=${STRIDE} cams=${CAMS}
@@ -190,10 +213,22 @@ if [[ "${RUN_PREFLIGHT}" == "1" ]]; then
     --required-remote-file "${REMOTE_DATASET}/image/video_cam2.mkv" \
     --required-remote-file "${REMOTE_DATASET}/image/img_pos.txt" \
     --required-remote-file "${REMOTE_DATASET}/image/cam_in_ex.txt" \
-    --required-remote-file "${FRAME_MAP}" \
-    --required-remote-file "${READINESS_JSON}" \
-    --required-remote-file "${READINESS_EXIT}" \
     --output "${PREFLIGHT_OUTPUT}"
+  if [[ "${SYNC_MODE}" == "frame-map" ]]; then
+    python3 "${LOCAL_REPO}/scripts/check_rtx5070_parking_runtime.py" \
+      --host "${SERVER}" \
+      --remote-repo "${REMOTE_REPO}" \
+      --remote-work "${REMOTE_WORK}" \
+      --venv "${REMOTE_VENV}" \
+      --tmux-session "${SESSION_NAME}_syncmap" \
+      --no-require-tmux \
+      --no-default-required-files \
+      --min-free-vram-mib 0 \
+      --required-remote-file "${FRAME_MAP}" \
+      --required-remote-file "${READINESS_JSON}" \
+      --required-remote-file "${READINESS_EXIT}" \
+      --output "${PREFLIGHT_OUTPUT%.json}_syncmap.json"
+  fi
 fi
 
 ssh "${ssh_opts[@]}" "${SERVER}" "${remote_check}"

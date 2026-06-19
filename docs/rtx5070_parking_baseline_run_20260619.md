@@ -11,11 +11,52 @@
 This run restores the current validated frame-local route on the RTX 5070Ti host.
 The old global object back-projection route is still invalid and was not used.
 
-## Current Gate: Video/LiDAR Sync
+## 2026-06-19 Correction: Image/Pose Indexing
 
-The parking dataset must not proceed to semantic production until the
-image/LiDAR sync map is accepted.  The reason is now explicit: `img_pos.txt` is
-not a uniform frame sequence.
+The previous timestamp-prior sync route is rejected for this dataset.
+
+The correct current production assumption is:
+
+```text
+video_idx == img_pos frame_id
+```
+
+Evidence:
+
+- `img_pos.txt` has `6181` rows.
+- `video_cam0.mkv`, `video_cam1.mkv`, and `video_cam2.mkv` each decode to
+  `6181` frames.
+- The old timestamp/fps prior mapped late pose frames to unrelated video frames
+  such as `frame_id=3400 -> video_idx≈2415/2315/2515`, causing the exact symptom
+  seen in review: only the first frames roughly align while later frames are
+  unrelated to the `img_pos` pose.
+- A direct-index full-cloud reverse-depth triptych review was generated with
+  `video_idx == frame_id` and aligns qualitatively better:
+
+```text
+http://127.0.0.1:8765/server_parking_priority_s10/fullcloud_reverse_triptych_random_direct_20260619/triptych/review.html
+```
+
+Operational rule:
+
+- Do not use `sync_timestamp_fps_sweep_20260619`,
+  `sync_anchor_constrained_timestamp_absprior_dot3_20260619`, or any rejected
+  timestamp-prior `expanded_frame_map.jsonl` as production truth.
+- Manual anchor pages remain useful as diagnostics, but they are not a required
+  production gate for this dataset unless future direct-index QA contradicts
+  the current evidence.
+- Production extraction should use
+  `scripts/extract_undistorted_frames_jpeg.py --sync-mode opencv-index`.
+- Production colorization should omit `--frame-map-jsonl`, which makes
+  `scripts/colorize_lx_stream.py` fall back to direct frame reads.
+- Full-cloud reverse projection should use direct-index extracted images,
+  skymask, z-buffer/depth gates, and multi-view voting.
+
+## Rejected Gate: Timestamp-Prior Video/LiDAR Sync
+
+This section is retained as a failure record.  The measured timestamps are real,
+but they are not a valid basis for mapping video frames to `img_pos` rows in
+this dataset.
 
 Measured `img_pos.timestamp` statistics:
 
@@ -39,7 +80,7 @@ on `scan-rtx5070`:
 - report:
   `server_parking_priority_s10/timing_audit_20260619/video_pts_timing_report.json`
 
-Interpretation:
+Historical interpretation, now superseded:
 
 - The videos themselves can be treated as uniform 10fps frame-index streams.
   Keyframes are not the source of the observed projection drift.
@@ -56,6 +97,16 @@ Interpretation:
     by the absolute intercept and cannot distinguish start/middle/end.
 - Uniform frame-id stepping can still be used as a diagnostic baseline, but it is
   not a valid production assumption for this dataset.
+
+Corrected interpretation:
+
+- Video PTS is an encoding timeline, not the sensor-time authority for this
+  dataset.
+- The stable relation is row/index based: decoded video frame `N` corresponds to
+  `img_pos` row/frame id `N`.
+- The nonuniform `img_pos.timestamp` values are still useful for scan dynamics,
+  but fitting them to a uniform 10Hz video stream produces wrong image/pose
+  pairs.
 
 Implemented sync tooling:
 
