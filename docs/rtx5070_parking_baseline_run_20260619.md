@@ -2875,6 +2875,29 @@ Decision:
   should produce an explicit `section_id -> cam_id -> video_frame_idx` mapping
   or reject this dataset for image-based semantic projection.
 
+Production-code fix:
+
+- Added `scripts/sync_frame_map.py` as the shared loader for explicit
+  `frame_id/cam_id -> video_idx` JSONL mappings.
+- `scripts/colorize_lx_stream.py` now accepts:
+  - `--frame-map-jsonl`: read calibrated mappings from solver or manual-review
+    JSONL output.
+  - `--require-frame-map`: fail image reads for missing frame/camera mappings
+    instead of silently falling back to `video_idx == frame_id`.
+- Default behavior remains direct `frame_id -> video_idx`, so previous runs are
+  reproducible.  Calibrated runs must pass an explicit frame map.
+- This closes the structural gap where a correct sync path could be generated
+  but not used by the validated colorization route.
+
+Validation:
+
+```bash
+python3 -m py_compile scripts/sync_frame_map.py scripts/colorize_lx_stream.py
+pytest -q tests/test_sync_frame_map.py
+```
+
+Result: `3 passed`.
+
 ## Safe Semantic-Prior Runner
 
 Date: 2026-06-19

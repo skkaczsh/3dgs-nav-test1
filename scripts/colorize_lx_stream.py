@@ -25,6 +25,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
+from sync_frame_map import load_frame_map, resolve_video_idx
 
 
 LX_HEADER_SIZE = 48
@@ -330,6 +331,10 @@ def main():
     parser.add_argument("--report", type=Path, default=None)
     parser.add_argument("--skip-full-output", action="store_true")
     parser.add_argument("--frame-step", type=int, default=1)
+    parser.add_argument("--frame-map-jsonl", type=Path, default=None,
+                        help="Optional JSONL mapping with frame_id, cam_id, and video_idx/selected_video_idx.")
+    parser.add_argument("--require-frame-map", action="store_true",
+                        help="Fail image reads when --frame-map-jsonl has no row for a frame/cam pair.")
     parser.add_argument("--sky-filter", choices=["none", "heuristic"], default="none")
     parser.add_argument("--sky-upper-ratio", type=float, default=0.72)
     parser.add_argument("--progress-every", type=int, default=50)
@@ -351,6 +356,9 @@ def main():
     print(f"calib={config.CALIB_FILE}")
     print(f"image_dir={config.IMAGE_DIR}")
     print(f"video_dir={config.VIDEO_DIR}")
+    frame_map = load_frame_map(args.frame_map_jsonl)
+    if args.frame_map_jsonl:
+        print(f"frame_map={args.frame_map_jsonl} rows={len(frame_map)} require={args.require_frame_map}")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     if args.voxel_output:
@@ -366,6 +374,9 @@ def main():
     colored_points = 0
     sky_rejected_points = 0
     failed_images = 0
+    mapped_image_reads = 0
+    direct_image_reads = 0
+    missing_frame_map_reads = 0
 
     body_path = None
     body_f = None
@@ -381,7 +392,22 @@ def main():
 
                 images = {}
                 for cam_id in args.cams:
-                    frame = read_video_frame(caps[cam_id], frame_id)
+                    video_idx = resolve_video_idx(
+                        frame_map,
+                        frame_id,
+                        cam_id,
+                        fallback_to_direct=not args.require_frame_map,
+                    )
+                    if video_idx is None:
+                        failed_images += 1
+                        missing_frame_map_reads += 1
+                        images[cam_id] = None
+                        continue
+                    if video_idx == frame_id:
+                        direct_image_reads += 1
+                    else:
+                        mapped_image_reads += 1
+                    frame = read_video_frame(caps[cam_id], video_idx)
                     if frame is None:
                         failed_images += 1
                         images[cam_id] = None
@@ -434,6 +460,12 @@ def main():
         "sky_upper_ratio": args.sky_upper_ratio,
         "sky_rejected_projected_samples": sky_rejected_points,
         "failed_image_reads": failed_images,
+        "frame_map_jsonl": str(args.frame_map_jsonl) if args.frame_map_jsonl else None,
+        "require_frame_map": bool(args.require_frame_map),
+        "frame_map_rows": len(frame_map),
+        "mapped_image_reads": mapped_image_reads,
+        "direct_image_reads": direct_image_reads,
+        "missing_frame_map_reads": missing_frame_map_reads,
         "bounds": bounds,
         "output": None if args.skip_full_output else str(args.output),
         "output_exists": False if args.skip_full_output else args.output.exists(),
