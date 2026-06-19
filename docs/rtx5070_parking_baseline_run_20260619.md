@@ -1820,3 +1820,56 @@ Current read:
   or apply the split only to stricter high-risk objects.
 - This probe confirms that local point geometry inside a bad fine mask is a
   useful next optimization axis.
+
+## Automated Local-Geometry Candidate Gate
+
+Date: 2026-06-19
+
+New script:
+
+```text
+scripts/build_local_geometry_split_candidates.py
+```
+
+Purpose:
+
+- convert viewer-object QA risk into a splitter-compatible conflicts JSONL
+- avoid manual lists like the first railing probe
+- remain pure JSON only; no image/OpenCV dependency
+
+Default selection:
+
+```text
+labels=railing
+min_points=2000
+require_reasons=large_single_target_object,railing_not_linear,railing_extent_too_large
+```
+
+Running this gate on the current ambsplit best candidate selects exactly `10`
+railing objects, matching the successful local-geometry probe:
+
+```text
+2828, 2916, 2934, 3001, 3046, 3103, 3130, 3178, 3179, 3193
+```
+
+The best-route runner now supports the probe as an opt-in final stage:
+
+```bash
+RUN=1 \
+OUT_SUFFIX=rtx5070_localgeom_$(date +%Y%m%d_%H%M%S) \
+SPLIT_RAILING_LOCAL_GEOMETRY=1 \
+scripts/run_parking_frame_local_best_route.sh
+```
+
+Default remains:
+
+```text
+SPLIT_RAILING_LOCAL_GEOMETRY=0
+```
+
+Reason:
+
+- the local-geometry result is internally valid and removes the large-fine QA
+  warning, but it reduces `railing` points from `70,549` to `21,609`
+- this is likely correct for source-mask spillover, but it still needs visual
+  acceptance before becoming the default best route
