@@ -235,7 +235,9 @@ def build_review_html(manifest_rows: list[dict[str, Any]]) -> str:
               <input type="radio" name="option-${{rowIdx}}" value="${{option.option_idx}}" ${{checked}}>
               option ${{option.option_idx}} / ${{option.review_source}}<br>
               video ${{option.video_idx}} / offset ${{option.offset}} / score ${{Number(option.score).toFixed(3)}}<br>
-              edge hit ${{Number(option.edge_hit).toFixed(3)}} / mean dist ${{Number(option.edge_distance_mean).toFixed(2)}}
+              edge hit ${{Number(option.edge_hit).toFixed(3)}} / mean dist ${{Number(option.edge_distance_mean).toFixed(2)}}<br>
+              prior exp ${{option.absolute_expected_video_idx === undefined ? 'n/a' : Number(option.absolute_expected_video_idx).toFixed(1)}} /
+              err ${{option.absolute_prior_error === undefined ? 'n/a' : Number(option.absolute_prior_error).toFixed(1)}}
             </div>`;
           label.querySelector('input').addEventListener('change', () => {{
             row.selected_option_idx = option.option_idx;
@@ -368,6 +370,10 @@ def main() -> None:
                     "edge_hit": float(row.get("edge_hit", 0.0)),
                     "edge_distance_mean": float(row.get("edge_distance_mean", 0.0)),
                 }
+                if row.get("absolute_expected_video_idx") is not None:
+                    record["absolute_expected_video_idx"] = float(row["absolute_expected_video_idx"])
+                if row.get("absolute_prior_error") is not None:
+                    record["absolute_prior_error"] = float(row["absolute_prior_error"])
                 panel = render_option(lx_handle, sections, poses, maps, caps, row, args.dot_px)
                 if panel is not None:
                     rel_panel_path = Path("panels") / panel_filename(frame_id, cam_id, option_idx, row)

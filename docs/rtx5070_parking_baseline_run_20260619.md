@@ -99,6 +99,22 @@ then run `scripts/run_rtx5070_sync_anchor_solver.sh`.  The readiness gate must
 pass before extraction, segmentation, target building, or semantic fusion uses
 the new sync map.
 
+`scripts/run_rtx5070_sync_anchor_solver.sh` now defaults to the latest
+abs-prior review pack:
+
+- `REVIEW_NAME=sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619`
+- `RUN_NAME=sync_anchor_constrained_timestamp_absprior_dot3_20260619`
+- solver mode: `timestamp`
+- solver fps: `6.0`
+- absolute prior: enabled with tolerance `200`
+- intercept source: `anchors`, estimated independently per camera from accepted
+  manual anchors
+- review dot size: `3`
+
+Use `DRY_RUN=1 scripts/run_rtx5070_sync_anchor_solver.sh` to inspect the exact
+remote command even before anchors have been exported.  Real execution still
+requires `accepted_sync_anchors.jsonl`.
+
 ## Environment
 
 - Released Gemma/llama-server before running: PID `1723`, about `8708MiB` VRAM.

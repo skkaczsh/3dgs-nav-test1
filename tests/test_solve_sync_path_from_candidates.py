@@ -135,6 +135,23 @@ def test_absolute_timestamp_prior_can_reject_wrong_intercept_path():
     assert with_prior[0]["absolute_prior_error"] == 0.0
 
 
+def test_estimates_absolute_intercept_from_accepted_anchor():
+    module = load_module()
+    frame_candidates = {
+        0: [
+            {"frame_id": 0, "cam_id": 0, "video_idx": 100, "score": 0.8, "sync_timestamp": 0.0},
+        ],
+        1: [
+            {"frame_id": 1, "cam_id": 0, "video_idx": 110, "score": 0.8, "sync_timestamp": 1.0, "anchor_status": "accepted"},
+        ],
+        2: [
+            {"frame_id": 2, "cam_id": 0, "video_idx": 120, "score": 0.8, "sync_timestamp": 2.0},
+        ],
+    }
+
+    assert module.estimate_absolute_intercept_from_anchors(frame_candidates, 10.0, 0.0) == 100.0
+
+
 def test_summary_rejects_non_smooth_path():
     module = load_module()
     path = [

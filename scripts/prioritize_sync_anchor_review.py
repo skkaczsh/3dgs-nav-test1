@@ -212,7 +212,9 @@ function render() {{
           ${{optionLabel(option)}}<br>
           score ${{Number(option.score).toFixed(3)}} /
           edge ${{Number(option.edge_hit || 0).toFixed(3)}} /
-          dist ${{Number(option.edge_distance_mean || 0).toFixed(2)}}
+          dist ${{Number(option.edge_distance_mean || 0).toFixed(2)}}<br>
+          prior exp ${{option.absolute_expected_video_idx === undefined ? 'n/a' : Number(option.absolute_expected_video_idx).toFixed(1)}} /
+          err ${{option.absolute_prior_error === undefined ? 'n/a' : Number(option.absolute_prior_error).toFixed(1)}}
         </div>
       `;
       label.querySelector('input').addEventListener('change', () => {{

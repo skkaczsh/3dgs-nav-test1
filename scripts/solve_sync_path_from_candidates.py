@@ -271,6 +271,27 @@ def annotate_absolute_prior(
     row["absolute_prior_error"] = abs(float(row["video_idx"]) - expected)
 
 
+def estimate_absolute_intercept_from_anchors(
+    frame_candidates: dict[int, list[dict[str, Any]]],
+    video_fps: float,
+    fallback: float,
+) -> float:
+    accepted = [
+        row
+        for rows in frame_candidates.values()
+        for row in rows
+        if str(row.get("anchor_status", "")).lower() == "accepted" and row.get("sync_timestamp") is not None
+    ]
+    if not accepted:
+        return float(fallback)
+    time_origin = min(float(row["sync_timestamp"]) for rows in frame_candidates.values() for row in rows)
+    values = [
+        float(row["video_idx"]) - (float(row["sync_timestamp"]) - time_origin) * float(video_fps)
+        for row in accepted
+    ]
+    return float(statistics.median(values))
+
+
 def percentile(values: list[float], pct: float) -> float:
     if not values:
         return float("nan")
@@ -381,6 +402,8 @@ def main() -> None:
                         help="Video-frame error corresponding to one unit of absolute prior penalty.")
     parser.add_argument("--absolute-intercept", type=float, default=0.0,
                         help="Expected video_idx at the first timestamp when absolute prior is enabled.")
+    parser.add_argument("--absolute-intercept-source", choices=["fixed", "anchors"], default="fixed",
+                        help="Use fixed --absolute-intercept or estimate per-camera intercept from accepted anchors.")
     args = parser.parse_args()
     if args.time_mode == "timestamp" and args.img_pos_file is None:
         raise SystemExit("--img-pos-file is required when --time-mode timestamp")
@@ -405,11 +428,19 @@ def main() -> None:
         "absolute_prior_weight": args.absolute_prior_weight,
         "absolute_prior_tolerance": args.absolute_prior_tolerance,
         "absolute_intercept": args.absolute_intercept,
+        "absolute_intercept_source": args.absolute_intercept_source,
         "cam_reports": {},
     }
     all_accepted = True
     with (args.output_dir / "sync_smooth_paths.jsonl").open("w", encoding="utf-8") as f:
         for cam_id in sorted(grouped):
+            absolute_intercept = args.absolute_intercept
+            if args.absolute_intercept_source == "anchors":
+                absolute_intercept = estimate_absolute_intercept_from_anchors(
+                    grouped[cam_id],
+                    args.video_fps,
+                    args.absolute_intercept,
+                )
             path = solve_cam_path(
                 grouped[cam_id],
                 args.target_ratio,
@@ -420,7 +451,7 @@ def main() -> None:
                 args.video_fps,
                 args.absolute_prior_weight,
                 args.absolute_prior_tolerance,
-                args.absolute_intercept,
+                absolute_intercept,
             )
             summary = summarize_path(
                 path,
@@ -431,6 +462,7 @@ def main() -> None:
                 args.time_mode,
                 args.video_fps,
             )
+            summary["absolute_intercept"] = float(absolute_intercept)
             report["cam_reports"][str(cam_id)] = summary
             all_accepted = all_accepted and bool(summary.get("accepted"))
             for row in path:
