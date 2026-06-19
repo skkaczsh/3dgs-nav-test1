@@ -90,6 +90,8 @@ def test_prioritizer_selects_top_rows_per_camera(tmp_path: Path):
     assert "Mark selected accepted" in html
     assert "export readiness" in html
     assert "cam${cam} accepted" in html
+    assert "sequence issues" in html
+    assert "Anchor coverage/sequence is not ready" in html
     assert "panels/f20_c0_o0.jpg" in html
 
 

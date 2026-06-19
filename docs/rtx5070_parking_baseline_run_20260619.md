@@ -115,6 +115,8 @@ The priority review page now shows a live export-readiness bar:
 - accepted anchor count per camera, default target `2` per camera
 - total accepted anchors
 - accepted rows that are missing a selected option
+- per-camera sequence issues: duplicate accepted section frames and video frame
+  decreases as section frame id increases
 - a confirmation prompt if exporting before coverage is ready
 
 The current dot3 priority page has been regenerated with this coverage UI.

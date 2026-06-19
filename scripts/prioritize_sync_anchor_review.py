@@ -187,8 +187,29 @@ function coverageState() {{
   const byCam = new Map(cams.map(cam => [cam, 0]));
   accepted.forEach(row => byCam.set(Number(row.cam_id), (byCam.get(Number(row.cam_id)) || 0) + 1));
   const missingSelection = rows.filter(row => row.anchor_status === 'accepted' && (row.selected_video_idx === null || row.selected_video_idx === undefined));
+  const sequenceIssues = [];
+  cams.forEach(cam => {{
+    const camRows = accepted
+      .filter(row => Number(row.cam_id) === cam)
+      .sort((a, b) => Number(a.frame_id) - Number(b.frame_id));
+    const seenFrames = new Set();
+    for (let i = 0; i < camRows.length; i += 1) {{
+      const row = camRows[i];
+      const frame = Number(row.frame_id);
+      if (seenFrames.has(frame)) {{
+        sequenceIssues.push(`cam${{cam}} duplicate frame ${{frame}}`);
+      }}
+      seenFrames.add(frame);
+      if (i > 0) {{
+        const prev = camRows[i - 1];
+        if (Number(row.selected_video_idx) < Number(prev.selected_video_idx)) {{
+          sequenceIssues.push(`cam${{cam}} video decreases: frame ${{prev.frame_id}}->${{row.frame_id}} video ${{prev.selected_video_idx}}->${{row.selected_video_idx}}`);
+        }}
+      }}
+    }}
+  }});
   const enough = cams.every(cam => (byCam.get(cam) || 0) >= minAcceptedPerCam);
-  return {{cams, accepted, byCam, missingSelection, enough}};
+  return {{cams, accepted, byCam, missingSelection, sequenceIssues, enough}};
 }}
 
 function renderCoverage() {{
@@ -199,11 +220,13 @@ function renderCoverage() {{
     return `<span class="pill ${{cls}}">cam${{cam}} accepted ${{count}}/${{minAcceptedPerCam}}</span>`;
   }}).join('');
   const missing = state.missingSelection.length;
+  const sequenceIssueCount = state.sequenceIssues.length;
   coverage.innerHTML = `
-    <span class="pill ${{state.enough && missing === 0 ? 'ok' : 'bad'}}">export readiness: ${{state.enough && missing === 0 ? 'ok' : 'not ready'}}</span>
+    <span class="pill ${{state.enough && missing === 0 && sequenceIssueCount === 0 ? 'ok' : 'bad'}}">export readiness: ${{state.enough && missing === 0 && sequenceIssueCount === 0 ? 'ok' : 'not ready'}}</span>
     <span class="pill">accepted total ${{state.accepted.length}}</span>
     ${{camPills}}
     <span class="pill ${{missing ? 'bad' : 'ok'}}">accepted rows missing option ${{missing}}</span>
+    <span class="pill ${{sequenceIssueCount ? 'bad' : 'ok'}}" title="${{state.sequenceIssues.join('\\n')}}">sequence issues ${{sequenceIssueCount}}</span>
   `;
 }}
 
@@ -280,7 +303,7 @@ document.getElementById('accept-selected').addEventListener('click', () => {{
 
 document.getElementById('download').addEventListener('click', () => {{
   const state = coverageState();
-  if ((!state.enough || state.missingSelection.length) && !window.confirm('Anchor coverage is not ready. Export anyway?')) {{
+  if ((!state.enough || state.missingSelection.length || state.sequenceIssues.length) && !window.confirm('Anchor coverage/sequence is not ready. Export anyway?')) {{
     return;
   }}
   const accepted = acceptedRows();
