@@ -386,6 +386,39 @@ Conclusion:
 - Do not run a full-scene neighbor-prior sweep from this result; it would mostly
   add compute without addressing the dominant conflict modes.
 
+## 2D Mask Component Split Probe
+
+New optional target-construction flag:
+
+```bash
+python scripts/build_frame_targets_from_priority.py \
+  --split-by-image-components \
+  --image-component-min-pixels 32
+```
+
+This first splits sampled points by connected components in the 2D priority
+mask, then applies the existing 3D voxel connectivity. The flag defaults to off
+so the validated baseline remains unchanged.
+
+Probe on the worst window `2700-2800` using the neighbor-r2 refined masks:
+
+- without 2D component split, after target geometry refine:
+  - findings: `64`
+  - top `2700-2800 cam0`: `42` findings, score `1335`
+- with 2D component split, after target geometry refine:
+  - findings: `63`
+  - top `2700-2800 cam0`: `42` findings, score `1335`
+
+Interpretation:
+
+- 2D connected-component pre-splitting is useful infrastructure, but it does not
+  solve the current worst window. The dominant issue there is not disconnected
+  same-label islands being merged; it is source priority masks producing many
+  low-point `car` / `railing` fragments plus flat/horizontal wall fragments.
+- The next meaningful target-construction change should use depth
+  discontinuities and projected point support directly, not only 2D binary mask
+  connectivity.
+
 ## Batch Size Benchmark
 
 Measured on `60` undistorted frames with Mask2Former Mapillary priority segmentation:

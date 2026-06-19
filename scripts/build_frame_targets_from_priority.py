@@ -176,6 +176,41 @@ def bbox2d(uu: np.ndarray, vv: np.ndarray) -> dict[str, Any]:
     return {"xyxy": [x0, y0, x1, y1], "area": int(max(x1 - x0 + 1, 0) * max(y1 - y0 + 1, 0))}
 
 
+def split_local_indices_by_image_components(
+    label_mask: np.ndarray,
+    uu: np.ndarray,
+    vv: np.ndarray,
+    local_indices: np.ndarray,
+    min_pixels: int,
+) -> list[np.ndarray]:
+    """Split sampled point indices by connected 2D mask components.
+
+    ``local_indices`` indexes the projected arrays for one priority class.  The
+    returned arrays keep that same indexing scheme so downstream code can still
+    select points/colors/uv from the projected arrays.
+    """
+    if len(local_indices) == 0:
+        return []
+    if cv2 is None:
+        return [local_indices]
+    n, comp_labels, stats, _centroids = cv2.connectedComponentsWithStats(label_mask.astype(np.uint8), connectivity=8)
+    comp_ids = comp_labels[vv[local_indices], uu[local_indices]]
+    groups: list[np.ndarray] = []
+    residual: list[np.ndarray] = []
+    for comp_id in range(1, n):
+        selected = local_indices[comp_ids == comp_id]
+        if len(selected) == 0:
+            continue
+        if int(stats[comp_id, cv2.CC_STAT_AREA]) < int(min_pixels):
+            residual.append(selected)
+            continue
+        groups.append(selected)
+    if residual:
+        groups.append(np.concatenate(residual))
+    groups.sort(key=len, reverse=True)
+    return groups or [local_indices]
+
+
 def target_summary(points: np.ndarray, colors: np.ndarray, uu: np.ndarray, vv: np.ndarray) -> dict[str, Any]:
     bbox_min = points.min(axis=0)
     bbox_max = points.max(axis=0)
@@ -233,6 +268,7 @@ def project_one_camera(points: np.ndarray, pose: dict[str, Any], frame_id: int, 
     return {
         "image_path": img_file,
         "mask_path": mask_file,
+        "mask": mask,
         "point_indices": point_indices,
         "uu": uu,
         "vv": vv,
@@ -301,45 +337,59 @@ def build_frame_targets(points: np.ndarray, pose: dict[str, Any], frame_id: int,
             if not np.any(class_mask):
                 continue
             local_indices = np.where(class_mask)[0]
-            class_points = points[point_indices[local_indices]]
             label_name = PRIORITY_NAMES.get(label_id, str(label_id))
             voxel = connectivity_voxel_size(label_name, args)
             min_points = args.surface_min_points if PARENT_BY_PRIORITY.get(label_id) == "surface" else args.min_target_points
-            components, residual = connected_components(class_points, voxel, min_points)
-            small_residual += int(residual.sum())
-            for comp_id, comp in enumerate(components):
-                selected = local_indices[comp]
-                target_points = points[point_indices[selected]]
-                target_colors = colors[selected]
-                target_point_indices = point_indices[selected]
-                target_id = f"pt_{frame_id:06d}_cam{cam_id}_p{label_id}_cc{comp_id:03d}"
-                summary = target_summary(target_points, target_colors, uu[selected], vv[selected])
-                row = {
-                    "target_id": target_id,
-                    "target_index": int(target_index),
-                    "frame_id": int(frame_id),
-                    "cam_id": int(cam_id),
-                    "mask_id": int(label_id),
-                    "priority_label_id": int(label_id),
-                    "label": label_name,
-                    "raw_label": label_name,
-                    "parent_class": PARENT_BY_PRIORITY.get(label_id, "other"),
-                    "confidence": 1.0,
-                    "image_path": str(projected["image_path"]),
-                    "mask_path": str(projected["mask_path"]),
-                    "raw_frame_ply": "",
-                    "colored_frame_ply": "",
-                    "point_indices": [int(x) for x in target_point_indices.tolist()],
-                    "source_point_count": int(len(points)),
-                    "projected_class_points": int(class_mask.sum()),
-                    "component_index": int(comp_id),
-                    "connectivity_voxel_size": float(voxel),
-                    **summary,
-                }
-                rows.append(row)
-                ply_chunks.append((target_index, label_id, cam_id, target_points, target_point_indices))
-                target_index += 1
-                made += 1
+            image_groups = [local_indices]
+            if bool(getattr(args, "split_by_image_components", False)):
+                image_groups = split_local_indices_by_image_components(
+                    projected["mask"] == label_id,
+                    uu,
+                    vv,
+                    local_indices,
+                    args.image_component_min_pixels,
+                )
+            comp_index = 0
+            for image_group_id, image_group in enumerate(image_groups):
+                class_points = points[point_indices[image_group]]
+                components, residual = connected_components(class_points, voxel, min_points)
+                small_residual += int(residual.sum())
+                for comp in components:
+                    selected = image_group[comp]
+                    target_points = points[point_indices[selected]]
+                    target_colors = colors[selected]
+                    target_point_indices = point_indices[selected]
+                    target_id = f"pt_{frame_id:06d}_cam{cam_id}_p{label_id}_cc{comp_index:03d}"
+                    summary = target_summary(target_points, target_colors, uu[selected], vv[selected])
+                    row = {
+                        "target_id": target_id,
+                        "target_index": int(target_index),
+                        "frame_id": int(frame_id),
+                        "cam_id": int(cam_id),
+                        "mask_id": int(label_id),
+                        "priority_label_id": int(label_id),
+                        "label": label_name,
+                        "raw_label": label_name,
+                        "parent_class": PARENT_BY_PRIORITY.get(label_id, "other"),
+                        "confidence": 1.0,
+                        "image_path": str(projected["image_path"]),
+                        "mask_path": str(projected["mask_path"]),
+                        "raw_frame_ply": "",
+                        "colored_frame_ply": "",
+                        "point_indices": [int(x) for x in target_point_indices.tolist()],
+                        "source_point_count": int(len(points)),
+                        "projected_class_points": int(class_mask.sum()),
+                        "component_index": int(comp_index),
+                        "image_component_index": int(image_group_id),
+                        "image_component_split": bool(getattr(args, "split_by_image_components", False)),
+                        "connectivity_voxel_size": float(voxel),
+                        **summary,
+                    }
+                    rows.append(row)
+                    ply_chunks.append((target_index, label_id, cam_id, target_points, target_point_indices))
+                    target_index += 1
+                    comp_index += 1
+                    made += 1
 
         per_cam_stats.append({
             "cam_id": int(cam_id),
@@ -384,6 +434,8 @@ def main() -> None:
     parser.add_argument("--residual-voxel", type=float, default=0.16)
     parser.add_argument("--min-target-points", type=int, default=20)
     parser.add_argument("--surface-min-points", type=int, default=80)
+    parser.add_argument("--split-by-image-components", action="store_true")
+    parser.add_argument("--image-component-min-pixels", type=int, default=32)
     parser.add_argument("--progress-every", type=int, default=20)
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
