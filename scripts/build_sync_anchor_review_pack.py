@@ -161,6 +161,7 @@ def build_review_html(manifest_rows: list[dict[str, Any]]) -> str:
       background: #151922;
       overflow: hidden;
     }}
+    .probe.hash-target {{ border-color: #d29922; box-shadow: 0 0 0 2px rgba(210, 153, 34, 0.35); }}
     .probe-head {{
       display: flex;
       align-items: center;
@@ -270,6 +271,15 @@ def build_review_html(manifest_rows: list[dict[str, Any]]) -> str:
       `;
     }}
 
+    function scrollHashIntoView() {{
+      if (!window.location.hash) return;
+      const target = document.getElementById(window.location.hash.slice(1));
+      if (!target) return;
+      document.querySelectorAll('.hash-target').forEach(node => node.classList.remove('hash-target'));
+      target.classList.add('hash-target');
+      target.scrollIntoView({{block: 'start', behavior: 'auto'}});
+    }}
+
     function render() {{
       app.innerHTML = '';
       renderCoverage();
@@ -323,6 +333,7 @@ def build_review_html(manifest_rows: list[dict[str, Any]]) -> str:
         probe.appendChild(options);
         app.appendChild(probe);
       }});
+      scrollHashIntoView();
     }}
 
     document.getElementById('accept-selected').addEventListener('click', () => {{

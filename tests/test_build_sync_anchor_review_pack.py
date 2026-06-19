@@ -80,3 +80,5 @@ def test_build_review_html_contains_export_logic_and_panel_paths():
     assert "Anchor coverage/sequence is not ready" in html
     assert "panels/frame_000010_cam1_opt0_direct_v000010.jpg" in html
     assert "frame-${row.frame_id}-cam-${row.cam_id}" in html
+    assert "scrollHashIntoView" in html
+    assert "hash-target" in html

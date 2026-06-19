@@ -149,6 +149,7 @@ main {{ padding: 16px; }}
 .pill.ok {{ border-color: #2f8f5b; color: #8bd49c; }}
 .pill.bad {{ border-color: #9f4a4a; color: #ff9b9b; }}
 .card {{ border: 1px solid #30363d; border-radius: 8px; margin-bottom: 18px; background: #151b23; overflow: hidden; }}
+.card.hash-target {{ border-color: #d29922; box-shadow: 0 0 0 2px rgba(210, 153, 34, 0.35); }}
 h2 {{ margin: 0; padding: 10px 12px; font-size: 15px; background: #1b2430; border-bottom: 1px solid #30363d; }}
 p {{ margin: 10px 12px; color: #aab6c5; }}
 .options {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; padding: 12px; }}
@@ -234,6 +235,15 @@ function optionLabel(option) {{
   return `opt ${{option.option_idx}} / ${{option.review_source}} / video ${{option.video_idx}} / offset ${{option.offset}}`;
 }}
 
+function scrollHashIntoView() {{
+  if (!window.location.hash) return;
+  const target = document.getElementById(window.location.hash.slice(1));
+  if (!target) return;
+  document.querySelectorAll('.hash-target').forEach(node => node.classList.remove('hash-target'));
+  target.classList.add('hash-target');
+  target.scrollIntoView({{block: 'start', behavior: 'auto'}});
+}}
+
 function render() {{
   app.innerHTML = '';
   renderCoverage();
@@ -291,6 +301,7 @@ function render() {{
     }});
     app.appendChild(card);
   }});
+  scrollHashIntoView();
 }}
 
 document.getElementById('accept-selected').addEventListener('click', () => {{

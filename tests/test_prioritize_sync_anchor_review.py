@@ -94,6 +94,8 @@ def test_prioritizer_selects_top_rows_per_camera(tmp_path: Path):
     assert "Anchor coverage/sequence is not ready" in html
     assert "panels/f20_c0_o0.jpg" in html
     assert "frame-${row.frame_id}-cam-${row.cam_id}" in html
+    assert "scrollHashIntoView" in html
+    assert "hash-target" in html
 
 
 def test_enrich_row_flags_low_margin_and_large_offset():
