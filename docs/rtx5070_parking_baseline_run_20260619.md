@@ -2983,6 +2983,29 @@ server_parking_priority_s10/sync_anchor_review_priority_20260619/
 - This is a review accelerator only. It does not auto-accept anchors; accepted
   anchors must still be explicitly selected before constrained solving.
 
+Accepted-anchor staging:
+
+- Added `scripts/stage_accepted_sync_anchors.py`.
+- Default source:
+  `/Users/skkac/Downloads/accepted_sync_anchors.jsonl`.
+- Default target:
+  `server_parking_priority_s10/sync_anchor_review_small_20260619_v2/accepted_sync_anchors.jsonl`.
+- The staging script validates accepted anchors using the same readiness policy
+  before copying.  By default it requires at least `2` accepted anchors per
+  camera.
+- Current dry-run correctly fails because no exported anchors exist yet:
+
+```text
+source_missing=/Users/skkac/Downloads/accepted_sync_anchors.jsonl
+```
+
+After exporting anchors from the priority page, run:
+
+```bash
+python scripts/stage_accepted_sync_anchors.py
+scripts/run_rtx5070_sync_anchor_solver.sh
+```
+
 Command:
 
 ```bash
