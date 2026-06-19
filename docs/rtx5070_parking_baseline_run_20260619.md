@@ -2986,8 +2986,10 @@ server_parking_priority_s10/sync_anchor_review_priority_20260619/
 Accepted-anchor staging:
 
 - Added `scripts/stage_accepted_sync_anchors.py`.
-- Default source:
-  `/Users/skkac/Downloads/accepted_sync_anchors.jsonl`.
+- Default source discovery:
+  latest `/Users/skkac/Downloads/accepted_sync_anchors*.jsonl`, so repeated
+  browser downloads such as `accepted_sync_anchors (1).jsonl` are accepted
+  automatically.  Pass `--source` to force an explicit file.
 - Default target:
   `server_parking_priority_s10/sync_anchor_review_small_20260619_v2/accepted_sync_anchors.jsonl`.
 - The staging script validates accepted anchors using the same readiness policy

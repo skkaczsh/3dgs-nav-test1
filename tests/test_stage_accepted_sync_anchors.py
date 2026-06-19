@@ -1,6 +1,7 @@
 import argparse
 import importlib.util
 import json
+import os
 from pathlib import Path
 
 
@@ -30,6 +31,7 @@ def accepted(frame, cam, video=None):
 def make_args(tmp_path: Path, source: Path, **kwargs):
     base = dict(
         source=source,
+        downloads_dir=tmp_path / "Downloads",
         target=tmp_path / "target" / "accepted_sync_anchors.jsonl",
         repo_root=tmp_path,
         review_name="review",
@@ -89,3 +91,38 @@ def test_error_message_reports_missing_source_with_clear_error(tmp_path: Path):
     missing = tmp_path / "missing.jsonl"
 
     assert module.error_message(FileNotFoundError(str(missing))) == f"source_missing={missing}"
+
+
+def test_resolve_source_discovers_latest_downloaded_export(tmp_path: Path):
+    module = load_module()
+    downloads = tmp_path / "Downloads"
+    old = downloads / "accepted_sync_anchors.jsonl"
+    new = downloads / "accepted_sync_anchors (1).jsonl"
+    write_jsonl(old, [accepted(10, 0, 12)])
+    write_jsonl(new, [accepted(10, 1, 13)])
+    os.utime(old, (100.0, 100.0))
+    os.utime(new, (200.0, 200.0))
+
+    assert module.resolve_source(None, downloads) == new
+
+
+def test_explicit_source_overrides_download_discovery(tmp_path: Path):
+    module = load_module()
+    downloads = tmp_path / "Downloads"
+    discovered = downloads / "accepted_sync_anchors (1).jsonl"
+    explicit = tmp_path / "explicit.jsonl"
+    write_jsonl(discovered, [accepted(10, 0, 12)])
+    write_jsonl(explicit, [accepted(10, 1, 13)])
+
+    assert module.resolve_source(explicit, downloads) == explicit
+
+
+def test_stage_uses_discovered_source_when_source_omitted(tmp_path: Path):
+    module = load_module()
+    source = tmp_path / "Downloads" / "accepted_sync_anchors (1).jsonl"
+    write_jsonl(source, [accepted(10, 0, 12), accepted(10, 1, 13)])
+
+    result = module.stage(make_args(tmp_path, None))
+
+    assert result["passed"] is True
+    assert result["source"] == str(source.resolve())

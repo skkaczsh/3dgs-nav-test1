@@ -23,8 +23,23 @@ def default_source() -> Path:
     return Path.home() / "Downloads" / "accepted_sync_anchors.jsonl"
 
 
+def default_downloads_dir() -> Path:
+    return Path.home() / "Downloads"
+
+
 def default_target(repo_root: Path, review_name: str) -> Path:
     return repo_root / "server_parking_priority_s10" / review_name / "accepted_sync_anchors.jsonl"
+
+
+def discover_source(downloads_dir: Path) -> Path:
+    candidates = sorted(downloads_dir.glob("accepted_sync_anchors*.jsonl"))
+    if not candidates:
+        return downloads_dir / "accepted_sync_anchors.jsonl"
+    return max(candidates, key=lambda path: (path.stat().st_mtime, path.name))
+
+
+def resolve_source(source: Path | None, downloads_dir: Path) -> Path:
+    return source if source is not None else discover_source(downloads_dir)
 
 
 def load_rows(path: Path) -> list[dict[str, Any]]:
@@ -62,7 +77,7 @@ def validate_source(
 
 def stage(args: argparse.Namespace) -> dict[str, Any]:
     repo_root = args.repo_root.resolve()
-    source = args.source.resolve()
+    source = resolve_source(args.source, args.downloads_dir).resolve()
     target = args.target.resolve() if args.target else default_target(repo_root, args.review_name)
     rows = load_rows(source)
     report = validate_source(source, args.cams, args.min_accepted_per_cam, args.frames)
@@ -110,7 +125,9 @@ def error_message(exc: Exception) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", type=Path, default=default_source())
+    parser.add_argument("--source", type=Path, default=None,
+                        help="Explicit accepted_sync_anchors JSONL. Defaults to latest accepted_sync_anchors*.jsonl in --downloads-dir.")
+    parser.add_argument("--downloads-dir", type=Path, default=default_downloads_dir())
     parser.add_argument("--target", type=Path)
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--review-name", default=DEFAULT_REVIEW_NAME)
@@ -125,10 +142,11 @@ def main() -> None:
     try:
         result = stage(args)
     except (FileNotFoundError, ValueError) as exc:
+        source = resolve_source(args.source, args.downloads_dir)
         result = {
             "passed": False,
             "staged": False,
-            "source": str(args.source),
+            "source": str(source),
             "target": str(args.target) if args.target else str(default_target(args.repo_root.resolve(), args.review_name)),
             "errors": [error_message(exc)],
         }
