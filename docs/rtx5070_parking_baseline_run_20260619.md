@@ -2692,3 +2692,56 @@ Decision:
 - Next required step is a dedicated synchronization calibration stage.  It
   should produce an explicit `section_id -> cam_id -> video_frame_idx` mapping
   or reject this dataset for image-based semantic projection.
+
+## Safe Semantic-Prior Runner
+
+Date: 2026-06-19
+
+Reusable runner added:
+
+```text
+scripts/run_parking_safe_semantic_prior_route.sh
+```
+
+Default behavior:
+
+- runs dry by default; set `RUN=1` to execute;
+- exports `SCAN_IMAGE_DIR` and `SCAN_VIDEO_DIR` to the 5070Ti parking dataset
+  path so scripts do not fall back to old `/root/epfs` calibration files;
+- uses the raw `0.01m` voxel PLY with frame metadata as geometry guidance;
+- applies `--global-source-filter-mode mean --global-source-frame-window 20`;
+- uses the current best local-geometry viewer PLY only as a semantic prior;
+- fills residual surface holes only: `--surface-override-from 0`;
+- does not enable `--guarded-fine-surface-override` unless the caller sets
+  `ALLOW_FINE_SURFACE_OVERRIDE=1`.
+
+Smoke command:
+
+```bash
+RUN=1 OVERWRITE=1 OUT_SUFFIX=guarded_semprior_safe_smoke \
+START=3400 END=3500 STRIDE=10 \
+bash scripts/run_parking_safe_semantic_prior_route.sh
+```
+
+Smoke result:
+
+- geometry guidance images: `33/33 ok`;
+- semantic-prior voxels: `198,800`;
+- residual surface fill: `residual->wall 126,988`, `residual->ground 15`;
+- fine overwrite: `0`;
+- projection:
+  - frame count: `11`;
+  - raw points: `450,175`;
+  - visible non-sky points: `401,126`;
+  - priority points: `369,400`;
+  - residual points: `31,726`;
+  - priority counts:
+    `ground 6,577`, `wall 347,470`, `grass 2,025`, `railing 13,328`.
+
+Interpretation:
+
+- The runner reproduces the conservative safe-prior behavior and avoids the
+  previous `railing->wall` fine-label overwrite failure.
+- It does not solve the image/LiDAR synchronization blocker.  It only prevents
+  unguarded full-global reverse projection from adding additional cross-time
+  evidence pollution.
