@@ -909,6 +909,31 @@ server_parking_priority_s10/sync_anchor_review_small_20260619_v2/panels/
 
 Generation report: `27` probes and `152` option panels.
 
+After exporting accepted anchors from the HTML page, run the constrained solver
+from the local repo:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+scripts/run_rtx5070_sync_anchor_solver.sh
+```
+
+Default expected anchor file:
+
+```text
+server_parking_priority_s10/sync_anchor_review_small_20260619_v2/accepted_sync_anchors.jsonl
+```
+
+The launcher syncs anchors to `scan-rtx5070`, runs
+`solve_sync_path_from_candidates.py --anchors-jsonl`, rebuilds a constrained
+review pack, and pulls outputs to:
+
+```text
+server_parking_priority_s10/sync_anchor_constrained_from_review_v2/
+```
+
+Only after that constrained path is visually accepted should priority masks,
+frame-local targets, or object fusion be rerun.
+
 ## Reproducible Candidate Rebuild
 
 Before starting or resuming remote jobs, run the runtime healthcheck from the
