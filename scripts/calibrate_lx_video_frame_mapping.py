@@ -57,6 +57,9 @@ class CandidateScore:
     edge_distance_mean: float
     edge_distance_p50: float
     score: float
+    score_sample_mode: str = "all_projected"
+    all_visible: int = 0
+    projected_edge_samples: int = 0
 
 
 def parse_int_range(text: str) -> list[int]:
@@ -124,6 +127,73 @@ def visible_pixels(
     vv = np.clip(np.rint(v[in_img]).astype(np.int32), 0, height - 1)
     depths = z[in_img].astype(np.float32)
     keep = zbuffer_visible(local_idx, uu, vv, depths, width)
+    return uu[keep], vv[keep], depths[keep]
+
+
+def select_projected_depth_edges(
+    uu: np.ndarray,
+    vv: np.ndarray,
+    depths: np.ndarray,
+    width: int,
+    height: int,
+    depth_gap: float,
+    dilation_px: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Select projected LiDAR pixels near sparse depth discontinuities.
+
+    The image-edge score is biased toward frames that are globally edge-rich.
+    Restricting samples to geometry edges makes the score depend more on
+    object/surface boundaries and less on textured image regions.
+    """
+    if len(uu) == 0:
+        return uu, vv, depths
+    depth = np.full((height, width), np.inf, dtype=np.float32)
+    depth[vv, uu] = depths.astype(np.float32)
+    finite = np.isfinite(depth)
+    edge = np.zeros((height, width), dtype=bool)
+    gap = float(depth_gap)
+    if width > 1:
+        both = finite[:, 1:] & finite[:, :-1]
+        diff = np.zeros_like(both, dtype=bool)
+        diff[both] = np.abs(depth[:, 1:][both] - depth[:, :-1][both]) > gap
+        hit = both & diff
+        edge[:, 1:] |= hit
+        edge[:, :-1] |= hit
+    if height > 1:
+        both = finite[1:, :] & finite[:-1, :]
+        diff = np.zeros_like(both, dtype=bool)
+        diff[both] = np.abs(depth[1:, :][both] - depth[:-1, :][both]) > gap
+        hit = both & diff
+        edge[1:, :] |= hit
+        edge[:-1, :] |= hit
+    if dilation_px > 1 and np.any(edge):
+        edge = cv2.dilate(edge.astype(np.uint8), np.ones((dilation_px, dilation_px), dtype=np.uint8)) > 0
+    keep = edge[vv, uu]
+    return uu[keep], vv[keep], depths[keep]
+
+
+def select_projected_silhouette_edges(
+    uu: np.ndarray,
+    vv: np.ndarray,
+    depths: np.ndarray,
+    width: int,
+    height: int,
+    dilation_px: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Select samples near the 2D boundary of projected LiDAR support."""
+    if len(uu) == 0:
+        return uu, vv, depths
+    support = np.zeros((height, width), dtype=np.uint8)
+    support[vv, uu] = 255
+    kernel_size = max(int(dilation_px), 1)
+    kernel = np.ones((kernel_size, kernel_size), dtype=np.uint8)
+    if kernel_size > 1:
+        support = cv2.dilate(support, kernel)
+    eroded = cv2.erode(support, kernel)
+    boundary = support > eroded
+    if kernel_size > 1:
+        boundary = cv2.dilate(boundary.astype(np.uint8), kernel) > 0
+    keep = boundary[vv, uu]
     return uu[keep], vv[keep], depths[keep]
 
 
@@ -215,6 +285,33 @@ def score_candidates_for_probe(
             continue
         image = cv2.remap(raw, map1, map2, cv2.INTER_LINEAR)
         uu, vv, _depth = visible_pixels(u, v, z, image.shape[1], image.shape[0])
+        all_visible = int(len(uu))
+        projected_edge_samples = 0
+        score_sample_mode = "all_projected"
+        if args.projected_depth_edges:
+            if args.projected_edge_kind == "silhouette":
+                edge_uu, edge_vv, edge_depth = select_projected_silhouette_edges(
+                    uu,
+                    vv,
+                    _depth,
+                    image.shape[1],
+                    image.shape[0],
+                    args.projected_depth_edge_dilation_px,
+                )
+            else:
+                edge_uu, edge_vv, edge_depth = select_projected_depth_edges(
+                    uu,
+                    vv,
+                    _depth,
+                    image.shape[1],
+                    image.shape[0],
+                    args.projected_depth_edge_gap,
+                    args.projected_depth_edge_dilation_px,
+                )
+            projected_edge_samples = int(len(edge_uu))
+            if len(edge_uu) >= args.min_projected_edge_samples:
+                uu, vv, _depth = edge_uu, edge_vv, edge_depth
+                score_sample_mode = f"projected_{args.projected_edge_kind}_edges"
         hit, mean_dist, p50_dist, score = edge_distance_score(
             image,
             uu,
@@ -232,6 +329,9 @@ def score_candidates_for_probe(
             edge_distance_mean=mean_dist,
             edge_distance_p50=p50_dist,
             score=score,
+            score_sample_mode=score_sample_mode,
+            all_visible=all_visible,
+            projected_edge_samples=projected_edge_samples,
         )
         scores.append(item)
         panel_payloads.append((item, image, uu, vv))
@@ -348,6 +448,9 @@ def as_dict(item: CandidateScore) -> dict[str, Any]:
         "edge_distance_mean": item.edge_distance_mean,
         "edge_distance_p50": item.edge_distance_p50,
         "score": item.score,
+        "score_sample_mode": item.score_sample_mode,
+        "all_visible": item.all_visible,
+        "projected_edge_samples": item.projected_edge_samples,
     }
 
 
@@ -367,6 +470,12 @@ def main() -> None:
     parser.add_argument("--dot-px", type=int, default=7)
     parser.add_argument("--sheet-cols", type=int, default=4)
     parser.add_argument("--panels-per-probe", type=int, default=4)
+    parser.add_argument("--projected-depth-edges", action="store_true",
+                        help="Score only projected sparse depth-discontinuity samples when enough exist.")
+    parser.add_argument("--projected-edge-kind", choices=["depth", "silhouette"], default="depth")
+    parser.add_argument("--projected-depth-edge-gap", type=float, default=0.6)
+    parser.add_argument("--projected-depth-edge-dilation-px", type=int, default=5)
+    parser.add_argument("--min-projected-edge-samples", type=int, default=64)
     parser.add_argument("--max-fit-rmse", type=float, default=150.0)
     parser.add_argument("--max-fit-abs-residual", type=float, default=300.0)
     parser.add_argument("--min-fit-samples", type=int, default=4)
@@ -427,6 +536,11 @@ def main() -> None:
         "offsets": offsets,
         "index_scale": args.index_scale,
         "index_shift": args.index_shift,
+        "projected_depth_edges": bool(args.projected_depth_edges),
+        "projected_edge_kind": args.projected_edge_kind,
+        "projected_depth_edge_gap": args.projected_depth_edge_gap,
+        "projected_depth_edge_dilation_px": args.projected_depth_edge_dilation_px,
+        "min_projected_edge_samples": args.min_projected_edge_samples,
         "video_dir": config.VIDEO_DIR,
         "calib_file": config.CALIB_FILE,
         "fit_by_cam": fit_by_cam,

@@ -993,6 +993,35 @@ Conclusion: the projection chain's world-coordinate assumption is valid for
 this dataset. The remaining image/point-cloud mismatch should be treated as
 sync/path selection or visual scoring, not as `.lx` coordinate-frame misuse.
 
+Full-range edge-score probe:
+
+- Ran absolute `video_idx=0..6180 step=100` search on 9 sampled sections x 3
+  cameras.
+- Raw edge scoring is dominated by frame-level image-edge bias: cam0/cam1 select
+  `video_idx=300` for almost every probe, which is physically impossible as a
+  synchronization path.
+- Smooth solver can force monotonic paths, but only with high score loss: mean
+  score loss `0.304` for cam0, `0.249` for cam1, `0.228` for cam2 under the
+  relaxed full-range run.
+- Projected sparse depth-edge scoring was tested and found ineffective: depth
+  discontinuity samples are often `0` because Mid360 ring projections are too
+  sparse for pixel-adjacent depth gradients.
+- Projected silhouette scoring also degenerates to all projected points on this
+  sparse data, so it does not remove the frame-prior bias.
+
+Report artifacts:
+
+```text
+server_parking_priority_s10/sync_calibration_abs_fullrange_step100_20260619/sync_calibration_report.json
+server_parking_priority_s10/sync_smooth_abs_fullrange_step100_20260619/sync_smooth_path_report.json
+server_parking_priority_s10/sync_silhouette_probe_fields_20260619/sync_candidates.jsonl
+```
+
+Conclusion: the current edge-distance visual score is suitable for producing
+human review candidates, but not sufficient as an automatic sequence matcher.
+The next automatic route should use stronger image descriptors or manual anchors,
+not more edge-score parameter sweeps.
+
 ## Reproducible Candidate Rebuild
 
 Before starting or resuming remote jobs, run the runtime healthcheck from the

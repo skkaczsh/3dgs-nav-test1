@@ -4,6 +4,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import numpy as np
+
 
 def load_module():
     path = Path(__file__).resolve().parents[1] / "scripts" / "calibrate_lx_video_frame_mapping.py"
@@ -63,3 +65,42 @@ def test_annotate_direct_rank_adds_summary_and_best_fields():
     assert summary["p50"] == 3.0
     assert best[0]["direct_rank"] == 3
     assert best[0]["direct_score"] == 0.5
+
+
+def test_select_projected_depth_edges_keeps_depth_discontinuity_samples():
+    module = load_module()
+    uu = np.asarray([1, 2, 3], dtype=np.int32)
+    vv = np.asarray([2, 2, 2], dtype=np.int32)
+    depths = np.asarray([1.0, 1.1, 3.0], dtype=np.float32)
+    edge_u, edge_v, edge_z = module.select_projected_depth_edges(
+        uu, vv, depths, width=6, height=5, depth_gap=0.5, dilation_px=1
+    )
+    assert edge_u.tolist() == [2, 3]
+    assert edge_v.tolist() == [2, 2]
+    assert np.allclose(edge_z, np.asarray([1.1, 3.0], dtype=np.float32))
+
+
+def test_select_projected_depth_edges_returns_empty_without_discontinuity():
+    module = load_module()
+    uu = np.asarray([1, 2, 3], dtype=np.int32)
+    vv = np.asarray([2, 2, 2], dtype=np.int32)
+    depths = np.asarray([1.0, 1.1, 1.2], dtype=np.float32)
+    edge_u, edge_v, edge_z = module.select_projected_depth_edges(
+        uu, vv, depths, width=6, height=5, depth_gap=0.5, dilation_px=1
+    )
+    assert len(edge_u) == 0
+    assert len(edge_v) == 0
+    assert len(edge_z) == 0
+
+
+def test_select_projected_silhouette_edges_keeps_boundary_samples():
+    module = load_module()
+    uu = np.asarray([2, 3, 4, 3], dtype=np.int32)
+    vv = np.asarray([3, 3, 3, 4], dtype=np.int32)
+    depths = np.asarray([1.0, 1.1, 1.2, 1.3], dtype=np.float32)
+    edge_u, edge_v, edge_z = module.select_projected_silhouette_edges(
+        uu, vv, depths, width=8, height=8, dilation_px=3
+    )
+    assert len(edge_u) > 0
+    assert len(edge_u) <= len(uu)
+    assert len(edge_u) == len(edge_v) == len(edge_z)
