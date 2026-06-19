@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -96,6 +97,56 @@ def draw_overlay(image_bgr: np.ndarray, uu: np.ndarray, vv: np.ndarray, title: s
     return thumb
 
 
+def read_frame_opencv_index(cap: cv2.VideoCapture, frame_id: int) -> np.ndarray | None:
+    cap.set(cv2.CAP_PROP_POS_FRAMES, int(frame_id))
+    ok, raw = cap.read()
+    if not ok or raw is None:
+        return None
+    return raw
+
+
+def read_frame_ffmpeg_time(video_path: str, rel_ts: float) -> np.ndarray | None:
+    """Read one video frame with the same timestamp-style access as extract_frames.py."""
+    cmd = [
+        "ffmpeg",
+        "-v",
+        "error",
+        "-ss",
+        f"{rel_ts:.4f}",
+        "-i",
+        video_path,
+        "-vframes",
+        "1",
+        "-f",
+        "image2pipe",
+        "-vcodec",
+        "mjpeg",
+        "pipe:1",
+    ]
+    result = subprocess.run(cmd, capture_output=True)
+    if result.returncode != 0 or not result.stdout:
+        return None
+    data = np.frombuffer(result.stdout, dtype=np.uint8)
+    raw = cv2.imdecode(data, cv2.IMREAD_COLOR)
+    return raw
+
+
+def read_candidate_frame(
+    cap: cv2.VideoCapture,
+    video_path: str,
+    frame_id: int,
+    offset: int,
+    args: argparse.Namespace,
+) -> tuple[np.ndarray | None, int, float]:
+    video_idx = int(round(frame_id * args.index_scale + args.index_shift + offset))
+    rel_ts = float(video_idx) * float(args.time_scale)
+    if args.read_mode == "opencv-index":
+        return read_frame_opencv_index(cap, video_idx), video_idx, rel_ts
+    if args.read_mode == "ffmpeg-time":
+        return read_frame_ffmpeg_time(video_path, rel_ts), video_idx, rel_ts
+    raise ValueError(f"Unsupported read mode: {args.read_mode}")
+
+
 def probe_one(
     lx_handle,
     section: dict[str, Any],
@@ -114,12 +165,17 @@ def probe_one(
     rows = []
     panels = []
     for offset in offsets:
-        video_idx = int(frame_id + offset)
+        video_idx = int(round(frame_id * args.index_scale + args.index_shift + offset))
         if video_idx < 0:
             continue
-        cap.set(cv2.CAP_PROP_POS_FRAMES, video_idx)
-        ok, raw = cap.read()
-        if not ok or raw is None:
+        raw, video_idx, rel_ts = read_candidate_frame(
+            cap,
+            config.VIDEO_FILES[cam_id],
+            frame_id,
+            offset,
+            args,
+        )
+        if raw is None:
             continue
         image = cv2.remap(raw, map1, map2, cv2.INTER_LINEAR)
         uu, vv, _depth = visible_pixels(u, v, z, image.shape[1], image.shape[0])
@@ -128,13 +184,14 @@ def probe_one(
             "frame_id": int(frame_id),
             "cam_id": int(cam_id),
             "video_idx": video_idx,
+            "video_rel_ts": rel_ts,
             "offset": int(offset),
             "visible": int(len(uu)),
             "edge_hit": edge_hit,
         }
         rows.append(row)
         if len(panels) < args.max_panels_per_probe:
-            title = f"f={frame_id} c={cam_id} off={offset} edge={edge_hit:.3f}"
+            title = f"f={frame_id} c={cam_id} v={video_idx} {args.read_mode} edge={edge_hit:.3f}"
             panels.append(draw_overlay(image, uu, vv, title, args.dot_px))
     cap.release()
     best = max(rows, key=lambda r: r["edge_hit"]) if rows else None
@@ -162,6 +219,10 @@ def main() -> None:
     parser.add_argument("--dot-px", type=int, default=7)
     parser.add_argument("--sheet-cols", type=int, default=3)
     parser.add_argument("--max-panels-per-probe", type=int, default=9)
+    parser.add_argument("--read-mode", choices=["opencv-index", "ffmpeg-time"], default="opencv-index")
+    parser.add_argument("--index-scale", type=float, default=1.0, help="video_idx = frame_id * index_scale + index_shift + offset")
+    parser.add_argument("--index-shift", type=float, default=0.0, help="video_idx = frame_id * index_scale + index_shift + offset")
+    parser.add_argument("--time-scale", type=float, default=0.1, help="ffmpeg timestamp seconds per video_idx in ffmpeg-time mode")
     args = parser.parse_args()
 
     sections = read_lx_sections(args.lx_file)
@@ -184,6 +245,10 @@ def main() -> None:
         "frames": args.frames,
         "cams": args.cams,
         "offsets": args.offsets,
+        "read_mode": args.read_mode,
+        "index_scale": args.index_scale,
+        "index_shift": args.index_shift,
+        "time_scale": args.time_scale,
         "calib_file": config.CALIB_FILE,
         "video_dir": config.VIDEO_DIR,
         "reports": reports,
@@ -193,7 +258,7 @@ def main() -> None:
         encoding="utf-8",
     )
     write_sheet(all_panels, args.output_dir / "alignment_probe_sheet.jpg", args.sheet_cols)
-    print(json.dumps({k: report[k] for k in ("frames", "cams", "offsets")}, ensure_ascii=False, indent=2))
+    print(json.dumps({k: report[k] for k in ("frames", "cams", "offsets", "read_mode")}, ensure_ascii=False, indent=2))
     for row in reports:
         print(json.dumps({"frame_id": row["frame_id"], "cam_id": row["cam_id"], "best": row["best"]}, ensure_ascii=False))
 

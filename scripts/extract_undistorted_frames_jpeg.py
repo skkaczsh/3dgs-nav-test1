@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -30,6 +31,85 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
+
+
+def load_video_timestamps(video_path: str) -> list[tuple[int, float]]:
+    cmd = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "frame=pkt_pts_time",
+        "-of",
+        "csv=p=0",
+        video_path,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    frames: list[tuple[int, float]] = []
+    if result.returncode == 0:
+        for line in result.stdout.strip().splitlines():
+            if not line:
+                continue
+            try:
+                frames.append((len(frames), float(line.split(",")[0])))
+            except (ValueError, IndexError):
+                continue
+    if frames:
+        return frames
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        return []
+    fps = float(cap.get(cv2.CAP_PROP_FPS) or 10.0)
+    count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+    cap.release()
+    return [(i, i / fps) for i in range(count)]
+
+
+def find_best_video_frame(target_ts_rel: float, video_ts: np.ndarray, max_delta: float) -> tuple[int | None, float, float]:
+    if video_ts.size == 0:
+        return None, float("inf"), float("nan")
+    frame_idxs = video_ts[:, 0]
+    rel_times = video_ts[:, 1]
+    idx = int(np.searchsorted(rel_times, target_ts_rel))
+    candidates = []
+    if idx > 0:
+        candidates.append((idx - 1, abs(float(rel_times[idx - 1]) - target_ts_rel)))
+    if idx < len(rel_times):
+        candidates.append((idx, abs(float(rel_times[idx]) - target_ts_rel)))
+    if not candidates:
+        return None, float("inf"), float("nan")
+    best_rel_idx, best_delta = min(candidates, key=lambda item: item[1])
+    rel_ts = float(rel_times[best_rel_idx])
+    if best_delta > max_delta:
+        return None, float(best_delta), rel_ts
+    return int(frame_idxs[best_rel_idx]), float(best_delta), rel_ts
+
+
+def read_frame_ffmpeg_time(video_path: str, rel_ts: float) -> np.ndarray | None:
+    cmd = [
+        "ffmpeg",
+        "-v",
+        "error",
+        "-ss",
+        f"{rel_ts:.4f}",
+        "-i",
+        video_path,
+        "-vframes",
+        "1",
+        "-f",
+        "image2pipe",
+        "-vcodec",
+        "mjpeg",
+        "pipe:1",
+    ]
+    result = subprocess.run(cmd, capture_output=True)
+    if result.returncode != 0 or not result.stdout:
+        return None
+    data = np.frombuffer(result.stdout, dtype=np.uint8)
+    return cv2.imdecode(data, cv2.IMREAD_COLOR)
 
 
 def make_maps() -> dict[int, tuple[np.ndarray, np.ndarray]]:
@@ -50,11 +130,21 @@ def frame_ids(start: int, end: int, stride: int) -> list[int]:
     return list(range(start, end + 1, stride))
 
 
-def extract_cam(cam_id: int, ids: list[int], output_dir: Path, quality: int, skip_existing: bool) -> dict:
+def extract_cam(
+    cam_id: int,
+    ids: list[int],
+    output_dir: Path,
+    quality: int,
+    skip_existing: bool,
+    sync_mode: str,
+    time_scale: float,
+    max_delta: float,
+) -> dict:
     video_path = config.VIDEO_FILES[cam_id]
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise RuntimeError(f"Cannot open video cam{cam_id}: {video_path}")
+    video_ts = np.asarray(load_video_timestamps(video_path), dtype=np.float64)
     maps = make_maps()
     map1, map2 = maps[cam_id]
     cam_dir = output_dir / f"cam{cam_id}"
@@ -62,8 +152,10 @@ def extract_cam(cam_id: int, ids: list[int], output_dir: Path, quality: int, ski
 
     ok = skipped = failed = 0
     first_error = None
+    deltas: list[float] = []
+    frame_map: list[dict[str, int | float | str]] = []
     encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), int(quality)]
-    sequential = bool(ids) and all((b - a) == 1 for a, b in zip(ids, ids[1:]))
+    sequential = sync_mode == "opencv-index" and bool(ids) and all((b - a) == 1 for a, b in zip(ids, ids[1:]))
     if sequential:
         cap.set(cv2.CAP_PROP_POS_FRAMES, int(ids[0]))
     for frame_id in ids:
@@ -73,11 +165,46 @@ def extract_cam(cam_id: int, ids: list[int], output_dir: Path, quality: int, ski
             if sequential:
                 cap.grab()
             continue
-        if sequential:
-            ret, frame = cap.read()
+        if sync_mode == "ffmpeg-time":
+            target_ts = float(frame_id) * float(time_scale)
+            video_idx, delta, rel_ts = find_best_video_frame(target_ts, video_ts, max_delta)
+            if video_idx is None:
+                failed += 1
+                first_error = first_error or f"sync_failed_frame_{frame_id}"
+                frame_map.append({
+                    "frame_id": int(frame_id),
+                    "status": "sync_failed",
+                    "target_rel_ts": target_ts,
+                    "video_rel_ts": rel_ts,
+                    "delta": delta,
+                })
+                continue
+            frame = read_frame_ffmpeg_time(video_path, rel_ts)
+            ret = frame is not None
+            deltas.append(delta)
+            frame_map.append({
+                "frame_id": int(frame_id),
+                "status": "ok" if ret else "read_failed",
+                "video_idx": int(video_idx),
+                "target_rel_ts": target_ts,
+                "video_rel_ts": rel_ts,
+                "delta": delta,
+            })
         else:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, int(frame_id))
-            ret, frame = cap.read()
+            video_idx = int(frame_id)
+            if sequential:
+                ret, frame = cap.read()
+            else:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, video_idx)
+                ret, frame = cap.read()
+            frame_map.append({
+                "frame_id": int(frame_id),
+                "status": "ok" if ret else "read_failed",
+                "video_idx": video_idx,
+                "target_rel_ts": float(video_idx) * float(time_scale),
+                "video_rel_ts": float(video_idx) * float(time_scale),
+                "delta": 0.0,
+            })
         if not ret or frame is None:
             failed += 1
             first_error = first_error or f"read_failed_frame_{frame_id}"
@@ -96,6 +223,12 @@ def extract_cam(cam_id: int, ids: list[int], output_dir: Path, quality: int, ski
         "skipped": skipped,
         "failed": failed,
         "first_error": first_error,
+        "sync_mode": sync_mode,
+        "time_scale": time_scale,
+        "max_delta": max_delta,
+        "delta_mean": float(np.mean(deltas)) if deltas else 0.0,
+        "delta_max": float(np.max(deltas)) if deltas else 0.0,
+        "frame_map": frame_map,
     }
 
 
@@ -109,6 +242,9 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=3)
     parser.add_argument("--quality", type=int, default=92)
     parser.add_argument("--skip-existing", action="store_true")
+    parser.add_argument("--sync-mode", choices=["ffmpeg-time", "opencv-index"], default="ffmpeg-time")
+    parser.add_argument("--time-scale", type=float, default=0.1, help="Seconds per MANIFOLD frame id in ffmpeg-time mode.")
+    parser.add_argument("--max-delta", type=float, default=0.15, help="Max allowed timestamp delta in ffmpeg-time mode.")
     args = parser.parse_args()
 
     if args.end is None:
@@ -122,13 +258,24 @@ def main() -> None:
     t0 = time.time()
     print(f"output_dir={args.output_dir}")
     print(f"frames={len(ids)} range={args.start}..{args.end} stride={args.stride}")
+    print(f"sync_mode={args.sync_mode} time_scale={args.time_scale} max_delta={args.max_delta}")
     print(f"calib={config.CALIB_FILE}")
     print(f"video_dir={config.VIDEO_DIR}")
 
     results = []
     with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
         futures = [
-            pool.submit(extract_cam, cam_id, ids, args.output_dir, args.quality, args.skip_existing)
+            pool.submit(
+                extract_cam,
+                cam_id,
+                ids,
+                args.output_dir,
+                args.quality,
+                args.skip_existing,
+                args.sync_mode,
+                args.time_scale,
+                args.max_delta,
+            )
             for cam_id in args.cams
         ]
         for fut in as_completed(futures):
@@ -143,6 +290,9 @@ def main() -> None:
         "stride": args.stride,
         "frame_count": len(ids),
         "cams": args.cams,
+        "sync_mode": args.sync_mode,
+        "time_scale": args.time_scale,
+        "max_delta": args.max_delta,
         "quality": args.quality,
         "calib_file": config.CALIB_FILE,
         "video_dir": config.VIDEO_DIR,

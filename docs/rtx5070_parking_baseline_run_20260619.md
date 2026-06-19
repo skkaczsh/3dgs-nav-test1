@@ -2560,12 +2560,36 @@ output: /home/zsh/Work/SCAN/work_MT20260616-175807/raw_lx_voxel_full_v001_meta/r
 report: /home/zsh/Work/SCAN/work_MT20260616-175807/raw_lx_voxel_full_v001_meta/raw_voxel_report.json
 ```
 
+It later completed:
+
+- raw points: `97,855,095`
+- voxel points: `68,870,431`
+- voxel size: `0.01m`
+- output size: about `1.8GB`
+- embedded metadata: `frame_min`, `frame_max`, `frame_mean`, `frame_count`
+
 Promotion rule:
 
 - Keep frame-local `.lx` visibility as the hard correctness reference.
 - Use full raw voxel depth only with source-frame metadata and visibility
   confidence.
 - Do not use blind global reverse projection for mask labels or VLM evidence.
+
+Follow-up sync clarification:
+
+- The previously validated color route reads images from `FRAME_OUTPUT_DIRS`;
+  its frame/video binding is created by `extract_frames.py`.
+- On the parking dataset, the legacy `ffmpeg-time` extraction
+  (`target_rel_ts = frame_id * 0.1`) and OpenCV direct-index extraction both
+  map sampled frames to `video_idx == frame_id` with `delta=0`.
+- Therefore the observed mismatch is not explained by ffmpeg vs OpenCV seeking.
+- The important issue is evidence provenance: same-frame `.lx` depth can be
+  very sparse in the camera view, while full-global depth fills the image with
+  geometry collected from other moments/viewpoints.  That makes the image and
+  full-global depth look like different poses in places where the current frame
+  has no LiDAR support.
+- Production semantic evidence must therefore use same-frame or near-frame
+  source voxels first, and use full-global depth only as boundary guidance.
 
 ## Parking Dataset Frame Sync Blocker
 
