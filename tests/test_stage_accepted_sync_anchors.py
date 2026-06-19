@@ -80,6 +80,28 @@ def test_stage_rejects_insufficient_camera_coverage(tmp_path: Path):
     assert "accepted_anchors_cam1=0<min1" in result["errors"]
 
 
+def test_stage_rejects_diagnostic_only_anchors(tmp_path: Path):
+    module = load_module()
+    source = tmp_path / "diagnostic_suggested_anchors_DO_NOT_STAGE.jsonl"
+    target = tmp_path / "target" / "accepted_sync_anchors.jsonl"
+    row0 = accepted(10, 0, 12)
+    row1 = accepted(10, 1, 13)
+    row0["diagnostic_only"] = True
+    row1["diagnostic_only"] = True
+    write_jsonl(source, [row0, row1])
+
+    try:
+        module.stage(make_args(tmp_path, source, target=target))
+    except ValueError as exc:
+        message = str(exc)
+    else:
+        raise AssertionError("stage() should reject diagnostic_only anchors")
+
+    assert "refusing diagnostic_only anchors" in message
+    assert "export accepted anchors from the review page" in message
+    assert not target.exists()
+
+
 def test_stage_refuses_to_overwrite_without_force(tmp_path: Path):
     module = load_module()
     source = tmp_path / "accepted_sync_anchors.jsonl"

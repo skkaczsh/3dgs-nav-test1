@@ -48,6 +48,13 @@ def load_rows(path: Path) -> list[dict[str, Any]]:
     rows = validate_sync_anchors.read_jsonl(path)
     if not rows:
         raise ValueError(f"accepted anchors file is empty: {path}")
+    diagnostic_rows = [i for i, row in enumerate(rows, start=1) if row.get("diagnostic_only") is True]
+    if diagnostic_rows:
+        sample = ",".join(str(i) for i in diagnostic_rows[:10])
+        raise ValueError(
+            f"refusing diagnostic_only anchors in {path}; "
+            f"rows={sample}; inspect and export accepted anchors from the review page instead"
+        )
     return rows
 
 
