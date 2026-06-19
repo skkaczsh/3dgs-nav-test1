@@ -276,6 +276,7 @@ def build_review_html(manifest_rows: list[dict[str, Any]]) -> str:
       rows.forEach((row, rowIdx) => {{
         const probe = document.createElement('section');
         probe.className = 'probe';
+        probe.id = `frame-${{row.frame_id}}-cam-${{row.cam_id}}`;
         const title = document.createElement('div');
         title.className = 'probe-head';
         title.innerHTML = `

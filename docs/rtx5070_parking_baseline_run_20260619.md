@@ -154,6 +154,11 @@ The image checklist page is available at:
 http://127.0.0.1:8765/server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/suggested_anchor_checklist.html
 ```
 
+Each checklist card links directly to its corresponding main review row using
+stable `#frame-<section>-cam-<cam>` anchors, so the suggested visual check can
+be followed immediately by accepting/rejecting the same row in the export-capable
+review page.
+
 The current 9-row diagnostic suggestion passes local timing validation with
 `phase=1.0` and `expected_fps=6.0`:
 

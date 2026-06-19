@@ -114,9 +114,12 @@ def select_rows(rows: list[dict[str, Any]], per_cam: int, bins: int) -> list[dic
 
 def public_row(row: dict[str, Any]) -> dict[str, Any]:
     option = recommended_option(row) or {}
+    frame_id = int(row["frame_id"])
+    cam_id = int(row["cam_id"])
     return {
-        "frame_id": int(row["frame_id"]),
-        "cam_id": int(row["cam_id"]),
+        "frame_id": frame_id,
+        "cam_id": cam_id,
+        "review_anchor": f"frame-{frame_id}-cam-{cam_id}",
         "recommended_option_idx": option.get("option_idx"),
         "recommended_video_idx": option.get("video_idx"),
         "recommended_source": option.get("review_source"),
@@ -159,19 +162,22 @@ def render_markdown(rows: list[dict[str, Any]], review_url: str | None) -> str:
     for row in rows:
         risk = ", ".join(row.get("risk_reasons") or []) or "none"
         panel = row.get("panel_path") or ""
+        review_ref = f"{review_url}#{row['review_anchor']}" if review_url else ""
+        frame_text = f"[{row['frame_id']}]({review_ref})" if review_ref else str(row["frame_id"])
         lines.append(
-            f"| {row['frame_id']} | {row['cam_id']} | {row.get('recommended_video_idx')} | "
+            f"| {frame_text} | {row['cam_id']} | {row.get('recommended_video_idx')} | "
             f"{row.get('recommended_source')} | {float(row.get('score') or 0.0):.3f} | "
             f"{float(row.get('score_margin') or 0.0):.3f} | {risk} | `{panel}` |"
         )
     return "\n".join(lines) + "\n"
 
 
-def rows_for_html(rows: list[dict[str, Any]], source_dir: Path, output_html: Path) -> list[dict[str, Any]]:
+def rows_for_html(rows: list[dict[str, Any]], source_dir: Path, output_html: Path, review_url: str | None) -> list[dict[str, Any]]:
     out = []
     output_dir = output_html.parent
     for row in rows:
         item = public_row(row)
+        item["review_href"] = f"{review_url}#{item['review_anchor']}" if review_url else ""
         item["options"] = []
         for option in sorted(row.get("options", []), key=lambda opt: float(opt.get("score", 0.0)), reverse=True):
             opt = dict(option)
@@ -184,7 +190,7 @@ def rows_for_html(rows: list[dict[str, Any]], source_dir: Path, output_html: Pat
 
 
 def render_html(rows: list[dict[str, Any]], source_dir: Path, output_html: Path, review_url: str | None) -> str:
-    payload = html.escape(json.dumps(rows_for_html(rows, source_dir, output_html), ensure_ascii=False), quote=False)
+    payload = html.escape(json.dumps(rows_for_html(rows, source_dir, output_html, review_url), ensure_ascii=False), quote=False)
     review_link = f'<a href="{html.escape(review_url)}">open main review page</a>' if review_url else ""
     return f"""<!doctype html>
 <html lang="en">
@@ -236,7 +242,8 @@ rows.forEach(row => {{
       source ${{row.recommended_source}} /
       score ${{fmt(row.score)}} /
       margin ${{fmt(row.score_margin)}} /
-      risk <span class="risk">${{risk}}</span>
+      risk <span class="risk">${{risk}}</span><br>
+      ${{row.review_href ? `<a href="${{row.review_href}}">jump to main review row</a>` : ''}}
     </div>
     <div class="options"></div>
   `;

@@ -240,6 +240,7 @@ function render() {{
   rows.forEach((row, rowIdx) => {{
     const card = document.createElement('section');
     card.className = 'card';
+    card.id = `frame-${{row.frame_id}}-cam-${{row.cam_id}}`;
     const risk = row.risk_reasons && row.risk_reasons.length ? row.risk_reasons.join(', ') : 'none';
     card.innerHTML = `
       <h2>frame ${{row.frame_id}} / cam ${{row.cam_id}}</h2>

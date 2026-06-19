@@ -79,6 +79,7 @@ def test_selects_temporally_spread_rows_per_camera(tmp_path: Path):
     assert report["output_html"] == str(out_html)
     assert {item["cam_id"] for item in selected} == {0, 1}
     assert {item["frame_id"] for item in selected if item["cam_id"] == 0} == {1000, 2000, 3000}
+    assert selected[0]["review_anchor"] == "frame-1000-cam-0"
     assert selected[0]["recommended_video_idx"] == 1012
     assert diagnostic[0]["anchor_status"] == "accepted"
     assert diagnostic[0]["diagnostic_only"] is True
@@ -88,6 +89,7 @@ def test_selects_temporally_spread_rows_per_camera(tmp_path: Path):
     assert "Sync Anchor Checklist" in html_text
     assert "recommended" in html_text
     assert "f1000_c0.jpg" in html_text
+    assert "http://review#frame-1000-cam-0" in html_text
     assert "accepted_sync_anchors" not in html_text
 
 
