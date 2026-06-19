@@ -2061,3 +2061,64 @@ Final default viewer directory pattern:
 ```text
 frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_localgeom_${OUT_SUFFIX}
 ```
+
+## Clean Default Local-Geometry Run
+
+Date: 2026-06-19
+
+Command:
+
+```bash
+RUN=1 \
+OVERWRITE=0 \
+OUT_SUFFIX=rtx5070_default_localgeom_20260619_132858 \
+scripts/run_parking_frame_local_best_route.sh
+```
+
+Remote output:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_localgeom_rtx5070_default_localgeom_20260619_132858
+```
+
+Local mirror:
+
+```text
+server_parking_priority_s10/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_localgeom_rtx5070_default_localgeom_20260619_132858
+```
+
+QA:
+
+- status: `ok`
+- warnings: `none`
+- errors: `none`
+- PLY vertices: `903,115`
+- objects: `3,266`
+- ambiguous objects: `0`
+- large fine objects: `0`
+
+Point labels:
+
+| label | points |
+| --- | ---: |
+| wall | `5,206,425` |
+| ground | `1,638,491` |
+| grass | `984,548` |
+| ceiling | `914,287` |
+| car | `149,376` |
+| unknown | `67,972` |
+| railing | `21,609` |
+| other | `4,295` |
+
+Viewer URL:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_localgeom_rtx5070_default_localgeom_20260619_132858/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_localgeom_rtx5070_default_localgeom_20260619_132858/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5
+```
+
+Current status:
+
+- this is now the cleanest reproducible parking-lot viewer candidate
+- it prioritizes precision over railing recall
+- next optimization target is source fine-mask quality for `railing/handrail`
+  and `car`, not global object relabeling
