@@ -2122,3 +2122,72 @@ Current status:
 - it prioritizes precision over railing recall
 - next optimization target is source fine-mask quality for `railing/handrail`
   and `car`, not global object relabeling
+
+## Current-Best Geometry-Prior Source-Mask Probe
+
+Date: 2026-06-19
+
+Test window:
+
+```text
+3400..3500 stride=10, cams=0/1/2
+```
+
+Reason:
+
+- local-geometry evidence showed typical `railing` source-mask spillover around
+  this window, especially object `2828`
+- this is an appropriate small probe before any full-scene source-mask change
+
+Inputs:
+
+- priority masks:
+  `/home/zsh/Work/SCAN/work_MT20260616-175807/priority_surface_mapillary_s10_rtx5070`
+- current best semantic prior PLY:
+  `/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_localgeom_rtx5070_default_localgeom_20260619_132858/frame_object_points_stride10.ply`
+- geometry guidance:
+  `/home/zsh/Work/SCAN/work_MT20260616-175807/geometry_guidance_currentbest_3400_3500`
+- refined priority masks:
+  `/home/zsh/Work/SCAN/work_MT20260616-175807/geometry_refine_currentbest_3400_3500_guarded`
+
+Mask-refine result:
+
+- images: `33/33 ok`
+- semantic-prior voxels: `198,800`
+- `residual->wall`: `42,754` pixels
+- `railing->wall`: `9,921` pixels
+- depth-edge cut: `0`
+
+Target-level gate:
+
+| metric | baseline priority | geometry-refined priority | delta |
+| --- | ---: | ---: | ---: |
+| targets | `83` | `98` | `+15` |
+| findings | `8` | `13` | `+5` |
+| finding points | `31,994` | `33,040` | `+1,046` |
+| top-window score | `260` | `405` | `+145` |
+| wall findings | `2` | `4` | `+2` |
+| railing findings | `6` | `9` | `+3` |
+
+Local comparison report:
+
+```text
+server_parking_priority_s10/frame_target_geometry_conflict_comparisons/baseline_vs_geomrefined_3400_3500.md
+```
+
+Decision:
+
+- reject this geometry-prior source-mask refine for the current mainline
+- it fixes some 2D pixels but worsens target-level geometry consistency
+- the projected prior is too sparse/aliased in this window to safely guide
+  fine-mask overwrite
+
+New gate:
+
+```text
+scripts/compare_frame_target_geometry_conflicts.py
+```
+
+Use this gate for future source-mask experiments. A candidate should not be
+promoted if target findings or top-window score increase on the probe windows,
+even if image overlays look cleaner.
