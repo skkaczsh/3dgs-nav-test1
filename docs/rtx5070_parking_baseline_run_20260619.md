@@ -11,6 +11,78 @@
 This run restores the current validated frame-local route on the RTX 5070Ti host.
 The old global object back-projection route is still invalid and was not used.
 
+## Current Gate: Video/LiDAR Sync
+
+The parking dataset must not proceed to semantic production until the
+image/LiDAR sync map is accepted.  The reason is now explicit: `img_pos.txt` is
+not a uniform frame sequence.
+
+Measured `img_pos.timestamp` statistics:
+
+- rows: `6181`
+- time span: `835.3239300251007s`
+- delta min / p50 / mean / p90 / max:
+  `0.09968 / 0.10002 / 0.13517 / 0.20003 / 2.00031`
+- deltas `>0.15s`: `1507`
+- deltas `>0.3s`: `231`
+- deltas `<0.05s`: `0`
+
+Interpretation:
+
+- The images used for derived datasets should be extracted by calibrated video
+  time/index, not by assuming `section_id == video_idx`.
+- The sync model needs to estimate at least:
+  - effective video fps / time scale from `img_pos.timestamp` to video frames
+  - global video offset
+  - possible per-camera offset
+  - exposure phase relative to a LiDAR section, i.e. start/middle/end of scan;
+    this is equivalent to a small constant timestamp offset.
+- Uniform frame-id stepping can still be used as a diagnostic baseline, but it is
+  not a valid production assumption for this dataset.
+
+Implemented sync tooling:
+
+- `scripts/solve_sync_path_from_candidates.py`
+  - supports `--time-mode frame-id|timestamp`
+  - supports `--img-pos-file` and `--video-fps`
+  - accepted manual anchors remain hard constraints
+- `scripts/sweep_sync_timestamp_fps.py`
+  - sweeps effective fps values in timestamp mode
+  - writes the best path plus a sweep report
+- `scripts/summarize_sync_option_sources.py`
+  - compares direct, independent-best, and smooth-path candidate sources
+
+Current automatic results:
+
+- frame-id smooth + sky penalty:
+  - status: `rejected`
+  - temporally stable but score loss remains too high
+- timestamp smooth at `10fps` + sky penalty:
+  - status: `rejected`
+  - max step deviation by camera reaches about `0.45`
+- timestamp fps sweep:
+  - best effective fps: `10.25`
+  - status: `rejected`
+  - mean score loss: about `0.156`
+  - max step deviation: about `0.461`
+
+Visual review of the timestamp/fps sweep contact sheet shows it captures the
+non-uniform sampling hypothesis, but still has suspicious early mappings such
+as `video_idx=0/100` around `frame_id=1000`.  Therefore it is useful as an
+anchor review candidate, not as an automatic truth source.
+
+Current review pages:
+
+```text
+http://127.0.0.1:8765/server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_smooth_preselect_20260619/anchor_review_priority.html
+http://127.0.0.1:8765/server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_fps_sweep_20260619/anchor_review_priority.html
+```
+
+Required next action: manually accept enough anchor rows from a review page,
+then run `scripts/run_rtx5070_sync_anchor_solver.sh`.  The readiness gate must
+pass before extraction, segmentation, target building, or semantic fusion uses
+the new sync map.
+
 ## Environment
 
 - Released Gemma/llama-server before running: PID `1723`, about `8708MiB` VRAM.

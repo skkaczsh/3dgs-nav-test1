@@ -49,6 +49,48 @@ def test_solver_prefers_temporally_smooth_path_over_local_best():
     assert summary["accepted"] is True
 
 
+def test_solver_can_use_timestamp_deltas_instead_of_frame_id_deltas():
+    module = load_module()
+    frame_candidates = {
+        0: [
+            {"frame_id": 0, "cam_id": 0, "video_idx": 0, "score": 0.9, "sync_timestamp": 0.0},
+            {"frame_id": 0, "cam_id": 0, "video_idx": 20, "score": 0.91, "sync_timestamp": 0.0},
+        ],
+        1: [
+            # Real timestamp delta is 2s, so at 10fps the smooth video index is 20.
+            {"frame_id": 1, "cam_id": 0, "video_idx": 1, "score": 0.95, "sync_timestamp": 2.0},
+            {"frame_id": 1, "cam_id": 0, "video_idx": 20, "score": 0.80, "sync_timestamp": 2.0},
+        ],
+        2: [
+            {"frame_id": 2, "cam_id": 0, "video_idx": 2, "score": 0.95, "sync_timestamp": 4.0},
+            {"frame_id": 2, "cam_id": 0, "video_idx": 40, "score": 0.80, "sync_timestamp": 4.0},
+        ],
+    }
+
+    path = module.solve_cam_path(
+        frame_candidates,
+        target_ratio=1.0,
+        velocity_weight=2.0,
+        nonmonotonic_penalty=1000.0,
+        score_weight=1.0,
+        time_mode="timestamp",
+        video_fps=10.0,
+    )
+
+    assert [row["video_idx"] for row in path] == [0, 20, 40]
+    summary = module.summarize_path(
+        path,
+        target_ratio=1.0,
+        max_ratio_deviation=0.2,
+        max_score_loss_mean=0.20,
+        max_score_loss_max=0.30,
+        time_mode="timestamp",
+        video_fps=10.0,
+    )
+    assert summary["accepted"] is True
+    assert summary["step_ratio"]["mode"] == "timestamp"
+
+
 def test_summary_rejects_non_smooth_path():
     module = load_module()
     path = [
@@ -108,6 +150,18 @@ def test_load_and_apply_accepted_anchors_hard_filters_candidates(tmp_path):
     filtered = module.apply_anchors(grouped, anchors)
     assert [row["video_idx"] for row in filtered[0][10]] == [12]
     assert filtered[0][10][0]["anchor_status"] == "accepted"
+
+
+def test_load_frame_timestamps_from_img_pos(tmp_path):
+    module = load_module()
+    path = tmp_path / "img_pos.txt"
+    path.write_text(
+        "0 10.0 0 0 0 1 0 0 0 1 0 0 0 0,1 0,1 0,1\n"
+        "2 10.2 0 0 0 1 0 0 0 1 0 0 0 0,1 0,1 0,1\n",
+        encoding="utf-8",
+    )
+
+    assert module.load_frame_timestamps(path) == {0: 10.0, 2: 10.2}
 
 
 def test_apply_anchors_rejects_missing_candidate():

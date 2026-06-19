@@ -42,6 +42,45 @@ def group_candidates(rows: list[dict[str, Any]]) -> dict[int, dict[int, list[dic
     return grouped
 
 
+def load_frame_timestamps(path: Path | None) -> dict[int, float]:
+    if path is None:
+        return {}
+    timestamps: dict[int, float] = {}
+    with path.open("rb") as f:
+        for line in f:
+            text = line.decode("utf-8", errors="replace").strip()
+            if not text:
+                continue
+            parts = text.split()
+            if len(parts) < 2:
+                continue
+            try:
+                timestamps[int(parts[0])] = float(parts[1])
+            except ValueError:
+                continue
+    return timestamps
+
+
+def attach_frame_times(
+    grouped: dict[int, dict[int, list[dict[str, Any]]]],
+    timestamps: dict[int, float],
+) -> dict[int, dict[int, list[dict[str, Any]]]]:
+    if not timestamps:
+        return grouped
+    out: dict[int, dict[int, list[dict[str, Any]]]] = defaultdict(dict)
+    missing: list[int] = []
+    for cam_id, by_frame in grouped.items():
+        for frame_id, rows in by_frame.items():
+            if frame_id not in timestamps:
+                missing.append(frame_id)
+                continue
+            out[cam_id][frame_id] = [dict(row, sync_timestamp=float(timestamps[frame_id])) for row in rows]
+    if missing:
+        unique = sorted(set(missing))
+        raise ValueError(f"timestamps missing for frame ids: {unique[:10]}")
+    return out
+
+
 def load_accepted_anchors(path: Path | None) -> dict[tuple[int, int], int]:
     if path is None:
         return {}
@@ -95,8 +134,13 @@ def transition_penalty(
     target_ratio: float,
     velocity_weight: float,
     nonmonotonic_penalty: float,
+    time_mode: str,
+    video_fps: float,
 ) -> float:
-    df = max(int(cur["frame_id"]) - int(prev["frame_id"]), 1)
+    if time_mode == "timestamp":
+        df = max((float(cur["sync_timestamp"]) - float(prev["sync_timestamp"])) * float(video_fps), 1e-6)
+    else:
+        df = max(int(cur["frame_id"]) - int(prev["frame_id"]), 1)
     dv = int(cur["video_idx"]) - int(prev["video_idx"])
     if dv < 0:
         return nonmonotonic_penalty + abs(dv) * velocity_weight
@@ -110,6 +154,8 @@ def solve_cam_path(
     velocity_weight: float,
     nonmonotonic_penalty: float,
     score_weight: float,
+    time_mode: str = "frame-id",
+    video_fps: float = 10.0,
 ) -> list[dict[str, Any]]:
     frames = sorted(frame_candidates)
     if not frames:
@@ -134,6 +180,8 @@ def solve_cam_path(
                     target_ratio,
                     velocity_weight,
                     nonmonotonic_penalty,
+                    time_mode,
+                    video_fps,
                 ) + score_cost
                 if cost < best_cost:
                     best_cost = cost
@@ -179,13 +227,18 @@ def summarize_path(
     max_ratio_deviation: float,
     max_score_loss_mean: float,
     max_score_loss_max: float,
+    time_mode: str = "frame-id",
+    video_fps: float = 10.0,
 ) -> dict[str, Any]:
     if len(path) < 2:
         return {"status": "insufficient_path", "accepted": False, "path_count": len(path)}
     ratios = []
     negative_steps = 0
     for prev, cur in zip(path, path[1:]):
-        df = max(int(cur["frame_id"]) - int(prev["frame_id"]), 1)
+        if time_mode == "timestamp":
+            df = max((float(cur["sync_timestamp"]) - float(prev["sync_timestamp"])) * float(video_fps), 1e-6)
+        else:
+            df = max(int(cur["frame_id"]) - int(prev["frame_id"]), 1)
         dv = int(cur["video_idx"]) - int(prev["video_idx"])
         if dv < 0:
             negative_steps += 1
@@ -213,6 +266,8 @@ def summarize_path(
             "max": float(max(ratios)),
             "target": float(target_ratio),
             "max_abs_deviation": max_dev,
+            "mode": time_mode,
+            "video_fps": float(video_fps),
         },
         "score_loss_from_independent_best": {
             "p50": float(percentile(losses, 50)),
@@ -242,12 +297,21 @@ def main() -> None:
     parser.add_argument("--max-score-loss-mean", type=float, default=0.10)
     parser.add_argument("--max-score-loss-max", type=float, default=0.25)
     parser.add_argument("--anchors-jsonl", type=Path, help="Manual anchor manifest; accepted rows are hard constraints.")
+    parser.add_argument("--time-mode", choices=["frame-id", "timestamp"], default="frame-id",
+                        help="Use frame-id deltas or img_pos timestamp deltas for transition smoothness.")
+    parser.add_argument("--img-pos-file", type=Path,
+                        help="img_pos.txt used when --time-mode timestamp.")
+    parser.add_argument("--video-fps", type=float, default=10.0,
+                        help="Video frames per second for timestamp-mode expected video_idx deltas.")
     args = parser.parse_args()
+    if args.time_mode == "timestamp" and args.img_pos_file is None:
+        raise SystemExit("--img-pos-file is required when --time-mode timestamp")
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     rows = load_jsonl(args.candidates_jsonl)
     anchors = load_accepted_anchors(args.anchors_jsonl)
-    grouped = apply_anchors(group_candidates(rows), anchors)
+    timestamps = load_frame_timestamps(args.img_pos_file)
+    grouped = attach_frame_times(apply_anchors(group_candidates(rows), anchors), timestamps)
     report = {
         "candidates_jsonl": str(args.candidates_jsonl),
         "anchors_jsonl": str(args.anchors_jsonl) if args.anchors_jsonl else None,
@@ -257,6 +321,9 @@ def main() -> None:
         "velocity_weight": args.velocity_weight,
         "nonmonotonic_penalty": args.nonmonotonic_penalty,
         "score_weight": args.score_weight,
+        "time_mode": args.time_mode,
+        "img_pos_file": str(args.img_pos_file) if args.img_pos_file else None,
+        "video_fps": args.video_fps,
         "cam_reports": {},
     }
     all_accepted = True
@@ -268,6 +335,8 @@ def main() -> None:
                 args.velocity_weight,
                 args.nonmonotonic_penalty,
                 args.score_weight,
+                args.time_mode,
+                args.video_fps,
             )
             summary = summarize_path(
                 path,
@@ -275,6 +344,8 @@ def main() -> None:
                 args.max_ratio_deviation,
                 args.max_score_loss_mean,
                 args.max_score_loss_max,
+                args.time_mode,
+                args.video_fps,
             )
             report["cam_reports"][str(cam_id)] = summary
             all_accepted = all_accepted and bool(summary.get("accepted"))
