@@ -55,6 +55,46 @@ TensorRT runtime/dev tooling plus Python ONNX helpers, then run a tiny ONNX
 TensorRT smoke before attempting SAM2/DINO engine work. Do not treat this as a
 semantic-quality fix; it is only a throughput optimization path.
 
+5070Ti-specific setup assets now exist:
+
+```bash
+scripts/setup_rtx5070_tensorrt_env.sh
+scripts/verify_rtx5070_tensorrt_env.sh
+```
+
+Dry-run result:
+
+- OS: `Ubuntu 24.04.4 LTS`
+- CUDA: `/usr/local/cuda-13.2`
+- matching TensorRT pin: `11.0.0.114-1+cuda13.2`
+- Python package pin: `tensorrt-cu13==11.0.0.114`
+- apt simulation is solvable after explicitly pinning
+  `libnvinfer-safe-headers-dev`
+- planned apt install:
+  - `16` new packages
+  - no CUDA 13.3 packages pulled
+  - no removals
+- dry-run intentionally does not invoke `pip install --dry-run`, because NVIDIA
+  TensorRT Python wheels can still download multi-GB payloads during dry-run.
+  It uses `pip index versions` instead.
+
+Current blocker for automatic install:
+
+- `sudo -n true` fails on `scan-rtx5070`; apt installation requires a password.
+- Disk is sufficient: root/home filesystem has about `127G` free.
+
+When sudo is available, the intended install command is:
+
+```bash
+cd /home/zsh/Work/SCAN/new_route
+APPLY=1 scripts/setup_rtx5070_tensorrt_env.sh
+```
+
+The setup script will install Python helpers, install pinned TensorRT C++ runtime
+and dev packages, then run `verify_rtx5070_tensorrt_env.sh`. Verification builds
+a C++ TensorRT smoke binary and a tiny FP16 ONNX TensorRT engine before this
+environment is treated as ready for SAM2/DINO engine work.
+
 ## Data Migration
 
 Synced only the files required by the frame-local route:
