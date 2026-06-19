@@ -974,6 +974,25 @@ Conclusion: current evidence rules out a cheap deterministic time model. The
 next sync step still needs human anchors or a stronger visual sequence matching
 method.
 
+LX coordinate-frame audit:
+
+- `audit_lx_coordinate_frame.py` confirms the parking `.lx` sections behave like
+  world-coordinate points, not local LiDAR-coordinate points.
+- raw section centroid vs pose position correlations: `x=0.9973`, `y=0.9977`,
+  `z=0.9955`
+- after world-to-lidar transform, median centroid span across sampled frames is
+  only `[2.11, 2.32, 1.35]m`
+
+Report artifact:
+
+```text
+server_parking_priority_s10/lx_coordinate_frame_audit_20260619/lx_coordinate_frame_report.json
+```
+
+Conclusion: the projection chain's world-coordinate assumption is valid for
+this dataset. The remaining image/point-cloud mismatch should be treated as
+sync/path selection or visual scoring, not as `.lx` coordinate-frame misuse.
+
 ## Reproducible Candidate Rebuild
 
 Before starting or resuming remote jobs, run the runtime healthcheck from the
