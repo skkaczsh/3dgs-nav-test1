@@ -592,3 +592,30 @@ server_parking_priority_s10/parking_candidate_manifest_rtx5070/manifest.json
 The manifest records the candidate viewer paths, compact QA artifacts, full-risk
 comparison metrics, and the fixed rebuild/pull commands. It is the current
 handoff point for this candidate route before visual acceptance.
+
+Validate the handoff manifest before switching machines or treating the candidate
+as reusable input:
+
+```bash
+python3 scripts/validate_rtx5070_parking_candidate_manifest.py \
+  --manifest server_parking_priority_s10/parking_candidate_manifest_rtx5070/manifest.json \
+  --output server_parking_priority_s10/parking_candidate_manifest_rtx5070/validation.json
+```
+
+Current validation result:
+
+- passed: `true`
+- viewer output vertices: `903,387`
+- objects with points: `3,197`
+- missing target points: `0`
+- strict-surface baseline risky objects: `965`
+- candidate risky objects: `942`
+- key full-risk deltas:
+  - `ground_has_large_height_span: -5`
+  - `wall_normal_too_up: -8`
+  - `wall_too_flat_low_height: -22`
+
+The validator is intentionally stricter than the builder: it rechecks required
+artifact files on disk, confirms the current candidate route name/stages, checks
+the embedded builder checks, and fails if the candidate no longer improves the
+surface-risk metrics over the strict-surface baseline.
