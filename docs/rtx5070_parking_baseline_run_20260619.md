@@ -2957,6 +2957,28 @@ Runner integration:
   - `READINESS_CAMS`
   - `MIN_ACCEPTED_PER_CAM`
 
+Manual review prioritizer:
+
+- Added `scripts/prioritize_sync_anchor_review.py` to rank existing manual
+  anchor review rows without auto-accepting any anchor.
+- It reuses existing panel images and outputs a small first-pass batch by
+  camera, so manual work can focus on the most informative probes.
+- Current local output:
+
+```text
+server_parking_priority_s10/sync_anchor_review_priority_20260619/
+```
+
+- Key files:
+  - `anchor_review_priority.html`
+  - `anchor_review_priority_batch.jsonl`
+  - `anchor_review_priority_all.jsonl`
+  - `anchor_review_priority_report.json`
+- Current batch: `12` rows, `4` per camera.
+- This is a review accelerator only. It does not generate
+  `accepted_sync_anchors.jsonl`; accepted anchors must still be explicitly
+  selected before constrained solving.
+
 Command:
 
 ```bash
