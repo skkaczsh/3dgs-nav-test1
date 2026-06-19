@@ -1430,3 +1430,79 @@ Current read:
 - If visual QA confirms the p008 split candidate is better, the next useful pass
   is a targeted ambiguous-surface resolver using geometry and dominant label
   thresholds, not broad same-label merging.
+
+## Ambiguous Surface Resolver
+
+Date: 2026-06-19
+
+New script:
+
+```text
+scripts/resolve_ambiguous_surface_objects.py
+```
+
+Purpose:
+
+- resolve only surface-only `ambiguous_object` records
+- accepted vote labels must be within `ground/floor/wall/ceiling`
+- use dominant vote ratio plus object normal, z span, and height
+- update PLY semantic/RGB by object id so viewer color matches JSON metadata
+
+Input:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_guarded_v3_full_s10_p008_split_lowplanar_surface_consolidated_balanced_rtx5070
+```
+
+Output:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_guarded_v3_full_s10_p008_split_lowplanar_surface_consolidated_balanced_ambresolved_rtx5070
+```
+
+Result:
+
+- ambiguous objects: `87 -> 29`
+- resolved objects: `58`
+- changed vertices: `126,131`
+- unmapped vertices: `0`
+
+Reason counts:
+
+```text
+strong_horizontal_high_to_ceiling=28
+dominant_wall_geometry_ok=20
+dominant_ground_high_horizontal_to_ceiling=3
+dominant_ground=3
+strong_horizontal_low_to_ground=3
+dominant_ceiling_geometry_ok=1
+kept_ambiguous=29
+```
+
+Object label counts after resolve:
+
+```text
+grass=1602
+wall=691
+unknown=532
+car=196
+railing=65
+ceiling=54
+ground=43
+ambiguous=29
+other=5
+```
+
+Viewer URL:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_p008_split_lowplanar_surface_consolidated_balanced_ambresolved_rtx5070/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_p008_split_lowplanar_surface_consolidated_balanced_ambresolved_rtx5070/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5
+```
+
+Current read:
+
+- This is the best current object-level candidate by ambiguity count.
+- It is intentionally conservative: 29 ambiguous objects remain unresolved
+  because their votes/geometries are mixed.
+- Next QA should visually compare this against the pre-resolve consolidated
+  candidate, especially high-z horizontal areas now promoted to ceiling.
