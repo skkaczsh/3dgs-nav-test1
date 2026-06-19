@@ -447,13 +447,12 @@ def splat_visible_surface(
     far_color_lab_threshold: float,
     candidate_mask: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Expand accepted first-touch samples into adjacent image pixels.
+    """Diagnostic image-space expansion of accepted first-touch samples.
 
-    Projected voxel centers are sparse even when the underlying cloud is dense.
-    This splat is intentionally conservative: it only fills currently empty
-    pixels from an accepted surface sample, and only when the source/target image
-    colors are close.  It increases usable depth coverage without accepting a
-    separate background layer.
+    Projected voxel centers are sparse even when the underlying cloud is dense,
+    but growing samples in image space is not a first-principles visibility
+    model.  Production runs keep this disabled and rely on z-buffered
+    first-touch visibility; this helper is kept only for controlled diagnostics.
     """
     filled = np.zeros(valid.shape, dtype=bool)
     max_radius = max(int(radius), int(far_radius) if far_depth_start > 0 else 0)
@@ -523,10 +522,11 @@ def splat_visible_surface(
 
 
 def build_expansion_candidate_mask(image_bgr: np.ndarray, max_upper_ratio: float, sky_blue_guard: bool) -> np.ndarray:
-    """Pixels eligible for synthetic surface expansion.
+    """Pixels eligible for diagnostic synthetic surface expansion.
 
     Real first-touch samples are never removed here.  This only constrains
-    splat/fill expansion so sparse depth cannot grow into sky-heavy regions.
+    optional splat/fill expansion; production defaults do not use image-height
+    or color heuristics for visibility.
     """
     h, w = image_bgr.shape[:2]
     mask = np.ones((h, w), dtype=bool)
@@ -780,20 +780,23 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--view-surface-first-threshold", type=float, default=0.12)
     parser.add_argument("--view-surface-continuous-threshold", type=float, default=0.18)
     parser.add_argument("--view-surface-min-neighbors", type=int, default=8)
-    parser.add_argument("--view-surface-splat-radius", type=int, default=1)
+    parser.add_argument("--view-surface-splat-radius", type=int, default=0,
+                        help="Diagnostic image-space splat radius. Production default 0 disables synthetic expansion.")
     parser.add_argument("--view-surface-splat-color-lab-threshold", type=float, default=18.0)
     parser.add_argument("--view-surface-far-depth-start", type=float, default=0.0,
                         help="Enable diagnostic far-distance relaxation from this depth. Production default 0 disables it.")
     parser.add_argument("--view-surface-far-splat-radius", type=int, default=1)
     parser.add_argument("--view-surface-far-splat-color-lab-threshold", type=float, default=18.0)
-    parser.add_argument("--view-surface-fill-radius", type=int, default=3)
+    parser.add_argument("--view-surface-fill-radius", type=int, default=0,
+                        help="Diagnostic first-touch hole-fill radius. Production default 0 keeps only observed z-buffer pixels.")
     parser.add_argument("--view-surface-fill-depth-range", type=float, default=0.10)
     parser.add_argument("--view-surface-fill-min-neighbors", type=int, default=6)
     parser.add_argument("--view-surface-far-fill-radius", type=int, default=0)
     parser.add_argument("--view-surface-far-fill-depth-range", type=float, default=0.10)
     parser.add_argument("--view-surface-far-fill-min-neighbors", type=int, default=8)
-    parser.add_argument("--view-surface-expand-block-upper-ratio", type=float, default=0.18)
-    parser.add_argument("--view-surface-expand-sky-blue-guard", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--view-surface-expand-block-upper-ratio", type=float, default=0.0,
+                        help="Diagnostic expansion guard only. Production default 0 avoids pixel-height visibility heuristics.")
+    parser.add_argument("--view-surface-expand-sky-blue-guard", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--edge-depth-threshold", type=float, default=0.35)
     parser.add_argument("--color-edge-lab-threshold", type=float, default=16.0)
     parser.add_argument("--mark-invalid-boundary", action="store_true")
