@@ -31,6 +31,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
+from sync_frame_map import load_frame_map, resolve_video_idx
 
 
 def load_video_timestamps(video_path: str) -> list[tuple[int, float]]:
@@ -139,12 +140,18 @@ def extract_cam(
     sync_mode: str,
     time_scale: float,
     max_delta: float,
+    frame_map: dict[tuple[int, int], int] | None = None,
+    require_frame_map: bool = False,
 ) -> dict:
     video_path = config.VIDEO_FILES[cam_id]
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise RuntimeError(f"Cannot open video cam{cam_id}: {video_path}")
-    video_ts = np.asarray(load_video_timestamps(video_path), dtype=np.float64)
+    video_ts = (
+        np.asarray(load_video_timestamps(video_path), dtype=np.float64)
+        if sync_mode == "ffmpeg-time"
+        else np.empty((0, 2), dtype=np.float64)
+    )
     maps = make_maps()
     map1, map2 = maps[cam_id]
     cam_dir = output_dir / f"cam{cam_id}"
@@ -153,7 +160,10 @@ def extract_cam(
     ok = skipped = failed = 0
     first_error = None
     deltas: list[float] = []
-    frame_map: list[dict[str, int | float | str]] = []
+    extracted_frame_map: list[dict[str, int | float | str]] = []
+    mapped_reads = 0
+    direct_reads = 0
+    missing_frame_map_reads = 0
     encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), int(quality)]
     sequential = sync_mode == "opencv-index" and bool(ids) and all((b - a) == 1 for a, b in zip(ids, ids[1:]))
     if sequential:
@@ -171,8 +181,9 @@ def extract_cam(
             if video_idx is None:
                 failed += 1
                 first_error = first_error or f"sync_failed_frame_{frame_id}"
-                frame_map.append({
+                extracted_frame_map.append({
                     "frame_id": int(frame_id),
+                    "cam_id": int(cam_id),
                     "status": "sync_failed",
                     "target_rel_ts": target_ts,
                     "video_rel_ts": rel_ts,
@@ -182,23 +193,62 @@ def extract_cam(
             frame = read_frame_ffmpeg_time(video_path, rel_ts)
             ret = frame is not None
             deltas.append(delta)
-            frame_map.append({
+            extracted_frame_map.append({
                 "frame_id": int(frame_id),
+                "cam_id": int(cam_id),
                 "status": "ok" if ret else "read_failed",
                 "video_idx": int(video_idx),
                 "target_rel_ts": target_ts,
                 "video_rel_ts": rel_ts,
                 "delta": delta,
             })
+        elif sync_mode == "frame-map":
+            video_idx = resolve_video_idx(
+                frame_map or {},
+                frame_id,
+                cam_id,
+                fallback_to_direct=not require_frame_map,
+            )
+            if video_idx is None:
+                failed += 1
+                missing_frame_map_reads += 1
+                first_error = first_error or f"missing_frame_map_{frame_id}_cam{cam_id}"
+                extracted_frame_map.append({
+                    "frame_id": int(frame_id),
+                    "cam_id": int(cam_id),
+                    "status": "missing_frame_map",
+                    "video_idx": None,
+                    "target_rel_ts": float(frame_id) * float(time_scale),
+                    "video_rel_ts": None,
+                    "delta": None,
+                })
+                continue
+            if int(video_idx) == int(frame_id):
+                direct_reads += 1
+            else:
+                mapped_reads += 1
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(video_idx))
+            ret, frame = cap.read()
+            extracted_frame_map.append({
+                "frame_id": int(frame_id),
+                "cam_id": int(cam_id),
+                "status": "ok" if ret else "read_failed",
+                "video_idx": int(video_idx),
+                "target_rel_ts": float(frame_id) * float(time_scale),
+                "video_rel_ts": float(video_idx) * float(time_scale),
+                "delta": abs(float(video_idx - frame_id)) * float(time_scale),
+            })
         else:
             video_idx = int(frame_id)
+            direct_reads += 1
             if sequential:
                 ret, frame = cap.read()
             else:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, video_idx)
                 ret, frame = cap.read()
-            frame_map.append({
+            extracted_frame_map.append({
                 "frame_id": int(frame_id),
+                "cam_id": int(cam_id),
                 "status": "ok" if ret else "read_failed",
                 "video_idx": video_idx,
                 "target_rel_ts": float(video_idx) * float(time_scale),
@@ -228,7 +278,10 @@ def extract_cam(
         "max_delta": max_delta,
         "delta_mean": float(np.mean(deltas)) if deltas else 0.0,
         "delta_max": float(np.max(deltas)) if deltas else 0.0,
-        "frame_map": frame_map,
+        "mapped_reads": mapped_reads,
+        "direct_reads": direct_reads,
+        "missing_frame_map_reads": missing_frame_map_reads,
+        "frame_map": extracted_frame_map,
     }
 
 
@@ -242,9 +295,13 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=3)
     parser.add_argument("--quality", type=int, default=92)
     parser.add_argument("--skip-existing", action="store_true")
-    parser.add_argument("--sync-mode", choices=["ffmpeg-time", "opencv-index"], default="ffmpeg-time")
+    parser.add_argument("--sync-mode", choices=["ffmpeg-time", "opencv-index", "frame-map"], default="ffmpeg-time")
     parser.add_argument("--time-scale", type=float, default=0.1, help="Seconds per MANIFOLD frame id in ffmpeg-time mode.")
     parser.add_argument("--max-delta", type=float, default=0.15, help="Max allowed timestamp delta in ffmpeg-time mode.")
+    parser.add_argument("--frame-map-jsonl", type=Path, default=None,
+                        help="JSONL mapping with frame_id, cam_id, and video_idx/selected_video_idx for --sync-mode frame-map.")
+    parser.add_argument("--require-frame-map", action="store_true",
+                        help="In frame-map mode, fail image extraction when a frame/cam pair is missing from the mapping.")
     args = parser.parse_args()
 
     if args.end is None:
@@ -256,9 +313,12 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     t0 = time.time()
+    frame_map = load_frame_map(args.frame_map_jsonl)
     print(f"output_dir={args.output_dir}")
     print(f"frames={len(ids)} range={args.start}..{args.end} stride={args.stride}")
     print(f"sync_mode={args.sync_mode} time_scale={args.time_scale} max_delta={args.max_delta}")
+    if args.frame_map_jsonl:
+        print(f"frame_map={args.frame_map_jsonl} rows={len(frame_map)} require={args.require_frame_map}")
     print(f"calib={config.CALIB_FILE}")
     print(f"video_dir={config.VIDEO_DIR}")
 
@@ -275,6 +335,8 @@ def main() -> None:
                 args.sync_mode,
                 args.time_scale,
                 args.max_delta,
+                frame_map,
+                args.require_frame_map,
             )
             for cam_id in args.cams
         ]
@@ -293,6 +355,9 @@ def main() -> None:
         "sync_mode": args.sync_mode,
         "time_scale": args.time_scale,
         "max_delta": args.max_delta,
+        "frame_map_jsonl": str(args.frame_map_jsonl) if args.frame_map_jsonl else None,
+        "require_frame_map": bool(args.require_frame_map),
+        "frame_map_rows": len(frame_map),
         "quality": args.quality,
         "calib_file": config.CALIB_FILE,
         "video_dir": config.VIDEO_DIR,

@@ -2889,6 +2889,39 @@ Production-code fix:
 - This closes the structural gap where a correct sync path could be generated
   but not used by the validated colorization route.
 
+Follow-up extraction fix:
+
+- `scripts/extract_undistorted_frames_jpeg.py` now supports
+  `--sync-mode frame-map --frame-map-jsonl <path>`.
+- In `frame-map` mode it saves files using section ids
+  (`frame_003400.jpg`) while reading the mapped video frame
+  (`video_idx=2600/2700/...`), so downstream segmentation artifacts keep the
+  existing section-id naming convention.
+- `--require-frame-map` prevents silent fallback to direct frame ids when a
+  frame/camera mapping is missing.
+- Performance issue fixed: `frame-map` mode no longer loads full ffprobe
+  timestamp tables.  Remote smoke for one frame/cam triplet dropped from about
+  `50.5s` to `0.25s`.
+
+5070Ti smoke:
+
+```bash
+python scripts/extract_undistorted_frames_jpeg.py \
+  --output-dir /home/zsh/Work/SCAN/work_MT20260616-175807/extract_frame_map_smoke_fast_3400_20260619 \
+  --start 3400 --end 3400 --stride 1 --cams 0 1 2 --workers 3 \
+  --sync-mode frame-map \
+  --frame-map-jsonl /home/zsh/Work/SCAN/work_MT20260616-175807/sync_smooth_abs_fullrange_step100_20260619/sync_smooth_paths.jsonl \
+  --require-frame-map
+```
+
+Smoke result:
+
+- cam0: section `3400` read `video_idx=2600`
+- cam1: section `3400` read `video_idx=2700`
+- cam2: section `3400` read `video_idx=3400`
+- failed reads: `0`
+- elapsed: `0.25s`
+
 Validation:
 
 ```bash
@@ -2896,7 +2929,17 @@ python3 -m py_compile scripts/sync_frame_map.py scripts/colorize_lx_stream.py
 pytest -q tests/test_sync_frame_map.py
 ```
 
-Result: `3 passed`.
+Updated validation:
+
+```bash
+python3 -m py_compile \
+  scripts/sync_frame_map.py \
+  scripts/colorize_lx_stream.py \
+  scripts/extract_undistorted_frames_jpeg.py
+pytest -q tests/test_sync_frame_map.py tests/test_extract_undistorted_frames_jpeg_sync.py
+```
+
+Result: `4 passed` locally and on `scan-rtx5070`.
 
 ## Safe Semantic-Prior Runner
 
