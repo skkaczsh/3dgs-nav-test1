@@ -111,9 +111,17 @@ http://127.0.0.1:8765/server_parking_priority_s10/sync_anchor_review_priority_sk
 ```
 
 Required next action: manually accept enough anchor rows from a review page,
-then run `scripts/run_rtx5070_sync_anchor_solver.sh`.  The readiness gate must
-pass before extraction, segmentation, target building, or semantic fusion uses
-the new sync map.
+then stage and solve with:
+
+```bash
+python3 scripts/stage_accepted_sync_anchors.py --force --run-solver
+```
+
+This discovers the newest `/Users/skkac/Downloads/accepted_sync_anchors*.jsonl`,
+validates it, stages it to the current review directory, and runs
+`scripts/run_rtx5070_sync_anchor_solver.sh`.  The readiness gate must pass
+before extraction, segmentation, target building, or semantic fusion uses the
+new sync map.
 
 `scripts/run_rtx5070_sync_anchor_solver.sh` now defaults to the latest
 abs-prior review pack:
@@ -3151,21 +3159,28 @@ Accepted-anchor staging:
   browser downloads such as `accepted_sync_anchors (1).jsonl` are accepted
   automatically.  Pass `--source` to force an explicit file.
 - Default target:
-  `server_parking_priority_s10/sync_anchor_review_small_20260619_v2/accepted_sync_anchors.jsonl`.
-- The staging script validates accepted anchors using the same readiness policy
-  before copying.  By default it requires at least `2` accepted anchors per
-  camera.
+  `server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/accepted_sync_anchors.jsonl`.
+- The staging script validates accepted anchors with
+  `scripts/validate_sync_anchors.py` before copying.  By default it requires at
+  least `2` accepted anchors per camera, uses `timestamp_phase_fraction=1.0`,
+  and checks monotonic video indices against `expected_fps=6.0`.
 - Current dry-run correctly fails because no exported anchors exist yet:
 
 ```text
 source_missing=/Users/skkac/Downloads/accepted_sync_anchors.jsonl
 ```
 
-After exporting anchors from the priority page, run:
+After exporting anchors from the priority page, run either:
 
 ```bash
-python scripts/stage_accepted_sync_anchors.py
+python scripts/stage_accepted_sync_anchors.py --force
 scripts/run_rtx5070_sync_anchor_solver.sh
+```
+
+or one-shot:
+
+```bash
+python scripts/stage_accepted_sync_anchors.py --force --run-solver
 ```
 
 Command:

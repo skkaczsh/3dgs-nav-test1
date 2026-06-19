@@ -7,16 +7,16 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import check_sync_frame_map_readiness as readiness
+import validate_sync_anchors
 
 
-DEFAULT_REVIEW_NAME = "sync_anchor_review_small_20260619_v2"
-DEFAULT_READINESS_FRAMES = [1000, 1600, 2200, 2800, 3400, 4000, 4600, 5200, 5800]
+DEFAULT_REVIEW_NAME = "sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619"
 
 
 def default_source() -> Path:
@@ -45,7 +45,7 @@ def resolve_source(source: Path | None, downloads_dir: Path) -> Path:
 def load_rows(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         raise FileNotFoundError(str(path))
-    rows = readiness.read_jsonl(path)
+    rows = validate_sync_anchors.read_jsonl(path)
     if not rows:
         raise ValueError(f"accepted anchors file is empty: {path}")
     return rows
@@ -55,24 +55,32 @@ def validate_source(
     source: Path,
     cams: list[int],
     min_accepted_per_cam: int,
-    frames: list[int],
+    img_pos_file: Path | None,
+    timestamp_phase_fraction: float,
+    expected_fps: float,
+    max_fps_error: float,
 ) -> dict[str, Any]:
-    # Build the same report shape the production readiness gate uses, scoped to
-    # anchors only.  This keeps staging and production policy aligned.
     args = argparse.Namespace(
         anchors_jsonl=source,
-        frame_map_jsonl=None,
-        solver_report=None,
-        frames=frames,
-        start=None,
-        end=None,
-        stride=1,
+        img_pos_file=img_pos_file,
+        timestamp_phase_fraction=timestamp_phase_fraction,
+        expected_fps=expected_fps,
+        max_fps_error=max_fps_error,
         cams=cams,
         min_accepted_per_cam=min_accepted_per_cam,
-        allow_rejected=False,
         output=None,
     )
-    return readiness.build_report(args)
+    return validate_sync_anchors.build_report(args)
+
+
+def run_solver(repo_root: Path, env: dict[str, str]) -> int:
+    completed = subprocess.run(
+        ["bash", str(repo_root / "scripts" / "run_rtx5070_sync_anchor_solver.sh")],
+        cwd=repo_root,
+        env={**os.environ, **env},
+        check=False,
+    )
+    return int(completed.returncode)
 
 
 def stage(args: argparse.Namespace) -> dict[str, Any]:
@@ -80,7 +88,15 @@ def stage(args: argparse.Namespace) -> dict[str, Any]:
     source = resolve_source(args.source, args.downloads_dir).resolve()
     target = args.target.resolve() if args.target else default_target(repo_root, args.review_name)
     rows = load_rows(source)
-    report = validate_source(source, args.cams, args.min_accepted_per_cam, args.frames)
+    report = validate_source(
+        source,
+        args.cams,
+        args.min_accepted_per_cam,
+        args.img_pos_file,
+        args.timestamp_phase_fraction,
+        args.expected_fps,
+        args.max_fps_error,
+    )
     if not report["passed"]:
         return {
             "passed": False,
@@ -104,16 +120,25 @@ def stage(args: argparse.Namespace) -> dict[str, Any]:
     if not args.dry_run:
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
+    solver_exit_code = None
+    if args.run_solver and not args.dry_run:
+        solver_exit_code = run_solver(repo_root, {
+            "LOCAL_ANCHORS": str(target),
+            "LOCAL_IMG_POS": str(args.img_pos_file) if args.img_pos_file else "",
+            "REVIEW_NAME": args.review_name,
+        })
     return {
-        "passed": True,
+        "passed": solver_exit_code in (None, 0),
         "staged": not args.dry_run,
         "dry_run": bool(args.dry_run),
+        "run_solver": bool(args.run_solver),
+        "solver_exit_code": solver_exit_code,
         "source": str(source),
         "target": str(target),
         "row_count": len(rows),
         "errors": [],
         "readiness": report,
-        "next_command": f"cd {repo_root} && scripts/run_rtx5070_sync_anchor_solver.sh",
+        "next_command": f"cd {repo_root} && LOCAL_ANCHORS={target} scripts/run_rtx5070_sync_anchor_solver.sh",
     }
 
 
@@ -132,10 +157,15 @@ def main() -> None:
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--review-name", default=DEFAULT_REVIEW_NAME)
     parser.add_argument("--cams", type=int, nargs="+", default=[0, 1, 2])
-    parser.add_argument("--frames", type=int, nargs="*", default=DEFAULT_READINESS_FRAMES)
     parser.add_argument("--min-accepted-per-cam", type=int, default=2)
+    parser.add_argument("--img-pos-file", type=Path, default=Path(__file__).resolve().parents[1] / "../MT20260616-175807/image/img_pos.txt")
+    parser.add_argument("--timestamp-phase-fraction", type=float, default=1.0)
+    parser.add_argument("--expected-fps", type=float, default=6.0)
+    parser.add_argument("--max-fps-error", type=float, default=2.0)
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--run-solver", action="store_true",
+                        help="After staging, run scripts/run_rtx5070_sync_anchor_solver.sh.")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 

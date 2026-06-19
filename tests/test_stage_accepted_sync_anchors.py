@@ -29,6 +29,9 @@ def accepted(frame, cam, video=None):
 
 
 def make_args(tmp_path: Path, source: Path, **kwargs):
+    img_pos = tmp_path / "img_pos.txt"
+    if not img_pos.exists():
+        img_pos.write_text("10 1.0\n20 2.0\n", encoding="utf-8")
     base = dict(
         source=source,
         downloads_dir=tmp_path / "Downloads",
@@ -36,10 +39,14 @@ def make_args(tmp_path: Path, source: Path, **kwargs):
         repo_root=tmp_path,
         review_name="review",
         cams=[0, 1],
-        frames=[10, 20],
         min_accepted_per_cam=1,
+        img_pos_file=img_pos,
+        timestamp_phase_fraction=0.0,
+        expected_fps=6.0,
+        max_fps_error=20.0,
         force=False,
         dry_run=False,
+        run_solver=False,
         output=None,
     )
     base.update(kwargs)
@@ -55,6 +62,8 @@ def test_stage_copies_valid_anchors(tmp_path: Path):
 
     assert result["passed"] is True
     assert result["staged"] is True
+    assert result["run_solver"] is False
+    assert result["solver_exit_code"] is None
     assert (tmp_path / "target" / "accepted_sync_anchors.jsonl").read_text(encoding="utf-8") == source.read_text(encoding="utf-8")
     assert "scripts/run_rtx5070_sync_anchor_solver.sh" in result["next_command"]
 
@@ -126,3 +135,22 @@ def test_stage_uses_discovered_source_when_source_omitted(tmp_path: Path):
 
     assert result["passed"] is True
     assert result["source"] == str(source.resolve())
+
+
+def test_stage_can_run_solver_after_staging(tmp_path: Path, monkeypatch):
+    module = load_module()
+    source = tmp_path / "Downloads" / "accepted_sync_anchors.jsonl"
+    write_jsonl(source, [accepted(10, 0, 12), accepted(10, 1, 13)])
+    calls = []
+
+    def fake_run_solver(repo_root, env):
+        calls.append((repo_root, env))
+        return 0
+
+    monkeypatch.setattr(module, "run_solver", fake_run_solver)
+    result = module.stage(make_args(tmp_path, source, run_solver=True))
+
+    assert result["passed"] is True
+    assert result["solver_exit_code"] == 0
+    assert calls[0][1]["LOCAL_ANCHORS"].endswith("accepted_sync_anchors.jsonl")
+    assert calls[0][1]["REVIEW_NAME"] == "review"
