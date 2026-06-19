@@ -1506,3 +1506,105 @@ Current read:
   because their votes/geometries are mixed.
 - Next QA should visually compare this against the pre-resolve consolidated
   candidate, especially high-z horizontal areas now promoted to ceiling.
+
+## Viewer Candidate QA Gate
+
+Date: 2026-06-19
+
+New script:
+
+```text
+scripts/qa_viewer_candidate.py
+```
+
+Purpose:
+
+- validate only the final viewer artifacts: ASCII PLY + object JSONL
+- check PLY header/data count, PLY object ids vs JSONL object ids, and object
+  label vs PLY semantic consistency
+- treat unresolved `ambiguous` objects as conservative `unknown` point semantics;
+  this is a warning, not a hard failure
+- emit JSON and Markdown summaries with Chinese label names for human review
+
+Command used for the current best local copy:
+
+```bash
+python3 scripts/qa_viewer_candidate.py \
+  --ply server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_p008_split_lowplanar_surface_consolidated_balanced_ambresolved_rtx5070/frame_object_points_stride10.ply \
+  --objects-jsonl server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_p008_split_lowplanar_surface_consolidated_balanced_ambresolved_rtx5070/frame_objects_viewer.jsonl \
+  --ambiguous-report server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_p008_split_lowplanar_surface_consolidated_balanced_ambresolved_rtx5070/ambiguous_surface_resolve_report.json \
+  --consolidation-report server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_p008_split_lowplanar_surface_consolidated_balanced_ambresolved_rtx5070/consolidation_report.json \
+  --output-json server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_p008_split_lowplanar_surface_consolidated_balanced_ambresolved_rtx5070/viewer_candidate_qa.json \
+  --output-md server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_p008_split_lowplanar_surface_consolidated_balanced_ambresolved_rtx5070/viewer_candidate_qa.md \
+  --top-n 20
+```
+
+Result:
+
+- status: `ok`
+- PLY vertices: `903,115`; header and data rows match
+- PLY objects: `3,217`; JSON objects: `3,217`
+- object/PLY semantic mismatch: `0`
+- warnings:
+  - remaining ambiguous objects: `29`
+  - large fine objects exist and need visual inspection:
+    - railing object `2828`: `13,071` points
+    - car object `2997`: `10,416` points
+
+Largest unresolved ambiguous objects:
+
+```text
+object 2998: 46,826 pts, frames 4870/4930/4940...
+object 2839: 36,110 pts, frames 3550/3570/3580...
+object 2850: 34,872 pts, frames 3720/3730/3770...
+object 2754: 31,205 pts, frames 3020/3030/3040...
+object 2925: 29,901 pts, frames 4500/4590/4600...
+```
+
+Interpretation:
+
+- The current best viewer package is internally consistent.
+- Remaining issues are semantic/geometry quality warnings, not export
+  corruption.
+- The next targeted QA should inspect the 29 ambiguous objects and the two
+  large fine objects before changing source-mask or object-fusion thresholds.
+
+## Reproducible Best-Route Runner
+
+Date: 2026-06-19
+
+New script:
+
+```text
+scripts/run_parking_frame_local_best_route.sh
+```
+
+Purpose:
+
+- reproduce the current best frame-local post-processing route from the
+  validated `fine_surface_guard` target artifacts
+- keep the route out of older failed global-projection/VLM-relabel scripts
+- default to dry-run; execute only with `RUN=1`
+- refuse to overwrite existing output directories unless `OVERWRITE=1`
+
+Default remote usage:
+
+```bash
+cd /home/zsh/Work/SCAN/new_route
+RUN=0 OUT_SUFFIX=dryrun_check scripts/run_parking_frame_local_best_route.sh
+
+RUN=1 OUT_SUFFIX=rtx5070_repro_$(date +%Y%m%d_%H%M%S) \
+  scripts/run_parking_frame_local_best_route.sh
+```
+
+Pipeline stages encoded in the runner:
+
+1. demote/absorb weak fine fragments
+2. repair geometry-obvious surface labels with p008 planarity threshold
+3. split low-planarity mixed surface targets
+4. fuse frame-local targets to objects
+5. export viewer PLY/JSONL
+6. consolidate same-label surface objects
+7. remap PLY object ids and JSONL metadata together
+8. resolve surface-only ambiguous objects
+9. run `qa_viewer_candidate.py` as the final consistency gate
