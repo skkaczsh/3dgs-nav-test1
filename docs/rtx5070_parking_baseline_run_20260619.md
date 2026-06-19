@@ -2027,3 +2027,37 @@ Next engineering direction:
   promoting more railing points
 - avoid object-level relabel from only image crops when the source crop already
   contains mixed wall/floor/stair evidence
+
+## Default Route Update
+
+Date: 2026-06-19
+
+`scripts/run_parking_frame_local_best_route.sh` now enables local-geometry
+railing split by default:
+
+```text
+SPLIT_RAILING_LOCAL_GEOMETRY=1
+```
+
+Reason:
+
+- the dominant current failure mode is wall/ground/stair pixels being swallowed
+  by coarse `railing` priority masks
+- local-geometry is the only currently validated guard that removes this
+  spillover before final viewer export
+- if a future source mask improves railing recall/precision, this guard can
+  remain as a safety gate or be made less strict
+
+Remote dry-run on `scan-rtx5070` confirmed the default runner now includes:
+
+```text
+build_local_geometry_split_candidates.py
+split_priority_objects_by_local_geometry.py
+qa_viewer_candidate.py
+```
+
+Final default viewer directory pattern:
+
+```text
+frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_localgeom_${OUT_SUFFIX}
+```
