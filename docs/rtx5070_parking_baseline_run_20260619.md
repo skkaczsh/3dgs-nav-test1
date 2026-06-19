@@ -2271,3 +2271,80 @@ Decision:
 - next detector attempt should use a stronger open-vocabulary detector or a
   segmentation-specific model, and must pass the same box-area/contact-sheet
   gate before SAM/mask projection
+
+## GroundingDINO Base Probe And Fine-Mask Decision
+
+Date: 2026-06-19
+
+Follow-up model:
+
+```text
+IDEA-Research/grounding-dino-base
+```
+
+Same window and strict prompts as the tiny probe:
+
+```text
+3400..3500 stride=10, cams=0/1/2
+box_threshold=0.35
+text_threshold=0.25
+railing prompts=handrail, stair railing, metal handrail, guardrail
+car prompts=car, vehicle
+```
+
+Comparison tool:
+
+```text
+scripts/compare_groundingdino_frame_probes.py
+```
+
+Comparison output:
+
+```text
+server_parking_priority_s10/groundingdino_frame_probe_comparisons/tiny_vs_base_strict_3400_3500.md
+```
+
+Quantitative result:
+
+| metric | tiny strict | base strict |
+| --- | ---: | ---: |
+| images | `33` | `33` |
+| railing detections | `23` | `19` |
+| unknown detections | `1` | `0` |
+| railing large boxes | `16` | `9` |
+| railing large-box rate | `69.6%` | `47.4%` |
+| mean railing box area ratio | `29.8%` | `16.3%` |
+| max railing box area ratio | `131.0%` | `60.4%` |
+
+Visual read:
+
+- `grounding-dino-base` is clearly better than `tiny`; boxes are fewer and less
+  often scene-scale.
+- It still frequently includes stairs, wall panels, floors, or door regions
+  together with true handrails.
+- It returns boxes, not masks. Sending these broad boxes directly into SAM would
+  likely reproduce the same mixed-mask failure already seen in priority masks.
+
+Decision:
+
+- Do not promote GroundingDINO-base into the main mask path.
+- Keep GroundingDINO as a candidate/evidence generator only.
+- The highest-quality fine-mask method already validated remains:
+
+```text
+undistorted image -> skymask -> SAM2 loop / coverage completion -> mask overlay QA -> same-frame point projection
+```
+
+Historical best combo name on the previous dataset:
+
+```text
+sam2_prompt_v3_sky_label_merge_completion
+```
+
+Current route implication:
+
+- SAM2 remains the fine-mask core.
+- DINO/GroundingDINO should only propose candidate regions when they pass a
+  small-window detector gate.
+- Point-cloud local geometry remains the required guard for mixed fine masks,
+  especially `railing/handrail` masks that swallow stairs, walls, or floors.
