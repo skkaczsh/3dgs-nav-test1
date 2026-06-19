@@ -131,6 +131,21 @@ Use `DRY_RUN=1 scripts/run_rtx5070_sync_anchor_solver.sh` to inspect the exact
 remote command even before anchors have been exported.  Real execution still
 requires `accepted_sync_anchors.jsonl`.
 
+Before rsyncing anchors or starting the remote solver, the launcher now runs:
+
+```bash
+python3 scripts/validate_sync_anchors.py \
+  --anchors-jsonl accepted_sync_anchors.jsonl \
+  --img-pos-file ../MT20260616-175807/image/img_pos.txt \
+  --timestamp-phase-fraction 1.0 \
+  --expected-fps 6.0
+```
+
+The validator catches insufficient per-camera accepted anchors, accepted rows
+without a selected video frame, and non-monotonic video indices.  It writes
+`accepted_sync_anchor_validation.json` next to the constrained sync output so
+manual-anchor quality is traceable before the expensive remote solve.
+
 After the constrained sync run passes, use the gated production launcher:
 
 ```bash

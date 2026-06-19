@@ -22,6 +22,8 @@ REVIEW_NAME="${REVIEW_NAME:-sync_anchor_review_priority_sky_penalty_timestamp_ab
 RUN_NAME="${RUN_NAME:-sync_anchor_constrained_timestamp_absprior_dot3_20260619}"
 LOCAL_ANCHORS="${LOCAL_ANCHORS:-${LOCAL_REPO}/server_parking_priority_s10/${REVIEW_NAME}/accepted_sync_anchors.jsonl}"
 LOCAL_OUTPUT="${LOCAL_OUTPUT:-${LOCAL_REPO}/server_parking_priority_s10/${RUN_NAME}}"
+LOCAL_ANCHOR_VALIDATION="${LOCAL_ANCHOR_VALIDATION:-${LOCAL_OUTPUT}/accepted_sync_anchor_validation.json}"
+LOCAL_IMG_POS="${LOCAL_IMG_POS:-${LOCAL_REPO}/../MT20260616-175807/image/img_pos.txt}"
 REMOTE_INPUTS="${REMOTE_INPUTS:-${REMOTE_WORK}/tmp_sync_review_inputs}"
 REMOTE_OUTPUT="${REMOTE_OUTPUT:-${REMOTE_WORK}/${RUN_NAME}}"
 REMOTE_ANCHORS="${REMOTE_ANCHORS:-${REMOTE_OUTPUT}/accepted_sync_anchors.jsonl}"
@@ -133,6 +135,7 @@ server=${SERVER}
 local_anchors=${LOCAL_ANCHORS}
 anchors_status=${anchors_status}
 remote_anchors=${REMOTE_ANCHORS}
+local_img_pos=${LOCAL_IMG_POS}
 remote_output=${REMOTE_OUTPUT}
 local_output=${LOCAL_OUTPUT}
 remote_cmd=${remote_cmd}
@@ -154,6 +157,17 @@ min_accepted_per_cam=${MIN_ACCEPTED_PER_CAM}
 EOF
   exit 0
 fi
+
+mkdir -p "${LOCAL_OUTPUT}"
+log "[0/4] validate accepted anchors"
+python3 "${LOCAL_REPO}/scripts/validate_sync_anchors.py" \
+  --anchors-jsonl "${LOCAL_ANCHORS}" \
+  --img-pos-file "${LOCAL_IMG_POS}" \
+  --timestamp-phase-fraction "${SOLVER_TIMESTAMP_PHASE_FRACTION}" \
+  --expected-fps "${SOLVER_VIDEO_FPS}" \
+  --cams ${READINESS_CAMS} \
+  --min-accepted-per-cam "${MIN_ACCEPTED_PER_CAM}" \
+  --output "${LOCAL_ANCHOR_VALIDATION}"
 
 log "[1/4] prepare remote output"
 ssh "${ssh_opts[@]}" "${SERVER}" "mkdir -p $(quote "${REMOTE_OUTPUT}")"

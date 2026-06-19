@@ -27,9 +27,12 @@ def test_sync_anchor_solver_runner_keeps_review_pack_on_readiness_failure():
     review_pos = text.index("scripts/build_sync_anchor_review_pack.py")
     pull_pos = text.index("\"${SERVER}:${REMOTE_OUTPUT}/sync_frame_map_readiness.json\"")
     failure_pos = text.index("if [[ \"${readiness_code}\" != \"0\" ]]")
+    validation_pos = text.index("scripts/validate_sync_anchors.py")
+    rsync_pos = text.index("rsync -av \"${LOCAL_ANCHORS}\"")
 
     assert readiness_pos < review_pos
     assert pull_pos < failure_pos
+    assert validation_pos < rsync_pos
 
 
 def test_sync_anchor_solver_runner_defaults_to_absprior_review():
@@ -37,6 +40,7 @@ def test_sync_anchor_solver_runner_defaults_to_absprior_review():
 
     assert 'REVIEW_NAME="${REVIEW_NAME:-sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619}"' in text
     assert 'RUN_NAME="${RUN_NAME:-sync_anchor_constrained_timestamp_absprior_dot3_20260619}"' in text
+    assert 'LOCAL_IMG_POS="${LOCAL_IMG_POS:-${LOCAL_REPO}/../MT20260616-175807/image/img_pos.txt}"' in text
     assert 'DOT_PX="${DOT_PX:-3}"' in text
     assert 'SOLVER_TIMESTAMP_PHASE_FRACTION="${SOLVER_TIMESTAMP_PHASE_FRACTION:-1.0}"' in text
     assert 'MAP_START="${MAP_START:-0}"' in text
@@ -44,3 +48,10 @@ def test_sync_anchor_solver_runner_defaults_to_absprior_review():
     assert 'MAP_STRIDE="${MAP_STRIDE:-10}"' in text
     assert 'VIDEO_FRAME_COUNT="${VIDEO_FRAME_COUNT:-6181}"' in text
     assert 'REMOTE_CANDIDATES="${REMOTE_CANDIDATES:-${REMOTE_WORK}/sync_calibration_sky_penalty_fullprobe_20260619/sync_candidates.jsonl}"' in text
+
+
+def test_sync_anchor_solver_runner_dry_run_reports_local_img_pos():
+    text = SCRIPT.read_text(encoding="utf-8")
+
+    assert "dry_run=1" in text
+    assert "local_img_pos=${LOCAL_IMG_POS}" in text
