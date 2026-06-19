@@ -203,12 +203,50 @@ QA contact sheet:
 server_parking_priority_s10/frame_local_object_qa_full_s10_v5_geometry_ceiling_rtx5070/frame_local_object_qa_contact.jpg
 ```
 
+Risk trace for the current guarded candidate:
+
+```text
+server_parking_priority_s10/frame_object_trace_guarded_v2_full_s10_ground_guard_object_relabel_rtx5070/risky_object_target_trace.jsonl
+server_parking_priority_s10/frame_object_trace_guarded_v2_full_s10_ground_guard_object_relabel_rtx5070/risky_object_target_trace.csv
+```
+
 ## Interpretation
 
 - The 5070Ti migration is operational: data, environment, model cache, GPU inference, frame-local projection, target fusion, and local review export all work.
 - This run reproduces the current validated route with no missing target-point mapping.
 - The bottleneck remains source mask quality and surface/fine-object confusion, not calibration or global point projection.
 - Next optimization should compare source priority mask refinements on selected bad windows before any new full run.
+
+Current guarded candidate risk trace:
+
+- traced high-risk objects: `240`
+- label counts in trace:
+  - `wall=88`
+  - `car=53`
+  - `ground=44`
+  - `railing=29`
+  - `ceiling=15`
+  - `grass=8`
+  - `other=3`
+- point counts in trace:
+  - `ground=1,367,192`
+  - `wall=436,686`
+  - `ceiling=53,420`
+  - `car=35,255`
+  - `railing=28,038`
+- dominant risk reasons:
+  - `large_single_target_object=106`
+  - `fine_object_low_points=41`
+  - `ground_has_large_height_span=36`
+  - `car_extent_suspicious=33`
+  - `wall_normal_too_up=28`
+
+Interpretation: remaining high-impact errors are mostly born before object
+fusion. Large bad objects are usually single frame-local targets from the
+priority mask stage. Next work should inspect those source masks and either
+split/demote them during target construction or add a stricter geometry guard at
+priority-mask refinement time. Do not spend the next iteration on global object
+relabeling.
 
 ## Batch Size Benchmark
 
