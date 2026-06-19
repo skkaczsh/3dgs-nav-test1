@@ -2605,6 +2605,26 @@ Code guard added:
   - visible pixels: `85,290`
   - previous full-global no-filter visible pixels: `1,300,081`
 
+Safe semantic-prior probe:
+
+- Window: `3400..3500`, `stride=10`, cams `0/1/2`.
+- Geometry source:
+  `/home/zsh/Work/SCAN/work_MT20260616-175807/raw_lx_voxel_full_v001_meta/raw_points_full_voxel001_meta.ply`
+- Semantic prior:
+  `/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_localgeom_rtx5070_default_localgeom_20260619_132858/frame_object_points_stride10.ply`
+- Output:
+  `/home/zsh/Work/SCAN/work_MT20260616-175807/geometry_refine_guarded_default_semprior_safe_3400_3500`
+- Result:
+  - source filter: `mean +/-20`
+  - semantic-prior voxels: `198,800`
+  - surface fill: `residual->wall 126,988`, `residual->ground 15`
+  - fine overwrite: `0`
+  - projection residual points: `41,794 -> 31,726`
+  - railing points preserved: `13,328`
+- Decision: keep semantic prior as residual surface fill by default. Do not
+  enable `--guarded-fine-surface-override` in production yet; the same window
+  produced `railing->wall 26,273` pixels when that option was enabled.
+
 ## Parking Dataset Frame Sync Blocker
 
 Date: 2026-06-19
