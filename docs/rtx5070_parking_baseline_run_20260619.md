@@ -1059,3 +1059,72 @@ The validator is intentionally stricter than the builder: it rechecks required
 artifact files on disk, confirms the current candidate route name/stages, checks
 the embedded builder checks, and fails if the candidate no longer improves the
 surface-risk metrics over the strict-surface baseline.
+
+## Target Fragment Absorption Probe
+
+Date: 2026-06-19
+
+New script:
+
+```text
+scripts/absorb_fine_fragments_into_surfaces.py
+```
+
+Purpose:
+
+- pre-fusion JSONL-only target cleanup
+- keep provenance via `raw_label`, absorption metadata, and optional demotion
+- avoid rewriting target PLY or committing generated artifacts
+
+Validation window:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_targets_targetdiag_2700_2800_neighbor_r2_geometry_refined_rtx5070
+```
+
+This is the previous top bad window from target conflict QA.
+
+Results:
+
+| Variant | Absorbed/Demoted | Conflict findings | Top cam0 findings | Notes |
+| --- | ---: | ---: | ---: | --- |
+| baseline neighbor_r2 geometry refined | n/a | 64 | 42 | original target conflict baseline |
+| loose surface absorb | 25 absorbed | 48 | 33 | improves metrics but can absorb vertical/real fine fragments too aggressively |
+| strict surface absorb | 11 absorbed | 59 | 39 | safer but weak improvement |
+| geometry-compatible absorb only | 2 absorbed | 62 | 40 | too conservative |
+| geometry-compatible absorb + weak fine demote | 2 absorbed, 42 demoted | 20 | 9 | best current target-level cleanup |
+
+Best probe output:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_targets_targetdiag_2700_2800_neighbor_r2_absorbed_geomcompat_demote_rtx5070
+```
+
+Local compact reports:
+
+```text
+server_parking_priority_s10/frame_targets_targetdiag_2700_2800_neighbor_r2_absorbed_geomcompat_demote_rtx5070/absorb_report.json
+server_parking_priority_s10/frame_targets_targetdiag_2700_2800_neighbor_r2_absorbed_geomcompat_demote_rtx5070/conflict_report.json
+```
+
+Interpretation:
+
+- The main failure mode is not object fusion; it is low-point fine targets from
+  source masks entering fusion as hard `car` / `railing` labels.
+- Safe absorption into trusted surfaces helps only a little when made
+  geometry-compatible.
+- The larger win is to mark unconfirmed weak fine targets as `unknown` before
+  object fusion. This prevents noisy fragments from polluting global object
+  labels while preserving `raw_label` for later VLM/manual review.
+- This should be tested next on a wider stride10 slice before promoting it into
+  the full candidate route.
+
+Recommended next command shape:
+
+```bash
+python scripts/absorb_fine_fragments_into_surfaces.py \
+  --targets-jsonl frame_targets_refined.jsonl \
+  --output-jsonl frame_targets_absorbed.jsonl \
+  --report absorb_report.json \
+  --demote-unabsorbed-weak-label unknown
+```
