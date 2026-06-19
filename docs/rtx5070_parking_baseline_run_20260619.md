@@ -20,6 +20,41 @@ The old global object back-projection route is still invalid and was not used.
 - Added dependencies: `transformers==4.47.1`, `scipy`, `scikit-learn`, `accelerate`, `safetensors`, `tqdm`.
 - Clash/Mihomo proxy used for downloads: `127.0.0.1:7897`.
 
+## TensorRT Readiness
+
+Probe command:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+python3 scripts/check_rtx5070_tensorrt_readiness.py \
+  --output server_parking_priority_s10/parking_candidate_manifest_rtx5070/rtx5070_tensorrt_readiness.json
+```
+
+Current 5070Ti result:
+
+- passed: `true` as a probe, but TensorRT is **not ready**
+- PyTorch/CUDA is ready:
+  - `torch_version=2.11.0+cu130`
+  - `torch_cuda_available=1`
+  - `torch_cuda_version=13.0`
+- GPU driver: `580.126.20`
+- CUDA home exists: `true`
+- missing:
+  - `trtexec`
+  - TensorRT C++ headers
+  - TensorRT C++ libraries
+  - Python `tensorrt`
+  - Python `onnx`
+  - Python `polygraphy`
+  - Python `onnxruntime`
+  - ONNX Runtime TensorRT provider
+
+Interpretation: the 5070Ti host is ready for PyTorch GPU inference but not yet
+ready for TensorRT acceleration. The next acceleration setup should first install
+TensorRT runtime/dev tooling plus Python ONNX helpers, then run a tiny ONNX
+TensorRT smoke before attempting SAM2/DINO engine work. Do not treat this as a
+semantic-quality fix; it is only a throughput optimization path.
+
 ## Data Migration
 
 Synced only the files required by the frame-local route:
