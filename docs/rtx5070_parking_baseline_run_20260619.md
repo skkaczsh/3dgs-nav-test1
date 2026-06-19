@@ -128,6 +128,22 @@ then stage and solve with:
 python3 scripts/stage_accepted_sync_anchors.py --force --run-solver
 ```
 
+To reduce manual review time, generate a small temporally spread checklist:
+
+```bash
+python3 scripts/suggest_sync_anchor_checklist.py \
+  --review-jsonl server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/anchor_review_priority_batch.jsonl \
+  --output-jsonl server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/suggested_anchor_checklist.jsonl \
+  --output-md server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/suggested_anchor_checklist.md \
+  --per-cam 3 \
+  --bins 3 \
+  --review-url http://127.0.0.1:8765/server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/anchor_review_priority.html
+```
+
+This checklist is only a manual review aid.  It must not be staged directly as
+accepted anchors; inspect the corresponding rows in the review page and export
+from the page after accepting them.
+
 This discovers the newest `/Users/skkac/Downloads/accepted_sync_anchors*.jsonl`,
 validates it, stages it to the current review directory, and runs
 `scripts/run_rtx5070_sync_anchor_solver.sh`.  The readiness gate must pass
