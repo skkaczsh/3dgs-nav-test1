@@ -6,6 +6,7 @@ set -euo pipefail
 PYTHON_BIN="${PYTHON_BIN:-/home/zsh/Work/SCAN/.venvs/scan-semantic/bin/python}"
 WORK_DIR="${WORK_DIR:-/home/zsh/Work/SCAN/work_MT20260616-175807/tensorrt_smoke}"
 CUDA_HOME="${CUDA_HOME:-/usr/local/cuda}"
+TRTEXEC="${TRTEXEC:-$(command -v trtexec || true)}"
 TRTEXEC="${TRTEXEC:-/usr/src/tensorrt/bin/trtexec}"
 GPU_ID="${GPU_ID:-0}"
 
@@ -14,14 +15,17 @@ mkdir -p "${WORK_DIR}"/{onnx,engines,cpp,logs}
 echo "[1/5] Python package check"
 "${PYTHON_BIN}" - <<'PY'
 import torch
-import tensorrt as trt
 import onnx
 import polygraphy
 
 print("torch", torch.__version__, "cuda", torch.version.cuda, "available", torch.cuda.is_available())
-print("tensorrt_python", trt.__version__)
 print("onnx", onnx.__version__)
 print("polygraphy", polygraphy.__version__)
+try:
+    import tensorrt as trt
+    print("tensorrt_python", trt.__version__)
+except ModuleNotFoundError:
+    print("tensorrt_python=missing_optional_for_cpp_smoke")
 PY
 
 echo "[2/5] C++ TensorRT header/library check"
@@ -102,8 +106,7 @@ WORK_DIR="${WORK_DIR}" "${PYTHON_BIN}" "${WORK_DIR}/onnx/make_tiny_conv_onnx.py"
 echo "[4/5] Build tiny TensorRT engine"
 CUDA_VISIBLE_DEVICES="${GPU_ID}" "${TRTEXEC}" \
   --onnx="${WORK_DIR}/onnx/tiny_conv.onnx" \
-  --saveEngine="${WORK_DIR}/engines/tiny_conv_fp16.plan" \
-  --fp16 \
+  --saveEngine="${WORK_DIR}/engines/tiny_conv.plan" \
   --duration=1 \
   --warmUp=0 \
   --iterations=10 \

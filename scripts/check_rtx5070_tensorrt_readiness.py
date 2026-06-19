@@ -38,7 +38,7 @@ echo section=trtexec
 for candidate in "$(command -v trtexec || true)" /usr/src/tensorrt/bin/trtexec /usr/local/tensorrt/bin/trtexec /opt/tensorrt/bin/trtexec; do
   if [ -n "$candidate" ] && [ -x "$candidate" ]; then
     printf 'trtexec_path=%s\\n' "$candidate"
-    "$candidate" --version 2>&1 | head -5 | sed 's/^/trtexec_version=/'
+    {{ "$candidate" --version 2>&1 || true; }} | head -5 | sed 's/^/trtexec_version=/'
     break
   fi
 done

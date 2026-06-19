@@ -78,22 +78,52 @@ Dry-run result:
   TensorRT Python wheels can still download multi-GB payloads during dry-run.
   It uses `pip index versions` instead.
 
-Current blocker for automatic install:
+Initial blocker for automatic install:
 
-- `sudo -n true` fails on `scan-rtx5070`; apt installation requires a password.
-- Disk is sufficient: root/home filesystem has about `127G` free.
+- `sudo -n true` failed on `scan-rtx5070`; apt installation required an
+  interactive password.
+- Disk was sufficient: root/home filesystem had more than `100G` free.
 
-When sudo is available, the intended install command is:
+The intended install command remains:
 
 ```bash
 cd /home/zsh/Work/SCAN/new_route
 APPLY=1 scripts/setup_rtx5070_tensorrt_env.sh
 ```
 
-The setup script will install Python helpers, install pinned TensorRT C++ runtime
-and dev packages, then run `verify_rtx5070_tensorrt_env.sh`. Verification builds
-a C++ TensorRT smoke binary and a tiny FP16 ONNX TensorRT engine before this
-environment is treated as ready for SAM2/DINO engine work.
+The setup script will install Python helpers, install pinned TensorRT C++
+runtime and dev packages, then run `verify_rtx5070_tensorrt_env.sh`.
+Verification builds a C++ TensorRT smoke binary and a tiny ONNX TensorRT engine
+before this environment is treated as ready for SAM2/DINO engine work.
+
+Final setup status on `scan-rtx5070`:
+
+- TensorRT C++ runtime/dev packages installed through apt:
+  `11.0.0.114-1+cuda13.2`.
+- Installed packages include `libnvinfer11`, `libnvinfer-dev`,
+  `libnvinfer-plugin11`, `libnvonnxparsers11`, and `libnvinfer-bin`.
+- Python TensorRT binding installed through apt:
+  `python3-libnvinfer=11.0.0.114-1+cuda13.2`.
+- ONNX helper packages installed in
+  `/home/zsh/Work/SCAN/.venvs/scan-semantic`: `onnx`, `onnxsim`,
+  `polygraphy`.
+- Python `tensorrt` import reports `11.0.0.114`.
+- `scripts/verify_rtx5070_tensorrt_env.sh` passed:
+  - C++ TensorRT builder smoke: `builder_ok=1`
+  - tiny ONNX engine build with `/usr/bin/trtexec`: `PASSED TensorRT.trtexec`
+  - output engine:
+    `/home/zsh/Work/SCAN/work_MT20260616-175807/tensorrt_smoke/engines/tiny_conv.plan`
+- Latest readiness report:
+  `/home/zsh/Work/SCAN/work_MT20260616-175807/logs/rtx5070_tensorrt_readiness_after_python_apt.json`
+  - `torch_cuda_ready=true`
+  - `onnx_export_ready=true`
+  - `python_tensorrt_ready=true`
+  - `cpp_tensorrt_ready=true`
+  - `onnxruntime_tensorrt_ready=false`
+
+Remaining optional gap: ONNX Runtime TensorRT provider is not installed. This is
+not required for a C++ TensorRT runner, but should be treated separately if a
+Python ONNX Runtime acceleration path is needed later.
 
 ## Data Migration
 

@@ -102,3 +102,4 @@ def test_remote_script_contains_no_host_specific_paths():
     assert "section=trtexec" in script
     assert "VENV=/tmp/venv" in script
     assert '"$VENV/bin/python"' in script
+    assert '"$candidate" --version 2>&1 || true' in script
