@@ -1022,6 +1022,29 @@ human review candidates, but not sufficient as an automatic sequence matcher.
 The next automatic route should use stronger image descriptors or manual anchors,
 not more edge-score parameter sweeps.
 
+Video frame access audit:
+
+- All three MKV files have `6181` readable frames according to `ffprobe
+  -count_frames`.
+- `audit_video_frame_access.py` compared OpenCV random frame seek against ffmpeg
+  exact `select=eq(n,idx)` on 27 sampled camera/frame pairs.
+- OpenCV vs exact ffmpeg: gray correlation min `0.9977`, mean `0.9992`; mean
+  absolute difference max `3.19`, mean `1.80`. This is decoder/encoding-level
+  difference, not a frame-index mismatch.
+- ffmpeg timestamp seek is also close to exact ffmpeg: gray correlation mean
+  `0.9984`.
+
+Report artifact:
+
+```text
+server_parking_priority_s10/video_frame_access_audit_20260619/video_frame_access_report.json
+```
+
+Conclusion: OpenCV random seek is not the root cause of the current sync
+misalignment. It remains acceptable for candidate generation speed; ffmpeg exact
+frame extraction is too slow for full candidate scoring and should remain an
+audit/reference path.
+
 ## Reproducible Candidate Rebuild
 
 Before starting or resuming remote jobs, run the runtime healthcheck from the
