@@ -57,6 +57,8 @@ class CandidateScore:
     edge_distance_mean: float
     edge_distance_p50: float
     score: float
+    raw_score: float | None = None
+    sky_hit: float | None = None
     score_sample_mode: str = "all_projected"
     all_visible: int = 0
     projected_edge_samples: int = 0
@@ -205,6 +207,31 @@ def read_frame(cap: cv2.VideoCapture, video_idx: int) -> np.ndarray | None:
     return raw
 
 
+def heuristic_sky_mask(image_bgr: np.ndarray, upper_ratio: float = 0.72) -> np.ndarray:
+    """Conservative sky/background estimate used as negative sync evidence."""
+    hsv = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2HSV)
+    height = image_bgr.shape[0]
+    yy = np.arange(height)[:, None]
+    upper = yy < int(height * float(upper_ratio))
+    hue = hsv[:, :, 0]
+    sat = hsv[:, :, 1]
+    val = hsv[:, :, 2]
+    blue_sky = (hue >= 85) & (hue <= 130) & (sat >= 25) & (val >= 95)
+    bright_haze = (sat <= 55) & (val >= 170)
+    return upper & (blue_sky | bright_haze)
+
+
+def sky_hit_ratio(image_bgr: np.ndarray, uu: np.ndarray, vv: np.ndarray, sky_filter: str, upper_ratio: float) -> float | None:
+    if sky_filter == "none":
+        return None
+    if len(uu) == 0:
+        return 0.0
+    if sky_filter == "heuristic":
+        sky = heuristic_sky_mask(image_bgr, upper_ratio)
+        return float(sky[vv, uu].mean())
+    raise ValueError(f"Unsupported sky filter: {sky_filter}")
+
+
 def edge_distance_score(
     image_bgr: np.ndarray,
     uu: np.ndarray,
@@ -285,6 +312,7 @@ def score_candidates_for_probe(
             continue
         image = cv2.remap(raw, map1, map2, cv2.INTER_LINEAR)
         uu, vv, _depth = visible_pixels(u, v, z, image.shape[1], image.shape[0])
+        all_uu, all_vv = uu, vv
         all_visible = int(len(uu))
         projected_edge_samples = 0
         score_sample_mode = "all_projected"
@@ -319,6 +347,10 @@ def score_candidates_for_probe(
             args.edge_dilation_px,
             args.distance_sigma,
         )
+        raw_score = score
+        sky_hit = sky_hit_ratio(image, all_uu, all_vv, args.sky_filter, args.sky_upper_ratio)
+        if sky_hit is not None:
+            score = float(score - args.sky_penalty_weight * sky_hit)
         item = CandidateScore(
             frame_id=int(frame_id),
             cam_id=int(cam_id),
@@ -329,6 +361,8 @@ def score_candidates_for_probe(
             edge_distance_mean=mean_dist,
             edge_distance_p50=p50_dist,
             score=score,
+            raw_score=raw_score,
+            sky_hit=sky_hit,
             score_sample_mode=score_sample_mode,
             all_visible=all_visible,
             projected_edge_samples=projected_edge_samples,
@@ -448,6 +482,8 @@ def as_dict(item: CandidateScore) -> dict[str, Any]:
         "edge_distance_mean": item.edge_distance_mean,
         "edge_distance_p50": item.edge_distance_p50,
         "score": item.score,
+        "raw_score": item.raw_score,
+        "sky_hit": item.sky_hit,
         "score_sample_mode": item.score_sample_mode,
         "all_visible": item.all_visible,
         "projected_edge_samples": item.projected_edge_samples,
@@ -467,6 +503,10 @@ def main() -> None:
     parser.add_argument("--min-depth", type=float, default=0.1)
     parser.add_argument("--edge-dilation-px", type=int, default=9)
     parser.add_argument("--distance-sigma", type=float, default=8.0)
+    parser.add_argument("--sky-filter", choices=["none", "heuristic"], default="none",
+                        help="Optional negative evidence: projected LiDAR should not fall into sky pixels.")
+    parser.add_argument("--sky-upper-ratio", type=float, default=0.72)
+    parser.add_argument("--sky-penalty-weight", type=float, default=0.35)
     parser.add_argument("--dot-px", type=int, default=7)
     parser.add_argument("--sheet-cols", type=int, default=4)
     parser.add_argument("--panels-per-probe", type=int, default=4)
@@ -537,6 +577,9 @@ def main() -> None:
         "index_scale": args.index_scale,
         "index_shift": args.index_shift,
         "projected_depth_edges": bool(args.projected_depth_edges),
+        "sky_filter": args.sky_filter,
+        "sky_upper_ratio": args.sky_upper_ratio,
+        "sky_penalty_weight": args.sky_penalty_weight,
         "projected_edge_kind": args.projected_edge_kind,
         "projected_depth_edge_gap": args.projected_depth_edge_gap,
         "projected_depth_edge_dilation_px": args.projected_depth_edge_dilation_px,

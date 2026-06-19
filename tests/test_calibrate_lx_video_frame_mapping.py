@@ -104,3 +104,25 @@ def test_select_projected_silhouette_edges_keeps_boundary_samples():
     assert len(edge_u) > 0
     assert len(edge_u) <= len(uu)
     assert len(edge_u) == len(edge_v) == len(edge_z)
+
+
+def test_heuristic_sky_mask_detects_upper_blue_region():
+    module = load_module()
+    image = np.zeros((10, 10, 3), dtype=np.uint8)
+    image[:7, :] = np.asarray([255, 180, 80], dtype=np.uint8)  # BGR sky-like blue
+    mask = module.heuristic_sky_mask(image, upper_ratio=0.72)
+
+    assert bool(mask[2, 2]) is True
+    assert bool(mask[8, 2]) is False
+
+
+def test_sky_hit_ratio_is_negative_sync_evidence():
+    module = load_module()
+    image = np.zeros((10, 10, 3), dtype=np.uint8)
+    image[:7, :] = np.asarray([255, 180, 80], dtype=np.uint8)
+    uu = np.asarray([1, 2, 3, 4], dtype=np.int32)
+    vv = np.asarray([1, 2, 8, 8], dtype=np.int32)
+
+    ratio = module.sky_hit_ratio(image, uu, vv, "heuristic", 0.72)
+
+    assert ratio == 0.5

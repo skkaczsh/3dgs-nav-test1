@@ -3380,3 +3380,84 @@ python3 scripts/solve_sync_path_from_candidates.py \
   --max-ratio-deviation 0.6 \
   --velocity-weight 2.0
 ```
+
+## Sky-Penalty Sync Calibration
+
+Date: 2026-06-19
+
+Problem observed:
+
+- The previous image/LiDAR sync score was dominated by image-edge-rich frames.
+- Many independent probes repeatedly selected early video frames, which is not a physically plausible temporal path.
+- This explains why downstream reverse-depth and semantic overlays looked like they came from different poses.
+
+Reusable change:
+
+- `scripts/calibrate_lx_video_frame_mapping.py` now supports optional negative sky evidence:
+  - `--sky-filter heuristic`
+  - `--sky-penalty-weight <float>`
+- The score is reduced when projected LiDAR samples fall into conservative sky-like pixels.  This encodes the physical rule that sky should not contain LiDAR returns.
+- Default behavior remains unchanged unless `--sky-filter heuristic` is passed.
+
+5070Ti command used:
+
+```bash
+cd /home/zsh/Work/SCAN/new_route
+export SCAN_IMAGE_DIR=/home/zsh/Work/SCAN/datasets/MT20260616-175807/image
+export SCAN_VIDEO_DIR=/home/zsh/Work/SCAN/datasets/MT20260616-175807/image
+export PYTHONPATH=$PWD/scripts
+
+/home/zsh/Work/SCAN/.venvs/scan-semantic/bin/python \
+  scripts/calibrate_lx_video_frame_mapping.py \
+  --lx-file /home/zsh/Work/SCAN/datasets/MT20260616-175807/MANIFOLD_MT20260616-175807.lx \
+  --output-dir /home/zsh/Work/SCAN/work_MT20260616-175807/sync_calibration_sky_penalty_fullprobe_20260619 \
+  --frames 1000 1600 2200 2800 3400 4000 4600 5200 5800 \
+  --cams 0 1 2 \
+  --offsets=-1600:1000:100 \
+  --projected-depth-edges \
+  --projected-edge-kind silhouette \
+  --sky-filter heuristic \
+  --sky-penalty-weight 0.45 \
+  --panels-per-probe 5 \
+  --sheet-cols 6
+
+/home/zsh/Work/SCAN/.venvs/scan-semantic/bin/python \
+  scripts/solve_sync_path_from_candidates.py \
+  --candidates-jsonl /home/zsh/Work/SCAN/work_MT20260616-175807/sync_calibration_sky_penalty_fullprobe_20260619/sync_candidates.jsonl \
+  --output-dir /home/zsh/Work/SCAN/work_MT20260616-175807/sync_smooth_sky_penalty_fullprobe_20260619 \
+  --target-ratio 1.0 \
+  --max-ratio-deviation 0.45 \
+  --velocity-weight 2.0 \
+  --max-score-loss-mean 0.12 \
+  --max-score-loss-max 0.30
+```
+
+Result:
+
+- Full 9-probe calibration still rejects independent best fits.
+- The smooth solver finds a physically stable monotonic path with `step_ratio=1.0` for all cameras, but the path is still rejected by production gate because score loss from independent best remains high:
+  - cam0 mean loss `0.179`, max `0.342`
+  - cam1 mean loss `0.227`, max `0.422`
+  - cam2 mean loss `0.202`, max `0.423`
+- Interpretation: sky penalty improves the candidate set, but automatic scoring is still not strong enough to be trusted without manual anchors.
+
+Mirrored local QA:
+
+```text
+server_parking_priority_s10/sync_calibration_sky_penalty_fullprobe_20260619/
+server_parking_priority_s10/sync_smooth_sky_penalty_fullprobe_20260619/
+server_parking_priority_s10/sync_anchor_review_sky_penalty_fullprobe_20260619/
+server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_20260619/
+```
+
+Priority review page:
+
+```text
+http://127.0.0.1:8765/server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_20260619/anchor_review_priority.html
+```
+
+Next step:
+
+- Use the sky-penalty priority review page to export accepted anchors.
+- Stage anchors with `python scripts/stage_accepted_sync_anchors.py`.
+- Run `scripts/run_rtx5070_sync_anchor_solver.sh` and require readiness pass before any further semantic production.
