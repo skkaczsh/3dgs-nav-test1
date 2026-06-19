@@ -2939,6 +2939,24 @@ Readiness gate added:
 server_parking_priority_s10/sync_readiness_current_20260619.remote.json
 ```
 
+Runner integration:
+
+- `scripts/run_rtx5070_sync_anchor_solver.sh` now runs
+  `check_sync_frame_map_readiness.py` immediately after constrained solver
+  output is produced.
+- Readiness failure exits the local launcher with code `3`.
+- The runner still rebuilds and pulls the constrained review pack before
+  returning failure, so the next manual review iteration is not lost.
+- Pulled artifacts now include:
+  - `sync_frame_map_readiness.json`
+  - `sync_frame_map_readiness.exit_code`
+  - `solver/`
+  - `review/`
+- Configurable environment:
+  - `READINESS_FRAMES`
+  - `READINESS_CAMS`
+  - `MIN_ACCEPTED_PER_CAM`
+
 Command:
 
 ```bash
