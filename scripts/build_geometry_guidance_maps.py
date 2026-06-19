@@ -417,7 +417,7 @@ def write_contact_sheet(paths: list[Path], output: Path, cols: int = 4) -> None:
     cv2.imwrite(str(output), np.vstack(rows))
 
 
-def main() -> None:
+def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lx", type=Path)
     parser.add_argument("--global-colored-ply", type=Path, help="Fused or raw XYZ/RGB PLY to reverse-render dense depth/color guidance")
@@ -426,14 +426,19 @@ def main() -> None:
     parser.add_argument(
         "--global-source-frame-window",
         type=int,
-        default=-1,
+        default=20,
         help="When global PLY has frame metadata, keep only points observed within +/- this many frames of the image frame.",
     )
     parser.add_argument(
         "--global-source-filter-mode",
         choices=["none", "mean", "span"],
-        default="none",
+        default="mean",
         help="Source-frame filter for global PLY metadata. mean uses frame_mean; span uses frame_min/frame_max overlap.",
+    )
+    parser.add_argument(
+        "--allow-unguarded-global",
+        action="store_true",
+        help="Allow full-global reverse projection without source-frame metadata/filtering. This is for diagnostics only.",
     )
     parser.add_argument("--frame-root", type=Path, required=True)
     parser.add_argument("--semantic-prior-ply", type=Path, default=None)
@@ -450,6 +455,30 @@ def main() -> None:
     parser.add_argument("--prior-neighbor-radius", type=int, default=1)
     parser.add_argument("--max-frames", type=int, default=0)
     parser.add_argument("--save-npz", action="store_true", default=True)
+    return parser
+
+
+def validate_global_source_guard(args: argparse.Namespace, global_metadata: dict[str, np.ndarray]) -> None:
+    if not args.global_colored_ply:
+        return
+    if args.global_source_filter_mode == "none" and not args.allow_unguarded_global:
+        raise SystemExit(
+            "Refusing unguarded full-global reverse projection. "
+            "Use --global-source-filter-mode mean/span with frame metadata, "
+            "or pass --allow-unguarded-global for a diagnostic-only run."
+        )
+    if args.global_source_filter_mode != "none" and not global_metadata and not args.allow_unguarded_global:
+        raise SystemExit(
+            "Global PLY has no frame metadata, so source-frame filtering cannot be applied. "
+            "Use a metadata PLY from build_raw_lx_voxel_cloud.py or pass "
+            "--allow-unguarded-global for a diagnostic-only run."
+        )
+    if args.global_source_filter_mode != "none" and not global_metadata:
+        print("warning: source filtering disabled because global PLY has no frame metadata", file=sys.stderr, flush=True)
+
+
+def main() -> None:
+    parser = build_arg_parser()
     args = parser.parse_args()
 
     t0 = time.time()
@@ -469,13 +498,7 @@ def main() -> None:
         )
         if len(global_points) == 0:
             raise SystemExit(f"No points loaded from {args.global_colored_ply}")
-        if args.global_source_filter_mode != "none" and not global_metadata:
-            print(
-                "warning: --global-source-filter-mode requested but global PLY has no frame metadata; "
-                "source filtering disabled",
-                file=sys.stderr,
-                flush=True,
-            )
+        validate_global_source_guard(args, global_metadata)
         sections = []
         frame_ids = [i for i in range(args.start, args.end + 1, max(args.stride, 1)) if i in poses]
     else:

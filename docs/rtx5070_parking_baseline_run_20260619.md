@@ -2591,6 +2591,20 @@ Follow-up sync clarification:
 - Production semantic evidence must therefore use same-frame or near-frame
   source voxels first, and use full-global depth only as boundary guidance.
 
+Code guard added:
+
+- `scripts/build_geometry_guidance_maps.py` now defaults global PLY guidance to
+  `--global-source-filter-mode mean --global-source-frame-window 20`.
+- Unguarded full-global projection requires explicit
+  `--allow-unguarded-global`; otherwise the script exits before producing
+  misleading guidance maps.
+- If a global PLY has no frame metadata, source filtering is treated as an
+  error unless `--allow-unguarded-global` is explicitly set.
+- Default guarded smoke on `frame=3400, cam0`:
+  - source points kept: `366,214`
+  - visible pixels: `85,290`
+  - previous full-global no-filter visible pixels: `1,300,081`
+
 ## Parking Dataset Frame Sync Blocker
 
 Date: 2026-06-19

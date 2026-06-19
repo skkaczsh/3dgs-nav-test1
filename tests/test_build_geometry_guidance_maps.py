@@ -4,6 +4,7 @@ import importlib.util
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -95,3 +96,53 @@ def test_compute_color_edges_marks_lab_boundary():
 
     assert int(edge.sum()) > 0
     assert edge[:, 4].max() == 255 or edge[:, 5].max() == 255
+
+
+def test_global_guidance_defaults_are_source_guarded():
+    parser = module.build_arg_parser()
+    args = parser.parse_args([
+        "--global-colored-ply",
+        "points.ply",
+        "--frame-root",
+        "frames",
+        "--output-dir",
+        "out",
+        "--end",
+        "0",
+    ])
+
+    assert args.global_source_filter_mode == "mean"
+    assert args.global_source_frame_window == 20
+    assert not args.allow_unguarded_global
+
+
+def test_validate_global_guard_rejects_no_filter_without_explicit_override(tmp_path: Path):
+    ply = tmp_path / "points.ply"
+    ply.write_text(
+        "ply\n"
+        "format ascii 1.0\n"
+        "element vertex 1\n"
+        "property float x\n"
+        "property float y\n"
+        "property float z\n"
+        "end_header\n"
+        "0 0 1\n",
+        encoding="utf-8",
+    )
+    points, colors, metadata = module.read_xyzrgb_ply_with_metadata(ply)
+    assert len(points) == 1
+    args = module.build_arg_parser().parse_args([
+        "--global-colored-ply",
+        str(ply),
+        "--frame-root",
+        "frames",
+        "--output-dir",
+        "out",
+        "--end",
+        "0",
+        "--global-source-filter-mode",
+        "none",
+    ])
+
+    with pytest.raises(SystemExit):
+        module.validate_global_source_guard(args, metadata)
