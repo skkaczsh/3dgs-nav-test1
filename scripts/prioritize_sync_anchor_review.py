@@ -144,6 +144,10 @@ header {{ position: sticky; top: 0; z-index: 2; display: flex; justify-content: 
 h1 {{ margin: 0; font-size: 18px; }}
 button {{ border: 1px solid #42526a; border-radius: 6px; background: #1d2736; color: #f2f4f8; padding: 8px 12px; cursor: pointer; }}
 main {{ padding: 16px; }}
+#coverage {{ display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 18px; background: #0f1722; border-bottom: 1px solid #30363d; color: #b8c0cc; }}
+.pill {{ border: 1px solid #39485c; border-radius: 999px; padding: 4px 9px; background: #151f2c; }}
+.pill.ok {{ border-color: #2f8f5b; color: #8bd49c; }}
+.pill.bad {{ border-color: #9f4a4a; color: #ff9b9b; }}
 .card {{ border: 1px solid #30363d; border-radius: 8px; margin-bottom: 18px; background: #151b23; overflow: hidden; }}
 h2 {{ margin: 0; padding: 10px 12px; font-size: 15px; background: #1b2430; border-bottom: 1px solid #30363d; }}
 p {{ margin: 10px 12px; color: #aab6c5; }}
@@ -164,11 +168,44 @@ img {{ width: 100%; display: block; }}
     <button id="download">Export accepted JSONL</button>
   </div>
 </header>
+<div id="coverage"></div>
 <main id="app"></main>
 <script type="application/json" id="rows-json">{payload}</script>
 <script>
 const rows = JSON.parse(document.getElementById('rows-json').textContent);
 const app = document.getElementById('app');
+const coverage = document.getElementById('coverage');
+const minAcceptedPerCam = 2;
+
+function acceptedRows() {{
+  return rows.filter(row => row.anchor_status === 'accepted' && row.selected_video_idx !== null && row.selected_video_idx !== undefined);
+}}
+
+function coverageState() {{
+  const cams = [...new Set(rows.map(row => Number(row.cam_id)))].sort((a, b) => a - b);
+  const accepted = acceptedRows();
+  const byCam = new Map(cams.map(cam => [cam, 0]));
+  accepted.forEach(row => byCam.set(Number(row.cam_id), (byCam.get(Number(row.cam_id)) || 0) + 1));
+  const missingSelection = rows.filter(row => row.anchor_status === 'accepted' && (row.selected_video_idx === null || row.selected_video_idx === undefined));
+  const enough = cams.every(cam => (byCam.get(cam) || 0) >= minAcceptedPerCam);
+  return {{cams, accepted, byCam, missingSelection, enough}};
+}}
+
+function renderCoverage() {{
+  const state = coverageState();
+  const camPills = state.cams.map(cam => {{
+    const count = state.byCam.get(cam) || 0;
+    const cls = count >= minAcceptedPerCam ? 'ok' : 'bad';
+    return `<span class="pill ${{cls}}">cam${{cam}} accepted ${{count}}/${{minAcceptedPerCam}}</span>`;
+  }}).join('');
+  const missing = state.missingSelection.length;
+  coverage.innerHTML = `
+    <span class="pill ${{state.enough && missing === 0 ? 'ok' : 'bad'}}">export readiness: ${{state.enough && missing === 0 ? 'ok' : 'not ready'}}</span>
+    <span class="pill">accepted total ${{state.accepted.length}}</span>
+    ${{camPills}}
+    <span class="pill ${{missing ? 'bad' : 'ok'}}">accepted rows missing option ${{missing}}</span>
+  `;
+}}
 
 function optionLabel(option) {{
   return `opt ${{option.option_idx}} / ${{option.review_source}} / video ${{option.video_idx}} / offset ${{option.offset}}`;
@@ -176,6 +213,7 @@ function optionLabel(option) {{
 
 function render() {{
   app.innerHTML = '';
+  renderCoverage();
   rows.forEach((row, rowIdx) => {{
     const card = document.createElement('section');
     card.className = 'card';
@@ -197,7 +235,10 @@ function render() {{
       <div class="options"></div>
     `;
     card.querySelectorAll('input[type="radio"][name^="status-"]').forEach(input => {{
-      input.addEventListener('change', event => row.anchor_status = event.target.value);
+      input.addEventListener('change', event => {{
+        row.anchor_status = event.target.value;
+        renderCoverage();
+      }});
     }});
     const options = card.querySelector('.options');
     row.options.forEach(option => {{
@@ -220,6 +261,7 @@ function render() {{
       label.querySelector('input').addEventListener('change', () => {{
         row.selected_option_idx = option.option_idx;
         row.selected_video_idx = option.video_idx;
+        renderCoverage();
       }});
       options.appendChild(label);
     }});
@@ -237,7 +279,11 @@ document.getElementById('accept-selected').addEventListener('click', () => {{
 }});
 
 document.getElementById('download').addEventListener('click', () => {{
-  const accepted = rows.filter(row => row.anchor_status === 'accepted' && row.selected_video_idx !== null && row.selected_video_idx !== undefined);
+  const state = coverageState();
+  if ((!state.enough || state.missingSelection.length) && !window.confirm('Anchor coverage is not ready. Export anyway?')) {{
+    return;
+  }}
+  const accepted = acceptedRows();
   const text = accepted.map(row => JSON.stringify(row)).join('\\n') + (accepted.length ? '\\n' : '');
   const blob = new Blob([text], {{type: 'application/x-ndjson'}});
   const link = document.createElement('a');

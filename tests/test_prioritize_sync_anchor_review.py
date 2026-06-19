@@ -88,6 +88,8 @@ def test_prioritizer_selects_top_rows_per_camera(tmp_path: Path):
     assert "Prioritized Sync Anchor Review" in html
     assert "accepted_sync_anchors.jsonl" in html
     assert "Mark selected accepted" in html
+    assert "export readiness" in html
+    assert "cam${cam} accepted" in html
     assert "panels/f20_c0_o0.jpg" in html
 
 

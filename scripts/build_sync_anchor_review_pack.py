@@ -141,6 +141,19 @@ def build_review_html(manifest_rows: list[dict[str, Any]]) -> str:
       cursor: pointer;
     }}
     main {{ padding: 16px; }}
+    #coverage {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 18px;
+      background: #0f1722;
+      border-bottom: 1px solid #2d3440;
+      color: #b8c0cc;
+    }}
+    .pill {{ border: 1px solid #39485c; border-radius: 999px; padding: 4px 9px; background: #151f2c; }}
+    .pill.ok {{ border-color: #2f8f5b; color: #8bd49c; }}
+    .pill.bad {{ border-color: #9f4a4a; color: #ff9b9b; }}
     .probe {{
       border: 1px solid #2d3440;
       border-radius: 8px;
@@ -195,14 +208,48 @@ def build_review_html(manifest_rows: list[dict[str, Any]]) -> str:
       <button id="download">Export accepted JSONL</button>
     </div>
   </header>
+  <div id="coverage"></div>
   <main id="app"></main>
   <script type="application/json" id="manifest-json">{escaped_payload}</script>
   <script>
     const rows = JSON.parse(document.getElementById('manifest-json').textContent);
     const app = document.getElementById('app');
+    const coverage = document.getElementById('coverage');
+    const minAcceptedPerCam = 2;
+
+    function acceptedRows() {{
+      return rows.filter(row => row.anchor_status === 'accepted' && row.selected_video_idx !== null && row.selected_video_idx !== undefined);
+    }}
+
+    function coverageState() {{
+      const cams = [...new Set(rows.map(row => Number(row.cam_id)))].sort((a, b) => a - b);
+      const accepted = acceptedRows();
+      const byCam = new Map(cams.map(cam => [cam, 0]));
+      accepted.forEach(row => byCam.set(Number(row.cam_id), (byCam.get(Number(row.cam_id)) || 0) + 1));
+      const missingSelection = rows.filter(row => row.anchor_status === 'accepted' && (row.selected_video_idx === null || row.selected_video_idx === undefined));
+      const enough = cams.every(cam => (byCam.get(cam) || 0) >= minAcceptedPerCam);
+      return {{cams, accepted, byCam, missingSelection, enough}};
+    }}
+
+    function renderCoverage() {{
+      const state = coverageState();
+      const camPills = state.cams.map(cam => {{
+        const count = state.byCam.get(cam) || 0;
+        const cls = count >= minAcceptedPerCam ? 'ok' : 'bad';
+        return `<span class="pill ${{cls}}">cam${{cam}} accepted ${{count}}/${{minAcceptedPerCam}}</span>`;
+      }}).join('');
+      const missing = state.missingSelection.length;
+      coverage.innerHTML = `
+        <span class="pill ${{state.enough && missing === 0 ? 'ok' : 'bad'}}">export readiness: ${{state.enough && missing === 0 ? 'ok' : 'not ready'}}</span>
+        <span class="pill">accepted total ${{state.accepted.length}}</span>
+        ${{camPills}}
+        <span class="pill ${{missing ? 'bad' : 'ok'}}">accepted rows missing option ${{missing}}</span>
+      `;
+    }}
 
     function render() {{
       app.innerHTML = '';
+      renderCoverage();
       rows.forEach((row, rowIdx) => {{
         const probe = document.createElement('section');
         probe.className = 'probe';
@@ -217,7 +264,10 @@ def build_review_html(manifest_rows: list[dict[str, Any]]) -> str:
             <input type="text" placeholder="notes" value="${{row.notes || ''}}">
           </div>`;
         title.querySelectorAll('input[type="radio"]').forEach(input => {{
-          input.addEventListener('change', event => row.anchor_status = event.target.value);
+          input.addEventListener('change', event => {{
+            row.anchor_status = event.target.value;
+            renderCoverage();
+          }});
         }});
         title.querySelector('input[type="text"]').addEventListener('input', event => row.notes = event.target.value);
         probe.appendChild(title);
@@ -242,6 +292,7 @@ def build_review_html(manifest_rows: list[dict[str, Any]]) -> str:
           label.querySelector('input').addEventListener('change', () => {{
             row.selected_option_idx = option.option_idx;
             row.selected_video_idx = option.video_idx;
+            renderCoverage();
           }});
           options.appendChild(label);
         }});
@@ -260,7 +311,11 @@ def build_review_html(manifest_rows: list[dict[str, Any]]) -> str:
     }});
 
     document.getElementById('download').addEventListener('click', () => {{
-      const accepted = rows.filter(row => row.anchor_status === 'accepted' && row.selected_video_idx !== null && row.selected_video_idx !== undefined);
+      const state = coverageState();
+      if ((!state.enough || state.missingSelection.length) && !window.confirm('Anchor coverage is not ready. Export anyway?')) {{
+        return;
+      }}
+      const accepted = acceptedRows();
       const text = accepted.map(row => JSON.stringify(row)).join('\\n') + (accepted.length ? '\\n' : '');
       const blob = new Blob([text], {{type: 'application/x-ndjson'}});
       const link = document.createElement('a');

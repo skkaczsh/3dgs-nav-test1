@@ -110,6 +110,15 @@ http://127.0.0.1:8765/server_parking_priority_s10/sync_anchor_review_priority_sk
 http://127.0.0.1:8765/server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/anchor_review_priority.html
 ```
 
+The priority review page now shows a live export-readiness bar:
+
+- accepted anchor count per camera, default target `2` per camera
+- total accepted anchors
+- accepted rows that are missing a selected option
+- a confirmation prompt if exporting before coverage is ready
+
+The current dot3 priority page has been regenerated with this coverage UI.
+
 Required next action: manually accept enough anchor rows from a review page,
 then stage and solve with:
 

@@ -74,4 +74,6 @@ def test_build_review_html_contains_export_logic_and_panel_paths():
     assert "LiDAR/Video Sync Anchor Review" in html
     assert "Export accepted JSONL" in html
     assert "accepted_sync_anchors.jsonl" in html
+    assert "export readiness" in html
+    assert "cam${cam} accepted" in html
     assert "panels/frame_000010_cam1_opt0_direct_v000010.jpg" in html
