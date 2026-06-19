@@ -1873,3 +1873,66 @@ Reason:
   warning, but it reduces `railing` points from `70,549` to `21,609`
 - this is likely correct for source-mask spillover, but it still needs visual
   acceptance before becoming the default best route
+
+## Local-Geometry Runner Reproduction
+
+Date: 2026-06-19
+
+The opt-in local-geometry stage was run through the full best-route runner on
+`scan-rtx5070`:
+
+```bash
+RUN=1 \
+OVERWRITE=0 \
+OUT_SUFFIX=localgeom_full_20260619_131820 \
+SPLIT_RAILING_LOCAL_GEOMETRY=1 \
+scripts/run_parking_frame_local_best_route.sh
+```
+
+Final output:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_localgeom_localgeom_full_20260619_131820
+```
+
+Local mirror:
+
+```text
+server_parking_priority_s10/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_localgeom_localgeom_full_20260619_131820
+```
+
+QA:
+
+- status: `ok`
+- warnings: `none`
+- errors: `none`
+- PLY vertices: `903,115`
+- objects: `3,266`
+- candidate objects selected for local geometry split: `10`
+- split source objects: `10`
+
+Comparison to the previous ambsplit candidate:
+
+| metric | ambsplit | local-geometry runner |
+| --- | ---: | ---: |
+| objects | `3,253` | `3,266` |
+| warnings | `large car/railing objects exist` | `none` |
+| railing points | `70,549` | `21,609` |
+| unknown points | `63,959` | `67,972` |
+| wall points | `5,206,131` | `5,206,425` |
+| ground points | `1,637,998` | `1,638,491` |
+
+Viewer URL:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_localgeom_localgeom_full_20260619_131820/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_localgeom_localgeom_full_20260619_131820/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5
+```
+
+Current read:
+
+- This validates the opt-in runner path end-to-end.
+- The local-geometry stage remains opt-in until visual review confirms that the
+  reduced `railing` coverage is preferable to the source-mask spillover.
+- If accepted, the next code change should simply flip
+  `SPLIT_RAILING_LOCAL_GEOMETRY` to default `1` and rerun once with a clean
+  suffix that does not repeat `localgeom`.
