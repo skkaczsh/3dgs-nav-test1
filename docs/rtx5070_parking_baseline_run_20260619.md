@@ -2919,6 +2919,38 @@ ValueError: unsafe sync row status='rejected_unstable_temporal_path'
 - Diagnostic mode still works when explicitly enabled:
   `--allow-rejected-frame-map`.
 
+Readiness gate added:
+
+- `scripts/check_sync_frame_map_readiness.py` checks accepted anchors, solver
+  reports, and frame-map JSONL before any production extraction/colorization.
+- It reports structured failures instead of requiring manual inspection of
+  several JSON files.
+- Current 5070Ti readiness result:
+  - `passed=false`
+  - accepted anchors: `0`
+  - anchor rows: `27` unreviewed
+  - solver status: `rejected`
+  - rejected cameras: `0,1,2`
+  - frame-map rows: `27`, all
+    `cam_path_status=rejected_unstable_temporal_path`
+- Local mirrored report:
+
+```text
+server_parking_priority_s10/sync_readiness_current_20260619.remote.json
+```
+
+Command:
+
+```bash
+python scripts/check_sync_frame_map_readiness.py \
+  --anchors-jsonl /home/zsh/Work/SCAN/work_MT20260616-175807/sync_anchor_review_small_20260619_v2/manual_anchor_manifest.jsonl \
+  --frame-map-jsonl /home/zsh/Work/SCAN/work_MT20260616-175807/sync_smooth_abs_fullrange_step100_20260619/sync_smooth_paths.jsonl \
+  --solver-report /home/zsh/Work/SCAN/work_MT20260616-175807/sync_smooth_abs_fullrange_step100_20260619/sync_smooth_path_report.json \
+  --frames 1000 1600 2200 2800 3400 4000 4600 5200 5800 \
+  --cams 0 1 2 \
+  --min-accepted-per-cam 2
+```
+
 5070Ti smoke:
 
 ```bash
@@ -2955,7 +2987,7 @@ python3 -m py_compile \
 pytest -q tests/test_sync_frame_map.py tests/test_extract_undistorted_frames_jpeg_sync.py
 ```
 
-Result: `6 passed` locally and on `scan-rtx5070`.
+Result: sync frame-map tests `9 passed` locally and on `scan-rtx5070`.
 
 ## Safe Semantic-Prior Runner
 
