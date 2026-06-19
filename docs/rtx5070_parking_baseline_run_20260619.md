@@ -863,6 +863,52 @@ Candidate default under review:
 guarded_v2 priority masks -> target geometry refinement --guard-linear-ground-artifacts -> fuse_targets_to_objects --strict-surface-labels -> refine_target_fusion_objects --geometry-relabel-flat-wall --horizontal-surface-label ground
 ```
 
+
+## LiDAR/Video Sync Recheck
+
+The latest visual evidence shows the parking dataset still has image/point-cloud
+misalignment. Treat this as a synchronization gate failure, not as a semantic
+model failure. The validated geometry chain can project same-frame `.lx` points,
+but direct `frame_id -> video_idx` is not reliable enough for semantic
+production on this dataset.
+
+Timing audit facts:
+
+- `.lx` sections: `6181`; `img_pos` rows: `6181`; each camera video: `6181` frames at `10 fps`.
+- `.lx` section pose and `img_pos` pose match almost exactly, so the LiDAR/pose
+  stream itself is consistent.
+- `img_pos.timestamp` spans about `835.32s`, while video frame count at `10 fps`
+  spans `618.1s`; there are many irregular timestamp gaps.
+- Candidate projection scoring shows direct video index is often not the best
+  visual match. Smooth-path solving without manual anchors is still too lossy.
+
+Current gate:
+
+```text
+Do not continue semantic production until manual sync anchors are selected and
+the constrained sync solver produces a visually accepted path.
+```
+
+New review artifact format:
+
+- `manual_anchor_manifest.jsonl`: source manifest with candidate options.
+- `manual_anchor_review_sheet.jpg`: quick contact sheet.
+- `panels/*.jpg`: one rendered panel per candidate option.
+- `manual_anchor_review.html`: static reviewer that selects candidate frames and
+  exports `accepted_sync_anchors.jsonl` for
+  `solve_sync_path_from_candidates.py --anchors-jsonl`.
+
+Generated v2 review pack:
+
+```text
+server_parking_priority_s10/sync_anchor_review_small_20260619_v2/manual_anchor_review.html
+server_parking_priority_s10/sync_anchor_review_small_20260619_v2/manual_anchor_manifest.jsonl
+server_parking_priority_s10/sync_anchor_review_small_20260619_v2/manual_anchor_review_sheet.jpg
+server_parking_priority_s10/sync_anchor_review_small_20260619_v2/panels/
+```
+
+Generation report: `27` probes and `152` option panels.
+
 ## Reproducible Candidate Rebuild
 
 Before starting or resuming remote jobs, run the runtime healthcheck from the

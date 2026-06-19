@@ -39,3 +39,39 @@ def test_choose_review_options_handles_missing_direct_and_smooth():
     assert [row["video_idx"] for row in options] == [8, 9]
     assert options[0]["review_source"] == "independent_best"
     assert options[1]["review_source"] == "top_candidate"
+
+
+def test_panel_filename_is_stable_and_informative():
+    module = load_module()
+    row = {"review_source": "smooth/path", "video_idx": 987}
+    assert module.panel_filename(123, 2, 1, row) == "frame_000123_cam2_opt1_smooth_path_v000987.jpg"
+
+
+def test_build_review_html_contains_export_logic_and_panel_paths():
+    module = load_module()
+    html = module.build_review_html([
+        {
+            "frame_id": 10,
+            "cam_id": 1,
+            "anchor_status": "unreviewed",
+            "selected_video_idx": None,
+            "selected_option_idx": None,
+            "notes": "",
+            "options": [
+                {
+                    "option_idx": 0,
+                    "review_source": "direct",
+                    "video_idx": 10,
+                    "offset": 0,
+                    "score": 0.5,
+                    "edge_hit": 0.25,
+                    "edge_distance_mean": 4.0,
+                    "panel_path": "panels/frame_000010_cam1_opt0_direct_v000010.jpg",
+                }
+            ],
+        }
+    ])
+    assert "LiDAR/Video Sync Anchor Review" in html
+    assert "Export accepted JSONL" in html
+    assert "accepted_sync_anchors.jsonl" in html
+    assert "panels/frame_000010_cam1_opt0_direct_v000010.jpg" in html

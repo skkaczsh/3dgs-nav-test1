@@ -19,6 +19,7 @@ optimizer.
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import sys
@@ -92,6 +93,186 @@ def choose_review_options(
     for row in candidates[:top_n]:
         add(row, "top_candidate")
     return options
+
+
+def panel_filename(frame_id: int, cam_id: int, option_idx: int, row: dict[str, Any]) -> str:
+    source = str(row.get("review_source", "candidate")).replace("/", "_")
+    video_idx = int(row["video_idx"])
+    return f"frame_{frame_id:06d}_cam{cam_id}_opt{option_idx}_{source}_v{video_idx:06d}.jpg"
+
+
+def build_review_html(manifest_rows: list[dict[str, Any]]) -> str:
+    """Build a static review UI that exports accepted anchors as JSONL."""
+    payload = json.dumps(manifest_rows, ensure_ascii=False)
+    escaped_payload = html.escape(payload, quote=False)
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LiDAR/Video Sync Anchor Review</title>
+  <style>
+    :root {{
+      color-scheme: dark;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0e1117;
+      color: #d8dee9;
+    }}
+    body {{ margin: 0; }}
+    header {{
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      background: rgba(14, 17, 23, 0.96);
+      border-bottom: 1px solid #2d3440;
+    }}
+    h1 {{ margin: 0; font-size: 18px; font-weight: 650; }}
+    button {{
+      border: 1px solid #42526a;
+      border-radius: 6px;
+      background: #1d2736;
+      color: #f2f4f8;
+      padding: 8px 12px;
+      cursor: pointer;
+    }}
+    main {{ padding: 16px; }}
+    .probe {{
+      border: 1px solid #2d3440;
+      border-radius: 8px;
+      margin-bottom: 18px;
+      background: #151922;
+      overflow: hidden;
+    }}
+    .probe-head {{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #2d3440;
+      background: #171d28;
+    }}
+    .probe-title {{ font-weight: 650; }}
+    .status {{ display: flex; align-items: center; gap: 10px; color: #aeb8c6; }}
+    .options {{
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+      padding: 12px;
+    }}
+    label.option {{
+      display: block;
+      border: 1px solid #303948;
+      border-radius: 7px;
+      background: #10151f;
+      overflow: hidden;
+    }}
+    label.option:has(input:checked) {{ border-color: #6aa5ff; box-shadow: 0 0 0 1px #6aa5ff; }}
+    .meta {{ padding: 8px 10px; font-size: 12px; color: #b8c0cc; line-height: 1.5; }}
+    img {{ display: block; width: 100%; height: auto; background: #05070a; }}
+    input[type="text"] {{
+      width: 280px;
+      max-width: 38vw;
+      border: 1px solid #3b4656;
+      border-radius: 6px;
+      background: #0d1118;
+      color: #d8dee9;
+      padding: 6px 8px;
+    }}
+    .muted {{ color: #8994a5; }}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LiDAR/Video Sync Anchor Review</h1>
+    <div>
+      <button id="accept-selected">Mark selected accepted</button>
+      <button id="download">Export accepted JSONL</button>
+    </div>
+  </header>
+  <main id="app"></main>
+  <script type="application/json" id="manifest-json">{escaped_payload}</script>
+  <script>
+    const rows = JSON.parse(document.getElementById('manifest-json').textContent);
+    const app = document.getElementById('app');
+
+    function render() {{
+      app.innerHTML = '';
+      rows.forEach((row, rowIdx) => {{
+        const probe = document.createElement('section');
+        probe.className = 'probe';
+        const title = document.createElement('div');
+        title.className = 'probe-head';
+        title.innerHTML = `
+          <div class="probe-title">frame ${{row.frame_id}} / cam ${{row.cam_id}}</div>
+          <div class="status">
+            <label><input type="radio" name="status-${{rowIdx}}" value="accepted" ${{row.anchor_status === 'accepted' ? 'checked' : ''}}> accepted</label>
+            <label><input type="radio" name="status-${{rowIdx}}" value="rejected" ${{row.anchor_status === 'rejected' ? 'checked' : ''}}> rejected</label>
+            <label><input type="radio" name="status-${{rowIdx}}" value="unreviewed" ${{row.anchor_status === 'unreviewed' ? 'checked' : ''}}> unreviewed</label>
+            <input type="text" placeholder="notes" value="${{row.notes || ''}}">
+          </div>`;
+        title.querySelectorAll('input[type="radio"]').forEach(input => {{
+          input.addEventListener('change', event => row.anchor_status = event.target.value);
+        }});
+        title.querySelector('input[type="text"]').addEventListener('input', event => row.notes = event.target.value);
+        probe.appendChild(title);
+
+        const options = document.createElement('div');
+        options.className = 'options';
+        row.options.forEach(option => {{
+          const label = document.createElement('label');
+          label.className = 'option';
+          const checked = row.selected_option_idx === option.option_idx ? 'checked' : '';
+          const imageHtml = option.panel_path ? `<img src="${{option.panel_path}}" loading="lazy" alt="frame ${{row.frame_id}} cam ${{row.cam_id}} option ${{option.option_idx}}">` : '<div class="meta muted">panel missing</div>';
+          label.innerHTML = `
+            ${{imageHtml}}
+            <div class="meta">
+              <input type="radio" name="option-${{rowIdx}}" value="${{option.option_idx}}" ${{checked}}>
+              option ${{option.option_idx}} / ${{option.review_source}}<br>
+              video ${{option.video_idx}} / offset ${{option.offset}} / score ${{Number(option.score).toFixed(3)}}<br>
+              edge hit ${{Number(option.edge_hit).toFixed(3)}} / mean dist ${{Number(option.edge_distance_mean).toFixed(2)}}
+            </div>`;
+          label.querySelector('input').addEventListener('change', () => {{
+            row.selected_option_idx = option.option_idx;
+            row.selected_video_idx = option.video_idx;
+          }});
+          options.appendChild(label);
+        }});
+        probe.appendChild(options);
+        app.appendChild(probe);
+      }});
+    }}
+
+    document.getElementById('accept-selected').addEventListener('click', () => {{
+      rows.forEach(row => {{
+        if (row.selected_option_idx !== null && row.selected_option_idx !== undefined) {{
+          row.anchor_status = 'accepted';
+        }}
+      }});
+      render();
+    }});
+
+    document.getElementById('download').addEventListener('click', () => {{
+      const accepted = rows.filter(row => row.anchor_status === 'accepted' && row.selected_video_idx !== null && row.selected_video_idx !== undefined);
+      const text = accepted.map(row => JSON.stringify(row)).join('\\n') + (accepted.length ? '\\n' : '');
+      const blob = new Blob([text], {{type: 'application/x-ndjson'}});
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'accepted_sync_anchors.jsonl';
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }});
+
+    render();
+  </script>
+</body>
+</html>
+"""
 
 
 def make_sheet(panels: list[np.ndarray], output: Path, cols: int) -> None:
@@ -169,6 +350,8 @@ def main() -> None:
 
     manifest_rows = []
     panels = []
+    panels_dir = args.output_dir / "panels"
+    panels_dir.mkdir(parents=True, exist_ok=True)
     with args.lx_file.open("rb") as lx_handle:
         for key in sorted(candidates):
             frame_id, cam_id = key
@@ -176,7 +359,7 @@ def main() -> None:
             options = choose_review_options(candidates[key], smooth_row, args.top_n)
             option_records = []
             for option_idx, row in enumerate(options):
-                option_records.append({
+                record = {
                     "option_idx": option_idx,
                     "review_source": row.get("review_source"),
                     "video_idx": int(row["video_idx"]),
@@ -184,10 +367,14 @@ def main() -> None:
                     "score": float(row.get("score", 0.0)),
                     "edge_hit": float(row.get("edge_hit", 0.0)),
                     "edge_distance_mean": float(row.get("edge_distance_mean", 0.0)),
-                })
+                }
                 panel = render_option(lx_handle, sections, poses, maps, caps, row, args.dot_px)
                 if panel is not None:
+                    rel_panel_path = Path("panels") / panel_filename(frame_id, cam_id, option_idx, row)
+                    cv2.imwrite(str(args.output_dir / rel_panel_path), panel)
+                    record["panel_path"] = rel_panel_path.as_posix()
                     panels.append(panel)
+                option_records.append(record)
             manifest_rows.append({
                 "frame_id": frame_id,
                 "cam_id": cam_id,
@@ -203,11 +390,17 @@ def main() -> None:
     with (args.output_dir / "manual_anchor_manifest.jsonl").open("w", encoding="utf-8") as f:
         for row in manifest_rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    (args.output_dir / "manual_anchor_review.html").write_text(
+        build_review_html(manifest_rows),
+        encoding="utf-8",
+    )
     report = {
         "candidates_jsonl": str(args.candidates_jsonl),
         "smooth_path_jsonl": str(args.smooth_path_jsonl) if args.smooth_path_jsonl else None,
         "probe_count": len(manifest_rows),
         "panel_count": len(panels),
+        "html": str(args.output_dir / "manual_anchor_review.html"),
+        "panels_dir": str(panels_dir),
         "output_dir": str(args.output_dir),
     }
     (args.output_dir / "manual_anchor_review_report.json").write_text(
