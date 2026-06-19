@@ -1936,3 +1936,50 @@ Current read:
 - If accepted, the next code change should simply flip
   `SPLIT_RAILING_LOCAL_GEOMETRY` to default `1` and rerun once with a clean
   suffix that does not repeat `localgeom`.
+
+## Viewer Candidate QA Comparison Tool
+
+Date: 2026-06-19
+
+New script:
+
+```text
+scripts/compare_viewer_candidate_qa.py
+```
+
+Purpose:
+
+- compare two or more `qa_viewer_candidate.py` JSON reports
+- report label point/object deltas, warning/error changes, status deltas, and
+  large fine-object risk changes
+- make route comparison reproducible instead of relying on manual arithmetic
+
+Command used locally and on `scan-rtx5070`:
+
+```bash
+python scripts/compare_viewer_candidate_qa.py \
+  --report ambsplit=.../frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_ambsplit_rtx5070_carz25_20260619_125444/viewer_candidate_qa.json \
+  --report localgeom=.../frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_localgeom_localgeom_full_20260619_131820/viewer_candidate_qa.json \
+  --output-json .../viewer_candidate_comparisons/ambsplit_vs_localgeom_20260619.json \
+  --output-md .../viewer_candidate_comparisons/ambsplit_vs_localgeom_20260619.md
+```
+
+Observed comparison:
+
+| metric | ambsplit | local-geometry | delta |
+| --- | ---: | ---: | ---: |
+| vertices | `903,115` | `903,115` | `0` |
+| objects | `3,253` | `3,266` | `+13` |
+| warnings | `1` | `0` | `-1` |
+| large fine objects | `1` | `0` | `-1` |
+| large fine points | `13,071` | `0` | `-13,071` |
+| railing points | `70,549` | `21,609` | `-48,940` |
+| unknown points | `63,959` | `67,972` | `+4,013` |
+
+Interpretation:
+
+- local-geometry removes the measurable large railing/car swallowing risk
+- it is conservative: a large share of previously labeled `railing` is no
+  longer accepted as railing
+- this strengthens the case for local-geometry as a guard stage, but visual QA
+  must decide whether the `railing` recall loss is acceptable
