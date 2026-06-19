@@ -388,6 +388,45 @@ def compute_view_surface_gate(
     return first_touch | continuous, near, support
 
 
+def fill_first_touch_holes(
+    depth: np.ndarray,
+    valid: np.ndarray,
+    radius: int,
+    depth_range_threshold: float,
+    min_neighbors: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Fill small holes inside the accepted first-touch surface layer.
+
+    This is deliberately not a second-layer recovery.  A hole is filled only
+    when nearby accepted depths are numerous and have a small depth range.  That
+    recovers sparse LiDAR sampling holes on a visible surface while rejecting
+    holes whose neighborhood mixes foreground and background depths.
+    """
+    if radius <= 0 or min_neighbors <= 0 or depth_range_threshold <= 0 or not np.any(valid):
+        return depth, valid, np.zeros(depth.shape, dtype=bool)
+    kernel = np.ones((radius * 2 + 1, radius * 2 + 1), dtype=np.float32)
+    valid_float = valid.astype(np.float32)
+    count = cv2.filter2D(valid_float, -1, kernel, borderType=cv2.BORDER_CONSTANT)
+    depth_sum = cv2.filter2D(np.where(valid, depth, 0.0).astype(np.float32), -1, kernel, borderType=cv2.BORDER_CONSTANT)
+    mean_depth = depth_sum / np.maximum(count, 1.0)
+    local_min = cv2.erode(np.where(valid, depth, np.inf).astype(np.float32), kernel.astype(np.uint8))
+    local_max = cv2.dilate(np.where(valid, depth, -np.inf).astype(np.float32), kernel.astype(np.uint8))
+    fill = (
+        (~valid)
+        & (count >= float(min_neighbors))
+        & np.isfinite(local_min)
+        & np.isfinite(local_max)
+        & ((local_max - local_min) <= float(depth_range_threshold))
+    )
+    if not np.any(fill):
+        return depth, valid, fill
+    filled_depth = depth.copy()
+    filled_valid = valid.copy()
+    filled_depth[fill] = mean_depth[fill]
+    filled_valid[fill] = True
+    return filled_depth, filled_valid, fill
+
+
 def depth_to_viz(depth: np.ndarray, valid: np.ndarray) -> np.ndarray:
     if not np.any(valid):
         return np.zeros((*depth.shape, 3), dtype=np.uint8)
@@ -486,6 +525,16 @@ def project_one_camera(
         semantic[rejected] = 0
         rendered_rgb[rejected] = 0
         valid_map[rejected] = 0
+    valid_bool = valid_map > 0
+    depth, _filled_valid, filled_surface = fill_first_touch_holes(
+        depth,
+        valid_bool,
+        args.view_surface_fill_radius,
+        args.view_surface_fill_depth_range,
+        args.view_surface_fill_min_neighbors,
+    )
+    if np.any(filled_surface):
+        valid_map[filled_surface] = 255
     edge = compute_depth_edges(depth, valid_map > 0, args.edge_depth_threshold, args.mark_invalid_boundary)
     color_edge = compute_color_edges(rendered_rgb, valid_map > 0, args.color_edge_lab_threshold)
     return {
@@ -499,6 +548,7 @@ def project_one_camera(
         "surface_near_depth": surface_near_depth,
         "surface_support": surface_support,
         "surface_rejected": int(np.count_nonzero(rejected)),
+        "surface_filled": int(np.count_nonzero(filled_surface)),
         "visible": int(len(idx)),
         "surface_visible": int(np.count_nonzero(valid_map)),
     }
@@ -574,6 +624,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--view-surface-first-threshold", type=float, default=0.12)
     parser.add_argument("--view-surface-continuous-threshold", type=float, default=0.18)
     parser.add_argument("--view-surface-min-neighbors", type=int, default=8)
+    parser.add_argument("--view-surface-fill-radius", type=int, default=3)
+    parser.add_argument("--view-surface-fill-depth-range", type=float, default=0.10)
+    parser.add_argument("--view-surface-fill-min-neighbors", type=int, default=6)
     parser.add_argument("--edge-depth-threshold", type=float, default=0.35)
     parser.add_argument("--color-edge-lab-threshold", type=float, default=16.0)
     parser.add_argument("--mark-invalid-boundary", action="store_true")
@@ -723,6 +776,7 @@ def main() -> None:
                     "visible_pixels": int(out["visible"]),
                     "surface_visible_pixels": int(out["surface_visible"]),
                     "surface_rejected_pixels": int(out["surface_rejected"]),
+                    "surface_filled_pixels": int(out["surface_filled"]),
                     "semantic_prior_counts": {str(k): int(v) for k, v in sorted(hist.items())},
                 })
 
@@ -751,6 +805,9 @@ def main() -> None:
         "view_surface_first_threshold": args.view_surface_first_threshold,
         "view_surface_continuous_threshold": args.view_surface_continuous_threshold,
         "view_surface_min_neighbors": args.view_surface_min_neighbors,
+        "view_surface_fill_radius": args.view_surface_fill_radius,
+        "view_surface_fill_depth_range": args.view_surface_fill_depth_range,
+        "view_surface_fill_min_neighbors": args.view_surface_fill_min_neighbors,
         "image_count": len(rows),
         "status_counts": dict(status_counts),
         "elapsed_sec": time.time() - t0,
