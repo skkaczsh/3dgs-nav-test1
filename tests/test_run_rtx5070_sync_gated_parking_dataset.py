@@ -8,6 +8,7 @@ def test_gated_parking_dataset_requires_sync_readiness_and_frame_map():
     text = SCRIPT.read_text(encoding="utf-8")
 
     assert 'RUN="${RUN:-0}"' in text
+    assert 'LOCAL_REPO="${LOCAL_REPO:-/Users/skkac/Work/SCAN/new_route}"' in text
     assert 'SYNC_RUN_NAME="${SYNC_RUN_NAME:-sync_anchor_constrained_timestamp_absprior_dot3_20260619}"' in text
     assert 'FRAME_MAP="${FRAME_MAP:-${REMOTE_SYNC_DIR}/expanded_frame_map.jsonl}"' in text
     assert 'READINESS_EXIT="${READINESS_EXIT:-${REMOTE_SYNC_DIR}/sync_frame_map_readiness.exit_code}"' in text
@@ -36,3 +37,16 @@ def test_gated_parking_dataset_runs_priority_and_safe_route_after_frames():
     assert "--batch-size $(quote \"${PRIORITY_BATCH_SIZE}\")" in text
     assert 'PRIORITY_BATCH_SIZE="${PRIORITY_BATCH_SIZE:-8}"' in text
     assert 'DO_SAFE_ROUTE="${DO_SAFE_ROUTE:-0}"' in text
+
+
+def test_gated_parking_dataset_runs_preflight_before_remote_job():
+    text = SCRIPT.read_text(encoding="utf-8")
+
+    preflight_pos = text.index("scripts/check_rtx5070_parking_runtime.py")
+    remote_check_pos = text.index('ssh "${ssh_opts[@]}" "${SERVER}" "${remote_check}"')
+
+    assert preflight_pos < remote_check_pos
+    assert 'RUN_PREFLIGHT="${RUN_PREFLIGHT:-1}"' in text
+    assert "--no-default-required-files" in text
+    assert "--required-remote-file \"${FRAME_MAP}\"" in text
+    assert "--required-remote-file \"${READINESS_EXIT}\"" in text

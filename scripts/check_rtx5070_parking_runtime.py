@@ -120,7 +120,10 @@ echo section=proxy
 (ss -ltn 2>/dev/null || true) | awk '$4 ~ /:7897$/ {{print "proxy_port_7897=1"; found=1}} END {{if (!found) print "proxy_port_7897=0"}}'
 echo section=artifacts
 for rel in {required_files}; do
-  path="$WORK/$rel"
+  case "$rel" in
+    /*) path="$rel" ;;
+    *) path="$WORK/$rel" ;;
+  esac
   if [ -s "$path" ]; then
     stat -c 'artifact=%n|%s|ok' "$path"
   else
@@ -216,7 +219,9 @@ def main() -> None:
     parser.add_argument("--remote-work", default="/home/zsh/Work/SCAN/work_MT20260616-175807")
     parser.add_argument("--venv", default="/home/zsh/Work/SCAN/.venvs/scan-semantic")
     parser.add_argument("--tmux-session", default="scan_migrate")
-    parser.add_argument("--required-remote-file", action="append", default=list(DEFAULT_REQUIRED_REMOTE_FILES))
+    parser.add_argument("--required-remote-file", action="append", default=[])
+    parser.add_argument("--no-default-required-files", action="store_true",
+                        help="Do not include legacy default output artifact checks.")
     parser.add_argument("--min-free-vram-mib", type=int, default=8000)
     parser.add_argument("--max-git-dirty-count", type=int, default=1)
     parser.add_argument("--require-tmux", action=argparse.BooleanOptionalAction, default=True)
@@ -224,6 +229,8 @@ def main() -> None:
     parser.add_argument("--timeout", type=int, default=20)
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
+    if not args.no_default_required_files:
+        args.required_remote_file = list(DEFAULT_REQUIRED_REMOTE_FILES) + list(args.required_remote_file)
 
     code, stdout, stderr = run_remote(args.host, build_status_script(args), timeout=args.timeout)
     if code != 0:

@@ -7,6 +7,7 @@ set -euo pipefail
 # The route always uses expanded_frame_map.jsonl with --require-frame-map.
 
 SERVER="${SERVER:-scan-rtx5070}"
+LOCAL_REPO="${LOCAL_REPO:-/Users/skkac/Work/SCAN/new_route}"
 REMOTE_REPO="${REMOTE_REPO:-/home/zsh/Work/SCAN/new_route}"
 REMOTE_WORK="${REMOTE_WORK:-/home/zsh/Work/SCAN/work_MT20260616-175807}"
 REMOTE_DATASET="${REMOTE_DATASET:-/home/zsh/Work/SCAN/datasets/MT20260616-175807}"
@@ -48,6 +49,9 @@ COLOR_REPORT="${COLOR_REPORT:-${COLOR_DIR}/colorize_report.json}"
 
 PRIORITY_BATCH_SIZE="${PRIORITY_BATCH_SIZE:-8}"
 PRIORITY_MODEL="${PRIORITY_MODEL:-mapillary}"
+RUN_PREFLIGHT="${RUN_PREFLIGHT:-1}"
+PREFLIGHT_OUTPUT="${PREFLIGHT_OUTPUT:-${LOCAL_REPO}/server_parking_priority_s10/${OUT_SUFFIX}_preflight.json}"
+MIN_FREE_VRAM_MIB="${MIN_FREE_VRAM_MIB:-6000}"
 
 ssh_opts=(-o BatchMode=yes -o "ConnectTimeout=${CONNECT_TIMEOUT}")
 if [[ -n "${BIND_ADDRESS}" ]]; then
@@ -160,12 +164,36 @@ do_extract_frames=${DO_EXTRACT_FRAMES}
 do_colorize=${DO_COLORIZE}
 do_priority=${DO_PRIORITY}
 do_safe_route=${DO_SAFE_ROUTE}
+run_preflight=${RUN_PREFLIGHT}
+preflight_output=${PREFLIGHT_OUTPUT}
 remote_job:
 ${remote_job}
 EOF
 
 if [[ "${RUN}" != "1" ]]; then
   exit 0
+fi
+
+if [[ "${RUN_PREFLIGHT}" == "1" ]]; then
+  python3 "${LOCAL_REPO}/scripts/check_rtx5070_parking_runtime.py" \
+    --host "${SERVER}" \
+    --remote-repo "${REMOTE_REPO}" \
+    --remote-work "${REMOTE_WORK}" \
+    --venv "${REMOTE_VENV}" \
+    --tmux-session "${SESSION_NAME}" \
+    --no-require-tmux \
+    --no-default-required-files \
+    --min-free-vram-mib "${MIN_FREE_VRAM_MIB}" \
+    --required-remote-file "${LX}" \
+    --required-remote-file "${REMOTE_DATASET}/image/video_cam0.mkv" \
+    --required-remote-file "${REMOTE_DATASET}/image/video_cam1.mkv" \
+    --required-remote-file "${REMOTE_DATASET}/image/video_cam2.mkv" \
+    --required-remote-file "${REMOTE_DATASET}/image/img_pos.txt" \
+    --required-remote-file "${REMOTE_DATASET}/image/cam_in_ex.txt" \
+    --required-remote-file "${FRAME_MAP}" \
+    --required-remote-file "${READINESS_JSON}" \
+    --required-remote-file "${READINESS_EXIT}" \
+    --output "${PREFLIGHT_OUTPUT}"
 fi
 
 ssh "${ssh_opts[@]}" "${SERVER}" "${remote_check}"

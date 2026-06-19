@@ -167,6 +167,24 @@ This launcher refuses to run unless:
 - `sync_frame_map_readiness.json` exists
 - `expanded_frame_map.jsonl` exists
 
+When `RUN=1`, it first runs
+`scripts/check_rtx5070_parking_runtime.py` with
+`--no-default-required-files` against the exact sync-gated inputs:
+
+- `.lx`
+- `video_cam0/1/2.mkv`
+- `img_pos.txt`
+- `cam_in_ex.txt`
+- `expanded_frame_map.jsonl`
+- `sync_frame_map_readiness.json`
+- `sync_frame_map_readiness.exit_code`
+
+The preflight also checks RTX 5070Ti free VRAM, torch CUDA availability, and
+the Python modules used by extraction and priority segmentation.  It writes a
+local JSON report such as
+`server_parking_priority_s10/sync_absprior_s10_preflight.json` before starting
+the remote tmux job.  Set `RUN_PREFLIGHT=0` only for diagnostics.
+
 It then uses `expanded_frame_map.jsonl` with `--require-frame-map` for
 sync-correct frame extraction and optional colorization.  By default it prepares
 the reusable synchronized frames and Mapillary priority masks only:
@@ -187,6 +205,13 @@ compatible with the accepted sync map.
 - CUDA stack: `torch 2.11.0+cu130`, CUDA available.
 - Added dependencies: `transformers==4.47.1`, `scipy`, `scikit-learn`, `accelerate`, `safetensors`, `tqdm`.
 - Clash/Mihomo proxy used for downloads: `127.0.0.1:7897`.
+- Basic sync-gated input preflight on `2026-06-19` passed:
+  - GPU: RTX 5070 Ti, `15015MiB` free of `16303MiB`
+  - torch CUDA available, CUDA `13.0`
+  - dataset files present: `.lx`, three videos, `img_pos.txt`, `cam_in_ex.txt`
+  - warning only: remote git dirty count was `48` from working-copy/generated
+    files; this is not a runtime blocker but should be cleaned before treating
+    the remote checkout as a release artifact.
 
 ## TensorRT Readiness
 

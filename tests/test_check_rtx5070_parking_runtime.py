@@ -22,6 +22,8 @@ def make_args(**overrides):
         "require_tmux": True,
         "require_proxy": False,
         "tmux_session": "scan_migrate",
+        "required_remote_file": [],
+        "no_default_required_files": False,
     }
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -135,3 +137,19 @@ def test_evaluate_fails_for_low_vram_and_missing_artifact():
 
     assert any("GPU free VRAM below threshold" in error for error in errors)
     assert any("missing required remote artifacts" in error for error in errors)
+
+
+def test_build_status_script_supports_absolute_required_files():
+    args = make_args(
+        remote_repo="/repo",
+        remote_work="/work",
+        venv="/venv",
+        required_remote_file=["relative/a.txt", "/abs/b.txt"],
+    )
+
+    script = module.build_status_script(args)
+
+    assert 'case "$rel" in' in script
+    assert '*) path="$WORK/$rel" ;;' in script
+    assert "relative/a.txt" in script
+    assert "/abs/b.txt" in script
