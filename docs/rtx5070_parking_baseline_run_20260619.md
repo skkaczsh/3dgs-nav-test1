@@ -1359,3 +1359,74 @@ Tradeoff:
 - The next step should compare visual quality in the viewer before making this
   the default route. If visual quality is better, object fusion needs a
   same-surface post-consolidation pass to reduce ambiguity after splitting.
+
+## Same-Surface Object Consolidation
+
+Date: 2026-06-19
+
+New helper:
+
+```text
+scripts/prepare_consolidated_viewer_objects.py
+```
+
+Purpose:
+
+- `remap_ply_object_ids.py` rewrites PLY object ids to compact integers.
+- This helper applies the same sidecar mapping to consolidated object JSONL so
+  `tools/semantic_ply_viewer.html` can join PLY points with object metadata.
+
+Input object route:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_objects_guarded_v3_full_s10_absorbed_demote_surface_repair_p008_split_lowplanar_rtx5070/objects.jsonl
+```
+
+Balanced same-label consolidation:
+
+```bash
+python scripts/consolidate_same_label_surface_objects.py \
+  --objects-jsonl objects.jsonl \
+  --output-jsonl objects_consolidated.jsonl \
+  --output-report consolidation_report.json \
+  --output-mapping object_mapping.jsonl \
+  --labels ground wall ceiling \
+  --min-points 60 \
+  --max-bbox-gap 0.35 \
+  --max-centroid-distance 1.0 \
+  --max-normal-angle 15 \
+  --max-plane-distance 0.22 \
+  --max-color-distance 70
+```
+
+Consolidation result:
+
+- input objects: `3,279`
+- output objects: `3,217`
+- merged object reduction: `62`
+- `surface_consolidated` objects: `31`
+- remapped PLY vertices: `903,115`
+- unmapped PLY vertices: `0`
+- viewer object metadata missing mappings: `0`
+
+Viewer candidate:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_guarded_v3_full_s10_p008_split_lowplanar_surface_consolidated_balanced_rtx5070
+```
+
+Local viewer URL:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_p008_split_lowplanar_surface_consolidated_balanced_rtx5070/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_p008_split_lowplanar_surface_consolidated_balanced_rtx5070/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5
+```
+
+Current read:
+
+- Balanced consolidation is conservative: it reduces object fragmentation without
+  changing semantic labels.
+- It does not reduce `ambiguous_object` count because cross-label ambiguous
+  objects are intentionally left untouched.
+- If visual QA confirms the p008 split candidate is better, the next useful pass
+  is a targeted ambiguous-surface resolver using geometry and dominant label
+  thresholds, not broad same-label merging.
