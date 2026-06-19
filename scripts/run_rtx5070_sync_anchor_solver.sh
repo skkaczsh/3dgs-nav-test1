@@ -29,7 +29,10 @@ REMOTE_CANDIDATES="${REMOTE_CANDIDATES:-${REMOTE_WORK}/sync_calibration_sky_pena
 TOP_N="${TOP_N:-4}"
 SHEET_COLS="${SHEET_COLS:-4}"
 DOT_PX="${DOT_PX:-3}"
-READINESS_FRAMES="${READINESS_FRAMES:-1000 1600 2200 2800 3400 4000 4600 5200 5800}"
+MAP_START="${MAP_START:-0}"
+MAP_END="${MAP_END:-6180}"
+MAP_STRIDE="${MAP_STRIDE:-10}"
+VIDEO_FRAME_COUNT="${VIDEO_FRAME_COUNT:-6181}"
 READINESS_CAMS="${READINESS_CAMS:-0 1 2}"
 MIN_ACCEPTED_PER_CAM="${MIN_ACCEPTED_PER_CAM:-2}"
 SOLVER_TIME_MODE="${SOLVER_TIME_MODE:-timestamp}"
@@ -81,12 +84,25 @@ $(quote "${REMOTE_VENV}/bin/python") scripts/solve_sync_path_from_candidates.py 
   --absolute-prior-tolerance $(quote "${SOLVER_ABSOLUTE_PRIOR_TOLERANCE}") \
   --absolute-intercept $(quote "${SOLVER_ABSOLUTE_INTERCEPT}") \
   --absolute-intercept-source $(quote "${SOLVER_ABSOLUTE_INTERCEPT_SOURCE}")
+$(quote "${REMOTE_VENV}/bin/python") scripts/expand_sync_frame_map.py \
+  --path-jsonl $(quote "${REMOTE_OUTPUT}/solver/sync_smooth_paths.jsonl") \
+  --solver-report $(quote "${REMOTE_OUTPUT}/solver/sync_smooth_path_report.json") \
+  --img-pos-file $(quote "${REMOTE_DATASET}/image/img_pos.txt") \
+  --output-jsonl $(quote "${REMOTE_OUTPUT}/expanded_frame_map.jsonl") \
+  --report $(quote "${REMOTE_OUTPUT}/expanded_frame_map_report.json") \
+  --start $(quote "${MAP_START}") \
+  --end $(quote "${MAP_END}") \
+  --stride $(quote "${MAP_STRIDE}") \
+  --cams ${READINESS_CAMS} \
+  --video-frame-count $(quote "${VIDEO_FRAME_COUNT}")
 set +e
 $(quote "${REMOTE_VENV}/bin/python") scripts/check_sync_frame_map_readiness.py \
   --anchors-jsonl $(quote "${REMOTE_ANCHORS}") \
-  --frame-map-jsonl $(quote "${REMOTE_OUTPUT}/solver/sync_smooth_paths.jsonl") \
+  --frame-map-jsonl $(quote "${REMOTE_OUTPUT}/expanded_frame_map.jsonl") \
   --solver-report $(quote "${REMOTE_OUTPUT}/solver/sync_smooth_path_report.json") \
-  --frames ${READINESS_FRAMES} \
+  --start $(quote "${MAP_START}") \
+  --end $(quote "${MAP_END}") \
+  --stride $(quote "${MAP_STRIDE}") \
   --cams ${READINESS_CAMS} \
   --min-accepted-per-cam $(quote "${MIN_ACCEPTED_PER_CAM}") \
   --output $(quote "${REMOTE_OUTPUT}/sync_frame_map_readiness.json")
@@ -126,7 +142,10 @@ solver_absolute_prior_tolerance=${SOLVER_ABSOLUTE_PRIOR_TOLERANCE}
 solver_absolute_intercept=${SOLVER_ABSOLUTE_INTERCEPT}
 solver_absolute_intercept_source=${SOLVER_ABSOLUTE_INTERCEPT_SOURCE}
 dot_px=${DOT_PX}
-readiness_frames=${READINESS_FRAMES}
+map_start=${MAP_START}
+map_end=${MAP_END}
+map_stride=${MAP_STRIDE}
+video_frame_count=${VIDEO_FRAME_COUNT}
 readiness_cams=${READINESS_CAMS}
 min_accepted_per_cam=${MIN_ACCEPTED_PER_CAM}
 EOF
@@ -148,6 +167,8 @@ rsync -av \
   "${SERVER}:${REMOTE_OUTPUT}/accepted_sync_anchors.jsonl" \
   "${SERVER}:${REMOTE_OUTPUT}/sync_frame_map_readiness.json" \
   "${SERVER}:${REMOTE_OUTPUT}/sync_frame_map_readiness.exit_code" \
+  "${SERVER}:${REMOTE_OUTPUT}/expanded_frame_map.jsonl" \
+  "${SERVER}:${REMOTE_OUTPUT}/expanded_frame_map_report.json" \
   "${SERVER}:${REMOTE_OUTPUT}/solver" \
   "${SERVER}:${REMOTE_OUTPUT}/review" \
   "${LOCAL_OUTPUT}/"
@@ -169,6 +190,7 @@ cat <<EOF
 done=1
 local_output=${LOCAL_OUTPUT}
 solver_report=${LOCAL_OUTPUT}/solver/sync_smooth_path_report.json
+expanded_frame_map=${LOCAL_OUTPUT}/expanded_frame_map.jsonl
 readiness_report=${readiness_report}
 review_url=http://127.0.0.1:8765/server_parking_priority_s10/${RUN_NAME}/review/manual_anchor_review.html
 EOF

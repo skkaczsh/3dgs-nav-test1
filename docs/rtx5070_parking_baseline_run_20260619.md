@@ -115,6 +115,31 @@ Use `DRY_RUN=1 scripts/run_rtx5070_sync_anchor_solver.sh` to inspect the exact
 remote command even before anchors have been exported.  Real execution still
 requires `accepted_sync_anchors.jsonl`.
 
+After the constrained sync run passes, use the gated production launcher:
+
+```bash
+scripts/run_rtx5070_sync_gated_parking_dataset.sh
+RUN=1 scripts/run_rtx5070_sync_gated_parking_dataset.sh
+```
+
+This launcher refuses to run unless:
+
+- `sync_frame_map_readiness.exit_code` is `0`
+- `sync_frame_map_readiness.json` exists
+- `expanded_frame_map.jsonl` exists
+
+It then uses `expanded_frame_map.jsonl` with `--require-frame-map` for
+sync-correct frame extraction and optional colorization.  By default it prepares
+the reusable synchronized frames and Mapillary priority masks only:
+
+- `frames_jpeg_sync_absprior_s10`
+- `priority_surface_mapillary_sync_absprior_s10`
+
+It does **not** default to the older safe semantic-prior object route, because
+that route can depend on prior PLY evidence generated before this sync gate.
+Set `DO_SAFE_ROUTE=1` only after the semantic-prior input is known to be
+compatible with the accepted sync map.
+
 ## Environment
 
 - Released Gemma/llama-server before running: PID `1723`, about `8708MiB` VRAM.
