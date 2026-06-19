@@ -3461,3 +3461,54 @@ Next step:
 - Use the sky-penalty priority review page to export accepted anchors.
 - Stage anchors with `python scripts/stage_accepted_sync_anchors.py`.
 - Run `scripts/run_rtx5070_sync_anchor_solver.sh` and require readiness pass before any further semantic production.
+
+## Sync Option Contact Sheets
+
+Date: 2026-06-19
+
+Why:
+
+- RGB colorization can look acceptable even when frame sync is too weak for hard mask projection.
+- Semantic and depth-guided masks require stricter frame alignment, so the sync path must be reviewed visually before production.
+- The sky-penalty smooth path is temporally plausible, but still rejected automatically because it loses too much local score against independent best candidates.
+
+Reusable tools added:
+
+- `scripts/make_sync_option_sheet.py`
+  - extracts one option source from `manual_anchor_manifest.jsonl`;
+  - supports sources such as `smooth_path`, `direct`, and `independent_best`;
+  - writes a contact sheet and JSON report without modifying anchors.
+- `scripts/prioritize_sync_anchor_review.py --preselect-source smooth_path`
+  - preselects smooth-path choices in the review UI;
+  - keeps rows `unreviewed`, so no anchor is accepted without explicit confirmation.
+
+Generated QA assets:
+
+```text
+server_parking_priority_s10/sync_anchor_review_sky_penalty_fullprobe_20260619/smooth_path_contact_sheet.jpg
+server_parking_priority_s10/sync_anchor_review_sky_penalty_fullprobe_20260619/direct_contact_sheet.jpg
+server_parking_priority_s10/sync_anchor_review_sky_penalty_fullprobe_20260619/independent_best_contact_sheet.jpg
+server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_smooth_preselect_20260619/
+```
+
+Observed comparison:
+
+- `independent_best` is visually/temporally unstable and often jumps across scenes.
+- `direct` is sometimes plausible outdoors, but not reliable enough across the indoor/stair segments.
+- `smooth_path` has the best temporal continuity and generally better physical structure, but still has local questionable frames; it should be treated as a review aid, not automatic truth.
+
+Preferred review URL:
+
+```text
+http://127.0.0.1:8765/server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_smooth_preselect_20260619/anchor_review_priority.html
+```
+
+Next operational sequence:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+python3 scripts/stage_accepted_sync_anchors.py
+scripts/run_rtx5070_sync_anchor_solver.sh
+```
+
+Do not resume semantic production until the constrained solver and readiness gate pass.

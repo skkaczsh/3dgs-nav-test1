@@ -43,6 +43,21 @@ def row(frame, cam, scores):
     }
 
 
+def row_with_sources(frame, cam):
+    return {
+        "frame_id": frame,
+        "cam_id": cam,
+        "anchor_status": "unreviewed",
+        "selected_video_idx": None,
+        "selected_option_idx": None,
+        "notes": "",
+        "options": [
+            {"option_idx": 0, "review_source": "direct", "video_idx": frame, "offset": 0, "score": 0.5},
+            {"option_idx": 1, "review_source": "smooth_path", "video_idx": frame - 3, "offset": -3, "score": 0.4},
+        ],
+    }
+
+
 def test_prioritizer_selects_top_rows_per_camera(tmp_path: Path):
     module = load_module()
     manifest = tmp_path / "manifest.jsonl"
@@ -62,6 +77,7 @@ def test_prioritizer_selects_top_rows_per_camera(tmp_path: Path):
             output_dir=tmp_path / "out",
             source_dir=tmp_path,
             per_cam=1,
+            preselect_source=None,
         )
     )
 
@@ -91,3 +107,25 @@ def test_enrich_row_flags_low_margin_and_large_offset():
     assert enriched["best_option_idx"] == 1
     assert "low_score_margin" in enriched["risk_reasons"]
     assert "large_best_offset" in enriched["risk_reasons"]
+
+
+def test_preselect_source_sets_selected_option_without_accepting(tmp_path: Path):
+    module = load_module()
+    manifest = tmp_path / "manifest.jsonl"
+    write_jsonl(manifest, [row_with_sources(10, 0)])
+
+    report = module.build(
+        argparse.Namespace(
+            manifest=manifest,
+            output_dir=tmp_path / "out",
+            source_dir=tmp_path,
+            per_cam=1,
+            preselect_source="smooth_path",
+        )
+    )
+
+    selected = module.read_jsonl(tmp_path / "out" / "anchor_review_priority_batch.jsonl")
+    assert report["preselected_count"] == 1
+    assert selected[0]["selected_option_idx"] == 1
+    assert selected[0]["selected_video_idx"] == 7
+    assert selected[0]["anchor_status"] == "unreviewed"

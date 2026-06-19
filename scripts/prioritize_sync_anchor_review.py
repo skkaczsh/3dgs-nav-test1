@@ -91,6 +91,21 @@ def select_review_batch(rows: list[dict[str, Any]], per_cam: int) -> list[dict[s
     return sorted(selected, key=lambda item: (int(item["frame_id"]), int(item["cam_id"])))
 
 
+def preselect_option(row: dict[str, Any], source: str | None) -> dict[str, Any]:
+    if not source:
+        return row
+    out = dict(row)
+    options = list(out.get("options", []))
+    for option in options:
+        if str(option.get("review_source")) == source:
+            out["selected_option_idx"] = option.get("option_idx")
+            out["selected_video_idx"] = option.get("video_idx")
+            out["preselected_source"] = source
+            return out
+    out["preselected_source"] = None
+    return out
+
+
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
@@ -239,7 +254,7 @@ render();
 def build(args: argparse.Namespace) -> dict[str, Any]:
     rows = [enrich_row(row) for row in read_jsonl(args.manifest)]
     rows_sorted = sorted(rows, key=lambda item: float(item["priority_score"]), reverse=True)
-    selected = select_review_batch(rows, args.per_cam)
+    selected = [preselect_option(row, args.preselect_source) for row in select_review_batch(rows, args.per_cam)]
     write_jsonl(args.output_dir / "anchor_review_priority_all.jsonl", rows_sorted)
     write_jsonl(args.output_dir / "anchor_review_priority_batch.jsonl", selected)
     html_text = render_html(
@@ -258,6 +273,8 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         "selected_count": len(selected),
         "selected_by_cam": {str(k): int(v) for k, v in sorted(by_cam.items())},
         "per_cam": int(args.per_cam),
+        "preselect_source": args.preselect_source,
+        "preselected_count": sum(1 for row in selected if row.get("preselected_source")),
         "score_margin": {
             "min": min(margins) if margins else None,
             "p50": statistics.median(margins) if margins else None,
@@ -289,6 +306,8 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--source-dir", type=Path, help="Directory containing panel paths from the manifest.")
     parser.add_argument("--per-cam", type=int, default=4)
+    parser.add_argument("--preselect-source",
+                        help="Preselect this review_source in the HTML/export payload without marking rows accepted.")
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     print(json.dumps(build(args), ensure_ascii=False, indent=2))
