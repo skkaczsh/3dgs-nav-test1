@@ -10,6 +10,14 @@ from typing import Any
 
 FrameMap = dict[tuple[int, int], int]
 
+REJECTED_STATUSES = {
+    "rejected",
+    "rejected_unstable_temporal_path",
+    "sync_failed",
+    "read_failed",
+    "missing_frame_map",
+}
+
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
@@ -42,15 +50,36 @@ def selected_video_idx(row: dict[str, Any]) -> int:
     )
 
 
-def load_frame_map(path: Path | None) -> FrameMap:
+def row_rejection_status(row: dict[str, Any]) -> str | None:
+    """Return a rejection status if a row is unsafe for production mapping."""
+    for key in ("anchor_status", "cam_path_status", "status"):
+        value = str(row.get(key, "")).lower()
+        if value in {"", "accepted", "ok"}:
+            continue
+        if value in {"unreviewed", "rejected"}:
+            return value
+        if value.startswith("rejected"):
+            return value
+        if value in REJECTED_STATUSES:
+            return value
+    return None
+
+
+def load_frame_map(path: Path | None, *, allow_rejected: bool = False) -> FrameMap:
     if path is None:
         return {}
     frame_map: FrameMap = {}
     for row in read_jsonl(path):
         if "frame_id" not in row or "cam_id" not in row:
             raise ValueError(f"sync row missing frame_id/cam_id in {path}: {row}")
-        if str(row.get("anchor_status", "")).lower() in {"rejected", "unreviewed"}:
+        rejection = row_rejection_status(row)
+        if rejection in {"rejected", "unreviewed"} and "anchor_status" in row:
             continue
+        if rejection and not allow_rejected:
+            raise ValueError(
+                f"unsafe sync row status={rejection!r} in {path}: "
+                f"frame={row.get('frame_id')} cam={row.get('cam_id')}"
+            )
         key = (int(row["frame_id"]), int(row["cam_id"]))
         value = selected_video_idx(row)
         old = frame_map.get(key)

@@ -335,6 +335,8 @@ def main():
                         help="Optional JSONL mapping with frame_id, cam_id, and video_idx/selected_video_idx.")
     parser.add_argument("--require-frame-map", action="store_true",
                         help="Fail image reads when --frame-map-jsonl has no row for a frame/cam pair.")
+    parser.add_argument("--allow-rejected-frame-map", action="store_true",
+                        help="Diagnostic only: allow rejected/unstable sync rows instead of failing fast.")
     parser.add_argument("--sky-filter", choices=["none", "heuristic"], default="none")
     parser.add_argument("--sky-upper-ratio", type=float, default=0.72)
     parser.add_argument("--progress-every", type=int, default=50)
@@ -356,9 +358,12 @@ def main():
     print(f"calib={config.CALIB_FILE}")
     print(f"image_dir={config.IMAGE_DIR}")
     print(f"video_dir={config.VIDEO_DIR}")
-    frame_map = load_frame_map(args.frame_map_jsonl)
+    frame_map = load_frame_map(args.frame_map_jsonl, allow_rejected=args.allow_rejected_frame_map)
     if args.frame_map_jsonl:
-        print(f"frame_map={args.frame_map_jsonl} rows={len(frame_map)} require={args.require_frame_map}")
+        print(
+            f"frame_map={args.frame_map_jsonl} rows={len(frame_map)} "
+            f"require={args.require_frame_map} allow_rejected={args.allow_rejected_frame_map}"
+        )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     if args.voxel_output:
@@ -462,6 +467,7 @@ def main():
         "failed_image_reads": failed_images,
         "frame_map_jsonl": str(args.frame_map_jsonl) if args.frame_map_jsonl else None,
         "require_frame_map": bool(args.require_frame_map),
+        "allow_rejected_frame_map": bool(args.allow_rejected_frame_map),
         "frame_map_rows": len(frame_map),
         "mapped_image_reads": mapped_image_reads,
         "direct_image_reads": direct_image_reads,

@@ -70,3 +70,40 @@ def test_load_frame_map_reports_missing_selection(tmp_path: Path):
 
     with pytest.raises(ValueError, match="missing selected_video_idx"):
         module.load_frame_map(path)
+
+
+def test_load_frame_map_rejects_unstable_solver_path_by_default(tmp_path: Path):
+    module = load_module()
+    path = tmp_path / "unstable.jsonl"
+    write_jsonl(
+        path,
+        [
+            {
+                "frame_id": 3400,
+                "cam_id": 0,
+                "video_idx": 2600,
+                "cam_path_status": "rejected_unstable_temporal_path",
+            }
+        ],
+    )
+
+    with pytest.raises(ValueError, match="unsafe sync row status"):
+        module.load_frame_map(path)
+
+
+def test_load_frame_map_can_allow_rejected_rows_for_diagnostics(tmp_path: Path):
+    module = load_module()
+    path = tmp_path / "unstable_debug.jsonl"
+    write_jsonl(
+        path,
+        [
+            {
+                "frame_id": 3400,
+                "cam_id": 0,
+                "video_idx": 2600,
+                "cam_path_status": "rejected_unstable_temporal_path",
+            }
+        ],
+    )
+
+    assert module.load_frame_map(path, allow_rejected=True) == {(3400, 0): 2600}

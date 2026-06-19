@@ -2903,6 +2903,22 @@ Follow-up extraction fix:
   timestamp tables.  Remote smoke for one frame/cam triplet dropped from about
   `50.5s` to `0.25s`.
 
+Production safety gate:
+
+- `scripts/sync_frame_map.py` now rejects unsafe mapping rows by default,
+  including solver output marked as `cam_path_status=rejected_unstable_temporal_path`.
+- `scripts/colorize_lx_stream.py` and
+  `scripts/extract_undistorted_frames_jpeg.py` expose
+  `--allow-rejected-frame-map` only for diagnostics.
+- Current full-range smooth path is correctly blocked by default:
+
+```text
+ValueError: unsafe sync row status='rejected_unstable_temporal_path'
+```
+
+- Diagnostic mode still works when explicitly enabled:
+  `--allow-rejected-frame-map`.
+
 5070Ti smoke:
 
 ```bash
@@ -2939,7 +2955,7 @@ python3 -m py_compile \
 pytest -q tests/test_sync_frame_map.py tests/test_extract_undistorted_frames_jpeg_sync.py
 ```
 
-Result: `4 passed` locally and on `scan-rtx5070`.
+Result: `6 passed` locally and on `scan-rtx5070`.
 
 ## Safe Semantic-Prior Runner
 

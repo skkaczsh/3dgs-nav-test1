@@ -302,6 +302,8 @@ def main() -> None:
                         help="JSONL mapping with frame_id, cam_id, and video_idx/selected_video_idx for --sync-mode frame-map.")
     parser.add_argument("--require-frame-map", action="store_true",
                         help="In frame-map mode, fail image extraction when a frame/cam pair is missing from the mapping.")
+    parser.add_argument("--allow-rejected-frame-map", action="store_true",
+                        help="Diagnostic only: allow rejected/unstable sync rows instead of failing fast.")
     args = parser.parse_args()
 
     if args.end is None:
@@ -313,12 +315,15 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     t0 = time.time()
-    frame_map = load_frame_map(args.frame_map_jsonl)
+    frame_map = load_frame_map(args.frame_map_jsonl, allow_rejected=args.allow_rejected_frame_map)
     print(f"output_dir={args.output_dir}")
     print(f"frames={len(ids)} range={args.start}..{args.end} stride={args.stride}")
     print(f"sync_mode={args.sync_mode} time_scale={args.time_scale} max_delta={args.max_delta}")
     if args.frame_map_jsonl:
-        print(f"frame_map={args.frame_map_jsonl} rows={len(frame_map)} require={args.require_frame_map}")
+        print(
+            f"frame_map={args.frame_map_jsonl} rows={len(frame_map)} "
+            f"require={args.require_frame_map} allow_rejected={args.allow_rejected_frame_map}"
+        )
     print(f"calib={config.CALIB_FILE}")
     print(f"video_dir={config.VIDEO_DIR}")
 
@@ -357,6 +362,7 @@ def main() -> None:
         "max_delta": args.max_delta,
         "frame_map_jsonl": str(args.frame_map_jsonl) if args.frame_map_jsonl else None,
         "require_frame_map": bool(args.require_frame_map),
+        "allow_rejected_frame_map": bool(args.allow_rejected_frame_map),
         "frame_map_rows": len(frame_map),
         "quality": args.quality,
         "calib_file": config.CALIB_FILE,
