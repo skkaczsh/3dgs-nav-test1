@@ -6,16 +6,18 @@ run SAM2.  It measures whether current fine masks look like thin, coherent
 objects in the undistorted image or like broad mixed regions that probably
 swallow adjacent wall/floor/stair surfaces.
 
-Depth support can be added later by extending the per-sample metrics with a
-projected sparse depth map.  The JSON schema deliberately keeps sample ids,
-object ids, and target ids from the fine-mask manifest so the report can be
-joined with frame-local target QA.
+When an .lx file and image calibration are provided, this also projects the
+same-frame point cloud back into the undistorted image and measures sparse
+depth support.  This catches broad masks that swallow multiple depth layers
+such as a foreground railing plus a background wall or ground surface.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
+import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -120,6 +122,142 @@ def lab_stats(image_bgr: np.ndarray, mask: np.ndarray) -> dict[str, float]:
     }
 
 
+def depth_layer_stats(depths: np.ndarray, gap_threshold: float, min_points: int) -> dict[str, Any]:
+    depths = np.asarray(depths, dtype=np.float32)
+    depths = depths[np.isfinite(depths)]
+    if len(depths) == 0:
+        return {
+            "depth_point_count": 0,
+            "depth_min": 0.0,
+            "depth_max": 0.0,
+            "depth_p10": 0.0,
+            "depth_p50": 0.0,
+            "depth_p90": 0.0,
+            "depth_span_p90_p10": 0.0,
+            "depth_max_gap": 0.0,
+            "depth_layer_count": 0,
+            "depth_layer_sizes": [],
+        }
+    sorted_depths = np.sort(depths)
+    gaps = np.diff(sorted_depths)
+    split_at = np.where(gaps > gap_threshold)[0] + 1
+    chunks = np.split(sorted_depths, split_at)
+    layer_sizes = [int(len(chunk)) for chunk in chunks if len(chunk) >= min_points]
+    p10, p50, p90 = np.percentile(sorted_depths, [10, 50, 90])
+    return {
+        "depth_point_count": int(len(sorted_depths)),
+        "depth_min": float(sorted_depths[0]),
+        "depth_max": float(sorted_depths[-1]),
+        "depth_p10": float(p10),
+        "depth_p50": float(p50),
+        "depth_p90": float(p90),
+        "depth_span_p90_p10": float(p90 - p10),
+        "depth_max_gap": float(gaps.max()) if len(gaps) else 0.0,
+        "depth_layer_count": int(len(layer_sizes)),
+        "depth_layer_sizes": layer_sizes,
+    }
+
+
+def sparse_depth_mask_metrics(
+    uu: np.ndarray,
+    vv: np.ndarray,
+    depths: np.ndarray,
+    mask: np.ndarray,
+    bbox: tuple[int, int, int, int],
+    args: argparse.Namespace,
+) -> dict[str, Any]:
+    x0, y0, x1, y1 = bbox
+    in_bbox = (uu >= x0) & (uu <= x1) & (vv >= y0) & (vv <= y1)
+    bbox_count = int(in_bbox.sum())
+    if bbox_count == 0:
+        metrics = depth_layer_stats(np.array([], dtype=np.float32), args.depth_gap_threshold, args.depth_layer_min_points)
+        metrics.update({
+            "depth_projected_points_bbox": 0,
+            "depth_projected_points_mask": 0,
+            "depth_mask_point_ratio": 0.0,
+        })
+        return metrics
+    inside_mask = in_bbox & mask[vv, uu]
+    mask_depths = depths[inside_mask]
+    metrics = depth_layer_stats(mask_depths, args.depth_gap_threshold, args.depth_layer_min_points)
+    metrics.update({
+        "depth_projected_points_bbox": bbox_count,
+        "depth_projected_points_mask": int(inside_mask.sum()),
+        "depth_mask_point_ratio": float(inside_mask.sum() / max(bbox_count, 1)),
+    })
+    return metrics
+
+
+class SameFrameDepthProjector:
+    def __init__(self, lx_path: Path, scan_image_dir: Path, frame_start: int, frame_end: int, min_depth: float):
+        os.environ["SCAN_IMAGE_DIR"] = str(scan_image_dir)
+        scripts_dir = Path(__file__).resolve().parent
+        if str(scripts_dir) not in sys.path:
+            sys.path.insert(0, str(scripts_dir))
+        import config  # type: ignore
+        import project_priority_masks_to_lx as lxroute  # type: ignore
+
+        self.config = config
+        self.lxroute = lxroute
+        self.min_depth = float(min_depth)
+        self.sections = lxroute.read_lx_sections(lx_path)
+        self.poses = {row["frame_id"]: row for row in config.load_img_pos(frame_start, frame_end)}
+        self.handle = lx_path.open("rb")
+        self.cache: dict[int, np.ndarray] = {}
+
+    def frame_points(self, frame_id: int) -> np.ndarray | None:
+        if frame_id in self.cache:
+            return self.cache[frame_id]
+        if frame_id < 0 or frame_id >= len(self.sections):
+            return None
+        points = self.lxroute.read_lx_points(self.handle, self.sections[frame_id])
+        if len(self.cache) > 8:
+            self.cache.clear()
+        self.cache[frame_id] = points
+        return points
+
+    def project(self, frame_id: int, cam_id: int, width: int, height: int) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+        pose = self.poses.get(int(frame_id))
+        points = self.frame_points(int(frame_id))
+        if pose is None or points is None or len(points) == 0:
+            return None
+        p_lidar = self.lxroute.transform_world_to_lidar(points, pose)
+        t_cl = self.config.Tcl[int(cam_id)]
+        p_cam = (t_cl[:3, :3] @ p_lidar.T + t_cl[:3, 3:]).T
+        z = p_cam[:, 2]
+        valid = z > self.min_depth
+        if not np.any(valid):
+            return None
+        valid_idx = np.where(valid)[0]
+        uv_h = (self.config.CAMERA_PARAMS[int(cam_id)]["K"] @ p_cam[valid].T).T
+        u = uv_h[:, 0] / uv_h[:, 2]
+        v = uv_h[:, 1] / uv_h[:, 2]
+        in_img = (u >= 0) & (u < width) & (v >= 0) & (v < height)
+        if not np.any(in_img):
+            return None
+        idx = valid_idx[in_img]
+        uu = np.clip(np.rint(u[in_img]).astype(np.int32), 0, width - 1)
+        vv = np.clip(np.rint(v[in_img]).astype(np.int32), 0, height - 1)
+        depths = z[valid][in_img].astype(np.float32)
+        keep = self.lxroute.zbuffer_visible(idx, uu, vv, depths, width)
+        return uu[keep], vv[keep], depths[keep]
+
+
+def make_depth_projector(items: list[dict[str, Any]], args: argparse.Namespace) -> SameFrameDepthProjector | None:
+    if not args.lx_path or not args.scan_image_dir:
+        return None
+    frames = [int(item["frame_id"]) for item in items if item.get("frame_id") is not None]
+    if not frames:
+        return None
+    return SameFrameDepthProjector(
+        lx_path=args.lx_path,
+        scan_image_dir=args.scan_image_dir,
+        frame_start=min(frames),
+        frame_end=max(frames),
+        min_depth=args.min_depth,
+    )
+
+
 def risk_flags(metrics: dict[str, Any], args: argparse.Namespace) -> list[str]:
     flags = []
     if metrics["bbox_area_ratio"] >= args.large_bbox_ratio:
@@ -134,6 +272,15 @@ def risk_flags(metrics: dict[str, Any], args: argparse.Namespace) -> list[str]:
         flags.append("weak_color_boundary")
     if metrics["lab_std_mean"] > args.max_lab_std_mean:
         flags.append("high_internal_color_variance")
+    if "depth_projected_points_mask" in metrics:
+        if metrics["depth_projected_points_mask"] < args.min_depth_mask_points:
+            flags.append("low_depth_support")
+        if metrics["depth_mask_point_ratio"] < args.min_depth_mask_support_ratio:
+            flags.append("weak_depth_mask_support")
+        if metrics["depth_layer_count"] > 1:
+            flags.append("multi_depth_layers")
+        if metrics["depth_span_p90_p10"] > args.max_depth_span_p90_p10:
+            flags.append("large_depth_span")
     return flags
 
 
@@ -171,7 +318,7 @@ def make_preview(image_bgr: np.ndarray, mask: np.ndarray, bbox: tuple[int, int, 
     cv2.imwrite(str(output), preview)
 
 
-def process_item(item: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
+def process_item(item: dict[str, Any], args: argparse.Namespace, depth_projector: SameFrameDepthProjector | None = None) -> dict[str, Any]:
     image_path = Path(item["prepared_image"])
     mask_path = Path(item["prepared_current_mask"])
     image = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
@@ -193,6 +340,19 @@ def process_item(item: dict[str, Any], args: argparse.Namespace) -> dict[str, An
     mask_area = int(local_mask.sum())
     component = largest_component_stats(local_mask)
     color_metrics = lab_stats(image, local_mask)
+    depth_metrics: dict[str, Any] = {}
+    if depth_projector is not None and item.get("frame_id") is not None and item.get("cam_id") is not None:
+        projected = depth_projector.project(int(item["frame_id"]), int(item["cam_id"]), image.shape[1], image.shape[0])
+        if projected is not None:
+            uu, vv, depths = projected
+            depth_metrics = sparse_depth_mask_metrics(uu, vv, depths, local_mask, bbox, args)
+        else:
+            depth_metrics = {
+                **depth_layer_stats(np.array([], dtype=np.float32), args.depth_gap_threshold, args.depth_layer_min_points),
+                "depth_projected_points_bbox": 0,
+                "depth_projected_points_mask": 0,
+                "depth_mask_point_ratio": 0.0,
+            }
     metrics = {
         "sample_id": item["sample_id"],
         "object_id": item.get("object_id"),
@@ -210,6 +370,7 @@ def process_item(item: dict[str, Any], args: argparse.Namespace) -> dict[str, An
         "largest_component_ratio": float(component["largest_ratio"]),
         "min_rect_aspect": float(component["min_rect_aspect"]),
         **color_metrics,
+        **depth_metrics,
     }
     flags = risk_flags(metrics, args)
     metrics["risk_flags"] = flags
@@ -258,11 +419,21 @@ def main() -> None:
     parser.add_argument("--min-thin-aspect", type=float, default=3.0)
     parser.add_argument("--min-boundary-lab-contrast", type=float, default=8.0)
     parser.add_argument("--max-lab-std-mean", type=float, default=38.0)
+    parser.add_argument("--lx-path", type=Path, help="MANIFOLD .lx file for same-frame sparse depth support")
+    parser.add_argument("--scan-image-dir", type=Path, help="Dataset image directory containing img_pos.txt and cam_in_ex.txt")
+    parser.add_argument("--min-depth", type=float, default=0.1)
+    parser.add_argument("--depth-gap-threshold", type=float, default=0.60)
+    parser.add_argument("--depth-layer-min-points", type=int, default=3)
+    parser.add_argument("--min-depth-mask-points", type=int, default=8)
+    parser.add_argument("--min-depth-mask-support-ratio", type=float, default=0.05)
+    parser.add_argument("--max-depth-span-p90-p10", type=float, default=1.20)
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     prepared = read_json(args.prepared_report)
-    rows = [process_item(item, args) for item in prepared.get("items", [])]
+    items = prepared.get("items", [])
+    depth_projector = make_depth_projector(items, args)
+    rows = [process_item(item, args, depth_projector) for item in items]
     rows.sort(key=lambda row: (-int(row.get("risk_score", 0)), -float(row.get("mask_fill_ratio", 0.0)), str(row.get("sample_id", ""))))
     flags = Counter(flag for row in rows for flag in row.get("risk_flags", []))
     preview_paths = [Path(row["preview_path"]) for row in rows if row.get("preview_path")]

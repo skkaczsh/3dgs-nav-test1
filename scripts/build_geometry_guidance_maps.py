@@ -2,12 +2,15 @@
 """Build depth / edge / semantic-prior guidance maps for camera frames.
 
 This is the image-side counterpart of the surface-first 3D route.  It projects
-the per-frame `.lx` section into each undistorted camera image using the
-validated MANIFOLD calibration chain, then writes compact guidance artifacts:
+either the per-frame `.lx` section or a fused global colored PLY into each
+undistorted camera image using the validated MANIFOLD calibration chain, then
+writes compact guidance artifacts:
 
 - depth map with z-buffer nearest point
+- rendered global point-cloud RGB map when a colored PLY is provided
 - local point-index map
 - depth-edge map
+- color-edge map when a rendered RGB map is available
 - semantic-prior map, queried from a trusted semantic PLY such as v19
 
 The generated maps are intended to constrain SAM/DINO masks: model masks may
@@ -51,29 +54,156 @@ LABEL_COLORS = {
 }
 
 
+PLY_DTYPE = {
+    "char": "i1",
+    "int8": "i1",
+    "uchar": "u1",
+    "uint8": "u1",
+    "short": "<i2",
+    "int16": "<i2",
+    "ushort": "<u2",
+    "uint16": "<u2",
+    "int": "<i4",
+    "int32": "<i4",
+    "uint": "<u4",
+    "uint32": "<u4",
+    "float": "<f4",
+    "float32": "<f4",
+    "double": "<f8",
+    "float64": "<f8",
+}
+
+
 def frame_path(base: Path, cam_id: int, frame_id: int) -> Path:
     return base / f"cam{cam_id}" / f"frame_{frame_id:06d}.jpg"
 
 
-def parse_ascii_ply_header(path: Path) -> tuple[list[str], int]:
-    props: list[str] = []
+def parse_ply_header(path: Path) -> tuple[str, list[tuple[str, str]], int, int]:
+    fmt = "ascii"
+    props: list[tuple[str, str]] = []
     vertex_count = 0
+    header_bytes = 0
     in_vertex = False
-    with path.open("r", encoding="utf-8", errors="replace") as f:
-        for line in f:
+    with path.open("rb") as f:
+        while True:
+            raw = f.readline()
+            if not raw:
+                break
+            header_bytes += len(raw)
+            line = raw.decode("utf-8", errors="replace").strip()
             parts = line.strip().split()
-            if len(parts) >= 2 and parts[0] == "format" and parts[1] != "ascii":
-                raise ValueError(f"Only ascii PLY is supported: {path}")
+            if len(parts) >= 2 and parts[0] == "format":
+                fmt = parts[1]
             if len(parts) >= 3 and parts[0] == "element" and parts[1] == "vertex":
                 vertex_count = int(parts[2])
                 in_vertex = True
             elif len(parts) >= 2 and parts[0] == "element":
                 in_vertex = False
             elif in_vertex and len(parts) >= 3 and parts[0] == "property":
-                props.append(parts[-1])
+                props.append((parts[-2], parts[-1]))
             elif line.strip() == "end_header":
                 break
+    return fmt, props, vertex_count, header_bytes
+
+
+def parse_ascii_ply_header(path: Path) -> tuple[list[str], int]:
+    fmt, typed_props, vertex_count, _header_bytes = parse_ply_header(path)
+    if fmt != "ascii":
+        raise ValueError(f"Only ascii PLY is supported: {path}")
+    props = [name for _ptype, name in typed_props]
     return props, vertex_count
+
+
+def read_xyzrgb_ply_with_metadata(
+    path: Path,
+    max_points: int = 0,
+    point_stride: int = 1,
+) -> tuple[np.ndarray, np.ndarray, dict[str, np.ndarray]]:
+    fmt, typed_props, vertex_count, header_bytes = parse_ply_header(path)
+    names = [name for _ptype, name in typed_props]
+    for name in ("x", "y", "z"):
+        if name not in names:
+            raise ValueError(f"PLY missing {name}: {path}")
+    rgb_names = ("red", "green", "blue")
+    has_rgb = all(name in names for name in rgb_names)
+    metadata_names = ("frame_min", "frame_max", "frame_mean", "frame_count")
+    has_frame_metadata = all(name in names for name in metadata_names)
+    stride = max(int(point_stride), 1)
+    if fmt == "ascii":
+        rows = []
+        with path.open("r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if line.strip() == "end_header":
+                    break
+            for i, line in enumerate(f):
+                if i % stride:
+                    continue
+                parts = line.strip().split()
+                if len(parts) >= len(names):
+                    rows.append(parts)
+                    if max_points and len(rows) >= max_points:
+                        break
+        if not rows:
+            return np.empty((0, 3), dtype=np.float32), np.empty((0, 3), dtype=np.uint8)
+        data = np.asarray(rows, dtype=np.float64)
+        points = data[:, [names.index("x"), names.index("y"), names.index("z")]].astype(np.float32)
+        if has_rgb:
+            colors = np.clip(data[:, [names.index("red"), names.index("green"), names.index("blue")]], 0, 255).astype(np.uint8)
+        else:
+            colors = np.zeros((len(points), 3), dtype=np.uint8)
+        metadata: dict[str, np.ndarray] = {}
+        if has_frame_metadata:
+            metadata = {
+                "frame_min": data[:, names.index("frame_min")].astype(np.int32),
+                "frame_max": data[:, names.index("frame_max")].astype(np.int32),
+                "frame_mean": data[:, names.index("frame_mean")].astype(np.float32),
+                "frame_count": data[:, names.index("frame_count")].astype(np.uint32),
+            }
+        return points, colors, metadata
+    if fmt == "binary_little_endian":
+        dtype = np.dtype([(name, PLY_DTYPE.get(ptype, "<f4")) for ptype, name in typed_props])
+        with path.open("rb") as f:
+            f.seek(header_bytes)
+            data = np.fromfile(f, dtype=dtype, count=vertex_count)
+        if stride > 1:
+            data = data[::stride]
+        if max_points:
+            data = data[:max_points]
+        points = np.column_stack([data["x"], data["y"], data["z"]]).astype(np.float32)
+        if has_rgb:
+            colors = np.column_stack([data["red"], data["green"], data["blue"]]).astype(np.uint8)
+        else:
+            colors = np.zeros((len(points), 3), dtype=np.uint8)
+        metadata = {}
+        if has_frame_metadata:
+            metadata = {
+                "frame_min": data["frame_min"].astype(np.int32),
+                "frame_max": data["frame_max"].astype(np.int32),
+                "frame_mean": data["frame_mean"].astype(np.float32),
+                "frame_count": data["frame_count"].astype(np.uint32),
+            }
+        return points, colors, metadata
+    raise ValueError(f"Unsupported PLY format {fmt}: {path}")
+
+
+def read_xyzrgb_ply(path: Path, max_points: int = 0, point_stride: int = 1) -> tuple[np.ndarray, np.ndarray]:
+    points, colors, _metadata = read_xyzrgb_ply_with_metadata(path, max_points, point_stride)
+    return points, colors
+
+
+def source_frame_mask(metadata: dict[str, np.ndarray], frame_id: int, window: int, mode: str) -> np.ndarray | None:
+    if window < 0 or mode == "none":
+        return None
+    if mode == "mean":
+        frame_mean = metadata.get("frame_mean")
+        if frame_mean is None:
+            return None
+        return np.abs(frame_mean.astype(np.float32) - float(frame_id)) <= float(window)
+    frame_min = metadata.get("frame_min")
+    frame_max = metadata.get("frame_max")
+    if frame_min is None or frame_max is None:
+        return None
+    return (frame_min.astype(np.int32) <= frame_id + window) & (frame_max.astype(np.int32) >= frame_id - window)
 
 
 def voxel_key(point: np.ndarray, voxel_size: float) -> tuple[int, int, int]:
@@ -156,6 +286,27 @@ def compute_depth_edges(depth: np.ndarray, valid: np.ndarray, threshold: float, 
     return edge
 
 
+def compute_color_edges(color_rgb: np.ndarray, valid: np.ndarray, threshold: float) -> np.ndarray:
+    edge = np.zeros(valid.shape, dtype=np.uint8)
+    if color_rgb.size == 0 or not np.any(valid):
+        return edge
+    lab = cv2.cvtColor(color_rgb[:, :, ::-1], cv2.COLOR_BGR2LAB).astype(np.float32)
+    for axis in (0, 1):
+        a = [slice(None), slice(None)]
+        b = [slice(None), slice(None)]
+        a[axis] = slice(1, None)
+        b[axis] = slice(None, -1)
+        a_t = tuple(a)
+        b_t = tuple(b)
+        both = valid[a_t] & valid[b_t]
+        if not np.any(both):
+            continue
+        diff = np.linalg.norm(lab[a_t] - lab[b_t], axis=2) > threshold
+        edge[a_t][both & diff] = 255
+        edge[b_t][both & diff] = 255
+    return edge
+
+
 def depth_to_viz(depth: np.ndarray, valid: np.ndarray) -> np.ndarray:
     if not np.any(valid):
         return np.zeros((*depth.shape, 3), dtype=np.uint8)
@@ -181,6 +332,7 @@ def project_one_camera(
     points_world: np.ndarray,
     p_lidar: np.ndarray,
     semantic_for_point: np.ndarray,
+    colors_for_point: np.ndarray | None,
     cam_id: int,
     frame_id: int,
     image: np.ndarray,
@@ -190,6 +342,7 @@ def project_one_camera(
     depth = np.zeros((h, w), dtype=np.float32)
     local_point_index = np.full((h, w), -1, dtype=np.int32)
     semantic = np.zeros((h, w), dtype=np.uint8)
+    rendered_rgb = np.zeros((h, w, 3), dtype=np.uint8)
     valid_map = np.zeros((h, w), dtype=np.uint8)
 
     t_cl = config.Tcl[cam_id]
@@ -198,7 +351,8 @@ def project_one_camera(
     valid = z > args.min_depth
     if not np.any(valid):
         edge = np.zeros((h, w), dtype=np.uint8)
-        return {"depth": depth, "point_index": local_point_index, "semantic": semantic, "edge": edge, "valid": valid_map, "visible": 0}
+        color_edge = np.zeros((h, w), dtype=np.uint8)
+        return {"depth": depth, "point_index": local_point_index, "semantic": semantic, "rendered_rgb": rendered_rgb, "edge": edge, "color_edge": color_edge, "valid": valid_map, "visible": 0}
 
     valid_idx = np.where(valid)[0]
     uv_h = (config.CAMERA_PARAMS[cam_id]["K"] @ p_cam[valid].T).T
@@ -207,7 +361,8 @@ def project_one_camera(
     in_img = (u >= 0) & (u < w) & (v >= 0) & (v < h)
     if not np.any(in_img):
         edge = np.zeros((h, w), dtype=np.uint8)
-        return {"depth": depth, "point_index": local_point_index, "semantic": semantic, "edge": edge, "valid": valid_map, "visible": 0}
+        color_edge = np.zeros((h, w), dtype=np.uint8)
+        return {"depth": depth, "point_index": local_point_index, "semantic": semantic, "rendered_rgb": rendered_rgb, "edge": edge, "color_edge": color_edge, "valid": valid_map, "visible": 0}
 
     idx = valid_idx[in_img]
     uu = np.clip(np.rint(u[in_img]).astype(np.int32), 0, w - 1)
@@ -218,13 +373,18 @@ def project_one_camera(
     depth[vv, uu] = depths
     local_point_index[vv, uu] = idx.astype(np.int32)
     semantic[vv, uu] = semantic_for_point[idx]
+    if colors_for_point is not None and len(colors_for_point) == len(points_world):
+        rendered_rgb[vv, uu] = colors_for_point[idx]
     valid_map[vv, uu] = 255
     edge = compute_depth_edges(depth, valid_map > 0, args.edge_depth_threshold, args.mark_invalid_boundary)
+    color_edge = compute_color_edges(rendered_rgb, valid_map > 0, args.color_edge_lab_threshold)
     return {
         "depth": depth,
         "point_index": local_point_index,
         "semantic": semantic,
+        "rendered_rgb": rendered_rgb,
         "edge": edge,
+        "color_edge": color_edge,
         "valid": valid_map,
         "visible": int(len(idx)),
     }
@@ -259,7 +419,22 @@ def write_contact_sheet(paths: list[Path], output: Path, cols: int = 4) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--lx", type=Path, required=True)
+    parser.add_argument("--lx", type=Path)
+    parser.add_argument("--global-colored-ply", type=Path, help="Fused or raw XYZ/RGB PLY to reverse-render dense depth/color guidance")
+    parser.add_argument("--global-point-stride", type=int, default=1)
+    parser.add_argument("--max-global-points", type=int, default=0)
+    parser.add_argument(
+        "--global-source-frame-window",
+        type=int,
+        default=-1,
+        help="When global PLY has frame metadata, keep only points observed within +/- this many frames of the image frame.",
+    )
+    parser.add_argument(
+        "--global-source-filter-mode",
+        choices=["none", "mean", "span"],
+        default="none",
+        help="Source-frame filter for global PLY metadata. mean uses frame_mean; span uses frame_min/frame_max overlap.",
+    )
     parser.add_argument("--frame-root", type=Path, required=True)
     parser.add_argument("--semantic-prior-ply", type=Path, default=None)
     parser.add_argument("--output-dir", type=Path, required=True)
@@ -269,6 +444,7 @@ def main() -> None:
     parser.add_argument("--cams", type=int, nargs="+", default=[0, 1, 2])
     parser.add_argument("--min-depth", type=float, default=0.1)
     parser.add_argument("--edge-depth-threshold", type=float, default=0.35)
+    parser.add_argument("--color-edge-lab-threshold", type=float, default=16.0)
     parser.add_argument("--mark-invalid-boundary", action="store_true")
     parser.add_argument("--prior-voxel-size", type=float, default=0.20)
     parser.add_argument("--prior-neighbor-radius", type=int, default=1)
@@ -277,14 +453,37 @@ def main() -> None:
     args = parser.parse_args()
 
     t0 = time.time()
+    if not args.lx and not args.global_colored_ply:
+        raise SystemExit("Provide either --lx for per-frame guidance or --global-colored-ply for dense reverse-render guidance.")
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    for name in ("maps", "depth_viz", "depth_edge", "semantic_prior"):
+    for name in ("maps", "depth_viz", "depth_edge", "rendered_rgb", "color_edge", "semantic_prior"):
         (args.output_dir / name).mkdir(exist_ok=True)
 
     prior = build_semantic_prior(args.semantic_prior_ply, args.prior_voxel_size)
-    sections = read_lx_sections(args.lx)
     poses = {row["frame_id"]: row for row in config.load_img_pos(args.start, args.end)}
-    frame_ids = [i for i in range(args.start, args.end + 1, max(args.stride, 1)) if i < len(sections) and i in poses]
+    if args.global_colored_ply:
+        global_points, global_colors, global_metadata = read_xyzrgb_ply_with_metadata(
+            args.global_colored_ply,
+            args.max_global_points,
+            args.global_point_stride,
+        )
+        if len(global_points) == 0:
+            raise SystemExit(f"No points loaded from {args.global_colored_ply}")
+        if args.global_source_filter_mode != "none" and not global_metadata:
+            print(
+                "warning: --global-source-filter-mode requested but global PLY has no frame metadata; "
+                "source filtering disabled",
+                file=sys.stderr,
+                flush=True,
+            )
+        sections = []
+        frame_ids = [i for i in range(args.start, args.end + 1, max(args.stride, 1)) if i in poses]
+    else:
+        global_points = np.empty((0, 3), dtype=np.float32)
+        global_colors = np.empty((0, 3), dtype=np.uint8)
+        global_metadata: dict[str, np.ndarray] = {}
+        sections = read_lx_sections(args.lx)
+        frame_ids = [i for i in range(args.start, args.end + 1, max(args.stride, 1)) if i < len(sections) and i in poses]
     if args.max_frames:
         frame_ids = frame_ids[: args.max_frames]
     if not frame_ids:
@@ -292,9 +491,27 @@ def main() -> None:
 
     rows: list[dict[str, Any]] = []
     contact_paths: list[Path] = []
-    with args.lx.open("rb") as lx_f:
+    with (args.lx.open("rb") if args.lx and not args.global_colored_ply else open(os.devnull, "rb")) as lx_f:
         for frame_id in frame_ids:
-            points = read_lx_points(lx_f, sections[frame_id])
+            if args.global_colored_ply:
+                mask = source_frame_mask(
+                    global_metadata,
+                    frame_id,
+                    args.global_source_frame_window,
+                    args.global_source_filter_mode,
+                )
+                if mask is not None:
+                    points = global_points[mask]
+                    colors_for_point: np.ndarray | None = global_colors[mask]
+                    source_kept = int(np.count_nonzero(mask))
+                else:
+                    points = global_points
+                    colors_for_point = global_colors
+                    source_kept = int(len(points))
+            else:
+                points = read_lx_points(lx_f, sections[frame_id])
+                colors_for_point = None
+                source_kept = int(len(points))
             semantic_for_point = query_semantic_prior(points, prior, args.prior_voxel_size, args.prior_neighbor_radius)
             pose = poses[frame_id]
             p_lidar = transform_world_to_lidar(points, pose)
@@ -304,11 +521,13 @@ def main() -> None:
                 if image is None:
                     rows.append({"frame_id": frame_id, "cam_id": cam_id, "status": "missing_image", "image_path": str(img_path)})
                     continue
-                out = project_one_camera(points, p_lidar, semantic_for_point, cam_id, frame_id, image, args)
+                out = project_one_camera(points, p_lidar, semantic_for_point, colors_for_point, cam_id, frame_id, image, args)
                 image_id = f"cam{cam_id}_{frame_id:06d}"
                 npz_path = args.output_dir / "maps" / f"{image_id}_geometry.npz"
                 depth_viz_path = args.output_dir / "depth_viz" / f"{image_id}_depth.jpg"
                 edge_path = args.output_dir / "depth_edge" / f"{image_id}_edge.png"
+                rendered_rgb_path = args.output_dir / "rendered_rgb" / f"{image_id}_rendered_rgb.jpg"
+                color_edge_path = args.output_dir / "color_edge" / f"{image_id}_color_edge.png"
                 semantic_path = args.output_dir / "semantic_prior" / f"{image_id}_semantic_prior.png"
                 if args.save_npz:
                     np.savez_compressed(
@@ -316,14 +535,18 @@ def main() -> None:
                         depth=out["depth"],
                         point_index=out["point_index"],
                         semantic=out["semantic"],
+                        rendered_rgb=out["rendered_rgb"],
                         edge=out["edge"],
+                        color_edge=out["color_edge"],
                         valid=out["valid"],
                     )
                 cv2.imwrite(str(depth_viz_path), depth_to_viz(out["depth"], out["valid"] > 0))
                 cv2.imwrite(str(edge_path), out["edge"])
+                cv2.imwrite(str(rendered_rgb_path), out["rendered_rgb"][:, :, ::-1])
+                cv2.imwrite(str(color_edge_path), out["color_edge"])
                 cv2.imwrite(str(semantic_path), semantic_to_rgb(out["semantic"])[:, :, ::-1])
                 if len(contact_paths) < 48:
-                    contact_paths.extend([depth_viz_path, edge_path, semantic_path])
+                    contact_paths.extend([depth_viz_path, edge_path, rendered_rgb_path, color_edge_path, semantic_path])
                 hist = Counter(int(x) for x in out["semantic"][out["valid"] > 0].tolist())
                 rows.append({
                     "frame_id": frame_id,
@@ -333,15 +556,24 @@ def main() -> None:
                     "npz_path": str(npz_path),
                     "depth_viz_path": str(depth_viz_path),
                     "edge_path": str(edge_path),
+                    "rendered_rgb_path": str(rendered_rgb_path),
+                    "color_edge_path": str(color_edge_path),
                     "semantic_prior_path": str(semantic_path),
                     "raw_points": int(len(points)),
+                    "source_points_kept": source_kept,
                     "visible_pixels": int(out["visible"]),
                     "semantic_prior_counts": {str(k): int(v) for k, v in sorted(hist.items())},
                 })
 
     status_counts = Counter(row["status"] for row in rows)
     report = {
-        "lx": str(args.lx),
+        "lx": str(args.lx) if args.lx else "",
+        "global_colored_ply": str(args.global_colored_ply) if args.global_colored_ply else "",
+        "global_point_stride": args.global_point_stride,
+        "max_global_points": args.max_global_points,
+        "global_source_frame_window": args.global_source_frame_window,
+        "global_source_filter_mode": args.global_source_filter_mode,
+        "global_has_frame_metadata": bool(global_metadata) if args.global_colored_ply else False,
         "frame_root": str(args.frame_root),
         "semantic_prior_ply": str(args.semantic_prior_ply) if args.semantic_prior_ply else "",
         "output_dir": str(args.output_dir),

@@ -85,3 +85,30 @@ def test_process_item_writes_preview_and_flags_broad_mask(tmp_path: Path):
     assert "high_fill_ratio" in row["risk_flags"]
     assert "not_thin" in row["risk_flags"]
     assert Path(row["preview_path"]).exists()
+
+
+def test_depth_layer_stats_detects_multiple_depth_layers():
+    depths = np.array([1.0, 1.1, 1.2, 3.0, 3.1, 3.2], dtype=np.float32)
+
+    stats = module.depth_layer_stats(depths, gap_threshold=0.5, min_points=2)
+
+    assert stats["depth_layer_count"] == 2
+    assert stats["depth_max_gap"] > 1.0
+    assert stats["depth_span_p90_p10"] > 1.0
+
+
+def test_sparse_depth_mask_metrics_counts_mask_support(tmp_path: Path):
+    mask = np.zeros((20, 20), dtype=bool)
+    mask[4:10, 4:10] = True
+    uu = np.array([5, 6, 12], dtype=np.int32)
+    vv = np.array([5, 6, 12], dtype=np.int32)
+    depths = np.array([1.0, 1.1, 2.0], dtype=np.float32)
+    ns = args(tmp_path)
+    ns.depth_gap_threshold = 0.5
+    ns.depth_layer_min_points = 1
+
+    metrics = module.sparse_depth_mask_metrics(uu, vv, depths, mask, (0, 0, 15, 15), ns)
+
+    assert metrics["depth_projected_points_bbox"] == 3
+    assert metrics["depth_projected_points_mask"] == 2
+    assert metrics["depth_mask_point_ratio"] == 2 / 3

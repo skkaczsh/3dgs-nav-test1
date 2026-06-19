@@ -2484,3 +2484,153 @@ Decision:
   `torch 2.11.0+cu130`, CUDA `13.0`, CUDA available
 - checkpoint download target:
   `/home/zsh/Work/SCAN/models/sam2/sam2.1_hiera_large.pt`
+
+## Dense Raw Point Cloud Reverse-Depth Check
+
+Date: 2026-06-19
+
+Problem found during the reverse-depth mask refinement probe:
+
+- Using only colorized point clouds is too sparse because uncolored LiDAR points
+  are dropped before depth reconstruction.
+- Using a short `3400..3500` window does not cover every camera view.
+- Blindly projecting the full raw scene into one camera frame is also invalid:
+  historical points can project through current-frame occluders, so the depth
+  map can look like a different pose even when the calibration chain is correct.
+
+Code changes:
+
+```text
+scripts/build_raw_lx_voxel_cloud.py
+scripts/build_geometry_guidance_maps.py
+```
+
+`build_raw_lx_voxel_cloud.py` now streams `.lx` sections into a binary
+little-endian 1cm voxel PLY without requiring image color.  It can write source
+frame metadata per voxel:
+
+```text
+frame_min
+frame_max
+frame_mean
+frame_count
+```
+
+`build_geometry_guidance_maps.py` can now read that metadata and filter global
+PLY points per image frame:
+
+```text
+--global-source-filter-mode mean --global-source-frame-window 20
+```
+
+Smoke artifacts:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/raw_lx_voxel_v001_meta_3400_3500/raw_points_voxel001_meta.ply
+/home/zsh/Work/SCAN/work_MT20260616-175807/raw_lx_voxel_v001_meta_guidance_3400_3500_s10_nofilter
+/home/zsh/Work/SCAN/work_MT20260616-175807/raw_lx_voxel_v001_meta_guidance_3400_3500_s10_source20
+server_parking_priority_s10/raw_depth_source_filter_check/
+```
+
+Smoke result:
+
+- `3400..3500` raw points: `2,513,722`
+- `0.01m` voxel points: `1,411,871`
+- no-filter guidance: `33/33` images OK
+- source-window guidance: `33/33` images OK
+- cam0/frame3400 candidate points:
+  - no filter: `1,411,871`, visible pixels `84,349`
+  - source20: `203,088`, visible pixels `61,855`
+
+Interpretation:
+
+- Source-frame filtering reduces obvious historical projection leakage.
+- It does not make unavailable same-view surfaces appear.  For example, the
+  large near wall in cam0/frame3400 still has little or no LiDAR support in the
+  current source window.
+- Therefore dense raw reverse-depth should be used as a confidence/edge guard
+  only where depth support exists.  No-depth pixels must stay low confidence;
+  they must not be filled by blind full-scene projection.
+
+Full reusable raw dataset build started on `scan-rtx5070`:
+
+```text
+tmux session: raw_voxel_meta_full
+output: /home/zsh/Work/SCAN/work_MT20260616-175807/raw_lx_voxel_full_v001_meta/raw_points_full_voxel001_meta.ply
+report: /home/zsh/Work/SCAN/work_MT20260616-175807/raw_lx_voxel_full_v001_meta/raw_voxel_report.json
+```
+
+Promotion rule:
+
+- Keep frame-local `.lx` visibility as the hard correctness reference.
+- Use full raw voxel depth only with source-frame metadata and visibility
+  confidence.
+- Do not use blind global reverse projection for mask labels or VLM evidence.
+
+## Parking Dataset Frame Sync Blocker
+
+Date: 2026-06-19
+
+User review caught that the `original` image and projected full raw point cloud
+looked like different poses.  Follow-up checks confirmed a real synchronization
+risk in the parking dataset cache.
+
+Current extraction/cache behavior:
+
+- `scripts/extract_undistorted_frames_jpeg.py` reads video frames by direct
+  frame index: `CAP_PROP_POS_FRAMES = frame_id`.
+- `scripts/colorize_lx_stream.py`, the current full-scene colorization runner,
+  uses the same direct `read_video_frame(cap, frame_id)` assumption.
+- Therefore the existing colored point cloud is not an independent proof of
+  image/LiDAR synchronization; it shares the same frame-index assumption.
+
+Reusable diagnostic added:
+
+```text
+scripts/probe_lx_video_alignment.py
+```
+
+5070Ti probe command:
+
+```bash
+python scripts/probe_lx_video_alignment.py \
+  --lx-file /home/zsh/Work/SCAN/datasets/MT20260616-175807/MANIFOLD_MT20260616-175807.lx \
+  --output-dir /home/zsh/Work/SCAN/work_MT20260616-175807/alignment_probe_multi_20260619 \
+  --frames 1000 2000 3400 5000 6000 \
+  --cams 0 1 2 \
+  --offsets -1200 -1000 -800 -600 -400 -200 0 200 400
+```
+
+Mirrored local QA:
+
+```text
+server_parking_priority_s10/alignment_probe_multi_20260619/alignment_probe_sheet.jpg
+server_parking_priority_s10/alignment_probe_multi_20260619/alignment_probe_report.json
+```
+
+Findings:
+
+- For `section=3400, cam0`, direct `video_idx=3400` scored poorly; a candidate
+  near `video_idx=2600` visually/edge-wise fit better.
+- Best offsets are not stable across sampled frames/cameras:
+  - frame `1000`: often `offset=-200`
+  - frame `2000`: often `offset=-1200`
+  - frame `3400`: varies by camera from `-1200` to `-400`
+  - frame `5000`: often `offset=+400`
+  - frame `6000`: varies from `-600` to `0`
+- `img_pos` fields `cam0_frame_info/cam1_frame_info/cam2_frame_info` are not
+  direct video frame numbers; they only take small values such as `0..10` and
+  are identical across cameras in this dataset.
+- `.lx` section headers include the same pose/timestamp values as
+  `img_pos.txt`; those timestamps do not map directly to MKV PTS.  The MKV is
+  `10fps` and about `618s`, while `img_pos` timestamps span about `835s`.
+
+Decision:
+
+- Treat the current parking image cache and all mask/target results derived
+  from it as useful experiments, but not final semantic evidence.
+- Do not run more production semantic fusion until image/LiDAR frame mapping is
+  calibrated.
+- Next required step is a dedicated synchronization calibration stage.  It
+  should produce an explicit `section_id -> cam_id -> video_frame_idx` mapping
+  or reject this dataset for image-based semantic projection.
