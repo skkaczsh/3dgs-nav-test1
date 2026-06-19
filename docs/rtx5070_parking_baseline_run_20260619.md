@@ -1681,3 +1681,65 @@ Current read:
 - Remaining work is still the 29 ambiguous wall/ground/ceiling objects; evidence
   shows they are mostly multi-plane boundary/height-layer targets, not global
   calibration failures.
+
+## Surface-Ambiguous Split Pass
+
+Date: 2026-06-19
+
+The remaining `29` ambiguous objects in the car-height-guard candidate were all
+surface-only conflicts (`ground`/`wall`/`ceiling`). They were not useful as a
+single semantic object in the viewer, but the source target labels were still
+traceable. A narrow post-viewer pass was added:
+
+```text
+scripts/split_ambiguous_surface_viewer_objects.py
+```
+
+Scope:
+
+- only touches objects with `semantic_label=ambiguous` or
+  `status=ambiguous_object`
+- only splits when all source target labels are surface labels:
+  `ground`, `floor`, `wall`, `ceiling`
+- preserves non-surface ambiguity for manual review
+- rewrites both viewer JSONL and ASCII PLY `object`/`semantic` fields together
+- records `parent_object_id`, split source labels, target ids, and a report
+
+Run on `scan-rtx5070`:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_ambsplit_rtx5070_carz25_20260619_125444
+```
+
+Result:
+
+- input objects: `3,214`
+- output objects: `3,253`
+- split objects: `29`
+- split children: `68`
+- kept ambiguous objects: `0`
+- changed PLY vertices: `40,222`
+- changed label point counts:
+  - `wall`: `21,069`
+  - `ground`: `11,782`
+  - `ceiling`: `7,371`
+- QA status: `ok`
+- PLY vertices: `903,115`
+- semantic mismatch: `0`
+- warnings: only the large stair/handrail `railing` object remains for visual
+  inspection
+
+Viewer URL:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_ambsplit_rtx5070_carz25_20260619_125444/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_ambsplit_rtx5070_carz25_20260619_125444/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5
+```
+
+Current read:
+
+- This is now the best viewer candidate for parking stride10.
+- The split pass fixes a concrete post-fusion representation problem; it does
+  not claim that the underlying mask/target labels are perfect.
+- Remaining quality work should focus on source target quality and fine-object
+  masks, not on global point reprojection or VLM relabel from already-corrupted
+  evidence.

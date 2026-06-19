@@ -23,6 +23,8 @@ VIEWER_DIR="${VIEWER_DIR:-${WORK_DIR}/frame_object_viewer_best_surface_repair_p0
 CONSOLIDATED_OBJECT_DIR="${CONSOLIDATED_OBJECT_DIR:-${WORK_DIR}/frame_objects_best_p008_split_lowplanar_surface_consolidated_${OUT_SUFFIX}}"
 CONSOLIDATED_VIEWER_DIR="${CONSOLIDATED_VIEWER_DIR:-${WORK_DIR}/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_${OUT_SUFFIX}}"
 FINAL_VIEWER_DIR="${FINAL_VIEWER_DIR:-${WORK_DIR}/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_ambresolved_${OUT_SUFFIX}}"
+AMBSPLIT_VIEWER_DIR="${AMBSPLIT_VIEWER_DIR:-${WORK_DIR}/frame_object_viewer_best_p008_split_lowplanar_surface_consolidated_ambsplit_${OUT_SUFFIX}}"
+SPLIT_AMBIGUOUS_SURFACES="${SPLIT_AMBIGUOUS_SURFACES:-1}"
 
 STRIDE="${STRIDE:-10}"
 
@@ -79,6 +81,9 @@ main() {
   prepare_output_dir "${CONSOLIDATED_OBJECT_DIR}"
   prepare_output_dir "${CONSOLIDATED_VIEWER_DIR}"
   prepare_output_dir "${FINAL_VIEWER_DIR}"
+  if [[ "${SPLIT_AMBIGUOUS_SURFACES}" == "1" ]]; then
+    prepare_output_dir "${AMBSPLIT_VIEWER_DIR}"
+  fi
 
   run_cmd "${PYTHON}" scripts/absorb_fine_fragments_into_surfaces.py \
     --targets-jsonl "${BASE_TARGETS}" \
@@ -160,15 +165,34 @@ main() {
   run_cmd cp "${CONSOLIDATED_VIEWER_DIR}/prepare_viewer_objects_report.json" "${FINAL_VIEWER_DIR}/prepare_viewer_objects_report.json"
   run_cmd cp "${CONSOLIDATED_VIEWER_DIR}/frame_object_points_stride10.ply.mapping.json" "${FINAL_VIEWER_DIR}/frame_object_points_stride10.ply.mapping.json"
 
-  run_cmd "${PYTHON}" scripts/qa_viewer_candidate.py \
-    --ply "${FINAL_VIEWER_DIR}/frame_object_points_stride10.ply" \
-    --objects-jsonl "${FINAL_VIEWER_DIR}/frame_objects_viewer.jsonl" \
-    --ambiguous-report "${FINAL_VIEWER_DIR}/ambiguous_surface_resolve_report.json" \
-    --consolidation-report "${FINAL_VIEWER_DIR}/consolidation_report.json" \
-    --output-json "${FINAL_VIEWER_DIR}/viewer_candidate_qa.json" \
-    --output-md "${FINAL_VIEWER_DIR}/viewer_candidate_qa.md"
-
-  echo "final_viewer_dir=${FINAL_VIEWER_DIR}"
+  if [[ "${SPLIT_AMBIGUOUS_SURFACES}" == "1" ]]; then
+    run_cmd "${PYTHON}" scripts/split_ambiguous_surface_viewer_objects.py \
+      --objects-jsonl "${FINAL_VIEWER_DIR}/frame_objects_viewer.jsonl" \
+      --targets-jsonl "${SPLIT_DIR}/frame_targets_refined.jsonl" \
+      --input-ply "${FINAL_VIEWER_DIR}/frame_object_points_stride10.ply" \
+      --output-jsonl "${AMBSPLIT_VIEWER_DIR}/frame_objects_viewer.jsonl" \
+      --output-ply "${AMBSPLIT_VIEWER_DIR}/frame_object_points_stride10.ply" \
+      --report "${AMBSPLIT_VIEWER_DIR}/surface_ambiguous_split_report.json"
+    run_cmd cp "${FINAL_VIEWER_DIR}/consolidation_report.json" "${AMBSPLIT_VIEWER_DIR}/consolidation_report.json"
+    run_cmd cp "${FINAL_VIEWER_DIR}/ambiguous_surface_resolve_report.json" "${AMBSPLIT_VIEWER_DIR}/ambiguous_surface_resolve_report.json"
+    run_cmd "${PYTHON}" scripts/qa_viewer_candidate.py \
+      --ply "${AMBSPLIT_VIEWER_DIR}/frame_object_points_stride10.ply" \
+      --objects-jsonl "${AMBSPLIT_VIEWER_DIR}/frame_objects_viewer.jsonl" \
+      --ambiguous-report "${AMBSPLIT_VIEWER_DIR}/surface_ambiguous_split_report.json" \
+      --consolidation-report "${AMBSPLIT_VIEWER_DIR}/consolidation_report.json" \
+      --output-json "${AMBSPLIT_VIEWER_DIR}/viewer_candidate_qa.json" \
+      --output-md "${AMBSPLIT_VIEWER_DIR}/viewer_candidate_qa.md"
+    echo "final_viewer_dir=${AMBSPLIT_VIEWER_DIR}"
+  else
+    run_cmd "${PYTHON}" scripts/qa_viewer_candidate.py \
+      --ply "${FINAL_VIEWER_DIR}/frame_object_points_stride10.ply" \
+      --objects-jsonl "${FINAL_VIEWER_DIR}/frame_objects_viewer.jsonl" \
+      --ambiguous-report "${FINAL_VIEWER_DIR}/ambiguous_surface_resolve_report.json" \
+      --consolidation-report "${FINAL_VIEWER_DIR}/consolidation_report.json" \
+      --output-json "${FINAL_VIEWER_DIR}/viewer_candidate_qa.json" \
+      --output-md "${FINAL_VIEWER_DIR}/viewer_candidate_qa.md"
+    echo "final_viewer_dir=${FINAL_VIEWER_DIR}"
+  fi
 }
 
 main "$@"
