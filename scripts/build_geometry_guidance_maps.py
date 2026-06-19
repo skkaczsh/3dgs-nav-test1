@@ -427,6 +427,79 @@ def fill_first_touch_holes(
     return filled_depth, filled_valid, fill
 
 
+def splat_visible_surface(
+    depth: np.ndarray,
+    point_index: np.ndarray,
+    semantic: np.ndarray,
+    rendered_rgb: np.ndarray,
+    valid: np.ndarray,
+    image_bgr: np.ndarray,
+    radius: int,
+    color_lab_threshold: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Expand accepted first-touch samples into adjacent image pixels.
+
+    Projected voxel centers are sparse even when the underlying cloud is dense.
+    This splat is intentionally conservative: it only fills currently empty
+    pixels from an accepted surface sample, and only when the source/target image
+    colors are close.  It increases usable depth coverage without accepting a
+    separate background layer.
+    """
+    filled = np.zeros(valid.shape, dtype=bool)
+    if radius <= 0 or color_lab_threshold <= 0 or not np.any(valid):
+        return depth, point_index, semantic, rendered_rgb, valid, filled
+    h, w = valid.shape
+    lab = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2LAB).astype(np.float32)
+    out_depth = depth.copy()
+    out_point_index = point_index.copy()
+    out_semantic = semantic.copy()
+    out_rgb = rendered_rgb.copy()
+    out_valid = valid.copy()
+    base_valid = valid.copy()
+    offsets = [
+        (dy, dx)
+        for dy in range(-radius, radius + 1)
+        for dx in range(-radius, radius + 1)
+        if not (dy == 0 and dx == 0) and (dy * dy + dx * dx) <= radius * radius
+    ]
+    offsets.sort(key=lambda item: item[0] * item[0] + item[1] * item[1])
+    for dy, dx in offsets:
+        y_src0 = max(0, -dy)
+        y_src1 = min(h, h - dy)
+        y_dst0 = max(0, dy)
+        y_dst1 = min(h, h + dy)
+        x_src0 = max(0, -dx)
+        x_src1 = min(w, w - dx)
+        x_dst0 = max(0, dx)
+        x_dst1 = min(w, w + dx)
+        src_yx = (slice(y_src0, y_src1), slice(x_src0, x_src1))
+        dst_yx = (slice(y_dst0, y_dst1), slice(x_dst0, x_dst1))
+        src_valid = base_valid[src_yx]
+        dst_empty = ~out_valid[dst_yx]
+        if not np.any(src_valid & dst_empty):
+            continue
+        color_delta = np.linalg.norm(
+            lab[src_yx] - lab[dst_yx],
+            axis=2,
+        )
+        take = src_valid & dst_empty & (color_delta <= color_lab_threshold)
+        if not np.any(take):
+            continue
+        dst_depth = out_depth[dst_yx]
+        dst_point_index = out_point_index[dst_yx]
+        dst_semantic = out_semantic[dst_yx]
+        dst_rgb = out_rgb[dst_yx]
+        dst_valid = out_valid[dst_yx]
+        dst_filled = filled[dst_yx]
+        dst_depth[take] = depth[src_yx][take]
+        dst_point_index[take] = point_index[src_yx][take]
+        dst_semantic[take] = semantic[src_yx][take]
+        dst_rgb[take] = rendered_rgb[src_yx][take]
+        dst_valid[take] = True
+        dst_filled[take] = True
+    return out_depth, out_point_index, out_semantic, out_rgb, out_valid, filled
+
+
 def depth_to_viz(depth: np.ndarray, valid: np.ndarray) -> np.ndarray:
     if not np.any(valid):
         return np.zeros((*depth.shape, 3), dtype=np.uint8)
@@ -478,6 +551,8 @@ def project_one_camera(
             "surface_near_depth": depth.copy(),
             "surface_support": empty_support,
             "surface_rejected": 0,
+            "surface_splatted": 0,
+            "surface_filled": 0,
             "visible": 0,
             "surface_visible": 0,
         }
@@ -526,6 +601,19 @@ def project_one_camera(
         rendered_rgb[rejected] = 0
         valid_map[rejected] = 0
     valid_bool = valid_map > 0
+    depth, local_point_index, semantic, rendered_rgb, splat_valid, splatted_surface = splat_visible_surface(
+        depth,
+        local_point_index,
+        semantic,
+        rendered_rgb,
+        valid_bool,
+        image,
+        args.view_surface_splat_radius,
+        args.view_surface_splat_color_lab_threshold,
+    )
+    if np.any(splatted_surface):
+        valid_map[splatted_surface] = 255
+    valid_bool = splat_valid
     depth, _filled_valid, filled_surface = fill_first_touch_holes(
         depth,
         valid_bool,
@@ -548,6 +636,7 @@ def project_one_camera(
         "surface_near_depth": surface_near_depth,
         "surface_support": surface_support,
         "surface_rejected": int(np.count_nonzero(rejected)),
+        "surface_splatted": int(np.count_nonzero(splatted_surface)),
         "surface_filled": int(np.count_nonzero(filled_surface)),
         "visible": int(len(idx)),
         "surface_visible": int(np.count_nonzero(valid_map)),
@@ -624,6 +713,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--view-surface-first-threshold", type=float, default=0.12)
     parser.add_argument("--view-surface-continuous-threshold", type=float, default=0.18)
     parser.add_argument("--view-surface-min-neighbors", type=int, default=8)
+    parser.add_argument("--view-surface-splat-radius", type=int, default=1)
+    parser.add_argument("--view-surface-splat-color-lab-threshold", type=float, default=18.0)
     parser.add_argument("--view-surface-fill-radius", type=int, default=3)
     parser.add_argument("--view-surface-fill-depth-range", type=float, default=0.10)
     parser.add_argument("--view-surface-fill-min-neighbors", type=int, default=6)
@@ -776,6 +867,7 @@ def main() -> None:
                     "visible_pixels": int(out["visible"]),
                     "surface_visible_pixels": int(out["surface_visible"]),
                     "surface_rejected_pixels": int(out["surface_rejected"]),
+                    "surface_splatted_pixels": int(out["surface_splatted"]),
                     "surface_filled_pixels": int(out["surface_filled"]),
                     "semantic_prior_counts": {str(k): int(v) for k, v in sorted(hist.items())},
                 })
@@ -805,6 +897,8 @@ def main() -> None:
         "view_surface_first_threshold": args.view_surface_first_threshold,
         "view_surface_continuous_threshold": args.view_surface_continuous_threshold,
         "view_surface_min_neighbors": args.view_surface_min_neighbors,
+        "view_surface_splat_radius": args.view_surface_splat_radius,
+        "view_surface_splat_color_lab_threshold": args.view_surface_splat_color_lab_threshold,
         "view_surface_fill_radius": args.view_surface_fill_radius,
         "view_surface_fill_depth_range": args.view_surface_fill_depth_range,
         "view_surface_fill_min_neighbors": args.view_surface_fill_min_neighbors,
