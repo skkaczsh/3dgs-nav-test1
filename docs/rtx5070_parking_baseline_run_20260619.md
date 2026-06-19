@@ -1128,3 +1128,62 @@ python scripts/absorb_fine_fragments_into_surfaces.py \
   --report absorb_report.json \
   --demote-unabsorbed-weak-label unknown
 ```
+
+Full stride10 target-level run:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_targets_guarded_v3_full_s10_fine_surface_guard_absorbed_demote_rtx5070
+```
+
+Summary:
+
+- input targets: `9,640`
+- absorbed/demoted count in report: `907`
+- weak fine targets demoted to `unknown`: `884`
+- target conflict findings: `381`
+- previous full v3 target conflict findings: `1,277`
+- remaining conflict labels: `wall=321`, `ground=50`, `railing=5`,
+  `car=4`, `ceiling=1`
+
+Full stride10 viewer candidate:
+
+```text
+/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_guarded_v3_full_s10_absorbed_demote_rtx5070
+```
+
+Local viewer package:
+
+```text
+server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_absorbed_demote_rtx5070/frame_object_points_stride10.ply
+server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_absorbed_demote_rtx5070/frame_objects_viewer.jsonl
+server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_absorbed_demote_rtx5070/frame_object_viewer_export_report.json
+```
+
+Viewer URL:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_absorbed_demote_rtx5070/frame_object_points_stride10.ply&objects=/server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_absorbed_demote_rtx5070/frame_objects_viewer.jsonl&mode=semantic&stride=1&pointSize=1.5
+```
+
+Viewer export label counts:
+
+```text
+ground=133041
+ambiguous=139889
+wall=500823
+unknown=3666
+grass=98466
+car=17668
+railing=7085
+other=344
+ceiling=2146
+```
+
+Current read:
+
+- The target cleanup successfully suppresses most low-point `car` / `railing`
+  hard-label pollution.
+- The remaining dominant issue is now surface geometry splitting/relabeling,
+  especially `wall_too_flat` and `ground_large_z_span`.
+- Next optimization should target surface-plane partition and wall/ground/ceiling
+  geometry rules, not VLM relabeling.
