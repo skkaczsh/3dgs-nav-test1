@@ -116,12 +116,26 @@ def write_csv(rows: list[dict[str, Any]], path: Path) -> None:
         "first_target",
         "first_image_path",
         "first_mask_path",
+        "first_cluster_size",
+        "first_bbox_dx",
+        "first_bbox_dy",
+        "first_bbox_dz",
+        "first_normal_x",
+        "first_normal_y",
+        "first_normal_z",
+        "first_linearity",
+        "first_planarity",
+        "first_refinement_reasons",
     ]
     with path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         for row in rows:
             first = (row.get("top_targets") or [{}])[0]
+            bbox = first.get("bbox_3d") or {}
+            bmin = bbox.get("min") or [0.0, 0.0, 0.0]
+            bmax = bbox.get("max") or [0.0, 0.0, 0.0]
+            normal = first.get("normal") or [0.0, 0.0, 0.0]
             writer.writerow(
                 {
                     "object_id": row.get("object_id"),
@@ -137,6 +151,16 @@ def write_csv(rows: list[dict[str, Any]], path: Path) -> None:
                     "first_target": first.get("target_id"),
                     "first_image_path": first.get("image_path"),
                     "first_mask_path": first.get("mask_path"),
+                    "first_cluster_size": first.get("cluster_size"),
+                    "first_bbox_dx": round(float(bmax[0]) - float(bmin[0]), 4),
+                    "first_bbox_dy": round(float(bmax[1]) - float(bmin[1]), 4),
+                    "first_bbox_dz": round(float(bmax[2]) - float(bmin[2]), 4),
+                    "first_normal_x": normal[0] if len(normal) > 0 else None,
+                    "first_normal_y": normal[1] if len(normal) > 1 else None,
+                    "first_normal_z": normal[2] if len(normal) > 2 else None,
+                    "first_linearity": first.get("linearity"),
+                    "first_planarity": first.get("planarity"),
+                    "first_refinement_reasons": "|".join(first.get("refinement_reasons") or []),
                 }
             )
 

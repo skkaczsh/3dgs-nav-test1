@@ -95,6 +95,12 @@ def test_write_outputs_jsonl_and_csv(tmp_path: Path):
                     "frame_id": 30,
                     "cam_id": 2,
                     "mask_id": 8,
+                    "cluster_size": 123,
+                    "bbox_3d": {"min": [0, 0, 0], "max": [1, 2, 0.2]},
+                    "normal": [0.0, 0.0, 1.0],
+                    "linearity": 0.8,
+                    "planarity": 0.2,
+                    "refinement_reasons": ["example_reason"],
                     "image_path": "/tmp/image.jpg",
                     "mask_path": "/tmp/mask.png",
                 }
@@ -112,3 +118,7 @@ def test_write_outputs_jsonl_and_csv(tmp_path: Path):
         csv_rows = list(csv.DictReader(f))
     assert csv_rows[0]["first_frame"] == "30"
     assert csv_rows[0]["risk_reasons"] == "car_extent_suspicious"
+    assert csv_rows[0]["first_cluster_size"] == "123"
+    assert csv_rows[0]["first_bbox_dz"] == "0.2"
+    assert csv_rows[0]["first_normal_z"] == "1.0"
+    assert csv_rows[0]["first_refinement_reasons"] == "example_reason"

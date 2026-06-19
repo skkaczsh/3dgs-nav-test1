@@ -46,6 +46,10 @@ def args(**overrides):
         "ground_artifact_min_linearity": 0.75,
         "ground_artifact_max_planarity": 0.25,
         "ground_artifact_wall_max_normal_z": 0.72,
+        "guard_fine_surface_artifacts": False,
+        "fine_surface_max_z_span": 0.25,
+        "fine_surface_min_normal_z": 0.92,
+        "fine_surface_min_planarity": 0.35,
         "wall_max_normal_z": 0.72,
         "enable_ceiling_label": True,
         "ceiling_min_z": 2.5,
@@ -88,6 +92,32 @@ def test_refined_label_converts_broad_planar_railing_to_ground():
 
     assert label == "ground"
     assert "broad_planar_railing_to_surface" in reasons
+
+
+def test_fine_surface_guard_converts_thin_horizontal_railing_to_ground():
+    module = load_module()
+    xs, ys = np.meshgrid(np.linspace(0, 0.8, 5), np.linspace(0, 0.8, 5))
+    points = np.column_stack([xs.ravel(), ys.ravel(), np.zeros(xs.size)])
+
+    label, reasons = module.refined_label(
+        "railing",
+        points.astype(np.float32),
+        args(guard_fine_surface_artifacts=True),
+    )
+
+    assert label == "ground"
+    assert "flat_horizontal_railing_to_surface" in reasons
+
+
+def test_fine_surface_guard_is_opt_in():
+    module = load_module()
+    xs, ys = np.meshgrid(np.linspace(0, 0.9, 8), np.linspace(0, 0.5, 4))
+    points = np.column_stack([xs.ravel(), ys.ravel(), np.zeros(xs.size)])
+
+    label, reasons = module.refined_label("railing", points.astype(np.float32), args())
+
+    assert label == "railing"
+    assert "flat_horizontal_railing_to_surface" not in reasons
 
 
 def test_refine_targets_reindexes_and_relabels_children():

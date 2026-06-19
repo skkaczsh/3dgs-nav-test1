@@ -210,6 +210,14 @@ server_parking_priority_s10/frame_object_trace_guarded_v2_full_s10_ground_guard_
 server_parking_priority_s10/frame_object_trace_guarded_v2_full_s10_ground_guard_object_relabel_rtx5070/risky_object_target_trace.csv
 ```
 
+Fine-surface guard candidate:
+
+```text
+server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_fine_surface_guard_object_relabel_rtx5070/frame_object_points_stride10.ply
+server_parking_priority_s10/frame_object_viewer_guarded_v3_full_s10_fine_surface_guard_object_relabel_rtx5070/frame_objects_viewer.jsonl
+server_parking_priority_s10/frame_object_trace_guarded_v3_full_s10_fine_surface_guard_object_relabel_rtx5070/risky_object_target_trace.csv
+```
+
 ## Interpretation
 
 - The 5070Ti migration is operational: data, environment, model cache, GPU inference, frame-local projection, target fusion, and local review export all work.
@@ -247,6 +255,57 @@ priority mask stage. Next work should inspect those source masks and either
 split/demote them during target construction or add a stricter geometry guard at
 priority-mask refinement time. Do not spend the next iteration on global object
 relabeling.
+
+## Fine-Surface Guard Candidate
+
+Candidate name:
+`frame_object_viewer_guarded_v3_full_s10_fine_surface_guard_object_relabel_rtx5070`.
+
+Change under test:
+
+- Added optional target-level flag `--guard-fine-surface-artifacts`.
+- Rule is deliberately narrow: only `railing` targets that are thin, horizontal,
+  and planar are demoted to the corresponding surface label.
+- Existing default route is unchanged unless the flag is explicitly enabled.
+
+Target refine summary:
+
+- input targets: `9605`
+- output targets: `9640`
+- split source targets: `17`
+- relabelled targets: `16`
+- new rule hits: `flat_horizontal_railing_to_surface=9`
+- output label counts:
+  - `ground=845`
+  - `wall=3054`
+  - `car=1089`
+  - `grass=4178`
+  - `railing=378`
+  - `ceiling=92`
+  - `other=4`
+
+Viewer stride10 delta versus guarded v2 object-relabel candidate:
+
+| label | v2 | v3 | delta |
+| --- | ---: | ---: | ---: |
+| wall | `566487` | `566496` | `+9` |
+| ground | `185503` | `185480` | `-23` |
+| grass | `98460` | `98453` | `-7` |
+| ceiling | `23874` | `23721` | `-153` |
+| car | `20491` | `20489` | `-2` |
+| railing | `8228` | `8145` | `-83` |
+| other | `344` | `344` | `0` |
+
+Interpretation:
+
+- This guard safely removes a small number of obvious horizontal railing
+  artifacts, but it does not materially change the scene.
+- The remaining large errors are still upstream: priority mask / source target
+  generation is producing broad surface/fine-object confusion before object
+  fusion.
+- The next useful iteration should operate at source mask or target construction
+  level, with bad-window overlays and point-depth/geometry-aware mask splitting.
+  More object-level relabeling is unlikely to solve the core issue.
 
 ## Batch Size Benchmark
 

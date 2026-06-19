@@ -100,6 +100,15 @@ def refined_label(label: str, points: np.ndarray, args: argparse.Namespace) -> t
     out = label
 
     if label == "railing":
+        if (
+            bool(getattr(args, "guard_fine_surface_artifacts", False))
+            and normal_z >= args.fine_surface_min_normal_z
+            and float(dims[2]) <= args.fine_surface_max_z_span
+            and planarity >= args.fine_surface_min_planarity
+        ):
+            out = surface_label_from_normal(pca["normal"])
+            reasons.append("flat_horizontal_railing_to_surface")
+            return out, reasons
         broad = float(dims.max()) > args.railing_max_extent or linearity < args.railing_min_linearity
         if broad and planarity >= args.surface_planarity:
             out = surface_label_from_normal(pca["normal"])
@@ -373,6 +382,10 @@ def main() -> None:
     parser.add_argument("--ground-artifact-min-linearity", type=float, default=0.75)
     parser.add_argument("--ground-artifact-max-planarity", type=float, default=0.25)
     parser.add_argument("--ground-artifact-wall-max-normal-z", type=float, default=0.72)
+    parser.add_argument("--guard-fine-surface-artifacts", action="store_true")
+    parser.add_argument("--fine-surface-max-z-span", type=float, default=0.25)
+    parser.add_argument("--fine-surface-min-normal-z", type=float, default=0.92)
+    parser.add_argument("--fine-surface-min-planarity", type=float, default=0.35)
     parser.add_argument("--wall-max-normal-z", type=float, default=0.72)
     parser.add_argument("--enable-ceiling-label", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--ceiling-min-z", type=float, default=2.5)
