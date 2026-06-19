@@ -91,6 +91,50 @@ def test_solver_can_use_timestamp_deltas_instead_of_frame_id_deltas():
     assert summary["step_ratio"]["mode"] == "timestamp"
 
 
+def test_absolute_timestamp_prior_can_reject_wrong_intercept_path():
+    module = load_module()
+    frame_candidates = {
+        0: [
+            {"frame_id": 0, "cam_id": 0, "video_idx": 0, "score": 0.95, "sync_timestamp": 0.0},
+            {"frame_id": 0, "cam_id": 0, "video_idx": 100, "score": 0.80, "sync_timestamp": 0.0},
+        ],
+        1: [
+            {"frame_id": 1, "cam_id": 0, "video_idx": 10, "score": 0.95, "sync_timestamp": 1.0},
+            {"frame_id": 1, "cam_id": 0, "video_idx": 110, "score": 0.80, "sync_timestamp": 1.0},
+        ],
+        2: [
+            {"frame_id": 2, "cam_id": 0, "video_idx": 20, "score": 0.95, "sync_timestamp": 2.0},
+            {"frame_id": 2, "cam_id": 0, "video_idx": 120, "score": 0.80, "sync_timestamp": 2.0},
+        ],
+    }
+
+    without_prior = module.solve_cam_path(
+        frame_candidates,
+        target_ratio=1.0,
+        velocity_weight=2.0,
+        nonmonotonic_penalty=1000.0,
+        score_weight=1.0,
+        time_mode="timestamp",
+        video_fps=10.0,
+    )
+    with_prior = module.solve_cam_path(
+        frame_candidates,
+        target_ratio=1.0,
+        velocity_weight=2.0,
+        nonmonotonic_penalty=1000.0,
+        score_weight=1.0,
+        time_mode="timestamp",
+        video_fps=10.0,
+        absolute_prior_weight=1.0,
+        absolute_prior_tolerance=25.0,
+        absolute_intercept=100.0,
+    )
+
+    assert [row["video_idx"] for row in without_prior] == [0, 10, 20]
+    assert [row["video_idx"] for row in with_prior] == [100, 110, 120]
+    assert with_prior[0]["absolute_prior_error"] == 0.0
+
+
 def test_summary_rejects_non_smooth_path():
     module = load_module()
     path = [

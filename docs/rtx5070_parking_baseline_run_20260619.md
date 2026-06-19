@@ -45,9 +45,12 @@ Implemented sync tooling:
 - `scripts/solve_sync_path_from_candidates.py`
   - supports `--time-mode frame-id|timestamp`
   - supports `--img-pos-file` and `--video-fps`
+  - supports an optional absolute timestamp prior:
+    `video_idx ~= (timestamp - t0) * fps + intercept`
   - accepted manual anchors remain hard constraints
 - `scripts/sweep_sync_timestamp_fps.py`
   - sweeps effective fps values in timestamp mode
+  - can also sweep per-camera intercepts when the absolute prior is enabled
   - writes the best path plus a sweep report
 - `scripts/summarize_sync_option_sources.py`
   - compares direct, independent-best, and smooth-path candidate sources
@@ -65,17 +68,30 @@ Current automatic results:
   - status: `rejected`
   - mean score loss: about `0.156`
   - max step deviation: about `0.461`
+- timestamp fps/intercept sweep with absolute prior:
+  - best effective fps: `6.0`
+  - per-camera intercepts: `cam0=700`, `cam1=600`, `cam2=800`
+  - status: `rejected`
+  - mean score loss: about `0.172`
+  - max step deviation: about `0.139`
+  - mean absolute prior error by camera: about `18-25` video frames
 
 Visual review of the timestamp/fps sweep contact sheet shows it captures the
 non-uniform sampling hypothesis, but still has suspicious early mappings such
 as `video_idx=0/100` around `frame_id=1000`.  Therefore it is useful as an
 anchor review candidate, not as an automatic truth source.
 
+The absolute-prior sweep fixes that specific failure mode by keeping early
+mappings near plausible video indices, but it still has enough low-score
+frame/camera pairs that it must remain a manual-anchor candidate rather than a
+production sync map.
+
 Current review pages:
 
 ```text
 http://127.0.0.1:8765/server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_smooth_preselect_20260619/anchor_review_priority.html
 http://127.0.0.1:8765/server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_fps_sweep_20260619/anchor_review_priority.html
+http://127.0.0.1:8765/server_parking_priority_s10/sync_anchor_review_priority_sky_penalty_timestamp_absprior_dot3_20260619/anchor_review_priority.html
 ```
 
 Required next action: manually accept enough anchor rows from a review page,

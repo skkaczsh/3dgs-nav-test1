@@ -156,12 +156,28 @@ def solve_cam_path(
     score_weight: float,
     time_mode: str = "frame-id",
     video_fps: float = 10.0,
+    absolute_prior_weight: float = 0.0,
+    absolute_prior_tolerance: float = 100.0,
+    absolute_intercept: float = 0.0,
 ) -> list[dict[str, Any]]:
     frames = sorted(frame_candidates)
     if not frames:
         return []
+    time_origin = None
+    if time_mode == "timestamp" and absolute_prior_weight > 0:
+        time_origin = min(float(row["sync_timestamp"]) for rows in frame_candidates.values() for row in rows)
     first = frame_candidates[frames[0]]
-    costs: list[list[float]] = [[-score_weight * float(row["score"]) for row in first]]
+    costs: list[list[float]] = [[
+        -score_weight * float(row["score"]) + absolute_prior_cost(
+            row,
+            time_origin,
+            video_fps,
+            absolute_intercept,
+            absolute_prior_weight,
+            absolute_prior_tolerance,
+        )
+        for row in first
+    ]]
     backptrs: list[list[int]] = [[-1 for _ in first]]
     for i in range(1, len(frames)):
         prev_rows = frame_candidates[frames[i - 1]]
@@ -170,7 +186,14 @@ def solve_cam_path(
         cur_cost = [math.inf for _ in cur_rows]
         cur_back = [-1 for _ in cur_rows]
         for j, cur in enumerate(cur_rows):
-            score_cost = -score_weight * float(cur["score"])
+            score_cost = -score_weight * float(cur["score"]) + absolute_prior_cost(
+                cur,
+                time_origin,
+                video_fps,
+                absolute_intercept,
+                absolute_prior_weight,
+                absolute_prior_tolerance,
+            )
             best_cost = math.inf
             best_k = -1
             for k, prev in enumerate(prev_rows):
@@ -199,11 +222,53 @@ def solve_cam_path(
     path = []
     for frame_id, idx in zip(frames, path_indices):
         row = dict(frame_candidates[frame_id][idx])
+        annotate_absolute_prior(row, time_origin, video_fps, absolute_intercept)
         best_score = max(float(item["score"]) for item in frame_candidates[frame_id])
         row["best_score_for_probe"] = best_score
         row["score_loss_from_best"] = best_score - float(row["score"])
         path.append(row)
     return path
+
+
+def expected_video_idx(
+    row: dict[str, Any],
+    time_origin: float | None,
+    video_fps: float,
+    absolute_intercept: float,
+) -> float | None:
+    if time_origin is None or "sync_timestamp" not in row:
+        return None
+    return (float(row["sync_timestamp"]) - float(time_origin)) * float(video_fps) + float(absolute_intercept)
+
+
+def absolute_prior_cost(
+    row: dict[str, Any],
+    time_origin: float | None,
+    video_fps: float,
+    absolute_intercept: float,
+    absolute_prior_weight: float,
+    absolute_prior_tolerance: float,
+) -> float:
+    if absolute_prior_weight <= 0:
+        return 0.0
+    expected = expected_video_idx(row, time_origin, video_fps, absolute_intercept)
+    if expected is None:
+        return 0.0
+    tolerance = max(float(absolute_prior_tolerance), 1e-6)
+    return float(absolute_prior_weight) * abs(float(row["video_idx"]) - expected) / tolerance
+
+
+def annotate_absolute_prior(
+    row: dict[str, Any],
+    time_origin: float | None,
+    video_fps: float,
+    absolute_intercept: float,
+) -> None:
+    expected = expected_video_idx(row, time_origin, video_fps, absolute_intercept)
+    if expected is None:
+        return
+    row["absolute_expected_video_idx"] = float(expected)
+    row["absolute_prior_error"] = abs(float(row["video_idx"]) - expected)
 
 
 def percentile(values: list[float], pct: float) -> float:
@@ -244,6 +309,7 @@ def summarize_path(
             negative_steps += 1
         ratios.append(dv / float(df))
     losses = [float(row.get("score_loss_from_best", 0.0)) for row in path]
+    prior_errors = [float(row["absolute_prior_error"]) for row in path if row.get("absolute_prior_error") is not None]
     direct_ranks = [int(row["direct_rank"]) for row in path if row.get("direct_rank") is not None]
     max_dev = max(abs(x - target_ratio) for x in ratios) if ratios else float("inf")
     loss_mean = float(statistics.fmean(losses))
@@ -276,6 +342,12 @@ def summarize_path(
             "max_allowed_mean": float(max_score_loss_mean),
             "max_allowed_max": float(max_score_loss_max),
         },
+        "absolute_prior_error": {
+            "count": len(prior_errors),
+            "p50": float(percentile(prior_errors, 50)) if prior_errors else None,
+            "mean": float(statistics.fmean(prior_errors)) if prior_errors else None,
+            "max": float(max(prior_errors)) if prior_errors else None,
+        },
         "direct_rank_on_path": {
             "count": len(direct_ranks),
             "p50": float(percentile([float(x) for x in direct_ranks], 50)) if direct_ranks else None,
@@ -303,6 +375,12 @@ def main() -> None:
                         help="img_pos.txt used when --time-mode timestamp.")
     parser.add_argument("--video-fps", type=float, default=10.0,
                         help="Video frames per second for timestamp-mode expected video_idx deltas.")
+    parser.add_argument("--absolute-prior-weight", type=float, default=0.0,
+                        help="Penalty weight for absolute timestamp->video index prior. Default off.")
+    parser.add_argument("--absolute-prior-tolerance", type=float, default=100.0,
+                        help="Video-frame error corresponding to one unit of absolute prior penalty.")
+    parser.add_argument("--absolute-intercept", type=float, default=0.0,
+                        help="Expected video_idx at the first timestamp when absolute prior is enabled.")
     args = parser.parse_args()
     if args.time_mode == "timestamp" and args.img_pos_file is None:
         raise SystemExit("--img-pos-file is required when --time-mode timestamp")
@@ -324,6 +402,9 @@ def main() -> None:
         "time_mode": args.time_mode,
         "img_pos_file": str(args.img_pos_file) if args.img_pos_file else None,
         "video_fps": args.video_fps,
+        "absolute_prior_weight": args.absolute_prior_weight,
+        "absolute_prior_tolerance": args.absolute_prior_tolerance,
+        "absolute_intercept": args.absolute_intercept,
         "cam_reports": {},
     }
     all_accepted = True
@@ -337,6 +418,9 @@ def main() -> None:
                 args.score_weight,
                 args.time_mode,
                 args.video_fps,
+                args.absolute_prior_weight,
+                args.absolute_prior_tolerance,
+                args.absolute_intercept,
             )
             summary = summarize_path(
                 path,

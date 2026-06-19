@@ -38,28 +38,13 @@ def solve_for_fps(
 ) -> tuple[dict[str, Any], dict[int, list[dict[str, Any]]]]:
     cam_reports: dict[str, Any] = {}
     paths: dict[int, list[dict[str, Any]]] = {}
+    intercepts: dict[str, float] = {}
     all_accepted = True
     for cam_id in sorted(grouped):
-        path = solver.solve_cam_path(
-            grouped[cam_id],
-            args.target_ratio,
-            args.velocity_weight,
-            args.nonmonotonic_penalty,
-            args.score_weight,
-            time_mode="timestamp",
-            video_fps=fps,
-        )
-        summary = solver.summarize_path(
-            path,
-            args.target_ratio,
-            args.max_ratio_deviation,
-            args.max_score_loss_mean,
-            args.max_score_loss_max,
-            time_mode="timestamp",
-            video_fps=fps,
-        )
+        summary, path, intercept = solve_cam_for_fps_and_intercepts(grouped[cam_id], args, fps)
         cam_reports[str(cam_id)] = summary
         paths[cam_id] = path
+        intercepts[str(cam_id)] = intercept
         all_accepted = all_accepted and bool(summary.get("accepted"))
     mean_loss = sum(
         float(report["score_loss_from_independent_best"]["mean"])
@@ -77,9 +62,62 @@ def solve_for_fps(
         "accepted": bool(all_accepted),
         "mean_score_loss": mean_loss,
         "max_step_deviation": max_dev,
+        "cam_intercepts": intercepts,
         "cam_reports": cam_reports,
     }
     return report, paths
+
+
+def solve_cam_for_fps_and_intercepts(
+    frame_candidates: dict[int, list[dict[str, Any]]],
+    args: argparse.Namespace,
+    fps: float,
+) -> tuple[dict[str, Any], list[dict[str, Any]], float]:
+    best_summary = None
+    best_path = None
+    best_key = None
+    best_intercept = 0.0
+    absolute_prior_weight = float(getattr(args, "absolute_prior_weight", 0.0))
+    absolute_prior_tolerance = float(getattr(args, "absolute_prior_tolerance", 100.0))
+    intercept_values = parse_float_range(getattr(args, "intercept_values", "0")) if absolute_prior_weight > 0 else [0.0]
+    for intercept in intercept_values:
+        path = solver.solve_cam_path(
+            frame_candidates,
+            args.target_ratio,
+            args.velocity_weight,
+            args.nonmonotonic_penalty,
+            args.score_weight,
+            time_mode="timestamp",
+            video_fps=fps,
+            absolute_prior_weight=absolute_prior_weight,
+            absolute_prior_tolerance=absolute_prior_tolerance,
+            absolute_intercept=intercept,
+        )
+        summary = solver.summarize_path(
+            path,
+            args.target_ratio,
+            args.max_ratio_deviation,
+            args.max_score_loss_mean,
+            args.max_score_loss_max,
+            time_mode="timestamp",
+            video_fps=fps,
+        )
+        prior_mean = summary.get("absolute_prior_error", {}).get("mean")
+        key = (
+            not bool(summary.get("accepted")),
+            float(summary["score_loss_from_independent_best"]["mean"]),
+            float(summary["step_ratio"]["max_abs_deviation"]),
+            float(prior_mean) if prior_mean is not None else 0.0,
+        )
+        if best_key is None or key < best_key:
+            best_summary = summary
+            best_path = path
+            best_intercept = float(intercept)
+            best_key = key
+    assert best_summary is not None and best_path is not None
+    best_summary = dict(best_summary)
+    best_summary["absolute_intercept"] = best_intercept
+    return best_summary, best_path, best_intercept
 
 
 def write_paths(path: Path, paths: dict[int, list[dict[str, Any]]], status: str) -> None:
@@ -98,11 +136,15 @@ def main() -> None:
     parser.add_argument("--img-pos-file", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--fps-values", default="6.0:10.5:0.25")
+    parser.add_argument("--intercept-values", default="0:1800:100",
+                        help="Expected video_idx at first probe timestamp; swept independently per camera.")
     parser.add_argument("--target-ratio", type=float, default=1.0)
     parser.add_argument("--max-ratio-deviation", type=float, default=0.45)
     parser.add_argument("--velocity-weight", type=float, default=2.0)
     parser.add_argument("--nonmonotonic-penalty", type=float, default=1000.0)
     parser.add_argument("--score-weight", type=float, default=1.0)
+    parser.add_argument("--absolute-prior-weight", type=float, default=0.0)
+    parser.add_argument("--absolute-prior-tolerance", type=float, default=100.0)
     parser.add_argument("--max-score-loss-mean", type=float, default=0.12)
     parser.add_argument("--max-score-loss-max", type=float, default=0.30)
     args = parser.parse_args()
@@ -130,6 +172,9 @@ def main() -> None:
         "candidates_jsonl": str(args.candidates_jsonl),
         "img_pos_file": str(args.img_pos_file),
         "fps_values": parse_float_range(args.fps_values),
+        "intercept_values": parse_float_range(args.intercept_values),
+        "absolute_prior_weight": args.absolute_prior_weight,
+        "absolute_prior_tolerance": args.absolute_prior_tolerance,
         "best_fps": best_report["fps"],
         "best_status": best_report["status"],
         "best_report": best_report,
@@ -144,6 +189,9 @@ def main() -> None:
             "status": best_report["status"],
             "time_mode": "timestamp",
             "video_fps": best_report["fps"],
+            "cam_intercepts": best_report["cam_intercepts"],
+            "absolute_prior_weight": args.absolute_prior_weight,
+            "absolute_prior_tolerance": args.absolute_prior_tolerance,
             "cam_reports": best_report["cam_reports"],
             "sweep_report": str(args.output_dir / "timestamp_fps_sweep_report.json"),
         }, ensure_ascii=False, indent=2),
