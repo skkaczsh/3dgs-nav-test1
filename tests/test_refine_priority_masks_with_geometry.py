@@ -75,3 +75,9 @@ def test_guarded_fine_surface_override_keeps_sparse_surface_overlap():
 
     assert np.all(refined[1:7, 1:7] == 5)
     assert stats["guarded_fine_surface_override_pixels"] == 0
+
+
+def test_priority_path_accepts_suffix():
+    path = module.priority_path(Path("/tmp/priority_base"), cam_id=2, frame_id=123, suffix="_priority_refined")
+
+    assert path == Path("/tmp/priority_base/priority/cam2_000123_priority_refined.png")

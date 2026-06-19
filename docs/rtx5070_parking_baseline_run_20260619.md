@@ -307,6 +307,85 @@ Interpretation:
   level, with bad-window overlays and point-depth/geometry-aware mask splitting.
   More object-level relabeling is unlikely to solve the core issue.
 
+## Target Geometry Conflict QA
+
+New reusable diagnostic:
+
+```bash
+python scripts/diagnose_frame_target_geometry_conflicts.py \
+  --targets-jsonl <frame_targets_refined.jsonl> \
+  --output-jsonl <conflicts.jsonl> \
+  --report <report.json>
+```
+
+Purpose: inspect frame-local targets before object fusion and report target
+labels that already contradict 3D geometry. This keeps the next iteration
+focused on source mask / target construction instead of downstream object
+relabeling.
+
+Full guarded v3 target diagnosis:
+
+- targets: `9640`
+- findings: `1277`
+- finding labels:
+  - `car=646`
+  - `wall=321`
+  - `railing=259`
+  - `ground=50`
+  - `ceiling=1`
+- top bad windows:
+  - `2700-2800 cam0`: `42` findings, score `1335`
+  - `2200-2300 cam2`: `30` findings, score `1055`
+  - `5800-5900 cam1`: `32` findings, score `860`
+
+Interpretation:
+
+- The dominant target-level issues are many small `car` / `railing` fragments,
+  plus horizontal/flat `wall` targets.
+- These are present before object fusion, so object-level voting cannot remove
+  them reliably.
+- The diagnostic report is now the preferred input for choosing bad windows and
+  for testing mask/target construction changes.
+
+## Top-Window Neighbor Surface Prior Test
+
+Tested windows:
+
+- `2700-2800`
+- `2200-2300`
+- `5800-5900`
+
+Command shape:
+
+```bash
+python scripts/refine_priority_masks_with_geometry.py \
+  --priority-suffix _priority_refined \
+  --guarded-fine-surface-override \
+  --fine-surface-neighbor-radius 2 \
+  --fine-surface-neighbor-min-support 4 \
+  --fine-surface-min-ratio 0.30 \
+  --fine-surface-dominant-ratio 0.65
+```
+
+Results after rebuilding targets and applying target geometry refine:
+
+| window | mask override | refined target findings | conclusion |
+| --- | ---: | ---: | --- |
+| `2700-2800` | `0` pixels | `64` | no added signal; same top cam0 score as full v3 |
+| `2200-2300` | `0` pixels | `82` | no added signal; same top cam scores as full v3 |
+| `5800-5900` | `591` railing->wall pixels | `41` | small improvement only |
+
+Conclusion:
+
+- Loosening neighbor surface overwrite is not the right main fix. For the worst
+  windows, the projected surface prior often does not overlap the wrong fine
+  mask enough to trigger a safe correction.
+- The next route should modify target construction itself: use 2D mask
+  connected components plus same-frame depth discontinuities and 3D connected
+  components to split broad or fragmented targets before object fusion.
+- Do not run a full-scene neighbor-prior sweep from this result; it would mostly
+  add compute without addressing the dominant conflict modes.
+
 ## Batch Size Benchmark
 
 Measured on `60` undistorted frames with Mask2Former Mapillary priority segmentation:

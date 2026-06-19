@@ -57,8 +57,8 @@ FINE_PRIORITY = {4, 5}
 SURFACE_PRIORITY = {1, 2, 3}
 
 
-def priority_path(base: Path, cam_id: int, frame_id: int) -> Path:
-    return base / "priority" / f"cam{cam_id}_{frame_id:06d}_priority.png"
+def priority_path(base: Path, cam_id: int, frame_id: int, suffix: str = "_priority") -> Path:
+    return base / "priority" / f"cam{cam_id}_{frame_id:06d}{suffix}.png"
 
 
 def frame_path(base: Path, cam_id: int, frame_id: int) -> Path:
@@ -293,6 +293,7 @@ def main() -> None:
     parser.add_argument("--frame-root", type=Path, required=True)
     parser.add_argument("--priority-dir", type=Path, required=True)
     parser.add_argument("--geometry-dir", type=Path, required=True)
+    parser.add_argument("--priority-suffix", default="_priority", help="Mask filename suffix before .png")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--end", type=int, required=True)
@@ -337,7 +338,7 @@ def main() -> None:
 
     for frame_id in range(args.start, args.end + 1, max(args.stride, 1)):
         for cam_id in args.cams:
-            pri_path = priority_path(args.priority_dir, cam_id, frame_id)
+            pri_path = priority_path(args.priority_dir, cam_id, frame_id, args.priority_suffix)
             geom_path = geometry_path(args.geometry_dir, cam_id, frame_id)
             img_path = frame_path(args.frame_root, cam_id, frame_id)
             image_id = f"cam{cam_id}_{frame_id:06d}"
