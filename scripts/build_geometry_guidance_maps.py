@@ -307,6 +307,87 @@ def compute_color_edges(color_rgb: np.ndarray, valid: np.ndarray, threshold: flo
     return edge
 
 
+def local_min_depth(depth: np.ndarray, valid: np.ndarray, radius: int) -> np.ndarray:
+    """Return local foreground depth, ignoring invalid pixels.
+
+    A dense global cloud can render far surfaces through foreground sampling
+    holes.  The local minimum is a conservative first-touch estimate for the
+    current view: if a rendered pixel is much farther than the nearest depth in
+    its neighborhood, it is probably evidence behind the visible surface.
+    """
+    if radius <= 0:
+        out = np.full(depth.shape, np.inf, dtype=np.float32)
+        out[valid] = depth[valid]
+        return out
+    kernel = np.ones((radius * 2 + 1, radius * 2 + 1), dtype=np.uint8)
+    depth_for_erode = np.where(valid, depth, np.inf).astype(np.float32)
+    return cv2.erode(depth_for_erode, kernel)
+
+
+def continuity_support_count(depth: np.ndarray, valid: np.ndarray, radius: int, threshold: float) -> np.ndarray:
+    """Count same-depth neighbors for a rendered pixel.
+
+    This is the "strong echo" allowance: a non-nearest layer can survive if it
+    forms a locally coherent surface instead of an isolated see-through speckle.
+    The implementation is intentionally small-radius and explicit; map sizes are
+    modest and this runs after z-buffering.
+    """
+    count = np.zeros(depth.shape, dtype=np.uint16)
+    if radius <= 0 or threshold <= 0 or not np.any(valid):
+        return count
+    h, w = depth.shape
+    for dy in range(-radius, radius + 1):
+        y_src0 = max(0, -dy)
+        y_src1 = min(h, h - dy)
+        y_dst0 = max(0, dy)
+        y_dst1 = min(h, h + dy)
+        for dx in range(-radius, radius + 1):
+            if dx == 0 and dy == 0:
+                continue
+            x_src0 = max(0, -dx)
+            x_src1 = min(w, w - dx)
+            x_dst0 = max(0, dx)
+            x_dst1 = min(w, w + dx)
+            center_valid = valid[y_dst0:y_dst1, x_dst0:x_dst1]
+            neighbor_valid = valid[y_src0:y_src1, x_src0:x_src1]
+            if not np.any(center_valid & neighbor_valid):
+                continue
+            delta = np.abs(
+                depth[y_dst0:y_dst1, x_dst0:x_dst1]
+                - depth[y_src0:y_src1, x_src0:x_src1]
+            )
+            count[y_dst0:y_dst1, x_dst0:x_dst1] += (center_valid & neighbor_valid & (delta <= threshold)).astype(np.uint16)
+    return count
+
+
+def compute_view_surface_gate(
+    depth: np.ndarray,
+    valid: np.ndarray,
+    mode: str,
+    radius: int,
+    first_touch_threshold: float,
+    continuous_threshold: float,
+    continuous_min_neighbors: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Filter z-buffered pixels to the visible surface for this camera view."""
+    if mode == "off" or not np.any(valid):
+        support = np.zeros(depth.shape, dtype=np.uint16)
+        return valid.copy(), depth.copy(), support
+    near = local_min_depth(depth, valid, max(radius, 0))
+    first_touch = valid & np.isfinite(near) & ((depth - near) <= first_touch_threshold)
+    if mode == "first":
+        support = np.zeros(depth.shape, dtype=np.uint16)
+        return first_touch, near, support
+    support = continuity_support_count(
+        depth,
+        valid,
+        max(radius, 0),
+        max(continuous_threshold, 0.0),
+    )
+    continuous = valid & (support >= int(continuous_min_neighbors))
+    return first_touch | continuous, near, support
+
+
 def depth_to_viz(depth: np.ndarray, valid: np.ndarray) -> np.ndarray:
     if not np.any(valid):
         return np.zeros((*depth.shape, 3), dtype=np.uint8)
@@ -344,15 +425,30 @@ def project_one_camera(
     semantic = np.zeros((h, w), dtype=np.uint8)
     rendered_rgb = np.zeros((h, w, 3), dtype=np.uint8)
     valid_map = np.zeros((h, w), dtype=np.uint8)
+    empty_support = np.zeros((h, w), dtype=np.uint16)
+
+    def empty_result() -> dict[str, Any]:
+        return {
+            "depth": depth,
+            "point_index": local_point_index,
+            "semantic": semantic,
+            "rendered_rgb": rendered_rgb,
+            "edge": np.zeros((h, w), dtype=np.uint8),
+            "color_edge": np.zeros((h, w), dtype=np.uint8),
+            "valid": valid_map,
+            "surface_near_depth": depth.copy(),
+            "surface_support": empty_support,
+            "surface_rejected": 0,
+            "visible": 0,
+            "surface_visible": 0,
+        }
 
     t_cl = config.Tcl[cam_id]
     p_cam = (t_cl[:3, :3] @ p_lidar.T + t_cl[:3, 3:]).T
     z = p_cam[:, 2]
     valid = z > args.min_depth
     if not np.any(valid):
-        edge = np.zeros((h, w), dtype=np.uint8)
-        color_edge = np.zeros((h, w), dtype=np.uint8)
-        return {"depth": depth, "point_index": local_point_index, "semantic": semantic, "rendered_rgb": rendered_rgb, "edge": edge, "color_edge": color_edge, "valid": valid_map, "visible": 0}
+        return empty_result()
 
     valid_idx = np.where(valid)[0]
     uv_h = (config.CAMERA_PARAMS[cam_id]["K"] @ p_cam[valid].T).T
@@ -360,9 +456,7 @@ def project_one_camera(
     v = uv_h[:, 1] / uv_h[:, 2]
     in_img = (u >= 0) & (u < w) & (v >= 0) & (v < h)
     if not np.any(in_img):
-        edge = np.zeros((h, w), dtype=np.uint8)
-        color_edge = np.zeros((h, w), dtype=np.uint8)
-        return {"depth": depth, "point_index": local_point_index, "semantic": semantic, "rendered_rgb": rendered_rgb, "edge": edge, "color_edge": color_edge, "valid": valid_map, "visible": 0}
+        return empty_result()
 
     idx = valid_idx[in_img]
     uu = np.clip(np.rint(u[in_img]).astype(np.int32), 0, w - 1)
@@ -376,6 +470,22 @@ def project_one_camera(
     if colors_for_point is not None and len(colors_for_point) == len(points_world):
         rendered_rgb[vv, uu] = colors_for_point[idx]
     valid_map[vv, uu] = 255
+    surface_valid, surface_near_depth, surface_support = compute_view_surface_gate(
+        depth,
+        valid_map > 0,
+        args.view_surface_gate,
+        args.view_surface_radius,
+        args.view_surface_first_threshold,
+        args.view_surface_continuous_threshold,
+        args.view_surface_min_neighbors,
+    )
+    rejected = (valid_map > 0) & ~surface_valid
+    if np.any(rejected):
+        depth[rejected] = 0.0
+        local_point_index[rejected] = -1
+        semantic[rejected] = 0
+        rendered_rgb[rejected] = 0
+        valid_map[rejected] = 0
     edge = compute_depth_edges(depth, valid_map > 0, args.edge_depth_threshold, args.mark_invalid_boundary)
     color_edge = compute_color_edges(rendered_rgb, valid_map > 0, args.color_edge_lab_threshold)
     return {
@@ -386,7 +496,11 @@ def project_one_camera(
         "edge": edge,
         "color_edge": color_edge,
         "valid": valid_map,
+        "surface_near_depth": surface_near_depth,
+        "surface_support": surface_support,
+        "surface_rejected": int(np.count_nonzero(rejected)),
         "visible": int(len(idx)),
+        "surface_visible": int(np.count_nonzero(valid_map)),
     }
 
 
@@ -446,8 +560,20 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--end", type=int, required=True)
     parser.add_argument("--stride", type=int, default=10)
+    parser.add_argument("--frame-ids", type=int, nargs="*", default=None,
+                        help="Optional explicit frame ids. When set, start/end/stride only bound pose loading.")
     parser.add_argument("--cams", type=int, nargs="+", default=[0, 1, 2])
     parser.add_argument("--min-depth", type=float, default=0.1)
+    parser.add_argument(
+        "--view-surface-gate",
+        choices=["off", "first", "first_or_continuous"],
+        default="first_or_continuous",
+        help="Reject see-through pixels after z-buffering. first keeps local first-touch surfaces; first_or_continuous also keeps coherent deeper layers.",
+    )
+    parser.add_argument("--view-surface-radius", type=int, default=3)
+    parser.add_argument("--view-surface-first-threshold", type=float, default=0.25)
+    parser.add_argument("--view-surface-continuous-threshold", type=float, default=0.18)
+    parser.add_argument("--view-surface-min-neighbors", type=int, default=8)
     parser.add_argument("--edge-depth-threshold", type=float, default=0.35)
     parser.add_argument("--color-edge-lab-threshold", type=float, default=16.0)
     parser.add_argument("--mark-invalid-boundary", action="store_true")
@@ -489,7 +615,9 @@ def main() -> None:
         (args.output_dir / name).mkdir(exist_ok=True)
 
     prior = build_semantic_prior(args.semantic_prior_ply, args.prior_voxel_size)
-    poses = {row["frame_id"]: row for row in config.load_img_pos(args.start, args.end)}
+    pose_start = min(args.frame_ids) if args.frame_ids else args.start
+    pose_end = max(args.frame_ids) if args.frame_ids else args.end
+    poses = {row["frame_id"]: row for row in config.load_img_pos(pose_start, pose_end)}
     if args.global_colored_ply:
         global_points, global_colors, global_metadata = read_xyzrgb_ply_with_metadata(
             args.global_colored_ply,
@@ -500,13 +628,19 @@ def main() -> None:
             raise SystemExit(f"No points loaded from {args.global_colored_ply}")
         validate_global_source_guard(args, global_metadata)
         sections = []
-        frame_ids = [i for i in range(args.start, args.end + 1, max(args.stride, 1)) if i in poses]
+        if args.frame_ids:
+            frame_ids = [int(i) for i in args.frame_ids if int(i) in poses]
+        else:
+            frame_ids = [i for i in range(args.start, args.end + 1, max(args.stride, 1)) if i in poses]
     else:
         global_points = np.empty((0, 3), dtype=np.float32)
         global_colors = np.empty((0, 3), dtype=np.uint8)
         global_metadata: dict[str, np.ndarray] = {}
         sections = read_lx_sections(args.lx)
-        frame_ids = [i for i in range(args.start, args.end + 1, max(args.stride, 1)) if i < len(sections) and i in poses]
+        if args.frame_ids:
+            frame_ids = [int(i) for i in args.frame_ids if int(i) < len(sections) and int(i) in poses]
+        else:
+            frame_ids = [i for i in range(args.start, args.end + 1, max(args.stride, 1)) if i < len(sections) and i in poses]
     if args.max_frames:
         frame_ids = frame_ids[: args.max_frames]
     if not frame_ids:
@@ -562,6 +696,8 @@ def main() -> None:
                         edge=out["edge"],
                         color_edge=out["color_edge"],
                         valid=out["valid"],
+                        surface_near_depth=out["surface_near_depth"],
+                        surface_support=out["surface_support"],
                     )
                 cv2.imwrite(str(depth_viz_path), depth_to_viz(out["depth"], out["valid"] > 0))
                 cv2.imwrite(str(edge_path), out["edge"])
@@ -585,6 +721,8 @@ def main() -> None:
                     "raw_points": int(len(points)),
                     "source_points_kept": source_kept,
                     "visible_pixels": int(out["visible"]),
+                    "surface_visible_pixels": int(out["surface_visible"]),
+                    "surface_rejected_pixels": int(out["surface_rejected"]),
                     "semantic_prior_counts": {str(k): int(v) for k, v in sorted(hist.items())},
                 })
 
@@ -603,10 +741,16 @@ def main() -> None:
         "start": args.start,
         "end": args.end,
         "stride": args.stride,
+        "frame_ids": frame_ids,
         "cams": args.cams,
         "prior_voxel_size": args.prior_voxel_size,
         "prior_neighbor_radius": args.prior_neighbor_radius,
         "prior_voxel_count": len(prior),
+        "view_surface_gate": args.view_surface_gate,
+        "view_surface_radius": args.view_surface_radius,
+        "view_surface_first_threshold": args.view_surface_first_threshold,
+        "view_surface_continuous_threshold": args.view_surface_continuous_threshold,
+        "view_surface_min_neighbors": args.view_surface_min_neighbors,
         "image_count": len(rows),
         "status_counts": dict(status_counts),
         "elapsed_sec": time.time() - t0,
