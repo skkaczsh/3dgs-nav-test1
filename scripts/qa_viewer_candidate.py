@@ -34,6 +34,9 @@ LABELS = {
     15: "pipe",
     16: "equipment",
     17: "fine_candidate",
+    18: "stair",
+    19: "indoor_floor",
+    20: "roof",
     255: "ignore",
 }
 LABEL_IDS = {name: idx for idx, name in LABELS.items()}
@@ -58,6 +61,9 @@ LABEL_ZH = {
     "pipe": "管线",
     "equipment": "设备",
     "fine_candidate": "细目标候选",
+    "stair": "楼梯",
+    "indoor_floor": "室内地面",
+    "roof": "屋顶/平台",
     "ignore": "忽略",
     "ambiguous": "模糊",
 }
