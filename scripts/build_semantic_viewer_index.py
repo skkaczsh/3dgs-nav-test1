@@ -98,9 +98,21 @@ def rel_url(path: Path, web_root: Path) -> str:
     return "/" + rel.as_posix()
 
 
-def collect_review_indexes(web_root: Path) -> dict[tuple[str, str], dict[str, Any]]:
+def collect_review_indexes(web_root: Path, artifact_root: Path | None = None) -> dict[tuple[str, str], dict[str, Any]]:
     reviews: dict[tuple[str, str], dict[str, Any]] = {}
-    for review_json in web_root.rglob(REVIEW_INDEX_NAME):
+    roots = [web_root]
+    if artifact_root is not None and artifact_root != web_root:
+        roots.append(artifact_root)
+    seen: set[Path] = set()
+    review_jsons: list[Path] = []
+    for root in roots:
+        for review_json in root.rglob(REVIEW_INDEX_NAME):
+            resolved = review_json.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            review_jsons.append(review_json)
+    for review_json in review_jsons:
         report = read_json(review_json)
         if not report:
             continue
@@ -255,7 +267,7 @@ def build_entry(
 
 
 def build_index(web_root: Path, artifact_root: Path) -> dict[str, Any]:
-    reviews = collect_review_indexes(web_root)
+    reviews = collect_review_indexes(web_root, artifact_root)
     entries = [build_entry(artifact, web_root, artifact_root, reviews) for artifact in iter_viewer_artifacts(artifact_root)]
     entries.sort(key=lambda item: item["updated_at_ts"], reverse=True)
     return {
