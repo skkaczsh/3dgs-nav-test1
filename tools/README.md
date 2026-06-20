@@ -17,6 +17,49 @@ Open:
 http://127.0.0.1:8765/tools/semantic_ply_viewer.html
 ```
 
+Version index:
+
+```text
+http://127.0.0.1:8765/tools/semantic_viewer_index.html
+```
+
+`semantic_viewer_index.html` lists generated viewer artifacts by file update time. It reads
+`tools/semantic_viewer_index.json`, which is generated from lightweight metadata and QA reports
+without reading large PLY payloads.
+
+Refresh the index manually:
+
+```bash
+cd /Users/skkac/Work/SCAN/new_route
+python3 scripts/build_semantic_viewer_index.py --pretty
+```
+
+Run a persistent remote viewer on `scan-rtx5070`:
+
+```bash
+ssh scan-rtx5070
+cd /home/zsh/Work/SCAN/new_route
+ln -sfn /home/zsh/Work/SCAN/work_MT20260616-175807 work_MT20260616-175807
+HOST=0.0.0.0 \
+PORT=8765 \
+REPO_ROOT=/home/zsh/Work/SCAN/new_route \
+ARTIFACT_ROOT=work_MT20260616-175807 \
+LOG_DIR=/home/zsh/Work/SCAN/.local/logs \
+PID_FILE=/home/zsh/Work/SCAN/.local/semantic_ply_viewer_8765.pid \
+INDEX_PID_FILE=/home/zsh/Work/SCAN/.local/semantic_viewer_index_refresh_8765.pid \
+INDEX_REFRESH_INTERVAL=60 \
+bash scripts/start_semantic_ply_viewer.sh
+```
+
+The remote index is then available at:
+
+```text
+http://scan-rtx5070:8765/tools/semantic_viewer_index.html
+```
+
+Use `ARTIFACT_ROOT` to point the indexer at the artifact tree exposed under the HTTP root. For
+remote work directories outside the repo, expose them with a symlink instead of copying PLY files.
+
 Parking dataset full-scene object view:
 
 ```text
