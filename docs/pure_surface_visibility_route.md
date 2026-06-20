@@ -94,6 +94,43 @@ The current smoke window `3400..3500` produced:
 - viewer points `378,817`
 - missing target points `0`
 
+## 5070Ti Production Entry
+
+`scripts/run_rtx5070_pure_surface_visibility_route.sh` is the fixed runner for
+the clean mainline.  It executes on `scan-rtx5070` and keeps the heavy work
+remote:
+
+```text
+run_parking_safe_semantic_prior_route.sh to Target stage
+-> build_structural_region_field.py
+-> classify_surface_attachment.py
+-> fuse_targets_to_objects.py with attachment gates
+-> export_frame_target_objects_for_viewer.py
+-> qa_viewer_candidate.py
+```
+
+Default mode is dry-run.  Use `RUN=1`; use `PULL_RESULTS=1` only for review
+artifacts.  Current verified window:
+
+```bash
+RUN=1 OVERWRITE=1 PULL_RESULTS=1 START=3400 END=3500 STRIDE=10 \
+  OUT_SUFFIX=pure_surface_visibility_window_3400_3500 \
+  ./scripts/run_rtx5070_pure_surface_visibility_route.sh
+```
+
+Result summary:
+
+- geometry guidance images: `33/33 ok`
+- frame targets: `93`
+- attachment targets: `93`, missing target points `0`
+- object fusion: `43` objects, merge ratio `0.538`
+- viewer points: `386,721`, missing target points `0`
+- viewer QA: `ok`, with warning for one large railing object
+
+Interpretation: the route is now reproducible end-to-end.  The remaining
+quality issue is not structural-prior fusion; it is source mask / target split
+quality for large fine objects such as railing.
+
 ## Next Integration
 
 The next production orchestrator should run:

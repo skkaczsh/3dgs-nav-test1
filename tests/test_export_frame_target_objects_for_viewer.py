@@ -78,5 +78,7 @@ def test_export_streams_target_ply_to_viewer_object_ply(tmp_path: Path):
     assert "property int object" in text
     assert "1 2 3 235 90 80 123 8 0 0 7 4" in text
     meta = json.loads((out / "objects.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert meta["object_id"] == "obj_000123"
+    assert meta["viewer_object_id"] == 123
     assert meta["semantic_id"] == 8
     assert meta["dominant_label_ratio"] == 1.0

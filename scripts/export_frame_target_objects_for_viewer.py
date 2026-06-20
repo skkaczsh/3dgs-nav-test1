@@ -170,6 +170,7 @@ def export_objects_jsonl(objects_by_id: dict[str, dict[str, Any]], output: Path,
     with output.open("w", encoding="utf-8") as f:
         for oid in sorted(objects_by_id, key=object_number):
             row = slim_object_row(objects_by_id[oid], keep_targets=keep_targets)
+            row["viewer_object_id"] = object_number(oid)
             label = str(row.get("semantic_label") or "unknown")
             votes = row.get("label_vote_weights") or row.get("label_votes") or {}
             if votes:
