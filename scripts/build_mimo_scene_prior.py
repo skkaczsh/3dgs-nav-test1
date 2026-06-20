@@ -211,10 +211,10 @@ def add_frame_bounds(prior: dict[str, Any], records: list[dict[str, Any]]) -> di
         end = int(segment.get("end_rank", start))
         start_row = by_rank.get(start) or by_rank[min(by_rank)]
         end_row = by_rank.get(end) or by_rank[max(by_rank)]
-        segment["start_frame"] = int(segment.get("start_frame", start_row["frame_index"]))
-        segment["end_frame"] = int(segment.get("end_frame", end_row["frame_index"]))
-        segment["start_time_sec"] = float(segment.get("start_time_sec", start_row["time_sec"]))
-        segment["end_time_sec"] = float(segment.get("end_time_sec", end_row["time_sec"]))
+        segment["start_frame"] = int(start_row["frame_index"])
+        segment["end_frame"] = int(end_row["frame_index"])
+        segment["start_time_sec"] = float(start_row["time_sec"])
+        segment["end_time_sec"] = float(end_row["time_sec"])
     return prior
 
 

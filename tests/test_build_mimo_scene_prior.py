@@ -35,7 +35,15 @@ def test_add_frame_bounds_maps_segment_ranks_to_frames():
     module = load_module()
     prior = {
         "segments": [
-            {"start_rank": 1, "end_rank": 2, "area_type": "outdoor_parking"},
+            {
+                "start_rank": 1,
+                "end_rank": 2,
+                "area_type": "outdoor_parking",
+                "start_frame": 1,
+                "end_frame": 2,
+                "start_time_sec": 0.1,
+                "end_time_sec": 0.2,
+            },
             {"start_rank": 99, "end_rank": 100, "area_type": "unknown"},
         ]
     }
