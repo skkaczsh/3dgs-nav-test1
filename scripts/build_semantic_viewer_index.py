@@ -84,7 +84,10 @@ def iter_viewer_artifacts(artifact_root: Path) -> list[ViewerArtifact]:
 
 
 def rel_url(path: Path, web_root: Path) -> str:
-    rel = path.resolve().relative_to(web_root.resolve())
+    try:
+        rel = path.absolute().relative_to(web_root.absolute())
+    except ValueError:
+        rel = path.resolve().relative_to(web_root.resolve())
     return "/" + rel.as_posix()
 
 
@@ -154,7 +157,10 @@ def build_entry(artifact: ViewerArtifact, web_root: Path, artifact_root: Path) -
         semantic_viewer += f"&objects={objects_url}"
         object_viewer += f"&objects={objects_url}"
 
-    rel_dir = directory.resolve().relative_to(artifact_root.resolve()).as_posix()
+    try:
+        rel_dir = directory.absolute().relative_to(artifact_root.absolute()).as_posix()
+    except ValueError:
+        rel_dir = directory.resolve().relative_to(artifact_root.resolve()).as_posix()
     return {
         "name": directory.name,
         "relative_dir": rel_dir,

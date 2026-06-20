@@ -70,3 +70,20 @@ def test_index_html_uses_generated_json_and_existing_viewer() -> None:
     assert "semantic_viewer_index.json" in html
     assert "viewer_urls.semantic" in html
     assert "语义点云版本索引" in html
+
+
+def test_build_index_keeps_symlink_url_prefix(tmp_path: Path) -> None:
+    real_root = tmp_path / "work_MT20260616-175807"
+    viewer_dir = real_root / "run_a" / "viewer"
+    write(viewer_dir / "frame_object_points_stride10.ply", "ply\n")
+    write(viewer_dir / "frame_objects_viewer.jsonl", "{}\n")
+
+    link_root = tmp_path / "repo" / "work_MT20260616-175807"
+    link_root.parent.mkdir(parents=True)
+    link_root.symlink_to(real_root, target_is_directory=True)
+
+    index = build_index(web_root=tmp_path / "repo", artifact_root=link_root)
+    entry = index["entries"][0]
+
+    assert entry["ply"] == "/work_MT20260616-175807/run_a/viewer/frame_object_points_stride10.ply"
+    assert entry["relative_dir"] == "run_a/viewer"
