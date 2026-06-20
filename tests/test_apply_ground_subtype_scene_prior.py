@@ -48,3 +48,35 @@ def test_relabel_ground_subtypes_only_changes_ground_family():
     assert out[3]["semantic_label"] == "floor"
     assert report["changed_count"] == 2
     assert report["label_counts_after"] == {"stair": 1, "ground": 1, "wall": 1, "floor": 1}
+
+
+def test_can_optionally_relabel_horizontal_wall_to_surface_subtype():
+    rows = [
+        {
+            "object_id": "obj_1",
+            "viewer_object_id": 1,
+            "semantic_label": "wall",
+            "normal": [0.0, 0.0, 1.0],
+            "scene_prior": {"dominant_scene_ground_subtype": "indoor_floor", "scene_prior_confidence_mean": 0.9},
+        },
+        {
+            "object_id": "obj_2",
+            "viewer_object_id": 2,
+            "semantic_label": "wall",
+            "normal": [1.0, 0.0, 0.0],
+            "scene_prior": {"dominant_scene_ground_subtype": "roof", "scene_prior_confidence_mean": 0.9},
+        },
+    ]
+
+    out, report = mod.relabel_ground_subtypes(
+        rows,
+        min_scene_score=0.5,
+        include_horizontal_wall=True,
+        horizontal_normal_z=0.85,
+    )
+
+    assert out[0]["semantic_label"] == "indoor_floor"
+    assert out[0]["semantic_label_original"] == "wall"
+    assert out[1]["semantic_label"] == "wall"
+    assert report["changed_count"] == 1
+    assert report["include_horizontal_wall"] is True

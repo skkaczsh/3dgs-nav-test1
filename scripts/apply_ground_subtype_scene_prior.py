@@ -30,13 +30,34 @@ SUBTYPE_TO_LABEL = {
 }
 
 
+def normal_z_abs(row: dict[str, Any]) -> float:
+    normal = row.get("normal") or row.get("pca_normal") or [0.0, 0.0, 0.0]
+    if isinstance(normal, list) and len(normal) >= 3:
+        return abs(float(normal[2]))
+    return 0.0
+
+
 def ground_subtype(row: dict[str, Any]) -> str:
     prior = row.get("scene_prior") if isinstance(row.get("scene_prior"), dict) else {}
     subtype = str(prior.get("dominant_scene_ground_subtype") or "")
     return subtype if subtype in SUBTYPE_TO_LABEL else ""
 
 
-def relabel_ground_subtypes(rows: list[dict[str, Any]], min_scene_score: float) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def eligible_label(row: dict[str, Any], include_horizontal_wall: bool, horizontal_normal_z: float) -> bool:
+    label = str(row.get("semantic_label") or "unknown")
+    if label in GROUND_LABELS:
+        return True
+    if include_horizontal_wall and label == "wall" and normal_z_abs(row) >= horizontal_normal_z:
+        return True
+    return False
+
+
+def relabel_ground_subtypes(
+    rows: list[dict[str, Any]],
+    min_scene_score: float,
+    include_horizontal_wall: bool = False,
+    horizontal_normal_z: float = 0.85,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     output: list[dict[str, Any]] = []
     changed = []
     subtype_counts = Counter()
@@ -46,7 +67,7 @@ def relabel_ground_subtypes(rows: list[dict[str, Any]], min_scene_score: float) 
         prior = out.get("scene_prior") if isinstance(out.get("scene_prior"), dict) else {}
         subtype = ground_subtype(out)
         score = float(prior.get("scene_prior_confidence_mean") or 0.0)
-        if label in GROUND_LABELS and subtype and score >= min_scene_score:
+        if eligible_label(out, include_horizontal_wall, horizontal_normal_z) and subtype and score >= min_scene_score:
             new_label = SUBTYPE_TO_LABEL[subtype]
             old_label = label
             if new_label in LABEL_TO_SEMANTIC and new_label != old_label:
@@ -63,6 +84,7 @@ def relabel_ground_subtypes(rows: list[dict[str, Any]], min_scene_score: float) 
                     "subtype": subtype,
                     "point_count": out.get("point_count"),
                     "dominant_scene_area_type": prior.get("dominant_scene_area_type"),
+                    "normal_z_abs": normal_z_abs(out),
                 })
         subtype_counts[subtype or "none"] += 1
         output.append(out)
@@ -70,6 +92,8 @@ def relabel_ground_subtypes(rows: list[dict[str, Any]], min_scene_score: float) 
         "schema": "ground-subtype-scene-prior-preview/v1",
         "input_object_count": len(rows),
         "changed_count": len(changed),
+        "include_horizontal_wall": include_horizontal_wall,
+        "horizontal_normal_z": horizontal_normal_z,
         "subtype_counts": dict(subtype_counts),
         "label_counts_after": dict(Counter(str(row.get("semantic_label") or "unknown") for row in output)),
         "changed": changed,
@@ -100,6 +124,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ply-name", default="frame_object_points_stride10.ply")
     parser.add_argument("--objects-name", default="frame_objects_viewer.jsonl")
     parser.add_argument("--min-scene-score", type=float, default=0.5)
+    parser.add_argument("--include-horizontal-wall", action="store_true")
+    parser.add_argument("--horizontal-normal-z", type=float, default=0.85)
     parser.add_argument("--qa-top-n", type=int, default=20)
     return parser.parse_args()
 
@@ -107,7 +133,12 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    objects, report = relabel_ground_subtypes(read_jsonl(args.objects_jsonl), args.min_scene_score)
+    objects, report = relabel_ground_subtypes(
+        read_jsonl(args.objects_jsonl),
+        args.min_scene_score,
+        args.include_horizontal_wall,
+        args.horizontal_normal_z,
+    )
     output_objects = args.output_dir / args.objects_name
     output_ply = args.output_dir / args.ply_name
     write_jsonl(output_objects, objects)
