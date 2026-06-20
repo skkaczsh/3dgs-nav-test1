@@ -29,6 +29,22 @@ def test_pure_surface_visibility_route_reuses_safe_target_builder_then_attachmen
     assert "--fallback-zone-scan" in text
 
 
+def test_pure_surface_visibility_route_splits_large_fine_objects_after_viewer_export():
+    text = SCRIPT.read_text(encoding="utf-8")
+
+    viewer_pos = text.index("python scripts/export_frame_target_objects_for_viewer.py")
+    qa_pos = text.index("python scripts/qa_viewer_candidate.py")
+    candidate_pos = text.index("python scripts/build_local_geometry_split_candidates.py")
+    split_pos = text.index("python scripts/split_priority_objects_by_local_geometry.py")
+    final_qa_pos = text.index("python scripts/qa_viewer_candidate.py", qa_pos + 1)
+
+    assert 'SPLIT_LARGE_FINE_OBJECTS="${SPLIT_LARGE_FINE_OBJECTS:-1}"' in text
+    assert viewer_pos < qa_pos < candidate_pos < split_pos < final_qa_pos
+    assert "--labels railing,car" in text
+    assert "--railing-max-minor-extent 0.45" in text
+    assert "viewer_localgeom" in text
+
+
 def test_pure_surface_visibility_route_keeps_structural_prior_nonsemantic_boundary():
     text = SCRIPT.read_text(encoding="utf-8")
 
@@ -45,4 +61,3 @@ def test_pure_surface_visibility_route_can_pull_review_artifacts_without_committ
     assert 'PULL_RESULTS="${PULL_RESULTS:-0}"' in text
     assert 'server_parking_priority_s10/${OUT_SUFFIX}' in text
     assert 'rsync -az "${REMOTE_HOST}:${VIEWER_DIR}/"' in text
-

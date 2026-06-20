@@ -19,6 +19,7 @@ from typing import Any
 
 
 DEFAULT_REASONS = {
+    "large_fine_object",
     "large_single_target_object",
     "railing_not_linear",
     "railing_extent_too_large",
@@ -47,6 +48,16 @@ def object_point_count(row: dict[str, Any]) -> int:
         return int(row.get("point_count") or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def viewer_object_id(row: dict[str, Any]) -> int:
+    value = row.get("viewer_object_id", row.get("object_id"))
+    if isinstance(value, int):
+        return value
+    text = str(value)
+    if text.startswith("obj_"):
+        text = text.rsplit("_", 1)[-1]
+    return int(text)
 
 
 def bbox_extent(bbox: dict[str, Any]) -> tuple[float, float, float]:
@@ -82,6 +93,9 @@ def object_risk(obj: dict[str, Any]) -> tuple[float, list[str]]:
     if target_count <= 1 and point_count >= 500:
         score += 55.0
         reasons.append("large_single_target_object")
+    if label in {"railing", "car"} and point_count >= 10000:
+        score += 50.0
+        reasons.append("large_fine_object")
     if label == "railing":
         if linearity < 0.45:
             score += 45.0
@@ -114,7 +128,8 @@ def candidate_row(obj: dict[str, Any], score: float, reasons: list[str]) -> dict
     label = str(obj.get("semantic_label") or "unknown")
     dx, dy, dz = bbox_extent(obj.get("bbox_3d") or {})
     return {
-        "object_id": int(obj.get("object_id")),
+        "object_id": viewer_object_id(obj),
+        "source_object_id": obj.get("object_id"),
         "semantic_label": label,
         "suggested_action": candidate_action(label),
         "score": round(float(score), 3),

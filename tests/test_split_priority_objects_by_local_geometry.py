@@ -49,7 +49,7 @@ def test_split_handles_noncontiguous_object_runs(tmp_path: Path):
         objects_jsonl,
         [
             {"object_id": 1, "semantic_label": "wall", "point_count": 2},
-            {"object_id": 2, "semantic_label": "railing", "point_count": 3},
+            {"object_id": "obj_000002", "viewer_object_id": 2, "semantic_label": "railing", "point_count": 3},
         ],
     )
     write_jsonl(

@@ -180,8 +180,18 @@ def object_summary(object_id: int, label: str, status: str, points: np.ndarray, 
     return out
 
 
+def viewer_object_id(row: dict[str, Any]) -> int:
+    value = row.get("viewer_object_id", row.get("object_id"))
+    if isinstance(value, int):
+        return value
+    text = str(value)
+    if text.startswith("obj_"):
+        text = text.rsplit("_", 1)[-1]
+    return int(text)
+
+
 def load_objects(path: Path) -> dict[int, dict[str, Any]]:
-    return {int(row["object_id"]): row for row in read_jsonl(path)}
+    return {viewer_object_id(row): row for row in read_jsonl(path)}
 
 
 def load_split_candidates(path: Path | None, objects: dict[int, dict[str, Any]], args: argparse.Namespace) -> set[int]:
@@ -390,7 +400,7 @@ def connected_cell_components(cell_coords: np.ndarray, cell_labels: np.ndarray, 
 def split_object(points: np.ndarray, colors: np.ndarray, source_obj: dict[str, Any], args: argparse.Namespace,
                  next_id: int) -> tuple[np.ndarray, list[dict[str, Any]], int, dict[str, Any]]:
     source_label = str(source_obj.get("semantic_label") or "unknown")
-    source_id = int(source_obj["object_id"])
+    source_id = viewer_object_id(source_obj)
     voxels = np.floor(points / args.local_voxel_size).astype(np.int32)
     cell_coords, inverse, cell_counts = np.unique(voxels, axis=0, return_inverse=True, return_counts=True)
     cell_label_arr, cell_stats = classify_local_voxels(source_label, points, inverse, len(cell_coords), args)
@@ -680,7 +690,7 @@ def main() -> None:
         args,
     )
 
-    output_objects.sort(key=lambda row: int(row["object_id"]))
+    output_objects.sort(key=viewer_object_id)
     write_jsonl(output_jsonl, output_objects)
     write_jsonl(output_split_report_jsonl, split_reports)
     object_label_counts = Counter(str(obj.get("semantic_label") or "unknown") for obj in output_objects)

@@ -98,3 +98,26 @@ def test_limit_keeps_highest_score_first():
     selected, _summary = module.select_candidates(rows, args(limit=1))
 
     assert [row["object_id"] for row in selected] == [2]
+
+
+def test_select_candidates_uses_viewer_object_id_for_string_object_ids():
+    module = load_module()
+    rows = [
+        {
+            "object_id": "obj_000028",
+            "viewer_object_id": 28,
+            "semantic_label": "railing",
+            "status": "stable",
+            "point_count": 11537,
+            "target_count": 2,
+            "bbox_3d": {"min": [0, 0, 0], "max": [9, 0.5, 1.9]},
+            "geometry_stats": {"linearity_mean": 0.9, "planarity_mean": 0.05},
+            "label_votes": {"railing": 11537},
+        }
+    ]
+
+    selected, _summary = module.select_candidates(rows, args(require_reasons="railing_extent_too_large,large_fine_object"))
+
+    assert selected[0]["object_id"] == 28
+    assert selected[0]["source_object_id"] == "obj_000028"
+    assert "large_fine_object" in selected[0]["matched_reasons"]

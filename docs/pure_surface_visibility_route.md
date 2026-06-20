@@ -125,11 +125,23 @@ Result summary:
 - attachment targets: `93`, missing target points `0`
 - object fusion: `43` objects, merge ratio `0.538`
 - viewer points: `386,721`, missing target points `0`
-- viewer QA: `ok`, with warning for one large railing object
+- base viewer QA: `ok`, with warning for one large railing object
+- local-geometry viewer QA: `ok`, warnings `[]`
 
 Interpretation: the route is now reproducible end-to-end.  The remaining
 quality issue is not structural-prior fusion; it is source mask / target split
-quality for large fine objects such as railing.
+quality for large fine objects such as railing.  The runner now applies a
+post-viewer local geometry split for large fine objects:
+
+- candidate: `object_id=28`, source `obj_000028`, `railing`, `11,537` points
+- split result: `wall=4,389`, `railing=1,616`, `ground=636`,
+  `unknown=4,896`
+- final semantic point counts: `wall=369,329`, `ground/floor=7,551`,
+  `railing=3,247`, `unknown=4,896`
+
+This confirms the principle: broad image masks can propose a fine-object
+region, but local point geometry must decide which parts are actually railing
+versus surface or unresolved evidence.
 
 ## Next Integration
 
