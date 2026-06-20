@@ -43,6 +43,9 @@ LABEL_TO_SEMANTIC = {
     "pipe": 15,
     "equipment": 16,
     "fine_candidate": 17,
+    "stair": 18,
+    "indoor_floor": 19,
+    "roof": 20,
     "ambiguous": 0,
     "ignore": 255,
 }
@@ -62,6 +65,9 @@ SEMANTIC_COLORS = {
     15: (220, 160, 60),
     16: (210, 90, 210),
     17: (245, 150, 40),
+    18: (245, 125, 60),
+    19: (105, 180, 210),
+    20: (165, 145, 210),
     255: (40, 40, 40),
 }
 

@@ -212,21 +212,25 @@
     const LABELS = {
       0: "unknown", 1: "other", 2: "wall", 3: "floor", 4: "ceiling", 5: "grass", 6: "tree",
       7: "person", 8: "car", 9: "railing", 10: "building", 11: "sky", 12: "road",
-      13: "water", 14: "furniture", 15: "pipe", 16: "equipment", 17: "fine_candidate", 255: "ignore"
+      13: "water", 14: "furniture", 15: "pipe", 16: "equipment", 17: "fine_candidate",
+      18: "stair", 19: "indoor_floor", 20: "roof", 255: "ignore"
     };
     const LABEL_IDS = Object.fromEntries(Object.entries(LABELS).map(([k, v]) => [v, Number(k)]));
     const LABEL_ZH = {
       unknown: "未知", other: "其他", wall: "墙面", floor: "地面", ceiling: "天花板",
       grass: "草地", tree: "树木", person: "人", car: "汽车", railing: "栏杆/护栏",
       building: "建筑", sky: "天空", road: "路面", water: "水体", furniture: "家具",
-      pipe: "管线", equipment: "设备", fine_candidate: "细目标候选", ignore: "忽略", ambiguous: "模糊"
+      pipe: "管线", equipment: "设备", fine_candidate: "细目标候选",
+      stair: "楼梯", indoor_floor: "室内地面", roof: "屋顶/平台", ignore: "忽略", ambiguous: "模糊"
     };
     const LABEL_COLORS = {
       unknown: [120, 120, 120], other: [210, 210, 210], wall: [160, 160, 165], floor: [139, 100, 60],
       ceiling: [180, 180, 210], grass: [70, 150, 80], tree: [40, 120, 60], person: [230, 80, 80],
       car: [80, 110, 230], railing: [245, 210, 50], building: [190, 170, 140], sky: [70, 150, 220],
       road: [90, 90, 90], water: [50, 120, 200], furniture: [180, 100, 200], pipe: [240, 140, 40],
-      equipment: [30, 210, 190], fine_candidate: [235, 120, 35], ignore: [20, 20, 20], ambiguous: [230, 40, 210]
+      equipment: [30, 210, 190], fine_candidate: [235, 120, 35],
+      stair: [245, 125, 60], indoor_floor: [105, 180, 210], roof: [165, 145, 210],
+      ignore: [20, 20, 20], ambiguous: [230, 40, 210]
     };
     const STATUS_COLORS = {
       stable: [80, 190, 130],
