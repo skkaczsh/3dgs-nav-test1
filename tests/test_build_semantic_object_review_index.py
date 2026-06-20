@@ -110,3 +110,57 @@ def test_normalize_manual_object_review_decisions_validates_rows(tmp_path: Path)
         }
     ]
     assert [err["error"] for err in errors] == ["pending", "unknown_object_id", "invalid_new_label"]
+
+
+def test_apply_manual_object_review_decisions_updates_labels_and_status() -> None:
+    from scripts import apply_manual_object_review_decisions as apply_mod
+
+    objects = [
+        {"object_id": "obj_000001", "viewer_object_id": 1, "semantic_label": "car", "status": "stable"},
+        {"object_id": "obj_000002", "viewer_object_id": 2, "semantic_label": "railing", "status": "stable"},
+        {"object_id": "obj_000003", "viewer_object_id": 3, "semantic_label": "wall", "status": "stable"},
+    ]
+    decisions = [
+        {
+            "object_id": "1",
+            "source_object_id": "obj_000001",
+            "current_label": "car",
+            "decision": "relabel",
+            "final_label": "wall",
+            "confidence": 0.9,
+            "reviewer": "skk",
+            "notes": "flat facade",
+        },
+        {
+            "object_id": "2",
+            "source_object_id": "obj_000002",
+            "current_label": "railing",
+            "decision": "split_review",
+            "final_label": "railing",
+            "confidence": 0.8,
+            "reviewer": "skk",
+            "notes": "mixed with wall",
+        },
+        {
+            "object_id": "99",
+            "source_object_id": "obj_000099",
+            "current_label": "car",
+            "decision": "keep",
+            "final_label": "car",
+        },
+    ]
+
+    output, report = apply_mod.apply_decisions(objects, decisions)
+
+    assert output[0]["semantic_label"] == "wall"
+    assert output[0]["semantic_label_original"] == "car"
+    assert output[0]["semantic_id"] == 2
+    assert output[0]["manual_review_status"] == "relabel"
+    assert output[0]["manual_review_notes"] == "flat facade"
+    assert output[1]["semantic_label"] == "railing"
+    assert output[1]["status"] == "manual_split_review"
+    assert output[2]["semantic_label"] == "wall"
+    assert report["applied_count"] == 2
+    assert report["error_count"] == 1
+    assert report["errors"] == [{"object_id": "99", "error": "decision_object_not_found"}]
+    assert report["label_counts_after"] == {"wall": 2, "railing": 1}

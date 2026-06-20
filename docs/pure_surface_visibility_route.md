@@ -212,6 +212,21 @@ This keeps human QA explicit and auditable.  A later apply stage may consume the
 normalized JSONL, but object labels must not be silently rewritten from the HTML
 view alone.
 
+Apply normalized manual decisions to object metadata:
+
+```bash
+python3 scripts/apply_manual_object_review_decisions.py \
+  --objects-jsonl <viewer_dir>/frame_objects_viewer.jsonl \
+  --decisions-jsonl <review_dir>/manual_object_review_decisions.normalized.jsonl \
+  --output-objects-jsonl <review_dir>/frame_objects_viewer.manual_reviewed.jsonl \
+  --report-json <review_dir>/manual_object_review_apply_report.json
+```
+
+This updates JSONL metadata only.  Because semantic color in the viewer PLY is
+stored in the PLY `semantic` field, point colors change only after re-exporting
+the viewer PLY from the reviewed object JSONL with
+`scripts/export_frame_target_objects_for_viewer.py`.
+
 Latest full artifact in the index:
 
 ```text
