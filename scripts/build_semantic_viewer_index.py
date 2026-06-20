@@ -225,7 +225,7 @@ def main() -> int:
     artifact_root = args.artifact_root if args.artifact_root.is_absolute() else web_root / args.artifact_root
     output = args.output if args.output.is_absolute() else web_root / args.output
 
-    index = build_index(web_root=web_root, artifact_root=artifact_root.resolve())
+    index = build_index(web_root=web_root, artifact_root=artifact_root)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
         json.dumps(index, ensure_ascii=False, indent=2 if args.pretty else None, sort_keys=False) + "\n",

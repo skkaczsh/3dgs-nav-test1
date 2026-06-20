@@ -5,6 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from scripts import build_semantic_viewer_index
 from scripts.build_semantic_viewer_index import build_index
 
 
@@ -87,3 +88,34 @@ def test_build_index_keeps_symlink_url_prefix(tmp_path: Path) -> None:
 
     assert entry["ply"] == "/work_MT20260616-175807/run_a/viewer/frame_object_points_stride10.ply"
     assert entry["relative_dir"] == "run_a/viewer"
+
+
+def test_cli_keeps_symlink_url_prefix(tmp_path: Path, monkeypatch) -> None:
+    real_root = tmp_path / "work"
+    viewer_dir = real_root / "run_b" / "viewer"
+    write(viewer_dir / "frame_object_points_stride10.ply", "ply\n")
+    write(viewer_dir / "frame_objects_viewer.jsonl", "{}\n")
+
+    web_root = tmp_path / "repo"
+    link_root = web_root / "work"
+    web_root.mkdir()
+    link_root.symlink_to(real_root, target_is_directory=True)
+    output = web_root / "tools" / "semantic_viewer_index.json"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "build_semantic_viewer_index.py",
+            "--web-root",
+            str(web_root),
+            "--artifact-root",
+            "work",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert build_semantic_viewer_index.main() == 0
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data["entries"][0]["ply"] == "/work/run_b/viewer/frame_object_points_stride10.ply"
