@@ -7,6 +7,7 @@ REPO_ROOT="${REPO_ROOT:-/Users/skkac/Work/SCAN/new_route}"
 LOG_DIR="${LOG_DIR:-/Users/skkac/Work/SCAN/.local/logs}"
 PID_FILE="${PID_FILE:-/Users/skkac/Work/SCAN/.local/semantic_ply_viewer_${PORT}.pid}"
 URL="http://${HOST}:${PORT}/tools/semantic_ply_viewer.html"
+INDEX_URL="http://${HOST}:${PORT}/tools/semantic_viewer_index.html"
 
 mkdir -p "${LOG_DIR}" "$(dirname "${PID_FILE}")"
 
@@ -21,7 +22,15 @@ else
   )
 fi
 
+if [[ -f "${REPO_ROOT}/scripts/build_semantic_viewer_index.py" ]]; then
+  (
+    cd "${REPO_ROOT}"
+    python3 scripts/build_semantic_viewer_index.py >/dev/null
+  )
+fi
+
 sleep 1
 curl -fsS --max-time 5 -I "${URL}" >/dev/null
 echo "viewer_url=${URL}"
+echo "index_url=${INDEX_URL}"
 echo "pid_file=${PID_FILE}"
