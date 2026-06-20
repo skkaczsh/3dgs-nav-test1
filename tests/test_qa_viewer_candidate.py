@@ -119,3 +119,25 @@ def test_write_markdown_contains_chinese_labels(tmp_path: Path):
     text = run_args.output_md.read_text(encoding="utf-8")
     assert "地面" in text
     assert "栏杆/护栏" in text
+
+
+def test_large_fine_warning_uses_class_aware_thresholds():
+    objects = [
+        {"object_id": 1, "semantic_label": "car", "status": "stable", "point_count": 10698},
+        {"object_id": 2, "semantic_label": "railing", "status": "stable", "point_count": 10000},
+        {"object_id": 3, "semantic_label": "car", "status": "stable", "point_count": 25000},
+    ]
+
+    summary = qa.summarize_objects(objects)
+
+    assert [row["object_id"] for row in summary["large_fine_objects"]] == [3, 2]
+    assert summary["large_fine_objects"][0]["large_fine_threshold"] == 25000
+    assert summary["large_fine_objects"][1]["large_fine_threshold"] == 10000
+
+
+def test_ten_k_point_car_is_not_large_fine_warning():
+    summary = qa.summarize_objects(
+        [{"object_id": 1, "semantic_label": "car", "status": "stable", "point_count": 10698}]
+    )
+
+    assert summary["large_fine_objects"] == []

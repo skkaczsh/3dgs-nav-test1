@@ -61,6 +61,10 @@ LABEL_ZH = {
     "ignore": "忽略",
     "ambiguous": "模糊",
 }
+LARGE_FINE_OBJECT_THRESHOLDS = {
+    "railing": 10000,
+    "car": 25000,
+}
 
 
 def canonical_label(label: Any) -> str:
@@ -200,8 +204,9 @@ def summarize_objects(objects: list[dict[str, Any]]) -> dict[str, Any]:
             remaining_ambiguous.append(base)
         if status == "surface_ambiguous_resolved":
             resolved.append({**base, "reason": row.get("ambiguous_surface_resolve_reason")})
-        if label in {"car", "railing"} and points >= 10000:
-            fine_large.append(base)
+        threshold = LARGE_FINE_OBJECT_THRESHOLDS.get(label)
+        if threshold is not None and points >= threshold:
+            fine_large.append({**base, "large_fine_threshold": threshold})
 
     sort_key = lambda r: int(r.get("point_count") or 0)
     return {
@@ -298,7 +303,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             f"remaining ambiguous objects: {object_summary['status_counts'].get('ambiguous_object', 0)}"
         )
     if object_summary["large_fine_objects"]:
-        warnings.append("large car/railing objects exist; inspect for surface swallowing")
+        warnings.append("large fine objects exceed class-aware thresholds; inspect for surface swallowing")
 
     report = {
         "status": "failed" if errors else "ok",

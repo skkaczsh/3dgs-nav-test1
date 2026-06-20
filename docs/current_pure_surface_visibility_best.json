@@ -25,6 +25,7 @@
   },
   "metrics": {
     "qa_status": "ok",
+    "qa_warnings": [],
     "points": 8291613,
     "objects": 3900,
     "label_point_counts": {
@@ -46,9 +47,9 @@
   },
   "known_risks": [
     {
-      "risk": "large_fine_object_warning",
-      "status": "needs_visual_review",
-      "details": "The remaining QA warning is caused by a single car object with 10698 points after local-geometry splitting. If visually valid, make the QA threshold class-aware; if not, add a targeted car split rule."
+      "risk": "large_car_visual_validity",
+      "status": "visual_review_recommended",
+      "details": "The old class-agnostic large-fine warning was cleared by class-aware thresholds. The 10698-point car object is no longer a QA warning, but visual review should still confirm it is not swallowing nearby surface."
     }
   ],
   "do_not_use_as_best": [

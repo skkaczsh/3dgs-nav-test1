@@ -212,6 +212,7 @@ Result summary:
   `grass=929,448`, `car=218,854`, `railing=164,553`
 - local-geometry split candidates: `18` selected (`15` railing, `3` car)
 - local-geometry output: `3,900` objects, QA `ok`
+- local-geometry QA after class-aware large-fine thresholds: warnings `[]`
 - local-geometry final semantic point counts: `ground=1,682,648`,
   `wall=5,348,985`, `grass=929,448`, `car=218,854`,
   `railing=93,090`, `unknown=18,588`
@@ -226,14 +227,14 @@ Interpretation:
   broad railing masks: railing points dropped from `164,553` to `93,090`, while
   `47,110` points became wall, `5,765` became ground, and `18,588` became
   unknown rather than forced fine-object evidence.
-- The remaining QA warning is produced by the generic `car/railing >= 10,000`
-  point rule.  After local-geometry splitting, the reported large fine object is
-  a single car object (`object_id=1742`, `10,698` points), not a persistent
-  large-railing failure.
+- QA now uses class-aware large-fine thresholds: `railing >= 10,000` points is
+  still suspicious, while `car >= 25,000` points is the warning threshold.
+  The previously reported `10,698`-point car (`object_id=1742`) is therefore
+  retained as a normal large object candidate instead of a system-level warning.
 - This means the next QA step should be visual review of the full remote viewer,
-  not another blind parameter sweep.  If the car object is visually valid, the
-  warning threshold should be made class-aware; if it swallowed surface points,
-  the car local-geometry split rule needs the next targeted fix.
+  not another blind parameter sweep.  If a visually invalid car remains, add a
+  targeted car split rule using local geometry; do not lower the generic
+  threshold back to a class-agnostic value.
 
 ## Next Integration
 
