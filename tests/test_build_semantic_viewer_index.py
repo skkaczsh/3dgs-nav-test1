@@ -153,6 +153,8 @@ def test_index_html_uses_generated_json_and_existing_viewer() -> None:
     assert "语义点云版本索引" in html
     assert "对象审阅" in html
     assert "决策 CSV" in html
+    assert "打开最新版语义" in html
+    assert "updateLatestLinks" in html
 
 
 def test_build_index_keeps_symlink_url_prefix(tmp_path: Path) -> None:

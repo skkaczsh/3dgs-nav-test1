@@ -171,6 +171,8 @@
       <option value="error">有 error</option>
     </select>
     <button id="reload">刷新索引</button>
+    <a id="openLatestSemantic" class="button" href="#" target="_blank" aria-disabled="true">打开最新版语义</a>
+    <a id="openLatestObject" class="button" href="#" target="_blank" aria-disabled="true">最新版 Object</a>
     <span id="summary" class="summary">加载中...</span>
   </header>
   <main>
@@ -283,11 +285,28 @@
       }
       document.getElementById("summary").textContent =
         `${filtered.length}/${state.entries.length} 个版本，索引生成于 ${fmtTime(state.index?.generated_at)}`;
+      updateLatestLinks(filtered[0] || state.entries[0] || null);
       if (!state.selected && filtered.length) {
         state.selected = filtered[0];
         renderRows();
         renderDetail(filtered[0]);
       }
+    }
+
+    function setHeaderLink(id, url) {
+      const el = document.getElementById(id);
+      if (url) {
+        el.href = url;
+        el.removeAttribute("aria-disabled");
+      } else {
+        el.href = "#";
+        el.setAttribute("aria-disabled", "true");
+      }
+    }
+
+    function updateLatestLinks(entry) {
+      setHeaderLink("openLatestSemantic", entry?.viewer_urls?.semantic || "");
+      setHeaderLink("openLatestObject", entry?.viewer_urls?.object || "");
     }
 
     function renderDetail(entry) {
