@@ -1,0 +1,59 @@
+{
+  "schema": "current-pure-surface-visibility-best/v1",
+  "updated_at": "2026-06-20T14:58:00+08:00",
+  "host": "scan-rtx5070",
+  "artifact": "frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180",
+  "route": "pure_surface_visibility",
+  "dataset": "MT20260616-175807",
+  "frame_range": {
+    "start": 0,
+    "end": 6180,
+    "stride": 10,
+    "frames": 619,
+    "cameras": [0, 1, 2]
+  },
+  "viewer": {
+    "index_url": "http://scan-rtx5070:8765/tools/semantic_viewer_index.html",
+    "semantic_url": "http://scan-rtx5070:8765/tools/semantic_ply_viewer.html?file=/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_object_points_stride10.ply&mode=semantic&stride=1&pointSize=1.5&objects=/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_objects_viewer.jsonl",
+    "object_url": "http://scan-rtx5070:8765/tools/semantic_ply_viewer.html?file=/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_object_points_stride10.ply&mode=object&stride=1&pointSize=1.5&objects=/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_objects_viewer.jsonl"
+  },
+  "remote_paths": {
+    "ply": "/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_object_points_stride10.ply",
+    "objects_jsonl": "/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_objects_viewer.jsonl",
+    "qa_json": "/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/viewer_candidate_qa.json",
+    "local_geometry_report": "/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_object_points_local_geometry_report.json"
+  },
+  "metrics": {
+    "qa_status": "ok",
+    "points": 8291613,
+    "objects": 3900,
+    "label_point_counts": {
+      "ground": 1682648,
+      "wall": 5348985,
+      "grass": 929448,
+      "car": 218854,
+      "railing": 93090,
+      "unknown": 18588
+    },
+    "label_object_counts": {
+      "ground": 109,
+      "wall": 1037,
+      "grass": 1781,
+      "car": 604,
+      "railing": 343,
+      "unknown": 26
+    }
+  },
+  "known_risks": [
+    {
+      "risk": "large_fine_object_warning",
+      "status": "needs_visual_review",
+      "details": "The remaining QA warning is caused by a single car object with 10698 points after local-geometry splitting. If visually valid, make the QA threshold class-aware; if not, add a targeted car split rule."
+    }
+  ],
+  "do_not_use_as_best": [
+    "v23 Mimo rich highctx global relabel",
+    "old transforms.json/project_world_points route",
+    "single-frame keyframe-assumed point/image pairing"
+  ]
+}

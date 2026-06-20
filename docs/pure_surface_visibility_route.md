@@ -168,6 +168,73 @@ was split into `wall=4,413`, `railing=1,616`, `ground=636`,
 `unknown=5,004`.  This suggests the local-geometry fine-object split is a
 stable post-target correction, not a one-off patch.
 
+Full parking run:
+
+```bash
+RUN=1 OVERWRITE=1 PULL_RESULTS=0 START=0 END=6180 STRIDE=10 \
+  OUT_SUFFIX=pure_surface_visibility_full_0000_6180 \
+  ./scripts/run_rtx5070_pure_surface_visibility_route.sh
+```
+
+Remote viewer entry:
+
+```text
+http://scan-rtx5070:8765/tools/semantic_viewer_index.html
+```
+
+Latest full artifact in the index:
+
+```text
+frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180
+```
+
+Result summary:
+
+- geometry guidance images: `1857/1857 ok`
+- geometry guidance elapsed: `1926.7s`
+- refined priority images: `1857/1857 ok`
+- priority projection frames: `619`
+- projection visible non-sky points: `9,341,265`
+- projection priority points: `9,023,936`
+- projection residual points: `317,329`
+- frame targets: `11,928`
+- target points: `8,291,613`
+- target label counts: `ground=1,000`, `wall=4,073`, `grass=4,805`,
+  `car=1,310`, `railing=740`
+- surface attachment targets: `11,928`, missing target points `0`
+- attachment status counts: `merge_to_structural_region=1,653`,
+  `ambiguous_surface_attachment=4,260`,
+  `independent_object_candidate=5,470`,
+  `attached_object_candidate=457`, `unstructured_target=88`
+- object fusion: `3,839` base objects, merge ratio `0.678`
+- base viewer points: `8,291,613`, QA `ok`
+- base semantic point counts: `ground=1,676,883`, `wall=5,301,875`,
+  `grass=929,448`, `car=218,854`, `railing=164,553`
+- local-geometry split candidates: `18` selected (`15` railing, `3` car)
+- local-geometry output: `3,900` objects, QA `ok`
+- local-geometry final semantic point counts: `ground=1,682,648`,
+  `wall=5,348,985`, `grass=929,448`, `car=218,854`,
+  `railing=93,090`, `unknown=18,588`
+
+Interpretation:
+
+- The full clean route is reproducible end-to-end on `scan-rtx5070`.
+- The first-touch/full-pointcloud visibility stage is healthy: no failed images,
+  no missing target points, and no sky/back-wall projection regression was
+  reported by the cheap QA gate.
+- The local-geometry split substantially reduced surface-swallowing risk for
+  broad railing masks: railing points dropped from `164,553` to `93,090`, while
+  `47,110` points became wall, `5,765` became ground, and `18,588` became
+  unknown rather than forced fine-object evidence.
+- The remaining QA warning is produced by the generic `car/railing >= 10,000`
+  point rule.  After local-geometry splitting, the reported large fine object is
+  a single car object (`object_id=1742`, `10,698` points), not a persistent
+  large-railing failure.
+- This means the next QA step should be visual review of the full remote viewer,
+  not another blind parameter sweep.  If the car object is visually valid, the
+  warning threshold should be made class-aware; if it swallowed surface points,
+  the car local-geometry split rule needs the next targeted fix.
+
 ## Next Integration
 
 The next production orchestrator should run:
