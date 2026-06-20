@@ -80,6 +80,53 @@ def test_low_vehicle_sized_car_is_not_flagged_by_wall_guard():
     assert "car_surface_attached_high" not in reasons
 
 
+def test_vertical_wall_like_flat_car_preserves_relabel_action():
+    obj = {
+        "object_id": "obj_003305",
+        "viewer_object_id": 3305,
+        "semantic_label": "car",
+        "point_count": 110,
+        "centroid": [0.0, 0.0, 10.3],
+        "bbox_3d": {"min": [0.0, 0.0, 10.2], "max": [0.12, 0.14, 10.38]},
+        "normal": [0.7, 0.7, 0.2],
+        "geometry_stats": {"planarity_mean": 0.20, "linearity_mean": 0.80},
+        "dominant_structural_region": "vertical_surface_region",
+        "dominant_structural_region_ratio": 1.0,
+        "dominant_surface_attachment_status": "attached_object_candidate",
+        "dominant_surface_attachment_ratio": 1.0,
+    }
+
+    _severity, reasons, action = mod.assess_object(obj, args())
+
+    assert "car_on_vertical_surface_region" in reasons
+    assert "car_too_flat" in reasons
+    assert action == "relabel_car_to_wall"
+
+
+def test_horizontal_attached_high_car_fragment_is_not_wall_relabel():
+    obj = {
+        "object_id": "obj_003140",
+        "viewer_object_id": 3140,
+        "semantic_label": "car",
+        "point_count": 307,
+        "centroid": [0.0, 0.0, 11.88],
+        "bbox_3d": {"min": [0.0, 0.0, 11.84], "max": [1.66, 2.65, 11.91]},
+        "normal": [0.0, 0.0, 1.0],
+        "geometry_stats": {"planarity_mean": 0.50, "linearity_mean": 0.70},
+        "dominant_structural_region": "ground_like_region",
+        "dominant_structural_region_ratio": 1.0,
+        "dominant_surface_attachment_status": "attached_object_candidate",
+        "dominant_surface_attachment_ratio": 1.0,
+    }
+
+    _severity, reasons, action = mod.assess_object(obj, args())
+
+    assert "car_surface_attached_high" not in reasons
+    assert "car_high_centroid_z" in reasons
+    assert "car_too_flat" in reasons
+    assert action == "demote_or_visual_review"
+
+
 def test_apply_car_wall_geometry_guard_only_relabels_flagged_car(tmp_path):
     from scripts import apply_car_wall_geometry_guard as guard
 

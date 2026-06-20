@@ -177,6 +177,8 @@ def assess_object(obj: dict[str, Any], args: argparse.Namespace) -> tuple[str, l
             attach == "attached_object_candidate"
             and attach_ratio >= args.car_wall_attachment_min_ratio
             and metrics["centroid_z"] >= args.car_wall_min_centroid_z
+            and metrics["orientation"] in {"vertical", "oblique"}
+            and struct != "ground_like_region"
         ):
             reasons.append("car_surface_attached_high")
             suggested_action = "relabel_car_to_wall"
@@ -189,7 +191,8 @@ def assess_object(obj: dict[str, Any], args: argparse.Namespace) -> tuple[str, l
             suggested_action = "split_car_candidate"
         if metrics["z_extent"] < args.car_min_z_extent:
             reasons.append("car_too_flat")
-            suggested_action = "demote_or_visual_review"
+            if suggested_action != "relabel_car_to_wall":
+                suggested_action = "demote_or_visual_review"
     elif label == "railing":
         status = str(obj.get("priority_guard_status") or "")
         if status == "geometry_rejected":
