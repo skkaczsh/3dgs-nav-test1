@@ -76,6 +76,45 @@ This is the practical boundary between structure priors and semantics.  A
 region prior can explain why a target is near a wall-like/ground-like region,
 but it cannot by itself confirm `wall`, `floor`, or `ceiling`.
 
+## Geometry-First Patch Route
+
+The next refinement layer is geometry-first.  It treats the current viewer
+object id as a seed only, then rebuilds smaller `GeoPatch` units from local
+PCA, connectivity, and conservative plane-slab splitting:
+
+```text
+viewer PLY seed object
+-> GeoPatch geometry split
+-> patch evidence accumulation
+-> geometry-gated semantic object classification
+-> viewer PLY/JSONL
+```
+
+The main scripts are:
+
+- `scripts/build_geo_patches.py`: emits `geo_patches.jsonl` and
+  `geo_patch_points.ply`.
+- `scripts/accumulate_patch_observations.py`: summarizes semantic/priority,
+  structural, frame/camera, and scene-prior evidence without relabeling.
+- `scripts/classify_geo_objects.py`: applies geometry vetoes and exports
+  viewer-compatible object artifacts.
+- `scripts/run_rtx5070_geo_patch_route.sh`: reproducible remote runner.
+
+This route is intentionally conservative.  It may increase `unknown` and
+`fine_candidate`, but it should reduce mixed wall/floor/ceiling/car objects.
+VLM or Mimo evidence must remain post-geometry evidence; it must not override
+GeoPatch boundaries.
+
+Initial 3000..3600 smoke:
+
+- baseline geometry QA: `289` objects, `234` findings,
+  `wall_oblique_normal=68`, `grass_low_planarity=64`.
+- GeoPatch v1 QA: `828` objects, `187` findings,
+  `wall_oblique_normal=20`, `grass_low_planarity=36`.
+- remaining issues: `wall_low_planarity=131`,
+  `wall_has_horizontal_normal=38`, and many conservative
+  `unknown/fine_candidate` objects.
+
 ## 5070Ti Smoke
 
 `scripts/run_rtx5070_pure_surface_visibility_smoke.sh` runs the closed loop on
