@@ -154,6 +154,73 @@ def color_green_score(patch: dict[str, Any]) -> float:
     return float((g - max(r, b)) / 255.0)
 
 
+def normal_z_abs(patch: dict[str, Any]) -> float:
+    normal = patch.get("normal") or (patch.get("pca") or {}).get("normal") or [0.0, 0.0, 0.0]
+    if isinstance(normal, list) and len(normal) >= 3:
+        return abs(float(normal[2]))
+    return 0.0
+
+
+def patch_extent(patch: dict[str, Any]) -> list[float]:
+    extent = patch.get("extent")
+    if isinstance(extent, list) and len(extent) >= 3:
+        return [float(extent[0]), float(extent[1]), float(extent[2])]
+    bbox = patch.get("bbox_3d") if isinstance(patch.get("bbox_3d"), dict) else {}
+    lo = bbox.get("min") or [0.0, 0.0, 0.0]
+    hi = bbox.get("max") or [0.0, 0.0, 0.0]
+    return [float(hi[i]) - float(lo[i]) for i in range(3)]
+
+
+def point_count(patch: dict[str, Any]) -> int:
+    return int(patch.get("point_count") or 0)
+
+
+def dominant_structural_region(patch: dict[str, Any]) -> str:
+    return str(evidence(patch).get("dominant_structural_region") or "")
+
+
+def surface_subtype_label(subtype: str, area: str, structural_region: str) -> str:
+    if structural_region == "upper_horizontal_region":
+        return "roof" if area == "rooftop" else "ceiling"
+    return GROUND_SUBTYPE_LABELS.get(subtype, "ground")
+
+
+def surface_salvage_label(
+    patch: dict[str, Any],
+    votes: Counter[str],
+    area: str,
+    subtype: str,
+    args: argparse.Namespace,
+) -> tuple[str | None, str | None, float]:
+    """Recover surface labels from non-clean geometry when evidence is coherent."""
+
+    nz = normal_z_abs(patch)
+    structural_region = dominant_structural_region(patch)
+    wall_ratio = max(vote_ratio(votes, "wall"), vote_ratio(votes, "building"))
+    ground_ratio = vote_ratio(votes, "ground") + vote_ratio(votes, "floor")
+    if nz >= args.horizontal_normal_z:
+        if ground_ratio >= args.surface_salvage_ground_vote_min or subtype or structural_region in {"ground_like_region", "upper_horizontal_region"}:
+            label = surface_subtype_label(subtype, area, structural_region)
+            return label, "salvaged_horizontal_surface_from_non_surface_geometry", max(ground_ratio, 0.62)
+        if wall_ratio >= args.surface_salvage_wall_vote_min and area in INDOOR_AREAS:
+            label = surface_subtype_label(subtype, area, structural_region)
+            return label, "salvaged_horizontal_scene_surface_from_wall_votes", max(wall_ratio, 0.58)
+    if nz <= args.vertical_normal_z and wall_ratio >= args.surface_salvage_wall_vote_min:
+        return "wall", "salvaged_wall_from_non_surface_geometry", max(wall_ratio, 0.70)
+    return None, None, 0.0
+
+
+def car_allowed(patch: dict[str, Any], area: str, args: argparse.Namespace) -> tuple[bool, str]:
+    if area in INDOOR_AREAS:
+        return False, "indoor_car_vetoed"
+    ext = patch_extent(patch)
+    if point_count(patch) < args.car_min_points:
+        return False, "small_car_candidate_vetoed"
+    if max(ext) < args.car_min_extent or ext[2] < args.car_min_z_extent:
+        return False, "car_geometry_too_small_vetoed"
+    return True, ""
+
+
 def normal_angle(a: list[float], b: list[float]) -> float:
     av = np.asarray(a, dtype=np.float64)
     bv = np.asarray(b, dtype=np.float64)
@@ -203,13 +270,34 @@ def classify_patch(patch: dict[str, Any], args: argparse.Namespace) -> dict[str,
         if vote_ratio(votes, "railing") >= args.railing_vote_warn_ratio:
             conflicts.append("railing_vote_on_vertical_surface_requires_split")
     elif gtype == "vegetation_like":
-        label = "grass" if vote_ratio(votes, "grass") >= args.grass_vote_min or area == "grass_landscape" else "unknown"
-        confidence = max(vote_ratio(votes, "grass"), 0.45 if label == "grass" else 0.2)
+        salvage_label, salvage_reason, salvage_confidence = surface_salvage_label(patch, votes, area, subtype, args)
+        if salvage_label:
+            label = salvage_label
+            confidence = salvage_confidence
+            conflicts.append(salvage_reason)
+        else:
+            label = "grass" if vote_ratio(votes, "grass") >= args.grass_vote_min or area == "grass_landscape" else "unknown"
+            confidence = max(vote_ratio(votes, "grass"), 0.45 if label == "grass" else 0.2)
     elif gtype == "linear_thin":
-        label = "railing" if vote_ratio(votes, "railing") >= args.railing_vote_min else "fine_candidate"
-        confidence = max(vote_ratio(votes, "railing"), 0.55 if label == "railing" else 0.35)
+        if vote_ratio(votes, "railing") >= args.railing_vote_min:
+            label = "railing"
+            confidence = max(vote_ratio(votes, "railing"), 0.55)
+        else:
+            salvage_label, salvage_reason, salvage_confidence = surface_salvage_label(patch, votes, area, subtype, args)
+            if salvage_label:
+                label = salvage_label
+                confidence = salvage_confidence
+                conflicts.append(salvage_reason)
+            else:
+                label = "fine_candidate"
+                confidence = 0.35
     elif gtype == "bulky_object":
-        if vote_ratio(votes, "car") >= args.car_vote_min and area not in INDOOR_AREAS:
+        salvage_label, salvage_reason, salvage_confidence = surface_salvage_label(patch, votes, area, subtype, args)
+        if salvage_label:
+            label = salvage_label
+            confidence = salvage_confidence
+            conflicts.append(salvage_reason)
+        elif vote_ratio(votes, "car") >= args.car_vote_min and car_allowed(patch, area, args)[0]:
             label = "car"
             confidence = vote_ratio(votes, "car")
         elif vote_ratio(votes, "equipment") >= args.equipment_vote_min:
@@ -218,17 +306,29 @@ def classify_patch(patch: dict[str, Any], args: argparse.Namespace) -> dict[str,
         else:
             label = "unknown"
             confidence = max(vote_ratio(votes, "car"), vote_ratio(votes, "equipment"), 0.25)
-        if vote_ratio(votes, "car") >= args.car_vote_min and area in INDOOR_AREAS:
-            conflicts.append("indoor_car_vetoed")
-            label = "unknown"
+        if vote_ratio(votes, "car") >= args.car_vote_min and label != "car":
+            ok, reason = car_allowed(patch, area, args)
+            if not ok:
+                conflicts.append(reason)
     elif gtype == "mixed":
         label = "ambiguous"
         confidence = 0.0
         conflicts.append("mixed_geometry_requires_split")
     else:
-        winner, value = votes.most_common(1)[0] if votes else ("unknown", 0.0)
-        label = winner if value / max(sum(votes.values()), 1.0) >= args.unknown_vote_accept_ratio else "unknown"
-        confidence = value / max(sum(votes.values()), 1.0) if votes else 0.0
+        salvage_label, salvage_reason, salvage_confidence = surface_salvage_label(patch, votes, area, subtype, args)
+        if salvage_label:
+            label = salvage_label
+            confidence = salvage_confidence
+            conflicts.append(salvage_reason)
+        else:
+            winner, value = votes.most_common(1)[0] if votes else ("unknown", 0.0)
+            label = winner if value / max(sum(votes.values()), 1.0) >= args.unknown_vote_accept_ratio else "unknown"
+            confidence = value / max(sum(votes.values()), 1.0) if votes else 0.0
+            if label == "car":
+                ok, reason = car_allowed(patch, area, args)
+                if not ok:
+                    conflicts.append(reason)
+                    label = "unknown"
 
     if confidence < args.min_stable_confidence or conflicts:
         status = "ambiguous_object" if label not in {"wall", "ground", "grass", "roof", "indoor_floor", "stair"} else "geometry_guarded"
@@ -409,6 +509,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fine-vote-warn-ratio", type=float, default=0.15)
     parser.add_argument("--equipment-vote-min", type=float, default=0.35)
     parser.add_argument("--unknown-vote-accept-ratio", type=float, default=0.75)
+    parser.add_argument("--horizontal-normal-z", type=float, default=0.86)
+    parser.add_argument("--vertical-normal-z", type=float, default=0.42)
+    parser.add_argument("--surface-salvage-wall-vote-min", type=float, default=0.65)
+    parser.add_argument("--surface-salvage-ground-vote-min", type=float, default=0.35)
+    parser.add_argument("--car-min-points", type=int, default=800)
+    parser.add_argument("--car-min-extent", type=float, default=1.2)
+    parser.add_argument("--car-min-z-extent", type=float, default=0.45)
     return parser.parse_args()
 
 

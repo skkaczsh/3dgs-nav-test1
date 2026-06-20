@@ -65,6 +65,13 @@ def classify_args(**overrides):
         "fine_vote_warn_ratio": 0.15,
         "equipment_vote_min": 0.35,
         "unknown_vote_accept_ratio": 0.75,
+        "horizontal_normal_z": 0.86,
+        "vertical_normal_z": 0.42,
+        "surface_salvage_wall_vote_min": 0.65,
+        "surface_salvage_ground_vote_min": 0.35,
+        "car_min_points": 800,
+        "car_min_extent": 1.2,
+        "car_min_z_extent": 0.45,
     }
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -140,3 +147,115 @@ def test_vertical_surface_vetoes_car_vote():
 
     assert classification["canonical_label"] == "wall"
     assert "car_vote_on_vertical_surface_vetoed" in classification["conflict_flags"]
+
+
+def test_unknown_geometry_indoor_car_vote_is_vetoed():
+    patch = {
+        "patch_id": "patch_000002",
+        "patch_index": 2,
+        "point_count": 120,
+        "geometry_type": "unknown",
+        "extent": [0.4, 0.3, 0.2],
+        "bbox_3d": {"min": [0, 0, 0], "max": [0.4, 0.3, 0.2]},
+        "centroid": [0.2, 0.15, 0.1],
+        "normal": [0, 0, 1],
+        "evidence": {
+            "semantic_votes": {"car": 90, "wall": 10},
+            "scene_prior": {"dominant_scene_area_type": "indoor_lobby"},
+        },
+    }
+
+    classification = classify_geo_objects.classify_patch(patch, classify_args())
+
+    assert classification["canonical_label"] == "unknown"
+    assert "indoor_car_vetoed" in classification["conflict_flags"]
+
+
+def test_linear_thin_wall_evidence_is_salvaged_as_wall():
+    patch = {
+        "patch_id": "patch_000003",
+        "patch_index": 3,
+        "point_count": 5000,
+        "geometry_type": "linear_thin",
+        "bbox_3d": {"min": [0, 0, 0], "max": [0.05, 3.0, 2.0]},
+        "centroid": [0.025, 1.5, 1.0],
+        "normal": [1, 0, 0],
+        "evidence": {
+            "semantic_votes": {"wall": 90, "floor": 10},
+            "scene_prior": {"dominant_scene_area_type": "indoor_corridor"},
+        },
+    }
+
+    classification = classify_geo_objects.classify_patch(patch, classify_args())
+
+    assert classification["canonical_label"] == "wall"
+    assert "salvaged_wall_from_non_surface_geometry" in classification["conflict_flags"]
+
+
+def test_bulky_horizontal_stair_patch_uses_scene_subtype():
+    patch = {
+        "patch_id": "patch_000004",
+        "patch_index": 4,
+        "point_count": 3000,
+        "geometry_type": "bulky_object",
+        "bbox_3d": {"min": [0, 0, 0], "max": [2.0, 1.0, 0.25]},
+        "centroid": [1.0, 0.5, 0.125],
+        "normal": [0, 0, 1],
+        "evidence": {
+            "semantic_votes": {"wall": 80, "floor": 20},
+            "dominant_structural_region": "ground_like_region",
+            "scene_prior": {
+                "dominant_scene_area_type": "stairwell",
+                "dominant_scene_ground_subtype": "stair",
+            },
+        },
+    }
+
+    classification = classify_geo_objects.classify_patch(patch, classify_args())
+
+    assert classification["canonical_label"] == "stair"
+    assert "salvaged_horizontal_surface_from_non_surface_geometry" in classification["conflict_flags"]
+
+
+def test_bulky_wall_salvage_survives_invalid_car_vote():
+    patch = {
+        "patch_id": "patch_000005",
+        "patch_index": 5,
+        "point_count": 5000,
+        "geometry_type": "bulky_object",
+        "bbox_3d": {"min": [0, 0, 0], "max": [0.1, 4.0, 2.0]},
+        "centroid": [0.05, 2.0, 1.0],
+        "normal": [1, 0, 0],
+        "evidence": {
+            "semantic_votes": {"wall": 80, "car": 30},
+            "scene_prior": {"dominant_scene_area_type": "indoor_lobby"},
+        },
+    }
+
+    classification = classify_geo_objects.classify_patch(patch, classify_args())
+
+    assert classification["canonical_label"] == "wall"
+    assert "salvaged_wall_from_non_surface_geometry" in classification["conflict_flags"]
+    assert "indoor_car_vetoed" in classification["conflict_flags"]
+
+
+def test_upper_horizontal_structural_region_salvages_ceiling():
+    patch = {
+        "patch_id": "patch_000006",
+        "patch_index": 6,
+        "point_count": 3000,
+        "geometry_type": "unknown",
+        "bbox_3d": {"min": [0, 0, 2.8], "max": [2.0, 2.0, 2.9]},
+        "centroid": [1.0, 1.0, 2.85],
+        "normal": [0, 0, 1],
+        "evidence": {
+            "semantic_votes": {"wall": 90, "floor": 10},
+            "dominant_structural_region": "upper_horizontal_region",
+            "scene_prior": {"dominant_scene_area_type": "indoor_lobby"},
+        },
+    }
+
+    classification = classify_geo_objects.classify_patch(patch, classify_args())
+
+    assert classification["canonical_label"] == "ceiling"
+    assert "salvaged_horizontal_surface_from_non_surface_geometry" in classification["conflict_flags"]

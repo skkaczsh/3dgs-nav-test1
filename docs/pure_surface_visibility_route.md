@@ -375,3 +375,35 @@ structural field -> first-touch visibility -> mask gated targets
 
 Mimo/VLM should operate only after this stage, using target/object evidence
 summaries rather than raw masks alone.
+
+## GeoPatch Classifier V2 Note
+
+Artifact:
+
+```text
+geo_patch_objects_window_3000_3600_v2_surface_salvage
+```
+
+This pass keeps the geometry-first route fixed and only reruns the
+`GeoPatch -> Object` posterior classifier on top of the v1 patch evidence.
+It adds conservative surface salvage for non-clean geometry patches when the
+normal direction, structural region, scene subtype, and semantic votes agree.
+It also applies the indoor/small-geometry car veto to the unknown-geometry
+branch, so tiny indoor fragments cannot become `car`.
+
+Window `3000..3600 stride=10` result:
+
+- `unknown` points dropped from `612,358` to `73,471`.
+- `fine_candidate` points dropped from `380,031` to `45,869`.
+- `car` points dropped from `445` to `0`; `9` indoor/small car votes were vetoed.
+- `ceiling` increased to `126,326` points.
+- `stair` increased to `106,578` points.
+- `railing` stayed similar: `12,765` points.
+
+Known tradeoff:
+
+- `wall` increased to `547,217` points and `wall_low_planarity` findings rose
+  to `362`, because many wall-voted `linear_thin/unknown/bulky_object` patches
+  are now salvaged as wall.
+- This confirms the next correction belongs in `GeoPatch` splitting or
+  wall-specific demotion/review, not in making `unknown` larger again.
