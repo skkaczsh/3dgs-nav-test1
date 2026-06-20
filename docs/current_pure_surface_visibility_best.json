@@ -14,6 +14,7 @@
   },
   "viewer": {
     "index_url": "http://scan-rtx5070:8765/tools/semantic_viewer_index.html",
+    "object_review_url": "http://scan-rtx5070:8765/work_MT20260616-175807/review_pure_surface_visibility_full_0000_6180/semantic_object_review_index.html",
     "semantic_url": "http://scan-rtx5070:8765/tools/semantic_ply_viewer.html?file=/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_object_points_stride10.ply&mode=semantic&stride=1&pointSize=1.5&objects=/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_objects_viewer.jsonl",
     "object_url": "http://scan-rtx5070:8765/tools/semantic_ply_viewer.html?file=/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_object_points_stride10.ply&mode=object&stride=1&pointSize=1.5&objects=/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_objects_viewer.jsonl"
   },
@@ -21,7 +22,9 @@
     "ply": "/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_object_points_stride10.ply",
     "objects_jsonl": "/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_objects_viewer.jsonl",
     "qa_json": "/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/viewer_candidate_qa.json",
-    "local_geometry_report": "/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_object_points_local_geometry_report.json"
+    "local_geometry_report": "/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_object_points_local_geometry_report.json",
+    "object_review_html": "/home/zsh/Work/SCAN/new_route/work_MT20260616-175807/review_pure_surface_visibility_full_0000_6180/semantic_object_review_index.html",
+    "object_review_json": "/home/zsh/Work/SCAN/new_route/work_MT20260616-175807/review_pure_surface_visibility_full_0000_6180/semantic_object_review_index.json"
   },
   "metrics": {
     "qa_status": "ok",

@@ -182,6 +182,12 @@ Remote viewer entry:
 http://scan-rtx5070:8765/tools/semantic_viewer_index.html
 ```
 
+Focused object review entry:
+
+```text
+http://scan-rtx5070:8765/work_MT20260616-175807/review_pure_surface_visibility_full_0000_6180/semantic_object_review_index.html
+```
+
 Latest full artifact in the index:
 
 ```text
@@ -235,6 +241,10 @@ Interpretation:
   not another blind parameter sweep.  If a visually invalid car remains, add a
   targeted car split rule using local geometry; do not lower the generic
   threshold back to a class-agnostic value.
+- `tools/semantic_ply_viewer.html` now supports `object=<id>` URL filtering.
+  The focused object review page contains direct semantic/object/RGB links for
+  top car, railing, wall, ground, grass, unknown, and local-geometry child
+  objects.  Use this page for manual QA before changing fusion parameters.
 
 ## Next Integration
 

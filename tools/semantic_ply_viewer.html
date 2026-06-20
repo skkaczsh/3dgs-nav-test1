@@ -176,6 +176,8 @@
       </div>
       <label for="labelFilter">标签筛选</label>
       <select id="labelFilter"><option value="">全部标签</option></select>
+      <label for="objectFilter">Object ID 筛选</label>
+      <input id="objectFilter" type="text" placeholder="例如 1742 或 obj_001742">
       <div class="row">
         <button id="fit">适配视图</button>
         <button id="resetFilter">清除筛选</button>
@@ -316,6 +318,7 @@
       pointSize: document.querySelector("#pointSize"),
       sampleStride: document.querySelector("#sampleStride"),
       labelFilter: document.querySelector("#labelFilter"),
+      objectFilter: document.querySelector("#objectFilter"),
       fit: document.querySelector("#fit"),
       resetFilter: document.querySelector("#resetFilter"),
       stats: document.querySelector("#stats"),
@@ -621,9 +624,14 @@
       }
       const stride = Math.max(1, Number(els.sampleStride.value) || 1);
       const labelFilter = els.labelFilter.value;
+      const objectFilter = els.objectFilter.value.trim();
+      const objectFilterKeys = objectFilter ? new Set(objectKeys(objectFilter)) : null;
       filteredIndices = [];
       for (let i = 0; i < rawRows.length; i += stride) {
-        if (!labelFilter || rawRows[i].label === labelFilter) filteredIndices.push(i);
+        const row = rawRows[i];
+        if (labelFilter && row.label !== labelFilter) continue;
+        if (objectFilterKeys && !objectKeys(row.objectId).some(key => objectFilterKeys.has(key))) continue;
+        filteredIndices.push(i);
       }
       const positions = new Float32Array(filteredIndices.length * 3);
       const colors = new Float32Array(filteredIndices.length * 3);
@@ -674,6 +682,7 @@
         kv("加载行数", rawRows.length.toLocaleString()),
         kv("可见行数", filteredIndices.length.toLocaleString()),
         kv("标签数", labels.size),
+        kv("Object 筛选", els.objectFilter.value.trim() || "全部"),
         kv("边界尺寸", bounds ? `${bounds.size.x.toFixed(2)}, ${bounds.size.y.toFixed(2)}, ${bounds.size.z.toFixed(2)}` : "")
       ].join("") + "<h2>标签计数</h2>" + [...labels.entries()]
         .sort((a, b) => b[1] - a[1])
@@ -724,6 +733,11 @@
       if (option) els.labelFilter.value = label;
     }
 
+    function applyUrlObjectParam(params) {
+      const object = params.get("object");
+      if (object) els.objectFilter.value = object;
+    }
+
     async function loadFiles(files) {
       const list = [...files];
       els.stats.textContent = `正在加载 ${list.map(file => file.name).join(", ")} ...`;
@@ -732,7 +746,9 @@
       if (!rawRows.length) throw new Error("No points/objects parsed.");
       bounds = computeBounds(rawRows);
       updateLabelOptions();
-      applyUrlLabelParam(new URLSearchParams(window.location.search));
+      const params = new URLSearchParams(window.location.search);
+      applyUrlLabelParam(params);
+      applyUrlObjectParam(params);
       rebuildGeometry();
       fitView();
       els.details.innerHTML = kv("文件", loaded.names.join(", ")) + kv("类型", rawRows[0].source);
@@ -753,7 +769,9 @@
       if (!rawRows.length) throw new Error("No points/objects parsed.");
       bounds = computeBounds(rawRows);
       updateLabelOptions();
-      applyUrlLabelParam(new URLSearchParams(window.location.search));
+      const params = new URLSearchParams(window.location.search);
+      applyUrlLabelParam(params);
+      applyUrlObjectParam(params);
       rebuildGeometry();
       fitView();
       els.details.innerHTML = kv("文件", loaded.name) + kv("URL", url) + kv("类型", rawRows[0].source);
@@ -769,7 +787,9 @@
       if (!rawRows.length) throw new Error("No points/objects parsed.");
       bounds = computeBounds(rawRows);
       updateLabelOptions();
-      applyUrlLabelParam(new URLSearchParams(window.location.search));
+      const params = new URLSearchParams(window.location.search);
+      applyUrlLabelParam(params);
+      applyUrlObjectParam(params);
       rebuildGeometry();
       fitView();
       els.details.innerHTML = [
@@ -878,12 +898,13 @@
       if (!event.dataTransfer.files.length) return;
       try { await loadFiles(event.dataTransfer.files); } catch (err) { els.stats.innerHTML = `<span class="warn">${escapeHtml(err.message)}</span>`; }
     });
-    for (const el of [els.colorMode, els.pointSize, els.sampleStride, els.labelFilter]) {
+    for (const el of [els.colorMode, els.pointSize, els.sampleStride, els.labelFilter, els.objectFilter]) {
       el.addEventListener("input", () => rawRows.length && rebuildGeometry());
     }
     els.fit.addEventListener("click", fitView);
     els.resetFilter.addEventListener("click", () => {
       els.labelFilter.value = "";
+      els.objectFilter.value = "";
       if (rawRows.length) rebuildGeometry();
     });
 
