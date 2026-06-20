@@ -227,6 +227,24 @@ stored in the PLY `semantic` field, point colors change only after re-exporting
 the viewer PLY from the reviewed object JSONL with
 `scripts/export_frame_target_objects_for_viewer.py`.
 
+The preferred wrapper for the whole reviewed-artifact export is:
+
+```bash
+python3 scripts/run_manual_object_review_export.py \
+  --decisions-csv <review_dir>/manual_object_review_decisions.csv \
+  --review-index-json <review_dir>/semantic_object_review_index.json \
+  --objects-jsonl <work_dir>/frame_objects_attachment_pure_surface_visibility_full_0000_6180/objects.jsonl \
+  --targets-jsonl <work_dir>/frame_targets_pure_surface_visibility_full_0000_6180/frame_targets.jsonl \
+  --target-ply <work_dir>/frame_targets_pure_surface_visibility_full_0000_6180/frame_targets.ply \
+  --output-dir <work_dir>/frame_object_viewer_manual_reviewed_pure_surface_visibility_full_0000_6180 \
+  --stride 10 \
+  --copy-review-inputs
+```
+
+The wrapper performs normalization, apply, PLY re-export, viewer QA, and writes
+`manual_object_review_export_report.json`.  Without reviewed CSV rows it exits
+at the normalization gate unless `--allow-normalize-errors` is explicitly used.
+
 Latest full artifact in the index:
 
 ```text
