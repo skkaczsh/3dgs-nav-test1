@@ -143,6 +143,31 @@ This confirms the principle: broad image masks can propose a fine-object
 region, but local point geometry must decide which parts are actually railing
 versus surface or unresolved evidence.
 
+Expanded validation window:
+
+```bash
+RUN=1 OVERWRITE=1 PULL_RESULTS=1 START=3000 END=3600 STRIDE=10 \
+  OUT_SUFFIX=pure_surface_visibility_window_3000_3600 \
+  ./scripts/run_rtx5070_pure_surface_visibility_route.sh
+```
+
+Result summary:
+
+- geometry guidance images: `183/183 ok`
+- frame targets: `760`
+- attachment targets: `760`, missing target points `0`
+- object fusion: `281` base objects, merge ratio `0.630`
+- base viewer points: `1,130,157`, missing target points `0`
+- base viewer QA: `ok`, with one large railing warning
+- local-geometry viewer: `289` objects, QA `ok`, warnings `[]`
+- final semantic point counts: `wall=1,044,360`, `ground/floor=59,242`,
+  `grass=11,655`, `car=4,885`, `railing=5,011`, `unknown=5,004`
+
+The same large-railing pattern appeared as `obj_000224` (`11,669` points) and
+was split into `wall=4,413`, `railing=1,616`, `ground=636`,
+`unknown=5,004`.  This suggests the local-geometry fine-object split is a
+stable post-target correction, not a one-off patch.
+
 ## Next Integration
 
 The next production orchestrator should run:
