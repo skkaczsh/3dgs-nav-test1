@@ -178,3 +178,87 @@ def test_manual_object_review_export_rewrites_ply_semantic(tmp_path: Path, monke
     assert "1 2 3 120 150 180 123 2 0 0 7 4" in ply_text
     assert qa["status"] == "ok"
     assert qa["consistency"]["semantic_mismatch_count"] == 0
+
+
+def test_manual_object_review_export_can_rewrite_existing_viewer_ply(tmp_path: Path, monkeypatch):
+    sys.path.insert(0, str(ROOT))
+    from scripts import run_manual_object_review_export as runner
+
+    source_objects = tmp_path / "viewer_objects.jsonl"
+    source_objects.write_text(
+        json.dumps(
+            {
+                "object_id": "obj_000123",
+                "viewer_object_id": 123,
+                "semantic_label": "car",
+                "point_count": 2,
+                "centroid": [1, 2, 3],
+            }
+        ) + "\n",
+        encoding="utf-8",
+    )
+    source_ply = tmp_path / "viewer.ply"
+    source_ply.write_text(
+        "\n".join(
+            [
+                "ply",
+                "format ascii 1.0",
+                "element vertex 2",
+                "property float x",
+                "property float y",
+                "property float z",
+                "property uchar red",
+                "property uchar green",
+                "property uchar blue",
+                "property int object",
+                "property uchar semantic",
+                "property int frame",
+                "property int camera",
+                "property int target",
+                "property uchar priority",
+                "end_header",
+                "1 2 3 235 90 80 123 8 0 0 7 4",
+                "4 5 6 235 90 80 123 8 0 0 7 4",
+            ]
+        ) + "\n",
+        encoding="utf-8",
+    )
+    review = tmp_path / "review.json"
+    review.write_text(
+        json.dumps({"objects": [{"object_id": 123, "source_object_id": "obj_000123", "label": "car"}]}),
+        encoding="utf-8",
+    )
+    decisions = tmp_path / "manual.csv"
+    decisions.write_text(
+        "object_id,source_object_id,current_label,decision,new_label,confidence,reviewer,notes\n"
+        "123,obj_000123,car,relabel,wall,0.9,skk,flat surface\n",
+        encoding="utf-8",
+    )
+    out = tmp_path / "reviewed"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_manual_object_review_export.py",
+            "--decisions-csv",
+            str(decisions),
+            "--review-index-json",
+            str(review),
+            "--objects-jsonl",
+            str(source_objects),
+            "--source-ply",
+            str(source_ply),
+            "--output-dir",
+            str(out),
+        ],
+    )
+
+    assert runner.main() == 0
+    summary = json.loads((out / "manual_object_review_export_report.json").read_text(encoding="utf-8"))
+    ply_text = (out / "frame_object_points_stride10.ply").read_text(encoding="utf-8")
+    qa = json.loads((out / "viewer_candidate_qa.json").read_text(encoding="utf-8"))
+
+    assert summary["export"]["output_vertices"] == 2
+    assert "1 2 3 120 150 180 123 2 0 0 7 4" in ply_text
+    assert qa["status"] == "ok"
+    assert qa["ply"]["semantic_point_counts"] == {"wall": 2}

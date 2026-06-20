@@ -18,6 +18,7 @@ from scripts import apply_manual_object_review_decisions as apply_review
 from scripts import export_frame_target_objects_for_viewer as export_viewer
 from scripts import normalize_manual_object_review_decisions as normalize_review
 from scripts import qa_viewer_candidate
+from scripts import rewrite_viewer_ply_semantics
 
 
 def write_json(path: Path, data: dict[str, Any]) -> None:
@@ -30,6 +31,26 @@ def read_json(path: Path) -> dict[str, Any]:
 
 
 def export_reviewed_viewer(args: argparse.Namespace, reviewed_objects: Path) -> dict[str, Any]:
+    if args.source_ply:
+        output_ply = args.output_dir / args.ply_name
+        output_objects = args.output_dir / args.objects_name
+        shutil.copy2(reviewed_objects, output_objects)
+        report = rewrite_viewer_ply_semantics.rewrite_ply(args.source_ply, output_objects, output_ply)
+        report.update(
+            {
+                "mode": "rewrite_existing_viewer_ply",
+                "source_ply": str(args.source_ply),
+                "objects_jsonl": str(reviewed_objects),
+                "output_ply": str(output_ply),
+                "output_objects_jsonl": str(output_objects),
+                "output_vertices": report["rows"],
+                "object_records": sum(1 for _ in output_objects.open("r", encoding="utf-8") if _.strip()),
+                "missing_target_points": 0,
+            }
+        )
+        write_json(args.output_dir / "frame_object_viewer_export_report.json", report)
+        return report
+
     target_index_to_id = export_viewer.load_target_index_map(args.targets_jsonl)
     objects_by_id, target_to_object = export_viewer.load_object_maps(reviewed_objects)
     output_ply = args.output_dir / args.ply_name
@@ -87,8 +108,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--decisions-csv", type=Path, required=True)
     parser.add_argument("--review-index-json", type=Path, required=True)
     parser.add_argument("--objects-jsonl", type=Path, required=True)
-    parser.add_argument("--targets-jsonl", type=Path, required=True)
-    parser.add_argument("--target-ply", type=Path, required=True)
+    parser.add_argument("--source-ply", type=Path, help="Existing viewer PLY to recolor by reviewed object labels.")
+    parser.add_argument("--targets-jsonl", type=Path, help="Target JSONL for rebuilding viewer PLY from targets.")
+    parser.add_argument("--target-ply", type=Path, help="Target PLY for rebuilding viewer PLY from targets.")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--stride", type=int, default=10)
     parser.add_argument("--ply-name", default="frame_object_points_stride10.ply")
@@ -105,6 +127,8 @@ def main() -> int:
     args = parse_args()
     if args.stride <= 0:
         raise ValueError("--stride must be positive")
+    if not args.source_ply and (not args.targets_jsonl or not args.target_ply):
+        raise ValueError("provide --source-ply, or both --targets-jsonl and --target-ply")
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     normalized_jsonl = args.output_dir / "manual_object_review_decisions.normalized.jsonl"

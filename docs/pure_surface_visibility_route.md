@@ -233,17 +233,18 @@ The preferred wrapper for the whole reviewed-artifact export is:
 python3 scripts/run_manual_object_review_export.py \
   --decisions-csv <review_dir>/manual_object_review_decisions.csv \
   --review-index-json <review_dir>/semantic_object_review_index.json \
-  --objects-jsonl <work_dir>/frame_objects_attachment_pure_surface_visibility_full_0000_6180/objects.jsonl \
-  --targets-jsonl <work_dir>/frame_targets_pure_surface_visibility_full_0000_6180/frame_targets.jsonl \
-  --target-ply <work_dir>/frame_targets_pure_surface_visibility_full_0000_6180/frame_targets.ply \
+  --objects-jsonl <work_dir>/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_objects_viewer.jsonl \
+  --source-ply <work_dir>/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_object_points_stride10.ply \
   --output-dir <work_dir>/frame_object_viewer_manual_reviewed_pure_surface_visibility_full_0000_6180 \
-  --stride 10 \
   --copy-review-inputs
 ```
 
 The wrapper performs normalization, apply, PLY re-export, viewer QA, and writes
 `manual_object_review_export_report.json`.  Without reviewed CSV rows it exits
 at the normalization gate unless `--allow-normalize-errors` is explicitly used.
+Use `--targets-jsonl` and `--target-ply` only when rebuilding directly from a
+target/object pair; for final local-geometry viewer artifacts, prefer
+`--source-ply` so manual object ids match the reviewed viewer ids exactly.
 
 Latest full artifact in the index:
 
