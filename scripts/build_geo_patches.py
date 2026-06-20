@@ -305,6 +305,383 @@ def split_axis_aligned_planes(points: np.ndarray, args: argparse.Namespace) -> l
     return components
 
 
+def split_height_bands(points: np.ndarray, args: argparse.Namespace) -> list[np.ndarray]:
+    """Split repeated horizontal layers inside one mixed component.
+
+    Indoor floor/ceiling failures usually appear as one PCA-horizontal component
+    with a multi-meter z span.  A single semantic label is invalid for that
+    component even if the global normal is horizontal.  This splitter extracts
+    dense z bands first; later PCA classifies each band separately.
+    """
+
+    if len(points) < args.min_patch_points:
+        return [np.arange(len(points), dtype=np.int64)]
+    z = points[:, 2]
+    z_span = float(z.max() - z.min())
+    if z_span < args.height_split_min_z_span:
+        return [np.arange(len(points), dtype=np.int64)]
+
+    bins = np.floor(z / float(args.height_split_bin_size)).astype(np.int32)
+    counts = Counter(int(x) for x in bins.tolist())
+    remaining = np.ones(len(points), dtype=bool)
+    components: list[np.ndarray] = []
+    min_band_points = max(int(args.min_patch_points), int(len(points) * args.height_split_min_fraction))
+
+    for bucket, count in counts.most_common(int(args.height_split_max_bands)):
+        if count < min_band_points:
+            continue
+        remaining_idx = np.where(remaining)[0]
+        if len(remaining_idx) < args.min_patch_points:
+            break
+        seed_idx = np.where((bins == bucket) & remaining)[0]
+        if len(seed_idx) < min_band_points:
+            continue
+        center = float(np.median(z[seed_idx]))
+        comp = remaining_idx[np.abs(z[remaining_idx] - center) <= float(args.height_split_band_half_width)]
+        if len(comp) < min_band_points:
+            continue
+        stats = pca_stats(points[comp])
+        nz = abs(float(stats["normal"][2]))
+        if nz < args.height_split_min_normal_z:
+            continue
+        components.append(comp)
+        remaining[comp] = False
+
+    residual = np.where(remaining)[0]
+    if len(residual) >= args.min_patch_points:
+        components.append(residual)
+    elif len(residual) > 0 and components:
+        # Keep all points assigned, but avoid creating tiny semantic islands.
+        centroids = np.asarray([points[c].mean(axis=0) for c in components])
+        for idx in residual:
+            nearest = int(np.argmin(np.linalg.norm(centroids - points[idx], axis=1)))
+            components[nearest] = np.concatenate([components[nearest], np.asarray([idx], dtype=np.int64)])
+
+    if len(components) <= 1:
+        return [np.arange(len(points), dtype=np.int64)]
+    components.sort(key=len, reverse=True)
+    return components
+
+
+def should_try_height_split(points: np.ndarray, stats: dict[str, Any], extent: np.ndarray, args: argparse.Namespace) -> bool:
+    if len(points) < args.min_patch_points:
+        return False
+    z_span = float(extent[2])
+    if z_span < args.height_split_min_z_span:
+        return False
+    nz = abs(float(stats["normal"][2]))
+    if nz >= args.height_split_min_normal_z:
+        return True
+    return float(stats["planarity"]) < args.height_split_low_planarity and max(extent[0], extent[1]) >= args.mixed_min_extent
+
+
+def recursive_height_split(points: np.ndarray, indices: np.ndarray, args: argparse.Namespace) -> list[np.ndarray]:
+    pts = points[indices]
+    if len(pts) < args.min_patch_points:
+        return [indices]
+    stats = pca_stats(pts)
+    ext = pts.max(axis=0) - pts.min(axis=0)
+    if not should_try_height_split(pts, stats, ext, args):
+        return [indices]
+    bands = split_height_bands(pts, args)
+    if len(bands) <= 1:
+        return [indices]
+    out: list[np.ndarray] = []
+    for band in bands:
+        out.extend(recursive_height_split(points, indices[band], args))
+    return out
+
+
+def plane_from_points(sample: np.ndarray) -> tuple[np.ndarray, float] | None:
+    a, b, c = sample
+    normal = np.cross(b - a, c - a)
+    norm = np.linalg.norm(normal)
+    if norm < 1e-9:
+        return None
+    normal = normal / norm
+    d = -float(np.dot(normal, a))
+    return normal, d
+
+
+def split_ransac_planes(points: np.ndarray, args: argparse.Namespace) -> list[np.ndarray]:
+    """Extract dominant arbitrary planes from a mixed component."""
+
+    if len(points) < args.min_patch_points:
+        return [np.arange(len(points), dtype=np.int64)]
+    remaining = np.ones(len(points), dtype=bool)
+    components: list[np.ndarray] = []
+    rng = np.random.default_rng(int(args.ransac_plane_seed))
+    min_plane_points = max(int(args.min_patch_points), int(len(points) * args.ransac_plane_min_fraction))
+
+    for _plane_index in range(int(args.ransac_plane_max_planes)):
+        remaining_idx = np.where(remaining)[0]
+        if len(remaining_idx) < min_plane_points:
+            break
+        if len(remaining_idx) > args.ransac_plane_sample_points:
+            sample_pool = rng.choice(remaining_idx, size=int(args.ransac_plane_sample_points), replace=False)
+        else:
+            sample_pool = remaining_idx
+
+        best_plane: tuple[np.ndarray, float] | None = None
+        best_count = 0
+        for _ in range(int(args.ransac_plane_iterations)):
+            if len(sample_pool) < 3:
+                break
+            chosen = rng.choice(sample_pool, size=3, replace=False)
+            plane = plane_from_points(points[chosen])
+            if plane is None:
+                continue
+            normal, d = plane
+            nz = abs(float(normal[2]))
+            if args.ransac_plane_surface_only and args.vertical_normal_z < nz < args.horizontal_normal_z:
+                continue
+            dist = np.abs(points[sample_pool] @ normal + d)
+            count = int(np.count_nonzero(dist <= args.ransac_plane_distance))
+            if count > best_count:
+                best_count = count
+                best_plane = plane
+
+        if best_plane is None:
+            break
+        normal, d = best_plane
+        dist_full = np.abs(points[remaining_idx] @ normal + d)
+        inliers = remaining_idx[dist_full <= args.ransac_plane_distance]
+        if len(inliers) < min_plane_points:
+            break
+
+        # Avoid one disconnected mathematical plane swallowing separated objects.
+        _coords, _keys, buckets = voxelize(points[inliers], args.patch_voxel_size)
+        comps_local = connected_voxel_components(list(buckets.keys()), buckets, args.min_patch_points)
+        accepted_any = False
+        for comp_local in comps_local:
+            comp = inliers[comp_local]
+            if len(comp) < min_plane_points:
+                continue
+            components.append(comp)
+            remaining[comp] = False
+            accepted_any = True
+        if not accepted_any:
+            components.append(inliers)
+            remaining[inliers] = False
+
+    residual = np.where(remaining)[0]
+    if len(residual) >= args.min_patch_points:
+        components.append(residual)
+    elif len(residual) > 0 and components:
+        centroids = np.asarray([points[c].mean(axis=0) for c in components])
+        for idx in residual:
+            nearest = int(np.argmin(np.linalg.norm(centroids - points[idx], axis=1)))
+            components[nearest] = np.concatenate([components[nearest], np.asarray([idx], dtype=np.int64)])
+
+    if len(components) <= 1:
+        return [np.arange(len(points), dtype=np.int64)]
+    components.sort(key=len, reverse=True)
+    return components
+
+
+def should_try_ransac_split(points: np.ndarray, stats: dict[str, Any], extent: np.ndarray, args: argparse.Namespace) -> bool:
+    if not args.enable_ransac_plane_split:
+        return False
+    if len(points) < args.min_patch_points:
+        return False
+    if max(extent) < args.ransac_plane_min_extent:
+        return False
+    if float(stats["planarity"]) <= args.ransac_split_planarity_max:
+        return True
+    return float(extent[2]) >= args.ransac_split_min_z_span and abs(float(stats["normal"][2])) <= args.vertical_normal_z
+
+
+def recursive_plane_split(points: np.ndarray, indices: np.ndarray, args: argparse.Namespace) -> list[np.ndarray]:
+    pts = points[indices]
+    if len(pts) < args.min_patch_points:
+        return [indices]
+    stats = pca_stats(pts)
+    ext = pts.max(axis=0) - pts.min(axis=0)
+    if not should_try_ransac_split(pts, stats, ext, args):
+        return [indices]
+    comps = split_ransac_planes(pts, args)
+    if len(comps) <= 1:
+        return [indices]
+    out: list[np.ndarray] = []
+    for comp in comps:
+        # One recursive pass is enough for stability; nested RANSAC can fragment.
+        out.append(indices[comp])
+    return out
+
+
+def dominant_int(values: np.ndarray | None, default: int = -1) -> int:
+    if values is None or len(values) == 0:
+        return default
+    counts = Counter(int(round(float(x))) for x in values.tolist())
+    return int(counts.most_common(1)[0][0])
+
+
+def evidence_label_for_voxel(indices: np.ndarray, source_props: dict[str, np.ndarray]) -> tuple[int, int, tuple[int, int, int]]:
+    priority = dominant_int(source_props.get("priority", None)[indices] if "priority" in source_props else None, default=0)
+    semantic = dominant_int(source_props.get("semantic", None)[indices] if "semantic" in source_props else None, default=0)
+    frame = dominant_int(source_props.get("frame", None)[indices] if "frame" in source_props else None, default=-1)
+    camera = dominant_int(source_props.get("camera", None)[indices] if "camera" in source_props else None, default=-1)
+    target = dominant_int(source_props.get("target", None)[indices] if "target" in source_props else None, default=-1)
+    return priority, semantic, (frame, camera, target)
+
+
+def significant_label_count(values: np.ndarray, min_ratio: float) -> int:
+    if len(values) == 0:
+        return 0
+    counts = Counter(int(round(float(x))) for x in values.tolist())
+    total = max(len(values), 1)
+    return sum(1 for _label, count in counts.items() if count / total >= min_ratio)
+
+
+def should_try_evidence_bfs(indices: np.ndarray, source_props: dict[str, np.ndarray], args: argparse.Namespace) -> bool:
+    semantic_values = source_props.get("semantic")
+    priority_values = source_props.get("priority")
+    if semantic_values is None and priority_values is None:
+        return False
+
+    has_conflict = False
+    fine_ratio = 0.0
+    wall_ratio = 0.0
+    if semantic_values is not None:
+        values = np.rint(semantic_values[indices]).astype(np.int32)
+        total = max(len(values), 1)
+        counts = Counter(int(x) for x in values.tolist())
+        wall_ratio = float(counts.get(2, 0) / total)
+        fine_ids = {8, 9, 15, 16, 17}
+        fine_ratio = float(sum(counts.get(i, 0) for i in fine_ids) / total)
+        has_conflict = has_conflict or significant_label_count(values, args.evidence_bfs_min_label_ratio) >= 2
+    if priority_values is not None:
+        values = np.rint(priority_values[indices]).astype(np.int32)
+        values = values[(values != 0) & (values != 255)]
+        has_conflict = has_conflict or significant_label_count(values, args.evidence_bfs_min_label_ratio) >= 2
+
+    if wall_ratio >= args.evidence_bfs_skip_wall_dominance and fine_ratio < args.evidence_bfs_min_fine_ratio:
+        return False
+    if args.evidence_bfs_require_label_conflict and not has_conflict and fine_ratio < args.evidence_bfs_min_fine_ratio:
+        return False
+    return True
+
+
+def evidence_compatible(a: dict[str, Any], b: dict[str, Any], args: argparse.Namespace) -> bool:
+    if a["target_key"][0] >= 0 and a["target_key"] == b["target_key"]:
+        return True
+    if a["priority"] not in {0, 255, -1} and a["priority"] == b["priority"]:
+        return True
+    if a["semantic"] not in {0, 255, -1} and a["semantic"] == b["semantic"]:
+        return True
+    if args.evidence_bfs_allow_unknown_same_target and a["semantic"] == b["semantic"] == 0 and a["priority"] == b["priority"] == 0:
+        return True
+    return False
+
+
+def normal_dot_abs(a: list[float], b: list[float]) -> float:
+    av = np.asarray(a, dtype=np.float64)
+    bv = np.asarray(b, dtype=np.float64)
+    an = np.linalg.norm(av)
+    bn = np.linalg.norm(bv)
+    if an < 1e-9 or bn < 1e-9:
+        return 1.0
+    return float(abs(np.dot(av / an, bv / bn)))
+
+
+def split_by_evidence_bfs(
+    points: np.ndarray,
+    indices: np.ndarray,
+    source_props: dict[str, np.ndarray],
+    args: argparse.Namespace,
+) -> list[np.ndarray]:
+    """Split a geometry component by first-touch/mask evidence continuity.
+
+    The input viewer PLY already comes from first-touch visibility and contains
+    frame/camera/target/priority fields.  This BFS keeps a component connected
+    only when neighboring voxels are both spatially adjacent and evidence
+    compatible.  It is intentionally local; it should not merge through a broad
+    surface just because a later semantic vote agrees.
+    """
+
+    if not args.enable_evidence_bfs_split or len(indices) < args.min_patch_points:
+        return [indices]
+    if not any(name in source_props for name in ("priority", "semantic", "target")):
+        return [indices]
+    if not should_try_evidence_bfs(indices, source_props, args):
+        return [indices]
+
+    pts = points[indices]
+    _coords, _keys, buckets = voxelize(pts, args.evidence_bfs_voxel_size)
+    if len(buckets) <= 1:
+        return [indices]
+
+    voxel_info: dict[tuple[int, int, int], dict[str, Any]] = {}
+    for key, local_idx in buckets.items():
+        global_idx = indices[local_idx]
+        voxel_pts = points[global_idx]
+        stats = pca_stats(voxel_pts)
+        priority, semantic, target_key = evidence_label_for_voxel(global_idx, source_props)
+        voxel_info[key] = {
+            "indices": global_idx,
+            "centroid": voxel_pts.mean(axis=0),
+            "normal": stats["normal"],
+            "priority": priority,
+            "semantic": semantic,
+            "target_key": target_key,
+        }
+
+    key_set = set(voxel_info)
+    visited: set[tuple[int, int, int]] = set()
+    offsets = [
+        (dx, dy, dz)
+        for dx in (-1, 0, 1)
+        for dy in (-1, 0, 1)
+        for dz in (-1, 0, 1)
+        if not (dx == dy == dz == 0)
+    ]
+    min_dot = math.cos(float(args.evidence_bfs_neighbor_angle_deg) * math.pi / 180.0)
+    components: list[np.ndarray] = []
+    residual_parts: list[np.ndarray] = []
+
+    for start in sorted(key_set):
+        if start in visited:
+            continue
+        queue: deque[tuple[int, int, int]] = deque([start])
+        visited.add(start)
+        comp_keys: list[tuple[int, int, int]] = []
+        while queue:
+            key = queue.popleft()
+            comp_keys.append(key)
+            current = voxel_info[key]
+            for dx, dy, dz in offsets:
+                nxt = (key[0] + dx, key[1] + dy, key[2] + dz)
+                if nxt not in key_set or nxt in visited:
+                    continue
+                neighbor = voxel_info[nxt]
+                if not evidence_compatible(current, neighbor, args):
+                    continue
+                if normal_dot_abs(current["normal"], neighbor["normal"]) < min_dot:
+                    continue
+                visited.add(nxt)
+                queue.append(nxt)
+        comp = np.concatenate([voxel_info[key]["indices"] for key in comp_keys])
+        if len(comp) >= args.min_patch_points:
+            components.append(comp)
+        else:
+            residual_parts.append(comp)
+
+    if len(components) <= 1:
+        return [indices]
+    if residual_parts:
+        residual = np.concatenate(residual_parts)
+        centroids = np.asarray([points[c].mean(axis=0) for c in components])
+        assignments: list[list[int]] = [[] for _ in components]
+        for idx in residual.tolist():
+            nearest = int(np.argmin(np.linalg.norm(centroids - points[idx], axis=1)))
+            assignments[nearest].append(int(idx))
+        for i, extra in enumerate(assignments):
+            if extra:
+                components[i] = np.concatenate([components[i], np.asarray(extra, dtype=np.int64)])
+    components.sort(key=len, reverse=True)
+    return components
+
+
 def split_seed_points(points: np.ndarray, args: argparse.Namespace) -> list[np.ndarray]:
     if len(points) < args.min_patch_points:
         return [np.arange(len(points), dtype=np.int64)]
@@ -342,6 +719,14 @@ def split_seed_points(points: np.ndarray, args: argparse.Namespace) -> list[np.n
                 fallback_types.add(geometry_type_from_stats(pca_stats(pts), pts.max(axis=0) - pts.min(axis=0), args))
         if len(fallback_types - {"mixed", "unknown"}) > len(clean_types - {"mixed", "unknown"}) or len(fallback) > len(components):
             components = fallback
+    refined: list[np.ndarray] = []
+    for comp in components:
+        refined.extend(recursive_height_split(points, comp, args))
+    components = refined
+    plane_refined: list[np.ndarray] = []
+    for comp in components:
+        plane_refined.extend(recursive_plane_split(points, comp, args))
+    components = plane_refined
     if not components:
         components = [np.arange(len(points), dtype=np.int64)]
     components.sort(key=len, reverse=True)
@@ -411,10 +796,13 @@ def build_geo_patches(args: argparse.Namespace) -> tuple[list[dict[str, Any]], n
     for seed, _count in seed_counts.most_common():
         seed_indices = np.where(seed_values == seed)[0]
         local_points = points[seed_indices]
-        components = split_seed_points(local_points, args)
+        components_local = split_seed_points(local_points, args)
+        components: list[np.ndarray] = []
+        for comp_local in components_local:
+            comp_global = seed_indices[comp_local]
+            components.extend(split_by_evidence_bfs(points, comp_global, source_props, args))
         seed_split = len(components) > 1
-        for local_component_index, comp_local in enumerate(components):
-            global_indices = seed_indices[comp_local]
+        for local_component_index, global_indices in enumerate(components):
             pts = points[global_indices]
             if len(pts) == 0:
                 continue
@@ -550,6 +938,32 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--axis-plane-bin-size", type=float, default=0.10)
     parser.add_argument("--axis-plane-distance", type=float, default=0.05)
     parser.add_argument("--axis-plane-max-planes", type=int, default=12)
+    parser.add_argument("--height-split-min-z-span", type=float, default=1.20)
+    parser.add_argument("--height-split-bin-size", type=float, default=0.12)
+    parser.add_argument("--height-split-band-half-width", type=float, default=0.08)
+    parser.add_argument("--height-split-min-fraction", type=float, default=0.08)
+    parser.add_argument("--height-split-max-bands", type=int, default=8)
+    parser.add_argument("--height-split-min-normal-z", type=float, default=0.82)
+    parser.add_argument("--height-split-low-planarity", type=float, default=0.35)
+    parser.add_argument("--enable-ransac-plane-split", action="store_true")
+    parser.add_argument("--ransac-plane-seed", type=int, default=7)
+    parser.add_argument("--ransac-plane-iterations", type=int, default=80)
+    parser.add_argument("--ransac-plane-sample-points", type=int, default=5000)
+    parser.add_argument("--ransac-plane-distance", type=float, default=0.05)
+    parser.add_argument("--ransac-plane-max-planes", type=int, default=6)
+    parser.add_argument("--ransac-plane-min-fraction", type=float, default=0.05)
+    parser.add_argument("--ransac-plane-min-extent", type=float, default=1.00)
+    parser.add_argument("--ransac-plane-surface-only", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--ransac-split-planarity-max", type=float, default=0.62)
+    parser.add_argument("--ransac-split-min-z-span", type=float, default=1.20)
+    parser.add_argument("--enable-evidence-bfs-split", action="store_true")
+    parser.add_argument("--evidence-bfs-voxel-size", type=float, default=0.18)
+    parser.add_argument("--evidence-bfs-neighbor-angle-deg", type=float, default=35.0)
+    parser.add_argument("--evidence-bfs-allow-unknown-same-target", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--evidence-bfs-min-label-ratio", type=float, default=0.05)
+    parser.add_argument("--evidence-bfs-min-fine-ratio", type=float, default=0.05)
+    parser.add_argument("--evidence-bfs-skip-wall-dominance", type=float, default=0.80)
+    parser.add_argument("--evidence-bfs-require-label-conflict", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--structural-sample-points", type=int, default=5000)
     return parser.parse_args()
 

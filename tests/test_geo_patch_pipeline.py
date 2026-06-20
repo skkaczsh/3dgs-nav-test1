@@ -45,6 +45,32 @@ def patch_args(**overrides):
         "axis_plane_bin_size": 0.10,
         "axis_plane_distance": 0.03,
         "axis_plane_max_planes": 8,
+        "height_split_min_z_span": 1.20,
+        "height_split_bin_size": 0.12,
+        "height_split_band_half_width": 0.08,
+        "height_split_min_fraction": 0.08,
+        "height_split_max_bands": 8,
+        "height_split_min_normal_z": 0.82,
+        "height_split_low_planarity": 0.35,
+        "enable_ransac_plane_split": False,
+        "ransac_plane_seed": 7,
+        "ransac_plane_iterations": 80,
+        "ransac_plane_sample_points": 5000,
+        "ransac_plane_distance": 0.05,
+        "ransac_plane_max_planes": 6,
+        "ransac_plane_min_fraction": 0.05,
+        "ransac_plane_min_extent": 1.00,
+        "ransac_plane_surface_only": True,
+        "ransac_split_planarity_max": 0.62,
+        "ransac_split_min_z_span": 1.20,
+        "enable_evidence_bfs_split": False,
+        "evidence_bfs_voxel_size": 0.12,
+        "evidence_bfs_neighbor_angle_deg": 35.0,
+        "evidence_bfs_allow_unknown_same_target": False,
+        "evidence_bfs_min_label_ratio": 0.05,
+        "evidence_bfs_min_fine_ratio": 0.05,
+        "evidence_bfs_skip_wall_dominance": 0.80,
+        "evidence_bfs_require_label_conflict": True,
         "structural_sample_points": 0,
     }
     values.update(overrides)
@@ -92,6 +118,124 @@ def test_mixed_seed_splits_horizontal_and_vertical_geometry():
 
     assert "horizontal_surface" in geometry_types
     assert "vertical_surface" in geometry_types
+
+
+def test_height_split_separates_floor_and_ceiling_layers():
+    floor = np.array([[x * 0.1, y * 0.1, 0.0] for x in range(12) for y in range(12)], dtype=np.float32)
+    ceiling = np.array([[x * 0.1, y * 0.1, 2.8] for x in range(12) for y in range(12)], dtype=np.float32)
+    points = np.vstack([floor, ceiling])
+
+    components = build_geo_patches.split_seed_points(points, patch_args(min_patch_points=30))
+    z_centers = sorted(float(points[comp, 2].mean()) for comp in components)
+
+    assert len(components) >= 2
+    assert z_centers[0] < 0.2
+    assert z_centers[-1] > 2.6
+
+
+def test_ransac_plane_split_separates_crossing_vertical_walls():
+    wall_x = np.array([[0.0, y * 0.08, z * 0.08] for y in range(30) for z in range(30)], dtype=np.float32)
+    wall_y = np.array([[x * 0.08, 0.0, z * 0.08] for x in range(30) for z in range(30)], dtype=np.float32)
+    points = np.vstack([wall_x, wall_y])
+
+    components = build_geo_patches.split_seed_points(
+        points,
+        patch_args(
+            min_patch_points=80,
+            enable_ransac_plane_split=True,
+            ransac_plane_distance=0.025,
+            ransac_plane_min_fraction=0.10,
+            patch_voxel_size=0.12,
+        ),
+    )
+    normals = []
+    for comp in components:
+        stats = build_geo_patches.pca_stats(points[comp])
+        normals.append(stats["normal"])
+
+    assert len(components) >= 2
+    assert any(abs(n[0]) > 0.8 for n in normals)
+    assert any(abs(n[1]) > 0.8 for n in normals)
+
+
+def test_evidence_bfs_split_separates_adjacent_mask_regions():
+    left = np.array([[x * 0.05, y * 0.05, 0.0] for x in range(8) for y in range(8)], dtype=np.float32)
+    right = np.array([[(x + 9) * 0.05, y * 0.05, 0.0] for x in range(8) for y in range(8)], dtype=np.float32)
+    points = np.vstack([left, right])
+    indices = np.arange(len(points), dtype=np.int64)
+    source_props = {
+        "priority": np.concatenate([np.full(len(left), 1), np.full(len(right), 2)]).astype(np.float64),
+        "semantic": np.concatenate([np.full(len(left), 3), np.full(len(right), 9)]).astype(np.float64),
+        "frame": np.zeros(len(points), dtype=np.float64),
+        "camera": np.zeros(len(points), dtype=np.float64),
+        "target": np.concatenate([np.full(len(left), 10), np.full(len(right), 11)]).astype(np.float64),
+    }
+
+    components = build_geo_patches.split_by_evidence_bfs(
+        points,
+        indices,
+        source_props,
+        patch_args(
+            min_patch_points=20,
+            enable_evidence_bfs_split=True,
+            evidence_bfs_voxel_size=0.10,
+        ),
+    )
+
+    assert len(components) == 2
+    sizes = sorted(len(comp) for comp in components)
+    assert sizes == [64, 64]
+
+
+def test_evidence_bfs_split_keeps_same_mask_region_connected():
+    points = np.array([[x * 0.05, y * 0.05, 0.0] for x in range(8) for y in range(8)], dtype=np.float32)
+    indices = np.arange(len(points), dtype=np.int64)
+    source_props = {
+        "priority": np.ones(len(points), dtype=np.float64),
+        "semantic": np.full(len(points), 3, dtype=np.float64),
+        "frame": np.zeros(len(points), dtype=np.float64),
+        "camera": np.zeros(len(points), dtype=np.float64),
+        "target": np.full(len(points), 10, dtype=np.float64),
+    }
+
+    components = build_geo_patches.split_by_evidence_bfs(
+        points,
+        indices,
+        source_props,
+        patch_args(
+            min_patch_points=20,
+            enable_evidence_bfs_split=True,
+            evidence_bfs_voxel_size=0.10,
+        ),
+    )
+
+    assert len(components) == 1
+    assert len(components[0]) == len(points)
+
+
+def test_evidence_bfs_skips_wall_dominant_component_without_fine_evidence():
+    points = np.array([[x * 0.05, y * 0.05, 0.0] for x in range(12) for y in range(12)], dtype=np.float32)
+    indices = np.arange(len(points), dtype=np.int64)
+    source_props = {
+        "priority": np.ones(len(points), dtype=np.float64),
+        "semantic": np.full(len(points), 2, dtype=np.float64),
+        "frame": np.zeros(len(points), dtype=np.float64),
+        "camera": np.zeros(len(points), dtype=np.float64),
+        "target": np.concatenate([np.full(len(points) // 2, 10), np.full(len(points) - len(points) // 2, 11)]).astype(np.float64),
+    }
+
+    components = build_geo_patches.split_by_evidence_bfs(
+        points,
+        indices,
+        source_props,
+        patch_args(
+            min_patch_points=20,
+            enable_evidence_bfs_split=True,
+            evidence_bfs_voxel_size=0.10,
+        ),
+    )
+
+    assert len(components) == 1
 
 
 def test_patch_observations_decode_semantic_and_scene_votes():

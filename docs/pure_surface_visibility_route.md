@@ -407,3 +407,93 @@ Known tradeoff:
   are now salvaged as wall.
 - This confirms the next correction belongs in `GeoPatch` splitting or
   wall-specific demotion/review, not in making `unknown` larger again.
+
+## GeoPatch Split V3/V4 Notes
+
+Artifacts:
+
+```text
+geo_patch_objects_window_3000_3600_v3_height_split
+geo_patch_objects_window_3000_3600_v4_height_ransac_split
+```
+
+V3 adds height-band splitting in `build_geo_patches.py` before semantic
+classification.  The goal is to prevent one PCA-horizontal patch from spanning
+indoor floor and ceiling.  On window `3000..3600 stride=10`:
+
+- `object_count`: `857 -> 1183`
+- `indoor_floor`: `119 -> 283` objects
+- `ceiling`: `94 -> 132` objects
+- `stair`: `61 -> 142` objects
+- `wall_low_planarity`: `362 -> 360`, essentially unchanged
+- mixed semantic voxel ratio: `0.465 -> 0.424`
+
+Interpretation: height-band split helps floor/ceiling/stair separation and
+reduces semantic voxel overlap, but it does not solve wall/fine-object mixing.
+
+V4 enables arbitrary RANSAC plane splitting.  It is useful as a diagnostic but
+is not the recommended baseline:
+
+- `object_count`: `1183 -> 1641`
+- `wall`: `374 -> 692` objects
+- `wall_low_planarity`: `360 -> 670`
+- mixed semantic voxel ratio: `0.424 -> 0.369`
+
+Interpretation: RANSAC lowers cross-semantic voxel overlap, but it fragments
+walls into many low-quality wall objects.  The next useful split should be more
+constrained than global RANSAC: wall-local split by structural region, local
+visibility/depth boundaries, and attachment-aware demotion of low-planarity
+wall fragments.
+
+New QA invariant:
+
+```text
+scripts/qa_object_voxel_overlap.py
+```
+
+This reports object-level and semantic-level voxel intersections.  Different
+semantic composites should have low voxel overlap; high overlap means either
+the split stage is still mixing structures or the fusion stage is merging
+evidence too early.
+
+## Evidence BFS Split V5/V6 Notes
+
+Artifacts:
+
+```text
+geo_patch_objects_window_3000_3600_v5_evidence_bfs_split
+geo_patch_objects_window_3000_3600_v6_gated_evidence_bfs
+```
+
+V5 adds a drivability-style voxel BFS split inside each coarse GeoPatch.  The
+BFS edge condition is:
+
+```text
+3D voxel adjacency
++ compatible first-touch/mask evidence
+  (same priority, same semantic, or same frame/camera/target)
++ local normal continuity
+```
+
+On window `3000..3600 stride=10`, V5 sits between V3 and V4:
+
+- `object_count`: `1183 -> 1453`
+- mixed semantic voxel ratio: `0.424 -> 0.397`
+- `wall_low_planarity`: `360 -> 559`
+
+Interpretation: evidence BFS is directionally useful because it lowers semantic
+voxel overlap, but applying it broadly still over-fragments wall-dominant
+regions.
+
+V6 adds a coarse dominance gate: skip evidence BFS when the whole component is
+wall-dominant and has little fine-object evidence.  It reproduced V3:
+
+- `object_count`: `1183`
+- mixed semantic voxel ratio: `0.424`
+- `wall_low_planarity`: `360`
+
+Interpretation: whole-component gating is too blunt.  The next useful version
+should run BFS from local fine/mask seeds inside wall-dominant components, not
+decide at component level.  Use BFS to extract non-wall islands from a
+wall/support surface, rather than splitting the entire wall by every mask
+boundary.

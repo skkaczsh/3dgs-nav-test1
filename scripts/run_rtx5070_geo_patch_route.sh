@@ -24,6 +24,8 @@ PATCH_VOXEL_SIZE="${PATCH_VOXEL_SIZE:-0.18}"
 MIN_PATCH_POINTS="${MIN_PATCH_POINTS:-120}"
 POINT_STRIDE="${POINT_STRIDE:-1}"
 MERGE_COMPATIBLE_PATCHES="${MERGE_COMPATIBLE_PATCHES:-1}"
+ENABLE_RANSAC_PLANE_SPLIT="${ENABLE_RANSAC_PLANE_SPLIT:-0}"
+ENABLE_EVIDENCE_BFS_SPLIT="${ENABLE_EVIDENCE_BFS_SPLIT:-0}"
 
 echo "input_ply=${INPUT_PLY}"
 echo "output_dir=${OUTPUT_DIR}"
@@ -32,11 +34,20 @@ if [[ "${RUN}" != "1" ]]; then
   exit 0
 fi
 
+build_extra_args=()
+if [[ "${ENABLE_RANSAC_PLANE_SPLIT}" == "1" ]]; then
+  build_extra_args+=(--enable-ransac-plane-split)
+fi
+if [[ "${ENABLE_EVIDENCE_BFS_SPLIT}" == "1" ]]; then
+  build_extra_args+=(--enable-evidence-bfs-split)
+fi
+
 echo "[sync] route scripts -> ${REMOTE_HOST}:${REMOTE_REPO}/scripts"
 rsync -az \
   scripts/build_geo_patches.py \
   scripts/accumulate_patch_observations.py \
   scripts/classify_geo_objects.py \
+  scripts/qa_object_voxel_overlap.py \
   scripts/qa_viewer_candidate.py \
   scripts/qa_priority_geometry_conflicts.py \
   scripts/build_semantic_viewer_index.py \
@@ -55,6 +66,7 @@ rm -rf '${OUTPUT_DIR}'
   --patch-voxel-size '${PATCH_VOXEL_SIZE}' \
   --min-patch-points '${MIN_PATCH_POINTS}' \
   --point-stride '${POINT_STRIDE}' \
+  ${build_extra_args[*]} \
   > '${OUTPUT_DIR}.build.log'
 '${REMOTE_PYTHON}' scripts/accumulate_patch_observations.py \
   --geo-patches '${OUTPUT_DIR}/geo_patches.jsonl' \
@@ -82,6 +94,11 @@ fi
   --objects-jsonl '${OUTPUT_DIR}/frame_objects_viewer.jsonl' \
   --output-jsonl '${OUTPUT_DIR}/geometry_conflicts.jsonl' \
   --report '${OUTPUT_DIR}/geometry_conflicts_report.json'
+'${REMOTE_PYTHON}' scripts/qa_object_voxel_overlap.py \
+  --ply '${OUTPUT_DIR}/frame_object_points_stride10.ply' \
+  --voxel-size 0.10 \
+  --output-json '${OUTPUT_DIR}/voxel_overlap_report.json' \
+  > '${OUTPUT_DIR}.qa_overlap.log'
 '${REMOTE_PYTHON}' scripts/build_semantic_viewer_index.py \
   --artifact-root '${REMOTE_WORK}' \
   --output tools/semantic_viewer_index.json
@@ -90,6 +107,7 @@ import json
 out='${OUTPUT_DIR}'
 report=json.load(open(f"{out}/geo_object_classification_report.json", encoding="utf-8"))
 qa=json.load(open(f"{out}/geometry_conflicts_report.json", encoding="utf-8"))
+overlap=json.load(open(f"{out}/voxel_overlap_report.json", encoding="utf-8"))
 print(json.dumps({
   "output_dir": out,
   "object_count": report.get("object_count"),
@@ -97,6 +115,8 @@ print(json.dumps({
   "status_counts": report.get("status_counts"),
   "geometry_findings": qa.get("finding_count"),
   "top_geometry_reasons": qa.get("top_reasons"),
+  "mixed_object_voxel_ratio": overlap.get("mixed_object_voxel_ratio"),
+  "mixed_semantic_voxel_ratio": overlap.get("mixed_semantic_voxel_ratio"),
 }, ensure_ascii=False, indent=2))
 PY
 REMOTE
