@@ -415,6 +415,58 @@ def test_fuse_targets_blocks_mixed_target_unless_surface_mergeable():
     assert allowed_decisions[1]["action"] == "merge"
 
 
+def test_fuse_targets_blocks_attached_object_from_surface_absorption():
+    module = load_module(SCRIPTS / "fuse_targets_to_objects.py", "fuse_targets_attachment_block_for_repo_test")
+    args = type("Args", (), {
+        "centroid_distance": 0.35,
+        "bbox_distance": 0.35,
+        "color_distance": 70.0,
+        "normal_angle": 25.0,
+        "zone_size": 100,
+        "active_zone_window": 1,
+        "min_merge_confidence": 0.5,
+    })()
+
+    wall = _target("wall", 0, "wall", [0, 0, 0], parent="surface", point_start=0)
+    wall["surface_attachment_status"] = "merge_to_structural_region"
+    wall["dominant_structural_region"] = "vertical_surface_region"
+    railing = _target("railing", 1, "railing", [0.05, 0, 0], parent="structure", point_start=100)
+    railing["surface_attachment_status"] = "attached_object_candidate"
+    railing["dominant_structural_region"] = "vertical_surface_region"
+
+    objects, decisions = module.fuse_targets([wall, railing], args)
+
+    assert len([module.finalize_object(o) for o in objects]) == 2
+    assert decisions[1]["action"] == "new_object"
+    assert decisions[1]["nearest_reason"] == "attached_target_to_surface_block"
+
+
+def test_fuse_targets_blocks_structural_surface_from_fine_object_pollution():
+    module = load_module(SCRIPTS / "fuse_targets_to_objects.py", "fuse_targets_structural_block_for_repo_test")
+    args = type("Args", (), {
+        "centroid_distance": 0.35,
+        "bbox_distance": 0.35,
+        "color_distance": 70.0,
+        "normal_angle": 25.0,
+        "zone_size": 100,
+        "active_zone_window": 1,
+        "min_merge_confidence": 0.5,
+    })()
+
+    equipment = _target("eq", 0, "equipment", [0, 0, 0], parent="object", point_start=0)
+    equipment["surface_attachment_status"] = "independent_object_candidate"
+    equipment["dominant_structural_region"] = "other_structure_region"
+    surface_patch = _target("patch", 1, "equipment", [0.05, 0, 0], parent="object", point_start=100)
+    surface_patch["surface_attachment_status"] = "merge_to_structural_region"
+    surface_patch["dominant_structural_region"] = "vertical_surface_region"
+
+    objects, decisions = module.fuse_targets([equipment, surface_patch], args)
+
+    assert len([module.finalize_object(o) for o in objects]) == 2
+    assert decisions[1]["action"] == "new_object"
+    assert decisions[1]["nearest_reason"] == "structural_target_to_object_block"
+
+
 def test_finalize_keeps_high_vote_conflict_stable():
     module = load_module(SCRIPTS / "fuse_targets_to_objects.py", "fuse_targets_finalize_for_repo_test")
     obj = module.create_object("obj_000001", _target("t1", 0, "floor", [0, 0, 0], point_start=0))

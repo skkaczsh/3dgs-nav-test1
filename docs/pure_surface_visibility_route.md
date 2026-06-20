@@ -59,6 +59,41 @@ Examples:
 - Cabinet top near upper-horizontal prior: small/isolated/high-scattering target
   remains attached/ambiguous instead of becoming ceiling.
 
+## Object Fusion Contract
+
+`scripts/fuse_targets_to_objects.py` consumes the attachment metadata as a merge
+gate:
+
+- `merge_to_structural_region` targets may merge with compatible large-surface
+  objects, but must not pollute fine-object objects.
+- `attached_object_candidate` and `independent_object_candidate` targets must
+  not be absorbed by broad surface-parent rules unless their own surface label
+  evidence says they are a surface.
+- Object JSONL keeps weighted `surface_attachment_votes` and
+  `structural_region_votes`, plus dominant summaries for viewer QA.
+
+This is the practical boundary between structure priors and semantics.  A
+region prior can explain why a target is near a wall-like/ground-like region,
+but it cannot by itself confirm `wall`, `floor`, or `ceiling`.
+
+## 5070Ti Smoke
+
+`scripts/run_rtx5070_pure_surface_visibility_smoke.sh` runs the closed loop on
+`scan-rtx5070`:
+
+```text
+drivability PCD -> structural field -> surface attachment targets
+-> object fusion -> viewer PLY/JSONL export
+```
+
+The current smoke window `3400..3500` produced:
+
+- `83` targets
+- `42` objects
+- merge ratio `0.494`
+- viewer points `378,817`
+- missing target points `0`
+
 ## Next Integration
 
 The next production orchestrator should run:

@@ -28,6 +28,8 @@ echo "[sync] scripts -> ${REMOTE_HOST}:${REMOTE_REPO}/scripts"
 rsync -az \
   scripts/build_structural_region_field.py \
   scripts/classify_surface_attachment.py \
+  scripts/fuse_targets_to_objects.py \
+  scripts/export_frame_target_objects_for_viewer.py \
   "${REMOTE_HOST}:${REMOTE_REPO}/scripts/"
 
 echo "[sync] drivability prior -> ${REMOTE_HOST}:${REMOTE_DRIVABILITY_PCD}"
@@ -50,6 +52,17 @@ python scripts/classify_surface_attachment.py \
   --structural-field '${OUT_DIR}/structural_region_field.npz' \
   --output-jsonl '${OUT_DIR}/targets_surface_attachment.jsonl' \
   --report '${OUT_DIR}/surface_attachment_report.json'
+python scripts/fuse_targets_to_objects.py \
+  --targets '${OUT_DIR}/targets_surface_attachment.jsonl' \
+  --output-dir '${OUT_DIR}/objects' \
+  --strict-surface-labels
+python scripts/export_frame_target_objects_for_viewer.py \
+  --targets-jsonl '${OUT_DIR}/targets_surface_attachment.jsonl' \
+  --target-ply '${TARGET_PLY}' \
+  --objects-jsonl '${OUT_DIR}/objects/objects.jsonl' \
+  --output-dir '${OUT_DIR}/viewer' \
+  --stride 1 \
+  --keep-target-list
 echo DONE:${OUT_DIR}
 '"
 

@@ -18,6 +18,9 @@ from project_semantic import LABEL_COLORS, LABEL_NAMES
 
 SURFACE_PARENT_CLASSES = {"surface", "structure"}
 SURFACE_LABELS = {"floor", "ground", "wall", "building", "ceiling"}
+SURFACE_ATTACHMENT_STRUCTURAL = {"merge_to_structural_region"}
+SURFACE_ATTACHMENT_OBJECT = {"attached_object_candidate", "independent_object_candidate"}
+FINE_LABELS = {"car", "railing", "pipe", "equipment", "fine_candidate", "person", "vehicle"}
 DEFAULT_MIN_MERGE_CONFIDENCE = 0.5
 IDENTITY_GATE_LABELS = {"equipment", "pipe", "railing", "vehicle", "furniture", "person", "tree", "grass", "other"}
 IDENTITY_STOPWORDS = {
@@ -136,6 +139,57 @@ def target_quality(target: dict, min_merge_confidence: float = DEFAULT_MIN_MERGE
     }
 
 
+def target_surface_attachment_status(target: dict) -> str:
+    return str(target.get("surface_attachment_status") or "unknown")
+
+
+def update_surface_attachment_votes(obj: dict, target: dict, weight: float | None = None) -> None:
+    if weight is None:
+        weight = target_vote_weight(target)
+    status = target_surface_attachment_status(target)
+    obj.setdefault("surface_attachment_votes", {})[status] = float(
+        obj.setdefault("surface_attachment_votes", {}).get(status, 0.0) + weight
+    )
+    region = str(target.get("dominant_structural_region") or "unknown")
+    obj.setdefault("structural_region_votes", {})[region] = float(
+        obj.setdefault("structural_region_votes", {}).get(region, 0.0) + weight
+    )
+
+
+def dominant_vote(votes: dict) -> tuple[str, float]:
+    if not votes:
+        return "unknown", 0.0
+    counter = Counter({str(k): float(v) for k, v in votes.items()})
+    label, value = counter.most_common(1)[0]
+    return label, float(value / max(sum(counter.values()), 1.0))
+
+
+def surface_attachment_merge_block(obj: dict, target: dict) -> tuple[bool, str]:
+    """Prevent structural-region priors from swallowing independent objects.
+
+    The structural field is deliberately non-semantic.  A wall-like region can
+    contain a railing; an upper-horizontal region can contain a cabinet top.
+    This gate only restricts unsafe cross-family merges.  It does not relabel.
+    """
+
+    target_status = target_surface_attachment_status(target)
+    target_label = str(target.get("label") or "unknown")
+    obj_labels = set(obj.get("label_votes", {}).keys())
+    obj_status, _ = dominant_vote(obj.get("surface_attachment_votes", {}))
+    obj_has_surface_label = bool(obj_labels & SURFACE_LABELS)
+    obj_has_fine_label = bool(obj_labels & FINE_LABELS)
+    target_is_surface_label = target_label in SURFACE_LABELS
+    target_is_fine_label = target_label in FINE_LABELS
+
+    if target_status in SURFACE_ATTACHMENT_STRUCTURAL and (obj_has_fine_label or obj_status in SURFACE_ATTACHMENT_OBJECT):
+        return True, "structural_target_to_object_block"
+    if target_status in SURFACE_ATTACHMENT_OBJECT and obj_has_surface_label and not target_is_surface_label:
+        return True, "attached_target_to_surface_block"
+    if target_is_fine_label and obj_status in SURFACE_ATTACHMENT_STRUCTURAL and obj_has_surface_label:
+        return True, "fine_target_to_structural_object_block"
+    return False, "none"
+
+
 def load_targets(inputs: list[Path]) -> list[dict]:
     rows = []
     for path in inputs:
@@ -198,6 +252,10 @@ def create_object(object_id: str, target: dict) -> dict:
     attribute_votes: dict[str, dict[str, float]] = {}
     update_description_votes(description_votes, target)
     merge_attribute_votes(attribute_votes, target)
+    surface_attachment_votes: dict[str, float] = {}
+    structural_region_votes: dict[str, float] = {}
+    tmp = {"surface_attachment_votes": surface_attachment_votes, "structural_region_votes": structural_region_votes}
+    update_surface_attachment_votes(tmp, target, vote_weight)
     return {
         "object_id": object_id,
         "semantic_label": target["label"],
@@ -234,6 +292,8 @@ def create_object(object_id: str, target: dict) -> dict:
             "mixed_targets": int(quality["mixed"]),
             "surface_mergeable_targets": int(quality["can_merge_to_surface"]),
         },
+        "surface_attachment_votes": surface_attachment_votes,
+        "structural_region_votes": structural_region_votes,
         "zone_id": f"zone_{int(target['frame_id']) // 100:03d}",
         "_target_records": [target],
         "_point_id_set": point_ids,
@@ -273,6 +333,7 @@ def update_object(obj: dict, target: dict) -> None:
         )
     update_description_votes(obj.setdefault("description_votes", {}), target)
     merge_attribute_votes(obj.setdefault("attribute_votes", {}), target)
+    update_surface_attachment_votes(obj, target)
     parent = target.get("parent_class", "other")
     obj["parent_class_votes"][parent] = int(obj["parent_class_votes"].get(parent, 0) + 1)
     obj["_target_records"].append(target)
@@ -296,6 +357,12 @@ def update_object(obj: dict, target: dict) -> None:
         "mixed_targets": int(sum(q["mixed"] for q in qualities)),
         "surface_mergeable_targets": int(sum(q["can_merge_to_surface"] for q in qualities)),
     }
+    attach_status, attach_ratio = dominant_vote(obj.get("surface_attachment_votes", {}))
+    region_status, region_ratio = dominant_vote(obj.get("structural_region_votes", {}))
+    obj["dominant_surface_attachment_status"] = attach_status
+    obj["dominant_surface_attachment_ratio"] = attach_ratio
+    obj["dominant_structural_region"] = region_status
+    obj["dominant_structural_region_ratio"] = region_ratio
     votes = Counter(obj["label_vote_weights"])
     winner, winner_votes = votes.most_common(1)[0]
     vote_total = float(sum(votes.values()))
@@ -347,6 +414,7 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
     normal_ok = normal_angle <= normal_angle_limit
     quality = target_quality(target, float(getattr(args, "min_merge_confidence", DEFAULT_MIN_MERGE_CONFIDENCE)))
     quality_ok = bool(quality["merge_quality_ok"])
+    attachment_blocked, attachment_block_reason = surface_attachment_merge_block(obj, target)
     overlap = False
     if int(target["frame_id"]) in set(obj.get("frames", [])):
         if target_point_ids is None:
@@ -354,7 +422,9 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
         overlap = bool(obj.get("_point_id_set", set()) & target_point_ids)
     merge = False
     reason = "no_match"
-    if same_label and near and color_ok and normal_ok and quality_ok and identity_ok:
+    if attachment_blocked:
+        reason = attachment_block_reason
+    elif same_label and near and color_ok and normal_ok and quality_ok and identity_ok:
         merge = True
         reason = "same_label_geometry_color"
     elif surface_same_label and surface_near and surface_color_ok and surface_normal_ok and quality_ok:
@@ -391,6 +461,10 @@ def match_score(obj: dict, target: dict, args: argparse.Namespace, target_point_
         "target_can_merge_to_surface": quality["can_merge_to_surface"],
         "target_low_confidence": quality["low_confidence"],
         "target_mixed_blocks_merge": quality["mixed_blocks_merge"],
+        "surface_attachment_blocked": attachment_blocked,
+        "surface_attachment_block_reason": attachment_block_reason,
+        "target_surface_attachment_status": target_surface_attachment_status(target),
+        "object_surface_attachment_status": dominant_vote(obj.get("surface_attachment_votes", {}))[0],
     }
 
 
@@ -437,6 +511,12 @@ def finalize_object(obj: dict) -> dict:
             }
     if attr_summary:
         out["dominant_attributes"] = attr_summary
+    attach_status, attach_ratio = dominant_vote(out.get("surface_attachment_votes", {}))
+    region_status, region_ratio = dominant_vote(out.get("structural_region_votes", {}))
+    out["dominant_surface_attachment_status"] = attach_status
+    out["dominant_surface_attachment_ratio"] = attach_ratio
+    out["dominant_structural_region"] = region_status
+    out["dominant_structural_region_ratio"] = region_ratio
     return out
 
 
