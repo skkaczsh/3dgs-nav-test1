@@ -6,3 +6,5 @@ def test_start_viewer_refreshes_index_and_prints_index_url() -> None:
     assert "build_semantic_viewer_index.py" in script
     assert "index_url=" in script
     assert "semantic_viewer_index.html" in script
+    assert "INDEX_REFRESH_INTERVAL" in script
+    assert "semantic_viewer_index_refresh_" in script
