@@ -181,6 +181,7 @@
             <th>版本</th>
             <th>更新时间</th>
             <th>QA</th>
+            <th>Review</th>
             <th>规模</th>
             <th>标签概览</th>
           </tr>
@@ -261,10 +262,15 @@
           .join("");
         const tr = document.createElement("tr");
         tr.className = state.selected === entry ? "selected" : "";
+        const review = entry.review || null;
+        const reviewText = review
+          ? `<span class="ok">review</span><div class="muted">${fmtInt(review.object_count)} objects</div>`
+          : `<span class="muted">none</span>`;
         tr.innerHTML = `
           <td><div class="name">${entry.name}</div><div class="muted mono">${entry.relative_dir}</div></td>
           <td>${fmtTime(entry.updated_at)}</td>
           <td><span class="${statusClass(entry)}">${entry.status}</span><div class="muted">${(entry.warnings || []).length} warnings</div></td>
+          <td>${reviewText}</td>
           <td><div>${fmtInt(counts.vertex_count)} 点</div><div class="muted">${fmtInt(counts.object_count)} objects</div></td>
           <td>${labels || "<span class='muted'>无统计</span>"}</td>
         `;
@@ -286,11 +292,27 @@
 
     function renderDetail(entry) {
       const counts = entry.counts || {};
+      const review = entry.review || null;
       const labelCounts = topCounts(counts.semantic_point_counts, 20)
         .map(([label, count]) => `<span class="pill">${labelZh[label] || label}: ${fmtInt(count)}</span>`)
         .join("");
       const warningText = (entry.warnings || []).length ? entry.warnings.join("\n") : "无";
       const errorText = (entry.errors || []).length ? entry.errors.join("\n") : "无";
+      const reviewActions = review ? `
+        <h3>对象审阅</h3>
+        <div class="actions">
+          ${review.review_html ? `<a class="button" href="${review.review_html}" target="_blank">审阅页</a>` : ""}
+          ${review.decision_csv ? `<a class="button" href="${review.decision_csv}" target="_blank">决策 CSV</a>` : ""}
+          ${review.review_json ? `<a class="button" href="${review.review_json}" target="_blank">Review JSON</a>` : ""}
+        </div>
+        <div class="kv"><span>Review objects</span><span>${fmtInt(review.object_count)}</span></div>
+        <div class="kv"><span>Normalize</span><span>${review.normalize ? `accepted ${fmtInt(review.normalize.accepted_count)} / errors ${fmtInt(review.normalize.error_count)}` : "未运行"}</span></div>
+        <div class="kv"><span>Apply</span><span>${review.apply ? `applied ${fmtInt(review.apply.applied_count)} / errors ${fmtInt(review.apply.error_count)}` : "未运行"}</span></div>
+        <div class="kv"><span>Export QA</span><span>${review.export?.qa ? `${review.export.qa.status || "unknown"}` : "未导出"}</span></div>
+      ` : `
+        <h3>对象审阅</h3>
+        <div class="muted">当前版本未发现对象审阅页。</div>
+      `;
       document.getElementById("detail").innerHTML = `
         <h2>${entry.name}</h2>
         <div class="muted mono">${entry.relative_dir}</div>
@@ -305,6 +327,7 @@
         <div class="kv"><span>Object 数</span><span>${fmtInt(counts.object_count)}</span></div>
         <div class="kv"><span>PLY</span><span class="mono">${entry.ply} (${fmtBytes(entry.sizes?.[entry.ply.split('/').pop()])})</span></div>
         <div class="kv"><span>Objects</span><span class="mono">${entry.objects || "无"} (${entry.objects ? fmtBytes(entry.sizes?.[entry.objects.split('/').pop()]) : "n/a"})</span></div>
+        ${reviewActions}
         <h3>标签点数</h3>
         <div>${labelCounts || "<span class='muted'>无统计</span>"}</div>
         <h3>Warnings</h3>

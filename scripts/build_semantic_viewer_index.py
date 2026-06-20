@@ -36,6 +36,13 @@ QA_NAMES = (
     "frame_object_points_local_geometry_report.json",
     "local_geometry_split_candidates_report.json",
 )
+REVIEW_INDEX_NAME = "semantic_object_review_index.json"
+REVIEW_HTML_NAME = "semantic_object_review_index.html"
+REVIEW_DECISION_NAME = "manual_object_review_decisions.csv"
+REVIEW_NORMALIZED_NAME = "manual_object_review_decisions.normalized.jsonl"
+REVIEW_NORMALIZE_REPORT_NAME = "manual_object_review_decisions.report.json"
+REVIEW_APPLY_REPORT_NAME = "manual_object_review_apply_report.json"
+REVIEW_EXPORT_REPORT_NAME = "manual_object_review_export_report.json"
 
 
 @dataclass(frozen=True)
@@ -91,6 +98,59 @@ def rel_url(path: Path, web_root: Path) -> str:
     return "/" + rel.as_posix()
 
 
+def collect_review_indexes(web_root: Path) -> dict[tuple[str, str], dict[str, Any]]:
+    reviews: dict[tuple[str, str], dict[str, Any]] = {}
+    for review_json in web_root.rglob(REVIEW_INDEX_NAME):
+        report = read_json(review_json)
+        if not report:
+            continue
+        objects = report.get("objects")
+        if not isinstance(objects, list):
+            objects = []
+        first_object = objects[0] if objects else {}
+        ply_url = first_object.get("semantic_url", "") if isinstance(first_object, dict) else ""
+        objects_url = first_object.get("semantic_url", "") if isinstance(first_object, dict) else ""
+        if isinstance(ply_url, str) and "file=" in ply_url:
+            from urllib.parse import parse_qs, urlparse
+
+            query = parse_qs(urlparse(ply_url).query)
+            ply_url = (query.get("file") or [""])[0]
+            objects_url = (query.get("objects") or [""])[0]
+        key = (str(ply_url), str(objects_url))
+        if not key[0]:
+            continue
+        directory = review_json.parent
+        normalize_report = read_json(directory / REVIEW_NORMALIZE_REPORT_NAME)
+        apply_report = read_json(directory / REVIEW_APPLY_REPORT_NAME)
+        export_report = read_json(directory / REVIEW_EXPORT_REPORT_NAME)
+        decision_csv = directory / REVIEW_DECISION_NAME
+        normalized = directory / REVIEW_NORMALIZED_NAME
+        review = {
+            "review_json": rel_url(review_json, web_root),
+            "review_html": rel_url(directory / REVIEW_HTML_NAME, web_root) if (directory / REVIEW_HTML_NAME).exists() else "",
+            "decision_csv": rel_url(decision_csv, web_root) if decision_csv.exists() else "",
+            "normalized_jsonl": rel_url(normalized, web_root) if normalized.exists() else "",
+            "normalize_report": rel_url(directory / REVIEW_NORMALIZE_REPORT_NAME, web_root) if normalize_report else "",
+            "apply_report": rel_url(directory / REVIEW_APPLY_REPORT_NAME, web_root) if apply_report else "",
+            "export_report": rel_url(directory / REVIEW_EXPORT_REPORT_NAME, web_root) if export_report else "",
+            "object_count": len(objects),
+            "normalize": {
+                "accepted_count": normalize_report.get("accepted_count"),
+                "error_count": normalize_report.get("error_count"),
+            } if normalize_report else None,
+            "apply": {
+                "applied_count": apply_report.get("applied_count"),
+                "error_count": apply_report.get("error_count"),
+            } if apply_report else None,
+            "export": {
+                "output_dir": export_report.get("output_dir"),
+                "qa": export_report.get("qa"),
+            } if export_report else None,
+        }
+        reviews[key] = review
+    return reviews
+
+
 def extract_counts(qa: dict[str, Any], export_report: dict[str, Any], localgeom_report: dict[str, Any]) -> dict[str, Any]:
     ply_qa = qa.get("ply") if isinstance(qa.get("ply"), dict) else {}
     semantic_counts = ply_qa.get("semantic_point_counts")
@@ -128,7 +188,12 @@ def extract_counts(qa: dict[str, Any], export_report: dict[str, Any], localgeom_
     }
 
 
-def build_entry(artifact: ViewerArtifact, web_root: Path, artifact_root: Path) -> dict[str, Any]:
+def build_entry(
+    artifact: ViewerArtifact,
+    web_root: Path,
+    artifact_root: Path,
+    reviews: dict[tuple[str, str], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     directory = artifact.directory
     qa = read_json(directory / "viewer_candidate_qa.json")
     export_report = read_json(directory / "frame_object_viewer_export_report.json")
@@ -161,6 +226,7 @@ def build_entry(artifact: ViewerArtifact, web_root: Path, artifact_root: Path) -
         rel_dir = directory.absolute().relative_to(artifact_root.absolute()).as_posix()
     except ValueError:
         rel_dir = directory.resolve().relative_to(artifact_root.resolve()).as_posix()
+    review = (reviews or {}).get((file_url, objects_url)) or (reviews or {}).get((file_url, ""))
     return {
         "name": directory.name,
         "relative_dir": rel_dir,
@@ -184,11 +250,13 @@ def build_entry(artifact: ViewerArtifact, web_root: Path, artifact_root: Path) -
             "local_geometry": localgeom_report if localgeom_report else None,
             "split_candidates": split_report if split_report else None,
         },
+        "review": review,
     }
 
 
 def build_index(web_root: Path, artifact_root: Path) -> dict[str, Any]:
-    entries = [build_entry(artifact, web_root, artifact_root) for artifact in iter_viewer_artifacts(artifact_root)]
+    reviews = collect_review_indexes(web_root)
+    entries = [build_entry(artifact, web_root, artifact_root, reviews) for artifact in iter_viewer_artifacts(artifact_root)]
     entries.sort(key=lambda item: item["updated_at_ts"], reverse=True)
     return {
         "schema": "semantic-viewer-index/v1",

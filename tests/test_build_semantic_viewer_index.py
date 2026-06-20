@@ -66,11 +66,57 @@ def test_build_index_sorts_by_artifact_update_time_and_builds_viewer_urls(tmp_pa
     assert older["counts"]["semantic_point_counts"] == {"wall": 7, "car": 3}
 
 
+def test_build_index_links_object_review_pack(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "work"
+    viewer_dir = artifact_root / "viewer_full"
+    ply = viewer_dir / "frame_object_points_stride10.ply"
+    objects = viewer_dir / "frame_objects_viewer.jsonl"
+    write(ply, "ply\n")
+    write(objects, "{}\n")
+    write(viewer_dir / "viewer_candidate_qa.json", json.dumps({"status": "ok", "warnings": [], "errors": []}))
+
+    review_dir = artifact_root / "review_full"
+    write(
+        review_dir / "semantic_object_review_index.json",
+        json.dumps(
+            {
+                "objects": [
+                    {
+                        "object_id": 1,
+                        "semantic_url": (
+                            "/tools/semantic_ply_viewer.html?"
+                            "file=/work/viewer_full/frame_object_points_stride10.ply"
+                            "&objects=/work/viewer_full/frame_objects_viewer.jsonl"
+                            "&mode=semantic&object=1"
+                        ),
+                    }
+                ]
+            }
+        ),
+    )
+    write(review_dir / "semantic_object_review_index.html", "<html></html>")
+    write(review_dir / "manual_object_review_decisions.csv", "object_id,decision\n1,pending\n")
+    write(
+        review_dir / "manual_object_review_decisions.report.json",
+        json.dumps({"accepted_count": 0, "error_count": 1}),
+    )
+
+    index = build_index(web_root=tmp_path, artifact_root=artifact_root)
+    entry = index["entries"][0]
+
+    assert entry["review"]["object_count"] == 1
+    assert entry["review"]["review_html"] == "/work/review_full/semantic_object_review_index.html"
+    assert entry["review"]["decision_csv"] == "/work/review_full/manual_object_review_decisions.csv"
+    assert entry["review"]["normalize"] == {"accepted_count": 0, "error_count": 1}
+
+
 def test_index_html_uses_generated_json_and_existing_viewer() -> None:
     html = Path("tools/semantic_viewer_index.html").read_text(encoding="utf-8")
     assert "semantic_viewer_index.json" in html
     assert "viewer_urls.semantic" in html
     assert "语义点云版本索引" in html
+    assert "对象审阅" in html
+    assert "决策 CSV" in html
 
 
 def test_build_index_keeps_symlink_url_prefix(tmp_path: Path) -> None:

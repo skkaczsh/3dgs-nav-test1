@@ -182,6 +182,12 @@ Remote viewer entry:
 http://scan-rtx5070:8765/tools/semantic_viewer_index.html
 ```
 
+The persistent viewer index scans viewer artifacts and object-review packs.  If
+a `semantic_object_review_index.json` points at an artifact's PLY/objects pair,
+the index displays direct links to the review page, decision CSV, normalization
+status, apply status, and reviewed-export QA status.  This is the preferred
+comparison surface for multiple route versions.
+
 Focused object review entry:
 
 ```text
