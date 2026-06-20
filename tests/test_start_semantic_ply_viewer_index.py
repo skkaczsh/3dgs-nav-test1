@@ -8,3 +8,5 @@ def test_start_viewer_refreshes_index_and_prints_index_url() -> None:
     assert "semantic_viewer_index.html" in script
     assert "INDEX_REFRESH_INTERVAL" in script
     assert "semantic_viewer_index_refresh_" in script
+    assert "ARTIFACT_ROOT" in script
+    assert '--artifact-root "${ARTIFACT_ROOT}"' in script

@@ -8,6 +8,7 @@ LOG_DIR="${LOG_DIR:-/Users/skkac/Work/SCAN/.local/logs}"
 PID_FILE="${PID_FILE:-/Users/skkac/Work/SCAN/.local/semantic_ply_viewer_${PORT}.pid}"
 INDEX_REFRESH_INTERVAL="${INDEX_REFRESH_INTERVAL:-0}"
 INDEX_PID_FILE="${INDEX_PID_FILE:-/Users/skkac/Work/SCAN/.local/semantic_viewer_index_refresh_${PORT}.pid}"
+ARTIFACT_ROOT="${ARTIFACT_ROOT:-server_parking_priority_s10}"
 URL="http://${HOST}:${PORT}/tools/semantic_ply_viewer.html"
 INDEX_URL="http://${HOST}:${PORT}/tools/semantic_viewer_index.html"
 
@@ -17,7 +18,7 @@ refresh_index() {
   if [[ -f "${REPO_ROOT}/scripts/build_semantic_viewer_index.py" ]]; then
     (
       cd "${REPO_ROOT}"
-      python3 scripts/build_semantic_viewer_index.py >/dev/null
+      python3 scripts/build_semantic_viewer_index.py --artifact-root "${ARTIFACT_ROOT}" >/dev/null
     )
   fi
 }
