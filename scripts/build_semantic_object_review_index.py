@@ -74,6 +74,25 @@ def pick_review_objects(rows: list[dict[str, Any]], per_label: int) -> list[dict
     return sorted(selected.values(), key=lambda row: (label(row), -point_count(row), str(viewer_id(row))))
 
 
+def read_object_ids(path: Path | None) -> set[str]:
+    if not path:
+        return set()
+    ids: set[str] = set()
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            value = line.strip()
+            if value:
+                ids.add(value)
+    return ids
+
+
+def select_objects(rows: list[dict[str, Any]], per_label: int, object_ids: set[str]) -> list[dict[str, Any]]:
+    if object_ids:
+        selected = [row for row in rows if str(viewer_id(row)) in object_ids or str(row.get("object_id")) in object_ids]
+        return sorted(selected, key=lambda row: (-point_count(row), str(viewer_id(row))))
+    return pick_review_objects(rows, per_label)
+
+
 def make_viewer_url(args: argparse.Namespace, object_id: int | str, mode: str) -> str:
     url = (
         f"{args.viewer_path}?file={args.ply_url}&objects={args.objects_url}"
@@ -216,13 +235,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ply-url", required=True)
     parser.add_argument("--objects-url", required=True)
     parser.add_argument("--decision-template-url", default="")
+    parser.add_argument("--object-ids-file", type=Path, help="Optional newline-separated viewer/source object ids to review.")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     rows = read_jsonl(args.objects_jsonl)
-    objects = [object_summary(row, args) for row in pick_review_objects(rows, args.per_label)]
+    object_ids = read_object_ids(args.object_ids_file)
+    objects = [object_summary(row, args) for row in select_objects(rows, args.per_label, object_ids)]
     report = {
         "schema": "semantic-object-review-index/v1",
         "title": args.title,

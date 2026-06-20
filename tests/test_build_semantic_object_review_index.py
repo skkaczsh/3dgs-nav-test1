@@ -67,6 +67,49 @@ def test_build_review_index_selects_key_objects_and_writes_links(tmp_path: Path,
     assert "2,obj_000002,car,pending" in decision_csv
 
 
+def test_build_review_index_can_focus_explicit_object_ids(tmp_path: Path, monkeypatch) -> None:
+    objects = tmp_path / "objects.jsonl"
+    write_jsonl(
+        objects,
+        [
+            {"viewer_object_id": 1, "object_id": "obj_000001", "semantic_label": "car", "status": "stable", "point_count": 100},
+            {"viewer_object_id": 2, "object_id": "obj_000002", "semantic_label": "wall", "status": "stable", "point_count": 200},
+            {"viewer_object_id": 3, "object_id": "obj_000003", "semantic_label": "railing", "status": "stable", "point_count": 300},
+        ],
+    )
+    object_ids = tmp_path / "ids.txt"
+    object_ids.write_text("1\nobj_000003\n", encoding="utf-8")
+    out = tmp_path / "review"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "build_semantic_object_review_index.py",
+            "--objects-jsonl",
+            str(objects),
+            "--output-dir",
+            str(out),
+            "--per-label",
+            "1",
+            "--object-ids-file",
+            str(object_ids),
+            "--ply-url",
+            "/work/run/frame_object_points_stride10.ply",
+            "--objects-url",
+            "/work/run/frame_objects_viewer.jsonl",
+        ],
+    )
+
+    assert mod.main() == 0
+    report = json.loads((out / "semantic_object_review_index.json").read_text(encoding="utf-8"))
+    decision_csv = (out / "manual_object_review_decisions.csv").read_text(encoding="utf-8")
+
+    assert [row["object_id"] for row in report["objects"]] == [3, 1]
+    assert "1,obj_000001,car,pending" in decision_csv
+    assert "3,obj_000003,railing,pending" in decision_csv
+    assert "2,obj_000002,wall,pending" not in decision_csv
+
+
 def test_semantic_ply_viewer_supports_object_filter_links() -> None:
     html = Path("tools/semantic_ply_viewer.html").read_text(encoding="utf-8")
     assert 'params.get("object")' in html
