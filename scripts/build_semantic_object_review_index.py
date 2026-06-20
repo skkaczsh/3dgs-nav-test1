@@ -82,6 +82,11 @@ def make_viewer_url(args: argparse.Namespace, object_id: int | str, mode: str) -
     return url
 
 
+def make_full_viewer_url(args: argparse.Namespace, mode: str) -> str:
+    url = f"{args.viewer_path}?file={args.ply_url}&objects={args.objects_url}&mode={mode}&stride=1&pointSize=1.5"
+    return url
+
+
 def object_summary(row: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
     oid = viewer_id(row)
     return {
@@ -169,6 +174,16 @@ def render_html(report: dict[str, Any]) -> str:
         if decision_url
         else ""
     )
+    full_urls = report.get("full_viewer_urls") or {}
+    full_links = " ".join(
+        f'<a href="{esc(url)}" target="_blank">{esc(label)}</a>'
+        for label, url in [
+            ("整版语义", full_urls.get("semantic")),
+            ("整版 Object", full_urls.get("object")),
+            ("整版 RGB", full_urls.get("rgb")),
+        ]
+        if url
+    )
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><title>{esc(report['title'])}</title><style>{css}</style></head>
@@ -178,6 +193,7 @@ def render_html(report: dict[str, Any]) -> str:
     <div>Generated: <code>{esc(report['generated_at'])}</code></div>
     <div>Objects: <code>{len(report['objects'])}</code></div>
     <div>Viewer index: <a href="{esc(report['viewer_index_url'])}" target="_blank">{esc(report['viewer_index_url'])}</a></div>
+    <div>Full version: {full_links}</div>
     {decision_line}
   </div>
   <table>
@@ -213,6 +229,11 @@ def main() -> int:
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "objects_jsonl": str(args.objects_jsonl),
         "viewer_index_url": args.viewer_index_url,
+        "full_viewer_urls": {
+            "semantic": make_full_viewer_url(args, "semantic"),
+            "object": make_full_viewer_url(args, "object"),
+            "rgb": make_full_viewer_url(args, "rgb"),
+        },
         "decision_template": str(args.output_dir / "manual_object_review_decisions.csv"),
         "decision_template_url": args.decision_template_url or "manual_object_review_decisions.csv",
         "objects": objects,

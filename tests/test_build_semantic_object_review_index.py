@@ -56,6 +56,10 @@ def test_build_review_index_selects_key_objects_and_writes_links(tmp_path: Path,
     assert 3 in ids
     assert 3000000 in ids
     assert "object=2" in html
+    assert "整版语义" in html
+    assert "object=2" in report["objects"][0]["semantic_url"] or "object=2" in report["objects"][1]["semantic_url"]
+    assert "object=" not in report["full_viewer_urls"]["semantic"]
+    assert "mode=semantic" in report["full_viewer_urls"]["semantic"]
     assert "semantic" in html
     assert "rgb" in html
     assert "manual_object_review_decisions.csv" in html
