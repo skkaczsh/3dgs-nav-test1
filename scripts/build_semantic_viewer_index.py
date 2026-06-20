@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+"""Build a static index for semantic PLY viewer artifacts.
+
+The viewer artifacts are intentionally large and versioned by directory names.
+This script scans those directories, extracts lightweight QA/report metadata,
+and emits a JSON index consumed by tools/semantic_viewer_index.html.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+
+PLY_NAMES = (
+    "frame_object_points_stride10.ply",
+    "frame_object_points_local_geometry.ply",
+    "frame_object_points.ply",
+    "semantic_review_candidates_ascii.ply",
+    "full_scene_objects_ascii.ply",
+)
+OBJECT_NAMES = (
+    "frame_objects_viewer.jsonl",
+    "full_scene_objects_enriched.jsonl",
+    "full_scene_objects_geometry_relabel.jsonl",
+    "semantic_review_candidates.jsonl",
+)
+QA_NAMES = (
+    "viewer_candidate_qa.json",
+    "frame_object_viewer_export_report.json",
+    "frame_object_points_local_geometry_report.json",
+    "local_geometry_split_candidates_report.json",
+)
+
+
+@dataclass(frozen=True)
+class ViewerArtifact:
+    directory: Path
+    ply: Path
+    objects: Path | None
+
+
+def read_json(path: Path) -> dict[str, Any]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def safe_stat(path: Path) -> os.stat_result | None:
+    try:
+        return path.stat()
+    except OSError:
+        return None
+
+
+def iso_from_mtime(mtime: float) -> str:
+    return datetime.fromtimestamp(mtime, timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def first_existing(directory: Path, names: tuple[str, ...]) -> Path | None:
+    for name in names:
+        candidate = directory / name
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def iter_viewer_artifacts(artifact_root: Path) -> list[ViewerArtifact]:
+    artifacts: list[ViewerArtifact] = []
+    for directory in sorted({p.parent for name in PLY_NAMES for p in artifact_root.rglob(name)}):
+        ply = first_existing(directory, PLY_NAMES)
+        if not ply:
+            continue
+        objects = first_existing(directory, OBJECT_NAMES)
+        artifacts.append(ViewerArtifact(directory=directory, ply=ply, objects=objects))
+    return artifacts
+
+
+def rel_url(path: Path, web_root: Path) -> str:
+    rel = path.resolve().relative_to(web_root.resolve())
+    return "/" + rel.as_posix()
+
+
+def extract_counts(qa: dict[str, Any], export_report: dict[str, Any], localgeom_report: dict[str, Any]) -> dict[str, Any]:
+    ply_qa = qa.get("ply") if isinstance(qa.get("ply"), dict) else {}
+    semantic_counts = ply_qa.get("semantic_point_counts")
+    if not isinstance(semantic_counts, dict):
+        semantic_counts = (
+            localgeom_report.get("point_label_counts")
+            if isinstance(localgeom_report.get("point_label_counts"), dict)
+            else export_report.get("label_counts")
+        )
+    if not isinstance(semantic_counts, dict):
+        semantic_counts = {}
+
+    object_counts = localgeom_report.get("object_label_counts")
+    if not isinstance(object_counts, dict):
+        objects_qa = qa.get("objects") if isinstance(qa.get("objects"), dict) else {}
+        object_counts = objects_qa.get("label_counts") if isinstance(objects_qa.get("label_counts"), dict) else {}
+
+    vertex_count = ply_qa.get("vertex_count")
+    if vertex_count is None:
+        vertex_count = localgeom_report.get("input_vertex_count")
+    if vertex_count is None:
+        vertex_count = export_report.get("output_vertices")
+
+    object_count = localgeom_report.get("output_object_count")
+    if object_count is None:
+        object_count = export_report.get("object_records") or export_report.get("object_count_with_points")
+    if object_count is None and isinstance(object_counts, dict):
+        object_count = sum(v for v in object_counts.values() if isinstance(v, int))
+
+    return {
+        "vertex_count": vertex_count,
+        "object_count": object_count,
+        "semantic_point_counts": semantic_counts,
+        "object_label_counts": object_counts if isinstance(object_counts, dict) else {},
+    }
+
+
+def build_entry(artifact: ViewerArtifact, web_root: Path, artifact_root: Path) -> dict[str, Any]:
+    directory = artifact.directory
+    qa = read_json(directory / "viewer_candidate_qa.json")
+    export_report = read_json(directory / "frame_object_viewer_export_report.json")
+    localgeom_report = read_json(directory / "frame_object_points_local_geometry_report.json")
+    split_report = read_json(directory / "local_geometry_split_candidates_report.json")
+
+    watched_paths = [artifact.ply]
+    if artifact.objects:
+        watched_paths.append(artifact.objects)
+    watched_paths.extend(directory / name for name in QA_NAMES if (directory / name).exists())
+    stats = [safe_stat(path) for path in watched_paths]
+    mtimes = [stat.st_mtime for stat in stats if stat is not None]
+    sizes = {path.name: stat.st_size for path, stat in zip(watched_paths, stats) if stat is not None}
+    updated_at_ts = max(mtimes) if mtimes else 0.0
+
+    counts = extract_counts(qa, export_report, localgeom_report)
+    warnings = qa.get("warnings") if isinstance(qa.get("warnings"), list) else []
+    errors = qa.get("errors") if isinstance(qa.get("errors"), list) else []
+    status = qa.get("status") or ("missing_qa" if not qa else "unknown")
+
+    file_url = rel_url(artifact.ply, web_root)
+    objects_url = rel_url(artifact.objects, web_root) if artifact.objects else ""
+    semantic_viewer = f"/tools/semantic_ply_viewer.html?file={file_url}&mode=semantic&stride=1&pointSize=1.5"
+    object_viewer = f"/tools/semantic_ply_viewer.html?file={file_url}&mode=object&stride=1&pointSize=1.5"
+    if objects_url:
+        semantic_viewer += f"&objects={objects_url}"
+        object_viewer += f"&objects={objects_url}"
+
+    rel_dir = directory.resolve().relative_to(artifact_root.resolve()).as_posix()
+    return {
+        "name": directory.name,
+        "relative_dir": rel_dir,
+        "updated_at": iso_from_mtime(updated_at_ts),
+        "updated_at_ts": updated_at_ts,
+        "status": status,
+        "warnings": warnings,
+        "errors": errors,
+        "ply": file_url,
+        "objects": objects_url,
+        "viewer_urls": {
+            "semantic": semantic_viewer,
+            "object": object_viewer,
+            "rgb": semantic_viewer.replace("mode=semantic", "mode=rgb"),
+        },
+        "sizes": sizes,
+        "counts": counts,
+        "reports": {
+            "qa": qa if qa else None,
+            "export": export_report if export_report else None,
+            "local_geometry": localgeom_report if localgeom_report else None,
+            "split_candidates": split_report if split_report else None,
+        },
+    }
+
+
+def build_index(web_root: Path, artifact_root: Path) -> dict[str, Any]:
+    entries = [build_entry(artifact, web_root, artifact_root) for artifact in iter_viewer_artifacts(artifact_root)]
+    entries.sort(key=lambda item: item["updated_at_ts"], reverse=True)
+    return {
+        "schema": "semantic-viewer-index/v1",
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "web_root": str(web_root),
+        "artifact_root": str(artifact_root),
+        "artifact_count": len(entries),
+        "entries": entries,
+    }
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--web-root", type=Path, default=Path.cwd(), help="HTTP server root for URL generation.")
+    parser.add_argument(
+        "--artifact-root",
+        type=Path,
+        default=Path("server_parking_priority_s10"),
+        help="Directory to scan for viewer artifacts, relative to --web-root unless absolute.",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("tools/semantic_viewer_index.json"),
+        help="Output JSON path, relative to --web-root unless absolute.",
+    )
+    parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON.")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    web_root = args.web_root.resolve()
+    artifact_root = args.artifact_root if args.artifact_root.is_absolute() else web_root / args.artifact_root
+    output = args.output if args.output.is_absolute() else web_root / args.output
+
+    index = build_index(web_root=web_root, artifact_root=artifact_root.resolve())
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(index, ensure_ascii=False, indent=2 if args.pretty else None, sort_keys=False) + "\n",
+        encoding="utf-8",
+    )
+    print(json.dumps({"output": str(output), "artifact_count": index["artifact_count"]}, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

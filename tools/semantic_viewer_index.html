@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>语义点云版本索引</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111318;
+      --panel: #181b22;
+      --panel2: #20242d;
+      --line: #303642;
+      --text: #eef1f5;
+      --muted: #9aa3af;
+      --accent: #42b8d8;
+      --ok: #55c77a;
+      --warn: #f0b84f;
+      --err: #ef6f6c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font: 13px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      border-bottom: 1px solid var(--line);
+      background: rgba(17, 19, 24, 0.96);
+      padding: 14px 18px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+    input, select, button, a.button {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel2);
+      color: var(--text);
+      padding: 8px 10px;
+      font: inherit;
+      text-decoration: none;
+    }
+    input { min-width: 340px; }
+    button, a.button { cursor: pointer; }
+    button:hover, a.button:hover { border-color: var(--accent); }
+    main {
+      display: grid;
+      grid-template-columns: minmax(520px, 1.2fr) minmax(360px, 0.8fr);
+      gap: 14px;
+      padding: 14px;
+    }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      min-width: 0;
+    }
+    .summary {
+      color: var(--muted);
+      margin-left: auto;
+      white-space: nowrap;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: #151922;
+      position: sticky;
+      top: 55px;
+    }
+    tr { cursor: pointer; }
+    tr:hover, tr.selected { background: #1f2630; }
+    .name {
+      font-weight: 650;
+      word-break: break-word;
+    }
+    .muted { color: var(--muted); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      margin: 2px 4px 2px 0;
+      padding: 2px 7px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #10141b;
+      white-space: nowrap;
+    }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .err { color: var(--err); }
+    #detail {
+      padding: 14px;
+      position: sticky;
+      top: 69px;
+      max-height: calc(100vh - 84px);
+      overflow: auto;
+    }
+    h2 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+    h3 {
+      margin: 18px 0 8px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .kv {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 8px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(48, 54, 66, 0.55);
+    }
+    .kv span:first-child { color: var(--muted); }
+    pre {
+      margin: 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #10141b;
+      overflow: auto;
+      max-height: 280px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>语义点云版本索引</h1>
+    <input id="search" type="search" placeholder="按路径、版本名、标签、状态过滤">
+    <select id="statusFilter">
+      <option value="">全部状态</option>
+      <option value="ok">只看 QA ok</option>
+      <option value="missing_qa">缺少 QA</option>
+      <option value="warning">有 warning</option>
+      <option value="error">有 error</option>
+    </select>
+    <button id="reload">刷新索引</button>
+    <span id="summary" class="summary">加载中...</span>
+  </header>
+  <main>
+    <section class="panel">
+      <table>
+        <thead>
+          <tr>
+            <th>版本</th>
+            <th>更新时间</th>
+            <th>QA</th>
+            <th>规模</th>
+            <th>标签概览</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </section>
+    <aside id="detail" class="panel">选择一个版本查看详情。</aside>
+  </main>
+
+  <script>
+    const state = { index: null, entries: [], selected: null };
+    const labelZh = {
+      unknown: "未知", other: "其他", wall: "墙面", floor: "地面", ground: "地面",
+      ceiling: "天花板", grass: "草地", tree: "树木", person: "人", car: "汽车",
+      railing: "栏杆/护栏", building: "建筑", sky: "天空", road: "路面",
+      water: "水体", furniture: "家具", pipe: "管线", equipment: "设备",
+      ambiguous: "模糊"
+    };
+
+    function fmtInt(value) {
+      if (value === null || value === undefined) return "n/a";
+      return Number(value).toLocaleString();
+    }
+
+    function fmtBytes(value) {
+      if (!value && value !== 0) return "n/a";
+      const units = ["B", "KB", "MB", "GB"];
+      let n = Number(value);
+      let i = 0;
+      while (n >= 1024 && i < units.length - 1) { n /= 1024; i += 1; }
+      return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return "n/a";
+      return new Date(iso).toLocaleString();
+    }
+
+    function statusClass(entry) {
+      if ((entry.errors || []).length) return "err";
+      if ((entry.warnings || []).length) return "warn";
+      if (entry.status === "ok") return "ok";
+      return "muted";
+    }
+
+    function topCounts(counts, limit = 5) {
+      return Object.entries(counts || {})
+        .filter(([, value]) => Number.isFinite(Number(value)))
+        .sort((a, b) => Number(b[1]) - Number(a[1]))
+        .slice(0, limit);
+    }
+
+    function matchEntry(entry, query, status) {
+      if (status === "ok" && entry.status !== "ok") return false;
+      if (status === "missing_qa" && entry.status !== "missing_qa") return false;
+      if (status === "warning" && !(entry.warnings || []).length) return false;
+      if (status === "error" && !(entry.errors || []).length) return false;
+      if (!query) return true;
+      const haystack = [
+        entry.name, entry.relative_dir, entry.status, entry.ply, entry.objects,
+        ...Object.keys(entry.counts?.semantic_point_counts || {}),
+        ...Object.keys(entry.counts?.object_label_counts || {}),
+      ].join(" ").toLowerCase();
+      return haystack.includes(query.toLowerCase());
+    }
+
+    function renderRows() {
+      const query = document.getElementById("search").value.trim();
+      const status = document.getElementById("statusFilter").value;
+      const rows = document.getElementById("rows");
+      const filtered = state.entries.filter(entry => matchEntry(entry, query, status));
+      rows.innerHTML = "";
+      for (const entry of filtered) {
+        const counts = entry.counts || {};
+        const labels = topCounts(counts.semantic_point_counts, 6)
+          .map(([label, count]) => `<span class="pill">${labelZh[label] || label} ${fmtInt(count)}</span>`)
+          .join("");
+        const tr = document.createElement("tr");
+        tr.className = state.selected === entry ? "selected" : "";
+        tr.innerHTML = `
+          <td><div class="name">${entry.name}</div><div class="muted mono">${entry.relative_dir}</div></td>
+          <td>${fmtTime(entry.updated_at)}</td>
+          <td><span class="${statusClass(entry)}">${entry.status}</span><div class="muted">${(entry.warnings || []).length} warnings</div></td>
+          <td><div>${fmtInt(counts.vertex_count)} 点</div><div class="muted">${fmtInt(counts.object_count)} objects</div></td>
+          <td>${labels || "<span class='muted'>无统计</span>"}</td>
+        `;
+        tr.addEventListener("click", () => {
+          state.selected = entry;
+          renderRows();
+          renderDetail(entry);
+        });
+        rows.appendChild(tr);
+      }
+      document.getElementById("summary").textContent =
+        `${filtered.length}/${state.entries.length} 个版本，索引生成于 ${fmtTime(state.index?.generated_at)}`;
+      if (!state.selected && filtered.length) {
+        state.selected = filtered[0];
+        renderRows();
+        renderDetail(filtered[0]);
+      }
+    }
+
+    function renderDetail(entry) {
+      const counts = entry.counts || {};
+      const labelCounts = topCounts(counts.semantic_point_counts, 20)
+        .map(([label, count]) => `<span class="pill">${labelZh[label] || label}: ${fmtInt(count)}</span>`)
+        .join("");
+      const warningText = (entry.warnings || []).length ? entry.warnings.join("\n") : "无";
+      const errorText = (entry.errors || []).length ? entry.errors.join("\n") : "无";
+      document.getElementById("detail").innerHTML = `
+        <h2>${entry.name}</h2>
+        <div class="muted mono">${entry.relative_dir}</div>
+        <div class="actions">
+          <a class="button" href="${entry.viewer_urls.semantic}" target="_blank">语义模式</a>
+          <a class="button" href="${entry.viewer_urls.object}" target="_blank">Object 模式</a>
+          <a class="button" href="${entry.viewer_urls.rgb}" target="_blank">RGB 模式</a>
+        </div>
+        <div class="kv"><span>状态</span><span class="${statusClass(entry)}">${entry.status}</span></div>
+        <div class="kv"><span>更新时间</span><span>${fmtTime(entry.updated_at)}</span></div>
+        <div class="kv"><span>点数</span><span>${fmtInt(counts.vertex_count)}</span></div>
+        <div class="kv"><span>Object 数</span><span>${fmtInt(counts.object_count)}</span></div>
+        <div class="kv"><span>PLY</span><span class="mono">${entry.ply} (${fmtBytes(entry.sizes?.[entry.ply.split('/').pop()])})</span></div>
+        <div class="kv"><span>Objects</span><span class="mono">${entry.objects || "无"} (${entry.objects ? fmtBytes(entry.sizes?.[entry.objects.split('/').pop()]) : "n/a"})</span></div>
+        <h3>标签点数</h3>
+        <div>${labelCounts || "<span class='muted'>无统计</span>"}</div>
+        <h3>Warnings</h3>
+        <pre>${warningText}</pre>
+        <h3>Errors</h3>
+        <pre>${errorText}</pre>
+        <h3>原始摘要</h3>
+        <pre>${JSON.stringify({
+          qa: entry.reports?.qa?.status ? {
+            status: entry.reports.qa.status,
+            warnings: entry.reports.qa.warnings,
+            errors: entry.reports.qa.errors,
+          } : null,
+          export: entry.reports?.export ? {
+            input_vertices: entry.reports.export.input_vertices,
+            output_vertices: entry.reports.export.output_vertices,
+            stride: entry.reports.export.stride,
+            object_records: entry.reports.export.object_records,
+          } : null,
+          local_geometry: entry.reports?.local_geometry ? {
+            input_object_count: entry.reports.local_geometry.input_object_count,
+            output_object_count: entry.reports.local_geometry.output_object_count,
+            split_candidate_count: entry.reports.local_geometry.split_candidate_count,
+          } : null,
+        }, null, 2)}</pre>
+      `;
+    }
+
+    async function loadIndex() {
+      const response = await fetch("./semantic_viewer_index.json", { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`无法加载 semantic_viewer_index.json: HTTP ${response.status}`);
+      }
+      state.index = await response.json();
+      state.entries = state.index.entries || [];
+      state.selected = null;
+      renderRows();
+    }
+
+    document.getElementById("search").addEventListener("input", renderRows);
+    document.getElementById("statusFilter").addEventListener("change", renderRows);
+    document.getElementById("reload").addEventListener("click", () => loadIndex().catch(showError));
+
+    function showError(error) {
+      document.getElementById("summary").textContent = "索引加载失败";
+      document.getElementById("detail").innerHTML = `
+        <h2>索引加载失败</h2>
+        <pre>${String(error.message || error)}</pre>
+        <p class="muted">在仓库根目录运行：<span class="mono">python3 scripts/build_semantic_viewer_index.py --pretty</span></p>
+      `;
+    }
+
+    loadIndex().catch(showError);
+  </script>
+</body>
+</html>

@@ -41,6 +41,7 @@ docs/preserved_run_reports_*/
 
 # Generated outputs
 colorized_frame_*.ply
+tools/semantic_viewer_index.json
 
 # 大文件（标定数据、原始数据）
 calib_online.yaml
