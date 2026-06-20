@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -57,15 +58,39 @@ def centroid_z(obj: dict[str, Any]) -> float:
 
 
 def normal_z_abs(obj: dict[str, Any]) -> float:
-    normal = vec3(obj, "pca_normal", [0.0, 0.0, 0.0])
+    normal = vec3(obj, "pca_normal", vec3(obj, "normal", [0.0, 0.0, 0.0]))
     return abs(normal[2])
 
 
 def linearity(obj: dict[str, Any]) -> float:
+    stats = obj.get("geometry_stats") if isinstance(obj.get("geometry_stats"), dict) else {}
+    if "linearity_mean" in stats:
+        return float(stats.get("linearity_mean") or 0.0)
     vals = obj.get("pca_eigenvalues") or []
     if len(vals) < 2 or float(vals[0]) <= 1e-9:
         return 0.0
     return max(0.0, 1.0 - float(vals[1]) / max(float(vals[0]), 1e-9))
+
+
+def planarity(obj: dict[str, Any]) -> float:
+    stats = obj.get("geometry_stats") if isinstance(obj.get("geometry_stats"), dict) else {}
+    return float(obj.get("planarity") or stats.get("planarity_mean") or 0.0)
+
+
+def thickness_rms(obj: dict[str, Any]) -> float:
+    stats = obj.get("geometry_stats") if isinstance(obj.get("geometry_stats"), dict) else {}
+    return float(obj.get("thickness_rms") or stats.get("thickness_rms") or 0.0)
+
+
+def numeric_object_id(obj: dict[str, Any]) -> int:
+    value = obj.get("viewer_object_id", obj.get("object_id"))
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        match = re.search(r"(\d+)$", str(value))
+        if match:
+            return int(match.group(1))
+    return 0
 
 
 def orientation(obj: dict[str, Any], horizontal_z: float, vertical_z: float) -> str:
@@ -87,10 +112,14 @@ def metric_summary(obj: dict[str, Any], args: argparse.Namespace) -> dict[str, A
         "z_extent": ex[2],
         "normal_z_abs": normal_z_abs(obj),
         "orientation": orientation(obj, args.horizontal_normal_z, args.vertical_normal_z),
-        "planarity": float(obj.get("planarity") or 0.0),
-        "thickness_rms": float(obj.get("thickness_rms") or 0.0),
+        "planarity": planarity(obj),
+        "thickness_rms": thickness_rms(obj),
         "linearity": linearity(obj),
         "xy_minor_extent": min(ex[0], ex[1]),
+        "dominant_structural_region": obj.get("dominant_structural_region"),
+        "dominant_structural_region_ratio": float(obj.get("dominant_structural_region_ratio") or 0.0),
+        "dominant_surface_attachment_status": obj.get("dominant_surface_attachment_status"),
+        "dominant_surface_attachment_ratio": float(obj.get("dominant_surface_attachment_ratio") or 0.0),
     }
 
 
@@ -129,12 +158,32 @@ def assess_object(obj: dict[str, Any], args: argparse.Namespace) -> tuple[str, l
             suggested_action = "grass_geometry_review"
     elif label == "car":
         status = str(obj.get("priority_guard_status") or "")
+        struct = str(obj.get("dominant_structural_region") or "")
+        struct_ratio = float(obj.get("dominant_structural_region_ratio") or 0.0)
+        attach = str(obj.get("dominant_surface_attachment_status") or "")
+        attach_ratio = float(obj.get("dominant_surface_attachment_ratio") or 0.0)
         if status == "geometry_rejected":
             reasons.append("car_geometry_rejected")
             suggested_action = "demote_to_unknown"
+        if (
+            struct == "vertical_surface_region"
+            and struct_ratio >= args.car_wall_region_min_ratio
+            and metrics["orientation"] in {"vertical", "oblique"}
+            and metrics["centroid_z"] >= args.car_wall_min_centroid_z
+        ):
+            reasons.append("car_on_vertical_surface_region")
+            suggested_action = "relabel_car_to_wall"
+        if (
+            attach == "attached_object_candidate"
+            and attach_ratio >= args.car_wall_attachment_min_ratio
+            and metrics["centroid_z"] >= args.car_wall_min_centroid_z
+        ):
+            reasons.append("car_surface_attached_high")
+            suggested_action = "relabel_car_to_wall"
         if centroid_z(obj) > args.car_max_centroid_z:
             reasons.append("car_high_centroid_z")
-            suggested_action = "demote_or_visual_review"
+            if suggested_action != "relabel_car_to_wall":
+                suggested_action = "demote_or_visual_review"
         if metrics["max_extent"] > args.car_max_extent:
             reasons.append("car_overmerged_extent")
             suggested_action = "split_car_candidate"
@@ -174,6 +223,7 @@ def assess_object(obj: dict[str, Any], args: argparse.Namespace) -> tuple[str, l
             or "horizontal_normal" in r
             or "large_vertical" in r
             or "clean_horizontal_surface" in r
+            or "vertical_surface_region" in r
             for r in reasons
         ) else "medium"
     return severity, reasons, suggested_action
@@ -194,6 +244,9 @@ def main() -> None:
     parser.add_argument("--car-max-centroid-z", type=float, default=5.00)
     parser.add_argument("--car-max-extent", type=float, default=12.00)
     parser.add_argument("--car-min-z-extent", type=float, default=0.45)
+    parser.add_argument("--car-wall-region-min-ratio", type=float, default=0.90)
+    parser.add_argument("--car-wall-attachment-min-ratio", type=float, default=0.90)
+    parser.add_argument("--car-wall-min-centroid-z", type=float, default=2.50)
     parser.add_argument("--railing-max-extent", type=float, default=18.00)
     parser.add_argument("--railing-max-horizontal-thickness", type=float, default=0.16)
     parser.add_argument("--railing-surface-min-planarity", type=float, default=0.80)
@@ -220,7 +273,9 @@ def main() -> None:
         point_counts_by_severity[severity] += int(obj.get("point_count") or 0)
         if severity != "ok":
             item = {
-                "object_id": int(obj.get("object_id") or 0),
+                "object_id": numeric_object_id(obj),
+                "source_object_id": obj.get("object_id"),
+                "viewer_object_id": obj.get("viewer_object_id"),
                 "semantic_label": label,
                 "severity": severity,
                 "reasons": reasons,

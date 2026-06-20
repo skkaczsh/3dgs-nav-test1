@@ -258,6 +258,21 @@ Latest full artifact in the index:
 frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180
 ```
 
+Car-wall guard artifact:
+
+```text
+frame_object_viewer_car_wall_guard_pure_surface_visibility_full_0000_6180
+```
+
+This pass uses `scripts/qa_priority_geometry_conflicts.py` to flag car objects
+that are actually high, vertical/oblique, wall-attached structural fragments,
+then `scripts/apply_car_wall_geometry_guard.py` relabels only
+`suggested_action=relabel_car_to_wall` objects.  On the full run it applied
+`25` high-confidence car-to-wall corrections; viewer QA stayed `ok` with no
+warnings.  It intentionally leaves `car_too_flat`, `car_high_centroid_z`, and
+other ambiguous car findings for visual review instead of broad automatic
+demotion.
+
 Result summary:
 
 - geometry guidance images: `1857/1857 ok`
