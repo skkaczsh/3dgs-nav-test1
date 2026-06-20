@@ -90,11 +90,41 @@ def iter_viewer_artifacts(artifact_root: Path) -> list[ViewerArtifact]:
     return artifacts
 
 
-def rel_url(path: Path, web_root: Path) -> str:
+def web_visible_path(path: Path, web_root: Path) -> Path:
+    """Map a real artifact path back through a symlink under the HTTP root."""
+    path_abs = path.absolute()
     try:
-        rel = path.absolute().relative_to(web_root.absolute())
+        path_abs.relative_to(web_root.absolute())
+        return path_abs
     except ValueError:
-        rel = path.resolve().relative_to(web_root.resolve())
+        pass
+
+    path_resolved = path.resolve()
+    web_root_resolved = web_root.resolve()
+    try:
+        rel = path_resolved.relative_to(web_root_resolved)
+        return web_root / rel
+    except ValueError:
+        pass
+
+    for child in web_root.iterdir():
+        if not child.is_symlink():
+            continue
+        try:
+            rel = path_resolved.relative_to(child.resolve())
+        except ValueError:
+            continue
+        return child / rel
+
+    return path_abs
+
+
+def rel_url(path: Path, web_root: Path) -> str:
+    visible = web_visible_path(path, web_root)
+    try:
+        rel = visible.absolute().relative_to(web_root.absolute())
+    except ValueError:
+        rel = visible.resolve().relative_to(web_root.resolve())
     return "/" + rel.as_posix()
 
 

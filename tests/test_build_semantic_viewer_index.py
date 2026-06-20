@@ -174,6 +174,44 @@ def test_build_index_keeps_symlink_url_prefix(tmp_path: Path) -> None:
     assert entry["relative_dir"] == "run_a/viewer"
 
 
+def test_build_index_maps_real_artifact_root_through_web_symlink(tmp_path: Path) -> None:
+    real_root = tmp_path / "work_real"
+    viewer_dir = real_root / "viewer_full"
+    write(viewer_dir / "frame_object_points_stride10.ply", "ply\n")
+    write(viewer_dir / "frame_objects_viewer.jsonl", "{}\n")
+    review_dir = real_root / "review_full"
+    write(
+        review_dir / "semantic_object_review_index.json",
+        json.dumps(
+            {
+                "objects": [
+                    {
+                        "semantic_url": (
+                            "/tools/semantic_ply_viewer.html?"
+                            "file=/work/viewer_full/frame_object_points_stride10.ply"
+                            "&objects=/work/viewer_full/frame_objects_viewer.jsonl"
+                        )
+                    }
+                ]
+            }
+        ),
+    )
+    write(review_dir / "semantic_object_review_index.html", "<html></html>")
+    write(review_dir / "manual_object_review_decisions.csv", "object_id,decision\n1,pending\n")
+
+    web_root = tmp_path / "repo"
+    web_root.mkdir()
+    (web_root / "work").symlink_to(real_root, target_is_directory=True)
+
+    index = build_index(web_root=web_root, artifact_root=real_root)
+    entry = index["entries"][0]
+
+    assert entry["ply"] == "/work/viewer_full/frame_object_points_stride10.ply"
+    assert entry["objects"] == "/work/viewer_full/frame_objects_viewer.jsonl"
+    assert entry["review"]["review_html"] == "/work/review_full/semantic_object_review_index.html"
+    assert entry["review"]["decision_csv"] == "/work/review_full/manual_object_review_decisions.csv"
+
+
 def test_cli_keeps_symlink_url_prefix(tmp_path: Path, monkeypatch) -> None:
     real_root = tmp_path / "work"
     viewer_dir = real_root / "run_b" / "viewer"
