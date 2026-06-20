@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import html
 import json
 from collections import defaultdict
@@ -102,6 +103,35 @@ def object_summary(row: dict[str, Any], args: argparse.Namespace) -> dict[str, A
     }
 
 
+def write_decision_template(objects: list[dict[str, Any]], path: Path) -> None:
+    fieldnames = [
+        "object_id",
+        "source_object_id",
+        "current_label",
+        "decision",
+        "new_label",
+        "confidence",
+        "reviewer",
+        "notes",
+    ]
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for item in objects:
+            writer.writerow(
+                {
+                    "object_id": item["object_id"],
+                    "source_object_id": item.get("source_object_id") or "",
+                    "current_label": item.get("label") or "unknown",
+                    "decision": "pending",
+                    "new_label": "",
+                    "confidence": "",
+                    "reviewer": "",
+                    "notes": "",
+                }
+            )
+
+
 def render_html(report: dict[str, Any]) -> str:
     def esc(value: Any) -> str:
         return html.escape(str(value if value is not None else ""))
@@ -133,6 +163,12 @@ def render_html(report: dict[str, Any]) -> str:
     a { color:var(--accent); margin-right:8px; }
     .panel { border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:12px; margin:12px 0; }
     """
+    decision_url = report.get("decision_template_url") or report.get("decision_template") or ""
+    decision_line = (
+        f'<div>Manual decisions: <a href="{esc(decision_url)}" target="_blank">{esc(decision_url)}</a></div>'
+        if decision_url
+        else ""
+    )
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><title>{esc(report['title'])}</title><style>{css}</style></head>
@@ -142,6 +178,7 @@ def render_html(report: dict[str, Any]) -> str:
     <div>Generated: <code>{esc(report['generated_at'])}</code></div>
     <div>Objects: <code>{len(report['objects'])}</code></div>
     <div>Viewer index: <a href="{esc(report['viewer_index_url'])}" target="_blank">{esc(report['viewer_index_url'])}</a></div>
+    {decision_line}
   </div>
   <table>
     <thead><tr><th>Object</th><th>Label</th><th>Status</th><th>Points</th><th>Targets</th><th>Frames</th><th>Open</th></tr></thead>
@@ -162,6 +199,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--viewer-index-url", default="/tools/semantic_viewer_index.html")
     parser.add_argument("--ply-url", required=True)
     parser.add_argument("--objects-url", required=True)
+    parser.add_argument("--decision-template-url", default="")
     return parser.parse_args()
 
 
@@ -175,14 +213,28 @@ def main() -> int:
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "objects_jsonl": str(args.objects_jsonl),
         "viewer_index_url": args.viewer_index_url,
+        "decision_template": str(args.output_dir / "manual_object_review_decisions.csv"),
+        "decision_template_url": args.decision_template_url or "manual_object_review_decisions.csv",
         "objects": objects,
     }
     args.output_dir.mkdir(parents=True, exist_ok=True)
     json_path = args.output_dir / "semantic_object_review_index.json"
     html_path = args.output_dir / "semantic_object_review_index.html"
+    decision_path = args.output_dir / "manual_object_review_decisions.csv"
+    write_decision_template(objects, decision_path)
     json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     html_path.write_text(render_html(report), encoding="utf-8")
-    print(json.dumps({"json": str(json_path), "html": str(html_path), "object_count": len(objects)}, ensure_ascii=False))
+    print(
+        json.dumps(
+            {
+                "json": str(json_path),
+                "html": str(html_path),
+                "decision_template": str(decision_path),
+                "object_count": len(objects),
+            },
+            ensure_ascii=False,
+        )
+    )
     return 0
 
 

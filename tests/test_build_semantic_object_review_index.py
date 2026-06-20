@@ -49,6 +49,7 @@ def test_build_review_index_selects_key_objects_and_writes_links(tmp_path: Path,
     assert mod.main() == 0
     report = json.loads((out / "semantic_object_review_index.json").read_text(encoding="utf-8"))
     html = (out / "semantic_object_review_index.html").read_text(encoding="utf-8")
+    decision_csv = (out / "manual_object_review_decisions.csv").read_text(encoding="utf-8")
 
     ids = [row["object_id"] for row in report["objects"]]
     assert 2 in ids
@@ -57,9 +58,55 @@ def test_build_review_index_selects_key_objects_and_writes_links(tmp_path: Path,
     assert "object=2" in html
     assert "semantic" in html
     assert "rgb" in html
+    assert "manual_object_review_decisions.csv" in html
+    assert "object_id,source_object_id,current_label,decision,new_label,confidence,reviewer,notes" in decision_csv
+    assert "2,obj_000002,car,pending" in decision_csv
 
 
 def test_semantic_ply_viewer_supports_object_filter_links() -> None:
     html = Path("tools/semantic_ply_viewer.html").read_text(encoding="utf-8")
     assert 'params.get("object")' in html
     assert "objectKeys(row.objectId)" in html
+
+
+def test_normalize_manual_object_review_decisions_validates_rows(tmp_path: Path) -> None:
+    from scripts import normalize_manual_object_review_decisions as normalize_mod
+
+    review = tmp_path / "review.json"
+    review.write_text(
+        json.dumps(
+            {
+                "objects": [
+                    {"object_id": 1, "source_object_id": "obj_000001", "label": "car"},
+                    {"object_id": 2, "source_object_id": "obj_000002", "label": "railing"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    csv_path = tmp_path / "manual.csv"
+    csv_path.write_text(
+        "object_id,source_object_id,current_label,decision,new_label,confidence,reviewer,notes\n"
+        "1,obj_000001,car,relabel,wall,0.9,skk,surface fragment\n"
+        "2,obj_000002,railing,pending,,,,\n"
+        "9,obj_000009,car,keep,,0.5,,\n"
+        "1,obj_000001,car,relabel,bad_label,0.8,,\n",
+        encoding="utf-8",
+    )
+
+    rows, errors = normalize_mod.normalize(csv_path, review)
+
+    assert rows == [
+        {
+            "schema": "manual-object-review-decision/v1",
+            "object_id": "1",
+            "source_object_id": "obj_000001",
+            "current_label": "car",
+            "decision": "relabel",
+            "final_label": "wall",
+            "confidence": 0.9,
+            "reviewer": "skk",
+            "notes": "surface fragment",
+        }
+    ]
+    assert [err["error"] for err in errors] == ["pending", "unknown_object_id", "invalid_new_label"]

@@ -188,6 +188,30 @@ Focused object review entry:
 http://scan-rtx5070:8765/work_MT20260616-175807/review_pure_surface_visibility_full_0000_6180/semantic_object_review_index.html
 ```
 
+The review page is intentionally a manual-QA entry, not an implicit relabel
+stage.  It also writes `manual_object_review_decisions.csv` with one row per
+selected object:
+
+```text
+object_id, source_object_id, current_label, decision, new_label, confidence, reviewer, notes
+```
+
+Valid decisions are `keep`, `relabel`, `demote_unknown`, `split_review`, and
+`reject_artifact`.  Normalize filled decisions before any downstream
+application:
+
+```bash
+python3 scripts/normalize_manual_object_review_decisions.py \
+  --decisions-csv <review_dir>/manual_object_review_decisions.csv \
+  --review-index-json <review_dir>/semantic_object_review_index.json \
+  --output-jsonl <review_dir>/manual_object_review_decisions.normalized.jsonl \
+  --report-json <review_dir>/manual_object_review_decisions.report.json
+```
+
+This keeps human QA explicit and auditable.  A later apply stage may consume the
+normalized JSONL, but object labels must not be silently rewritten from the HTML
+view alone.
+
 Latest full artifact in the index:
 
 ```text
