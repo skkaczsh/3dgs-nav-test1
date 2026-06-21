@@ -64,6 +64,18 @@ means pure local BFS is still too sensitive to sparse LiDAR sampling; the next
 version should add plane-model absorption or supervoxel merging while preserving
 hard boundaries from normal/color/depth discontinuities.
 
+Voxel resolution note:
+
+- `0.10m` is too coarse for stair/railing/wall-foot boundaries. It is useful as
+  a smoke test only.
+- `0.03m` preserves fine geometry better, but pure local BFS becomes fragmented
+  because the scan has real sampling gaps. Full stride10 results:
+  - `geo_patch_demo_full_v3_voxel003_radius2`: `828874` voxels, `373873` patches.
+  - `geo_patch_demo_full_v4_voxel003_radius4`: `828874` voxels, `125230` patches.
+- The next geometry mainline should keep `0.03m` voxels but replace pure BFS
+  with model-aware merging: large plane extraction, stair-step grouping, and
+  thin-structure handling.
+
 ## Absorption Stage
 
 `absorb_spatial_partition_objects.py` is the second stage. It remaps small component object ids to nearby compatible anchor ids; it does not duplicate points or allow overlap.
