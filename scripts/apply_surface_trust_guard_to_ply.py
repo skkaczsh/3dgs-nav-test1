@@ -154,12 +154,12 @@ def write_ascii_ply(path: Path, header: list[str], props: list[str], rows: list[
             f.write(" ".join(parts) + "\n")
 
 
-def guarded_label(old_label: str, prior_label: int, guard_labels: set[str]) -> str:
+def guarded_label(old_label: str, prior_label: int, guard_labels: set[str], trusted_prior_labels: set[str]) -> str:
     if old_label not in guard_labels:
         return old_label
-    if prior_label == GEOM_GROUND:
+    if prior_label == GEOM_GROUND and "ground" in trusted_prior_labels:
         return "floor"
-    if prior_label == GEOM_WALL:
+    if prior_label == GEOM_WALL and "wall" in trusted_prior_labels:
         return "wall"
     return old_label
 
@@ -171,6 +171,7 @@ def update_rows(
     object_ids: np.ndarray,
     prior_labels: np.ndarray,
     guard_labels: set[str],
+    trusted_prior_labels: set[str],
     recolor: bool,
 ) -> tuple[Counter, Counter, dict[int, Counter], int]:
     idx = {name: i for i, name in enumerate(props)}
@@ -185,7 +186,7 @@ def update_rows(
     for i, parts in enumerate(rows):
         old_label = SEMANTIC_TO_LABEL.get(int(semantics[i]), "unknown")
         before[old_label] += 1
-        new_label = guarded_label(old_label, int(prior_labels[i]), guard_labels)
+        new_label = guarded_label(old_label, int(prior_labels[i]), guard_labels, trusted_prior_labels)
         after[new_label] += 1
         by_object[int(object_ids[i])][new_label] += 1
         if new_label != old_label:
@@ -239,12 +240,18 @@ def main() -> None:
     parser.add_argument("--prior-voxel-size", type=float, default=0.10)
     parser.add_argument("--neighbor-radius", type=int, default=1)
     parser.add_argument("--guard-labels", default="car,railing,fine_candidate,unknown")
+    parser.add_argument(
+        "--trusted-prior-labels",
+        default="ground,wall",
+        help="Comma-separated drivability prior labels allowed to overwrite guarded point labels.",
+    )
     parser.add_argument("--object-relabel-majority", type=float, default=0.80)
     parser.add_argument("--no-recolor", action="store_true")
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     guard_labels = {item.strip() for item in args.guard_labels.split(",") if item.strip()}
+    trusted_prior_labels = {item.strip() for item in args.trusted_prior_labels.split(",") if item.strip()}
 
     prior_xyz, prior_rgb = read_pcd_xyzrgb(args.drivability_pcd)
     prior_labels = label_from_rgb(prior_rgb)
@@ -266,6 +273,7 @@ def main() -> None:
         object_ids,
         point_prior,
         guard_labels,
+        trusted_prior_labels,
         not args.no_recolor,
     )
 
@@ -288,6 +296,7 @@ def main() -> None:
         "output_ply": str(out_ply),
         "output_jsonl": str(out_jsonl),
         "guard_labels": sorted(guard_labels),
+        "trusted_prior_labels": sorted(trusted_prior_labels),
         "prior_voxel_size": args.prior_voxel_size,
         "neighbor_radius": args.neighbor_radius,
         "prior_point_count": int(len(prior_xyz)),
