@@ -42,6 +42,28 @@ Add a spatial absorption stage after partition:
 
 This keeps the problem mathematically well-formed: segmentation first, semantic refinement second.
 
+## Geometry Patch Demo
+
+`build_geo_patch_demo.py` is a geometry-only boundary QA tool. It ignores existing
+object and semantic ids, voxelizes the colored point cloud, computes local PCA
+features, and uses gated BFS to create random-color geometry patches.
+
+Full stride10 demo outputs:
+
+- conservative geometry/color: `server_parking_priority_s10/geo_patch_demo_full_v1_geom_color`
+  - voxel size: `0.10m`
+  - patch count: `140233`
+  - small patch count: `136945`
+- relaxed radius-2 connectivity: `server_parking_priority_s10/geo_patch_demo_full_v2_relaxed_radius2`
+  - voxel size: `0.10m`
+  - patch count: `41208`
+  - small patch count: `39468`
+
+The relaxed version is the current review candidate. The high small-patch count
+means pure local BFS is still too sensitive to sparse LiDAR sampling; the next
+version should add plane-model absorption or supervoxel merging while preserving
+hard boundaries from normal/color/depth discontinuities.
+
 ## Absorption Stage
 
 `absorb_spatial_partition_objects.py` is the second stage. It remaps small component object ids to nearby compatible anchor ids; it does not duplicate points or allow overlap.
