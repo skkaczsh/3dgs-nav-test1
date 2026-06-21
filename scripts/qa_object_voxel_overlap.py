@@ -155,12 +155,32 @@ def main() -> int:
     parser.add_argument("--voxel-size", type=float, default=0.10)
     parser.add_argument("--max-pairs", type=int, default=30)
     parser.add_argument("--output-json", type=Path, required=True)
+    parser.add_argument("--summary-only", action="store_true", help="Print compact QA summary instead of full counts.")
     args = parser.parse_args()
 
     report = measure_overlap(args.ply, args.voxel_size, args.max_pairs)
     args.output_json.parent.mkdir(parents=True, exist_ok=True)
     args.output_json.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+    if args.summary_only:
+        summary_keys = (
+            "schema",
+            "ply",
+            "voxel_size",
+            "point_count",
+            "voxel_count",
+            "object_count",
+            "semantic_count",
+            "mixed_object_voxels",
+            "mixed_object_voxel_ratio",
+            "mixed_semantic_voxels",
+            "mixed_semantic_voxel_ratio",
+            "semantic_voxel_counts",
+            "top_object_overlaps",
+            "top_semantic_overlaps",
+        )
+        print(json.dumps({key: report[key] for key in summary_keys}, ensure_ascii=False, indent=2))
+    else:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
 
 
