@@ -41,3 +41,24 @@ Add a spatial absorption stage after partition:
 4. If no anchor is compatible, keep it as residual instead of overlapping or silently deleting it.
 
 This keeps the problem mathematically well-formed: segmentation first, semantic refinement second.
+
+## Absorption Stage
+
+`absorb_spatial_partition_objects.py` is the second stage. It remaps small component object ids to nearby compatible anchor ids; it does not duplicate points or allow overlap.
+
+Current full stride10 experiments:
+
+- conservative: `server_parking_priority_s10/spatial_partition_mainline_v3_absorbed_conservative_v2v8_full_s10`
+  - radius: `2` voxels
+  - cross-label groups: disabled
+  - final objects: `143539`
+  - mixed object voxels: `0`
+  - mixed semantic voxels: `0`
+- grouped: `server_parking_priority_s10/spatial_partition_mainline_v4_absorbed_grouped_v2v8_full_s10`
+  - radius: `3` voxels
+  - cross-label groups: `floor/indoor_floor/roof`, `wall/building`, `grass/tree`
+  - final objects: `131471`
+  - mixed object voxels: `0`
+  - mixed semantic voxels: `0`
+
+Use the conservative version as the default review baseline. Use the grouped version only when checking whether reduced fragmentation is worth the risk of semantic absorption into large surfaces.
