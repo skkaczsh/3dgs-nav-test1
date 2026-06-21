@@ -180,6 +180,69 @@ def edge_allowed(
     return True
 
 
+def clamp01(value: float) -> float:
+    return max(0.0, min(1.0, value))
+
+
+def bucket_score(a: str, b: str) -> float:
+    if a == b:
+        return 1.0
+    compatible = [
+        {"horizontal", "unknown"},
+        {"vertical", "unknown"},
+        {"rough_mixed", "unknown"},
+        {"thin_linear", "unknown"},
+    ]
+    if any({a, b} <= group for group in compatible):
+        return 0.72
+    if {a, b} <= {"horizontal", "rough_mixed"}:
+        return 0.55
+    if {a, b} <= {"vertical", "rough_mixed"}:
+        return 0.55
+    return 0.15
+
+
+def edge_score(
+    a: dict[str, Any],
+    b: dict[str, Any],
+    max_normal_angle: float,
+    max_color_distance: float,
+    max_height_delta: float,
+) -> tuple[float, dict[str, float]]:
+    dz = abs(float(a["xyz"][2] - b["xyz"][2]))
+    rgb_dist = float(np.linalg.norm(a["rgb"] - b["rgb"]))
+    angle = normal_angle_deg(a["normal"], b["normal"])
+    rough_delta = abs(float(a["roughness"] - b["roughness"]))
+    planarity_delta = abs(float(a["planarity"] - b["planarity"]))
+
+    # Hard vetoes remain intentionally loose. They prevent impossible bridges,
+    # while the weighted score handles normal noisy boundaries.
+    if dz > max_height_delta * 1.8:
+        return 0.0, {"veto": 1.0, "height": 0.0}
+    if angle > min(max_normal_angle * 1.7, 88.0):
+        return 0.0, {"veto": 1.0, "normal": 0.0}
+    if rgb_dist > max_color_distance * 2.0:
+        return 0.0, {"veto": 1.0, "color": 0.0}
+
+    scores = {
+        "normal": clamp01(1.0 - angle / max(max_normal_angle, 1e-6)),
+        "color": clamp01(1.0 - rgb_dist / max(max_color_distance, 1e-6)),
+        "height": clamp01(1.0 - dz / max(max_height_delta, 1e-6)),
+        "roughness": clamp01(1.0 - rough_delta / 0.20),
+        "planarity": clamp01(1.0 - planarity_delta / 0.45),
+        "bucket": bucket_score(str(a["bucket"]), str(b["bucket"])),
+    }
+    total = (
+        0.30 * scores["normal"]
+        + 0.20 * scores["height"]
+        + 0.18 * scores["color"]
+        + 0.12 * scores["bucket"]
+        + 0.10 * scores["roughness"]
+        + 0.10 * scores["planarity"]
+    )
+    return float(total), scores
+
+
 def build_patches(
     voxels: dict[tuple[int, int, int], dict[str, Any]],
     connect_radius_voxels: int,
@@ -187,6 +250,8 @@ def build_patches(
     max_color_distance: float,
     max_height_delta: float,
     strict_bucket: bool,
+    edge_mode: str,
+    min_edge_score: float,
 ) -> tuple[dict[tuple[int, int, int], int], list[dict[str, Any]]]:
     for item in voxels.values():
         item["bucket"] = geometry_bucket(item)
@@ -207,15 +272,20 @@ def build_patches(
                 if nbr_key not in unvisited:
                     continue
                 nbr = voxels[nbr_key]
-                if not edge_allowed(
-                    item,
-                    nbr,
-                    max_normal_angle,
-                    max_color_distance,
-                    max_height_delta,
-                    strict_bucket,
-                ):
-                    continue
+                if edge_mode == "hard":
+                    if not edge_allowed(
+                        item,
+                        nbr,
+                        max_normal_angle,
+                        max_color_distance,
+                        max_height_delta,
+                        strict_bucket,
+                    ):
+                        continue
+                else:
+                    score, _parts = edge_score(item, nbr, max_normal_angle, max_color_distance, max_height_delta)
+                    if score < min_edge_score:
+                        continue
                 unvisited.remove(nbr_key)
                 queue.append(nbr_key)
                 component.append(nbr_key)
@@ -320,6 +390,8 @@ def write_outputs(
             "max_color_distance": args.max_color_distance,
             "max_height_delta": args.max_height_delta,
             "strict_bucket": args.strict_bucket,
+            "edge_mode": args.edge_mode,
+            "min_edge_score": args.min_edge_score,
         },
     }
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -338,6 +410,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-color-distance", type=float, default=58.0)
     parser.add_argument("--max-height-delta", type=float, default=0.18)
     parser.add_argument("--strict-bucket", action="store_true")
+    parser.add_argument("--edge-mode", choices=("hard", "score"), default="hard")
+    parser.add_argument("--min-edge-score", type=float, default=0.56)
     parser.add_argument("--max-points", type=int, default=None)
     return parser.parse_args()
 
@@ -353,6 +427,8 @@ def main() -> int:
         args.max_color_distance,
         args.max_height_delta,
         args.strict_bucket,
+        args.edge_mode,
+        args.min_edge_score,
     )
     enrich_patch_stats(voxels, patch_for_voxel, patches)
     write_outputs(args.output_dir, voxels, patch_for_voxel, patches, args.voxel_size, args)

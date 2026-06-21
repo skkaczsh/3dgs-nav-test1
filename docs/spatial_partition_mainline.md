@@ -76,6 +76,19 @@ Voxel resolution note:
   with model-aware merging: large plane extraction, stair-step grouping, and
   thin-structure handling.
 
+Score-based BFS test:
+
+- `build_geo_patch_demo.py --edge-mode score` replaces all-pass hard gates with
+  a weighted edge score over normal, height, color, bucket compatibility,
+  roughness, and planarity. Loose hard vetoes still block impossible bridges.
+- Full stride10 results at `0.03m`:
+  - hard gate v4: `125230` patches.
+  - score `0.52`: `121052` patches.
+  - score `0.46`: `116319` patches.
+- The score threshold reduces fragmentation only moderately. The main bottleneck
+  is still sparse LiDAR sampling plus local PCA instability, so the next step
+  should be seed/model-aware merging rather than further global threshold tuning.
+
 ## Absorption Stage
 
 `absorb_spatial_partition_objects.py` is the second stage. It remaps small component object ids to nearby compatible anchor ids; it does not duplicate points or allow overlap.
