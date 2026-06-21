@@ -89,6 +89,19 @@ Score-based BFS test:
   is still sparse LiDAR sampling plus local PCA instability, so the next step
   should be seed/model-aware merging rather than further global threshold tuning.
 
+Region-model BFS test:
+
+- `build_geo_patch_demo.py --edge-mode region-model` compares each candidate
+  voxel against the growing patch state: patch mean normal, mean color,
+  roughness, planarity, and a simple plane residual.
+- Full stride10 result:
+  - `geo_patch_region_model_full_v1_voxel003_score048`: `123823` patches,
+    `117803` small patches.
+- This first region-model variant does not significantly reduce fragmentation.
+  It is still limited by sparse candidate reachability and a FIFO queue. A real
+  production version should use prioritized region growing plus explicit
+  seed/model classes, preferably in the `drivability_cpp` grid implementation.
+
 ## Absorption Stage
 
 `absorb_spatial_partition_objects.py` is the second stage. It remaps small component object ids to nearby compatible anchor ids; it does not duplicate points or allow overlap.

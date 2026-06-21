@@ -19,6 +19,48 @@ from typing import Any
 import numpy as np
 
 
+class RegionState:
+    def __init__(self, seed: dict[str, Any]) -> None:
+        self.count = 0
+        self.xyz_sum = np.zeros(3, dtype=np.float64)
+        self.rgb_sum = np.zeros(3, dtype=np.float64)
+        self.normal_sum = np.zeros(3, dtype=np.float64)
+        self.roughness_sum = 0.0
+        self.planarity_sum = 0.0
+        self.seed_bucket = str(seed["bucket"])
+        self.seed_normal = np.array(seed["normal"], dtype=np.float64)
+        self.add(seed)
+
+    def add(self, item: dict[str, Any]) -> None:
+        normal = np.array(item["normal"], dtype=np.float64)
+        if np.dot(normal, self.normal()) < 0:
+            normal = -normal
+        self.count += 1
+        self.xyz_sum += item["xyz"]
+        self.rgb_sum += item["rgb"]
+        self.normal_sum += normal
+        self.roughness_sum += float(item["roughness"])
+        self.planarity_sum += float(item["planarity"])
+
+    def centroid(self) -> np.ndarray:
+        return self.xyz_sum / max(float(self.count), 1.0)
+
+    def color(self) -> np.ndarray:
+        return self.rgb_sum / max(float(self.count), 1.0)
+
+    def normal(self) -> np.ndarray:
+        norm = np.linalg.norm(self.normal_sum)
+        if norm < 1e-9:
+            return np.array([0.0, 0.0, 1.0], dtype=np.float64)
+        return self.normal_sum / norm
+
+    def roughness(self) -> float:
+        return self.roughness_sum / max(float(self.count), 1.0)
+
+    def planarity(self) -> float:
+        return self.planarity_sum / max(float(self.count), 1.0)
+
+
 def parse_header(path: Path) -> tuple[list[str], int, int]:
     props: list[str] = []
     vertex_count = 0
@@ -243,6 +285,72 @@ def edge_score(
     return float(total), scores
 
 
+def region_candidate_score(
+    state: RegionState,
+    item: dict[str, Any],
+    max_normal_angle: float,
+    max_color_distance: float,
+    max_height_delta: float,
+    max_plane_residual: float,
+) -> tuple[float, dict[str, float]]:
+    patch_normal = state.normal()
+    angle = normal_angle_deg(patch_normal, item["normal"])
+    rgb_dist = float(np.linalg.norm(state.color() - item["rgb"]))
+    plane_residual = abs(float(np.dot(item["xyz"] - state.centroid(), patch_normal)))
+    rough_delta = abs(float(state.roughness() - item["roughness"]))
+    planarity_delta = abs(float(state.planarity() - item["planarity"]))
+    dz = abs(float(item["xyz"][2] - state.centroid()[2]))
+
+    # Loose vetoes: keep impossible bridges out while allowing noisy local PCA.
+    if plane_residual > max_plane_residual * 2.5 and state.seed_bucket in {"horizontal", "vertical"}:
+        return 0.0, {"veto": 1.0, "plane": 0.0}
+    if dz > max_height_delta * 3.0 and state.seed_bucket == "horizontal":
+        return 0.0, {"veto": 1.0, "height": 0.0}
+    if angle > min(max_normal_angle * 1.9, 88.0) and state.seed_bucket in {"horizontal", "vertical"}:
+        return 0.0, {"veto": 1.0, "normal": 0.0}
+    if rgb_dist > max_color_distance * 2.2:
+        return 0.0, {"veto": 1.0, "color": 0.0}
+
+    scores = {
+        "plane": clamp01(1.0 - plane_residual / max(max_plane_residual, 1e-6)),
+        "normal": clamp01(1.0 - angle / max(max_normal_angle, 1e-6)),
+        "color": clamp01(1.0 - rgb_dist / max(max_color_distance, 1e-6)),
+        "height": clamp01(1.0 - dz / max(max_height_delta * 2.0, 1e-6)),
+        "roughness": clamp01(1.0 - rough_delta / 0.20),
+        "planarity": clamp01(1.0 - planarity_delta / 0.45),
+        "bucket": bucket_score(state.seed_bucket, str(item["bucket"])),
+    }
+    if state.seed_bucket in {"horizontal", "vertical"}:
+        total = (
+            0.26 * scores["plane"]
+            + 0.24 * scores["normal"]
+            + 0.18 * scores["color"]
+            + 0.12 * scores["bucket"]
+            + 0.08 * scores["roughness"]
+            + 0.08 * scores["planarity"]
+            + 0.04 * scores["height"]
+        )
+    elif state.seed_bucket == "thin_linear":
+        total = (
+            0.24 * scores["normal"]
+            + 0.24 * scores["color"]
+            + 0.20 * scores["bucket"]
+            + 0.12 * scores["roughness"]
+            + 0.10 * scores["plane"]
+            + 0.10 * scores["height"]
+        )
+    else:
+        total = (
+            0.26 * scores["color"]
+            + 0.20 * scores["normal"]
+            + 0.16 * scores["roughness"]
+            + 0.14 * scores["bucket"]
+            + 0.12 * scores["plane"]
+            + 0.12 * scores["height"]
+        )
+    return float(total), scores
+
+
 def build_patches(
     voxels: dict[tuple[int, int, int], dict[str, Any]],
     connect_radius_voxels: int,
@@ -252,18 +360,34 @@ def build_patches(
     strict_bucket: bool,
     edge_mode: str,
     min_edge_score: float,
+    min_region_score: float,
+    max_plane_residual: float,
 ) -> tuple[dict[tuple[int, int, int], int], list[dict[str, Any]]]:
     for item in voxels.values():
         item["bucket"] = geometry_bucket(item)
     offsets = neighbor_offsets(connect_radius_voxels)
+    if edge_mode == "region-model":
+        seed_order = sorted(
+            voxels,
+            key=lambda key: (
+                -float(voxels[key]["planarity"]),
+                float(voxels[key]["roughness"]),
+                str(voxels[key]["bucket"]) == "unknown",
+            ),
+        )
+    else:
+        seed_order = list(voxels)
     unvisited = set(voxels)
     patch_for_voxel: dict[tuple[int, int, int], int] = {}
     patches: list[dict[str, Any]] = []
     next_patch_id = 1
-    while unvisited:
-        start = unvisited.pop()
+    for start in seed_order:
+        if start not in unvisited:
+            continue
+        unvisited.remove(start)
         queue = deque([start])
         component = [start]
+        state = RegionState(voxels[start])
         while queue:
             key = queue.popleft()
             item = voxels[key]
@@ -282,13 +406,26 @@ def build_patches(
                         strict_bucket,
                     ):
                         continue
-                else:
+                elif edge_mode == "score":
                     score, _parts = edge_score(item, nbr, max_normal_angle, max_color_distance, max_height_delta)
                     if score < min_edge_score:
+                        continue
+                elif edge_mode == "region-model":
+                    score, _parts = region_candidate_score(
+                        state,
+                        nbr,
+                        max_normal_angle,
+                        max_color_distance,
+                        max_height_delta,
+                        max_plane_residual,
+                    )
+                    if score < min_region_score:
                         continue
                 unvisited.remove(nbr_key)
                 queue.append(nbr_key)
                 component.append(nbr_key)
+                if edge_mode == "region-model":
+                    state.add(nbr)
         patch_id = next_patch_id
         next_patch_id += 1
         for key in component:
@@ -304,6 +441,8 @@ def build_patches(
                 "bucket_counts": dict(bucket_counts),
             }
         )
+    if unvisited:
+        raise RuntimeError(f"internal error: unvisited voxels remain: {len(unvisited)}")
     return patch_for_voxel, patches
 
 
@@ -392,6 +531,8 @@ def write_outputs(
             "strict_bucket": args.strict_bucket,
             "edge_mode": args.edge_mode,
             "min_edge_score": args.min_edge_score,
+            "min_region_score": args.min_region_score,
+            "max_plane_residual": args.max_plane_residual,
         },
     }
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -410,8 +551,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-color-distance", type=float, default=58.0)
     parser.add_argument("--max-height-delta", type=float, default=0.18)
     parser.add_argument("--strict-bucket", action="store_true")
-    parser.add_argument("--edge-mode", choices=("hard", "score"), default="hard")
+    parser.add_argument("--edge-mode", choices=("hard", "score", "region-model"), default="hard")
     parser.add_argument("--min-edge-score", type=float, default=0.56)
+    parser.add_argument("--min-region-score", type=float, default=0.54)
+    parser.add_argument("--max-plane-residual", type=float, default=0.07)
     parser.add_argument("--max-points", type=int, default=None)
     return parser.parse_args()
 
@@ -429,6 +572,8 @@ def main() -> int:
         args.strict_bucket,
         args.edge_mode,
         args.min_edge_score,
+        args.min_region_score,
+        args.max_plane_residual,
     )
     enrich_patch_stats(voxels, patch_for_voxel, patches)
     write_outputs(args.output_dir, voxels, patch_for_voxel, patches, args.voxel_size, args)
