@@ -115,6 +115,7 @@ def collect_edges(
     max_height_delta: float,
     max_normal_angle: float,
     max_plane_residual: float,
+    bucket_guard: str,
 ) -> tuple[np.ndarray, np.ndarray]:
     keys = arrays["keys"]
     linear, order, sorted_linear, (stride_x, stride_y) = sorted_linear_index(keys)
@@ -133,7 +134,17 @@ def collect_edges(
             continue
         src = np.nonzero(found)[0].astype(np.int64)
         dst = order[safe_pos[found]].astype(np.int64)
-        keep = edge_keep(arrays, src, dst, min_edge_score, max_color_distance, max_height_delta, max_normal_angle, max_plane_residual)
+        keep = edge_keep(
+            arrays,
+            src,
+            dst,
+            min_edge_score,
+            max_color_distance,
+            max_height_delta,
+            max_normal_angle,
+            max_plane_residual,
+            bucket_guard,
+        )
         if np.any(keep):
             src_chunks.append(src[keep].astype(np.int32))
             dst_chunks.append(dst[keep].astype(np.int32))
@@ -151,6 +162,7 @@ def edge_keep(
     max_height_delta: float,
     max_normal_angle: float,
     max_plane_residual: float,
+    bucket_guard: str,
 ) -> np.ndarray:
     xyz_a = arrays["xyz"][src]
     xyz_b = arrays["xyz"][dst]
@@ -170,7 +182,8 @@ def edge_keep(
     height_range_delta = np.abs(arrays["height_range"][src] - arrays["height_range"][dst])
     plane_residual = np.abs(np.sum((xyz_b - xyz_a) * n_a, axis=1))
 
-    veto = (rgb_dist > max_color_distance * 1.75) & (color_std_delta > 55.0)
+    veto = bucket_guard_veto(arrays["buckets"][src], arrays["buckets"][dst], bucket_guard)
+    veto |= (rgb_dist > max_color_distance * 1.75) & (color_std_delta > 55.0)
     veto |= rough_delta > 0.36
     veto |= dz > max_height_delta * 3.0
     veto |= plane_residual > max_plane_residual * 3.5
@@ -203,6 +216,36 @@ def edge_keep(
         + 0.07 * scores["plane"]
     )
     return (~veto) & (total >= min_edge_score)
+
+
+def bucket_guard_veto(a: np.ndarray, b: np.ndarray, mode: str) -> np.ndarray:
+    if mode == "loose":
+        return np.zeros(a.shape, dtype=bool)
+    unknown = BUCKET_IDS["unknown"]
+    horizontal = BUCKET_IDS["horizontal"]
+    vertical = BUCKET_IDS["vertical"]
+    thin = BUCKET_IDS["thin_linear"]
+    rough = BUCKET_IDS["rough_mixed"]
+    same = a == b
+    has_unknown = (a == unknown) | (b == unknown)
+    veto = np.zeros(a.shape, dtype=bool)
+    if mode == "same-or-unknown":
+        veto |= ~(same | has_unknown)
+    elif mode == "same-bucket":
+        veto |= ~same
+    elif mode == "no-rough-bridge":
+        has_rough = (a == rough) | (b == rough)
+        has_thin = (a == thin) | (b == thin)
+        horizontal_vertical = ((a == horizontal) & (b == vertical)) | ((a == vertical) & (b == horizontal))
+        # Rough/mixed voxels are the main bridge source. They may merge with
+        # themselves, but not connect surfaces to unrelated structures.
+        veto |= has_rough & ~same
+        # Thin structures should not glue onto walls/floors in the graph pass.
+        veto |= has_thin & ~(same | has_unknown)
+        veto |= horizontal_vertical
+    else:
+        raise ValueError(f"unknown bucket guard: {mode}")
+    return veto
 
 
 def connected_labels(n: int, src: np.ndarray, dst: np.ndarray) -> tuple[int, np.ndarray]:
@@ -307,6 +350,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-height-delta", type=float, default=0.22)
     parser.add_argument("--max-normal-angle", type=float, default=58.0)
     parser.add_argument("--max-plane-residual", type=float, default=0.12)
+    parser.add_argument("--bucket-guard", choices=("loose", "same-or-unknown", "no-rough-bridge", "same-bucket"), default="loose")
     parser.add_argument("--small-patch-voxels", type=int, default=8)
     parser.add_argument("--max-points", type=int, default=None)
     return parser.parse_args()
@@ -337,6 +381,7 @@ def main() -> int:
         args.max_height_delta,
         args.max_normal_angle,
         args.max_plane_residual,
+        args.bucket_guard,
     )
     _count, labels = connected_labels(len(arrays["keys"]), src, dst)
     write_outputs(args.output_dir, arrays, labels, args)

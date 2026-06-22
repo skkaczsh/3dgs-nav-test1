@@ -155,6 +155,16 @@ Dense colorized source note:
   - output: `server_parking_priority_s10/full_graph_cached_voxel010_r2_s046_torch`
   - viewer preview: `geo_patches_graph_random_color_stride3.ply`
     (`1243327` points).
+  - Failure mode: the loose graph produced a giant mixed component
+    (`3259547` voxels) because connected components are transitive; rough and
+    unknown voxels acted as bridges across unrelated structures.
+  - `--bucket-guard same-bucket` fixes the mixed-bridge failure by only
+    allowing graph edges within the same geometry bucket. Full result:
+    `3729979` voxels, `182168` patches, `169215` small patches.
+  - output: `server_parking_priority_s10/full_graph_cached_voxel010_r2_s046_samebucket_torch`
+  - This is a safe-boundary graph baseline, not a final object model. It still
+    contains large pure horizontal/vertical components that need a second split
+    stage by plane model, spatial zone, stair rhythm, or scene structure.
 - Production patching should cache voxelized dense clouds as NPZ/PLY once and
   move connectivity/growing out of Python dict BFS into C++ or tensor graph
   operations.
