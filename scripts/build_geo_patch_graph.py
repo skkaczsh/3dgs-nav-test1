@@ -117,6 +117,8 @@ def collect_edges(
     max_plane_residual: float,
     bucket_guard: str,
     weights: dict[str, float],
+    color_bridge_distance_factor: float,
+    color_bridge_texture_delta: float,
 ) -> tuple[np.ndarray, np.ndarray]:
     keys = arrays["keys"]
     linear, order, sorted_linear, (stride_x, stride_y) = sorted_linear_index(keys)
@@ -146,6 +148,8 @@ def collect_edges(
             max_plane_residual,
             bucket_guard,
             weights,
+            color_bridge_distance_factor,
+            color_bridge_texture_delta,
         )
         if np.any(keep):
             src_chunks.append(src[keep].astype(np.int32))
@@ -166,6 +170,8 @@ def edge_keep(
     max_plane_residual: float,
     bucket_guard: str,
     weights: dict[str, float],
+    color_bridge_distance_factor: float,
+    color_bridge_texture_delta: float,
 ) -> np.ndarray:
     xyz_a = arrays["xyz"][src]
     xyz_b = arrays["xyz"][dst]
@@ -203,8 +209,8 @@ def edge_keep(
             bridge_buckets = np.ones_like(veto, dtype=bool)
         color_bridge = (
             bridge_buckets
-            & (rgb_dist <= max_color_distance * 0.45)
-            & (color_std_delta <= 28.0)
+            & (rgb_dist <= max_color_distance * color_bridge_distance_factor)
+            & (color_std_delta <= color_bridge_texture_delta)
             & (rough_delta <= 0.22)
             & (dz <= max_height_delta * 1.6)
             & (plane_residual <= max_plane_residual * 2.0)
@@ -392,6 +398,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bucket-weight", type=float, default=0.10)
     parser.add_argument("--normal-weight", type=float, default=0.07)
     parser.add_argument("--plane-weight", type=float, default=0.07)
+    parser.add_argument("--color-bridge-distance-factor", type=float, default=0.45)
+    parser.add_argument("--color-bridge-texture-delta", type=float, default=28.0)
     parser.add_argument("--small-patch-voxels", type=int, default=8)
     parser.add_argument("--max-points", type=int, default=None)
     return parser.parse_args()
@@ -431,6 +439,8 @@ def main() -> int:
             "normal": args.normal_weight,
             "plane": args.plane_weight,
         },
+        args.color_bridge_distance_factor,
+        args.color_bridge_texture_delta,
     )
     _count, labels = connected_labels(len(arrays["keys"]), src, dst)
     write_outputs(args.output_dir, arrays, labels, args)
