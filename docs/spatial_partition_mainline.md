@@ -157,6 +157,22 @@ graph connectivity, but still conservative.  Next tuning should focus on
 object-like membership gates and adaptive radius for rough/vegetation patches,
 not on globally loosening normal thresholds.
 
+Object height gate correction:
+
+- The initial region-model route used candidate-to-patch-centroid `dz` as a hard
+  veto for object-like patches and produced many `object_height_jump` rejects.
+- This is physically wrong for shrubs, railings, stairs, and wall-attached
+  objects: local edge continuity should constrain height jumps, while the patch
+  model should allow a tall object to grow away from its centroid.
+- `object_height_jump` has therefore been removed as a hard veto.  Height remains
+  weak membership evidence for object-like patches; hard height gates are kept
+  only for stable horizontal surfaces.
+- A 1M-voxel comparison changed patch count from `45667` to `45191`; largest
+  rough patches grew without cross-bucket surface contamination.  The dominant
+  remaining object-like rejection is now `membership_score_low`, so further
+  improvement should tune the object membership score rather than add back a
+  centroid-height veto.
+
 Dense colorized source note:
 
 - The full colorized reconstruction is

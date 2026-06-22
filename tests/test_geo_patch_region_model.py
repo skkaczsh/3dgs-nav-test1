@@ -26,7 +26,6 @@ def region_args(**overrides):
         "object_color_factor": 1.85,
         "object_texture_delta": 64.0,
         "object_roughness_delta": 0.34,
-        "object_height_factor": 3.5,
         "object_texture_weight": 0.30,
         "object_shape_weight": 0.30,
         "object_height_weight": 0.12,
@@ -86,3 +85,27 @@ def test_region_model_allows_rough_object_normal_change_when_texture_matches():
     assert labels[0] == labels[1]
     assert len(patches) == 1
     assert patches[0]["geometry_type"] == "rough_mixed"
+
+
+def test_region_model_allows_tall_rough_object_growth_when_edges_are_local():
+    rough = region_model.BUCKET_IDS["rough_mixed"]
+    arrays = make_arrays(
+        xyz=[[0.0, 0.0, z * 0.12] for z in range(8)],
+        rgb=[[35 + z, 120 + z, 42] for z in range(8)],
+        normals=[[0, 0, 1] if z % 2 == 0 else [1, 0, 0] for z in range(8)],
+        buckets=[rough] * 8,
+    )
+    adjacency = [[] for _ in range(8)]
+    for i in range(7):
+        adjacency[i].append(i + 1)
+        adjacency[i + 1].append(i)
+
+    labels, patches = region_model.grow_region_model(
+        arrays,
+        adjacency,
+        region_args(max_height_delta=0.10, max_normal_angle=20.0),
+    )
+
+    assert len(set(labels.tolist())) == 1
+    assert len(patches) == 1
+    assert patches[0]["voxel_count"] == 8

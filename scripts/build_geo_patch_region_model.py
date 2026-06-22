@@ -211,8 +211,11 @@ def membership_score(
             return False, 0.0, "object_color_texture_jump", scores
         if rough_delta > args.object_roughness_delta and color_std_delta > args.object_texture_delta:
             return False, 0.0, "object_shape_texture_jump", scores
-        if dz > args.max_height_delta * args.object_height_factor and scores["color"] < 0.55:
-            return False, 0.0, "object_height_jump", scores
+        # Do not hard-veto object-like patches by distance from the current
+        # patch centroid in Z.  Tall shrubs, railings, stairs, and wall-attached
+        # objects naturally grow away from their centroid.  Local height
+        # continuity is already enforced by the edge-admissibility pass; here
+        # height is only weak evidence in the membership score.
         total = (
             args.object_texture_weight * texture_score
             + args.object_shape_weight * shape_score
@@ -409,7 +412,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--object-color-factor", type=float, default=1.85)
     parser.add_argument("--object-texture-delta", type=float, default=64.0)
     parser.add_argument("--object-roughness-delta", type=float, default=0.34)
-    parser.add_argument("--object-height-factor", type=float, default=3.5)
     parser.add_argument("--object-texture-weight", type=float, default=0.30)
     parser.add_argument("--object-shape-weight", type=float, default=0.30)
     parser.add_argument("--object-height-weight", type=float, default=0.12)
