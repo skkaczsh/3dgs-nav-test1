@@ -194,6 +194,33 @@ Rough/object membership score update:
     patches remained pure buckets, so the update improves object-like merging
     without obvious stable-surface contamination.
 
+Multimodal patch signature update:
+
+- Mean-only patch state is insufficient for objects or regions with multiple
+  valid local modes.  Examples: shrub top vs side, flat ground vs stair edge,
+  and rough object parts with similar color but different normals.
+- `build_geo_patch_region_model.py` now maintains up to 24 local prototypes per
+  growing patch.  A candidate voxel can match any prototype, not only the patch
+  mean.  The prototype signature contains normalized RGB, roughness, planarity,
+  linearity, local color standard deviation, local height range, and `abs(nz)`.
+- Horizontal stable surfaces also have a conservative multimodal bridge: if a
+  nearby rough/unknown/thin voxel has compatible color/texture and local shape,
+  it can enter the patch as a new mode without requiring normal/plane agreement.
+  Vertical wall bridging remains blocked by default.
+- 1M-voxel comparison:
+  - rough-score v3: `43836` patches, `40092` small patches.
+  - multimodal v4: `43373` patches, `39682` small patches.
+- Full `voxel010` result:
+  - output: `full_region_model_voxel010_multimodal_v4`
+  - `3729992` voxels, `140152` patches, `128298` small patches.
+  - previous rough-score full run had `141958` patches and `129824` small
+    patches.
+  - largest horizontal and vertical patches remain pure buckets; largest
+    `rough_mixed` patch grew from `316850` to `377903` voxels.
+- Performance note: the prototype implementation is Python-loop based and is
+  significantly slower than v3.  Before making it the default production route,
+  prototype matching should be vectorized or restricted to object-like buckets.
+
 Dense colorized source note:
 
 - The full colorized reconstruction is

@@ -45,6 +45,8 @@ from build_geo_patch_graph import (
 
 STABLE_SURFACE_BUCKETS = {BUCKET_IDS["horizontal"], BUCKET_IDS["vertical"]}
 FINE_OBJECT_BUCKETS = {BUCKET_IDS["rough_mixed"], BUCKET_IDS["thin_linear"], BUCKET_IDS["unknown"]}
+MAX_PATCH_PROTOTYPES = 24
+PROTOTYPE_UPDATE_DISTANCE = 0.34
 
 
 def normal_angle_deg_np(a: np.ndarray, b: np.ndarray) -> float:
@@ -54,6 +56,39 @@ def normal_angle_deg_np(a: np.ndarray, b: np.ndarray) -> float:
         return 0.0
     cos = abs(float(np.dot(a, b) / (an * bn)))
     return float(np.degrees(np.arccos(np.clip(cos, -1.0, 1.0))))
+
+
+def local_signature(arrays: dict[str, np.ndarray], index: int) -> np.ndarray:
+    """Compact multimodal patch signature for prototype matching.
+
+    The signature intentionally ignores absolute XYZ.  It describes local
+    appearance and shape, so one patch may keep separate modes for flat ground,
+    stair edges, shrub tops, and shrub sides without collapsing everything into
+    a single mean.
+    """
+
+    normal = arrays["normal"][index]
+    return np.asarray(
+        [
+            float(arrays["rgb"][index, 0]) / 255.0,
+            float(arrays["rgb"][index, 1]) / 255.0,
+            float(arrays["rgb"][index, 2]) / 255.0,
+            float(arrays["roughness"][index]),
+            float(arrays["planarity"][index]),
+            float(arrays["linearity"][index]),
+            min(float(arrays["local_color_std"][index]) / 128.0, 1.5),
+            min(float(arrays["height_range"][index]) / 0.55, 1.5),
+            abs(float(normal[2])),
+        ],
+        dtype=np.float64,
+    )
+
+
+def signature_distance(a: np.ndarray, b: np.ndarray) -> float:
+    color = float(np.linalg.norm(a[:3] - b[:3]))
+    shape = float(np.linalg.norm(a[3:8] - b[3:8]))
+    normal_z = abs(float(a[8] - b[8]))
+    return 0.46 * color + 0.42 * shape + 0.12 * normal_z
 
 
 @dataclass
@@ -76,6 +111,8 @@ class PatchModel:
     xyz_max: np.ndarray = field(default_factory=lambda: np.full(3, -np.inf, dtype=np.float64))
     accepted_score_sum: float = 0.0
     rejected_reasons: Counter[str] = field(default_factory=Counter)
+    prototypes: list[np.ndarray] = field(default_factory=list)
+    prototype_counts: list[int] = field(default_factory=list)
 
     def add(self, arrays: dict[str, np.ndarray], index: int, score: float = 1.0) -> None:
         xyz = arrays["xyz"][index].astype(np.float64, copy=False)
@@ -97,6 +134,31 @@ class PatchModel:
         self.xyz_min = np.minimum(self.xyz_min, xyz)
         self.xyz_max = np.maximum(self.xyz_max, xyz)
         self.accepted_score_sum += float(score)
+        self.update_prototypes(arrays, index)
+
+    def update_prototypes(self, arrays: dict[str, np.ndarray], index: int) -> None:
+        signature = local_signature(arrays, index)
+        if not self.prototypes:
+            self.prototypes.append(signature.copy())
+            self.prototype_counts.append(1)
+            return
+        distances = [signature_distance(signature, proto) for proto in self.prototypes]
+        nearest = int(np.argmin(distances))
+        if distances[nearest] <= PROTOTYPE_UPDATE_DISTANCE or len(self.prototypes) >= MAX_PATCH_PROTOTYPES:
+            count = self.prototype_counts[nearest]
+            alpha = 1.0 / float(count + 1)
+            self.prototypes[nearest] = (1.0 - alpha) * self.prototypes[nearest] + alpha * signature
+            self.prototype_counts[nearest] = count + 1
+        else:
+            self.prototypes.append(signature.copy())
+            self.prototype_counts.append(1)
+
+    def prototype_score(self, arrays: dict[str, np.ndarray], index: int, distance_scale: float) -> float:
+        if not self.prototypes:
+            return 0.0
+        signature = local_signature(arrays, index)
+        min_distance = min(signature_distance(signature, proto) for proto in self.prototypes)
+        return float(max(0.0, min(1.0, 1.0 - min_distance / max(distance_scale, 1e-6))))
 
     def mean(self, key: str) -> float:
         return float(getattr(self, f"{key}_sum") / max(float(self.count), 1.0))
@@ -175,6 +237,7 @@ def membership_score(
         "bucket": float(bucket_score_np(np.asarray([dominant], dtype=np.int16), np.asarray([bucket], dtype=np.int16))[0]),
         "normal": float(clamp01_np(np.asarray([1.0 - angle / max(args.max_normal_angle * 1.8, 1e-6)]))[0]),
         "plane": float(clamp01_np(np.asarray([1.0 - plane_residual / max(args.max_plane_residual * 2.5, 1e-6)]))[0]),
+        "prototype": model.prototype_score(arrays, index, args.prototype_distance_scale),
     }
     shape_score = (
         0.38 * scores["roughness"]
@@ -185,25 +248,43 @@ def membership_score(
     texture_score = 0.62 * scores["color"] + 0.38 * scores["color_texture"]
 
     if dominant in STABLE_SURFACE_BUCKETS and model.dominant_ratio() >= args.stable_surface_ratio:
-        if bucket not in {dominant, BUCKET_IDS["unknown"]}:
+        surface_bridge = (
+            args.enable_surface_multimodal_bridge
+            and dominant == BUCKET_IDS["horizontal"]
+            and bucket in {BUCKET_IDS["rough_mixed"], BUCKET_IDS["unknown"], BUCKET_IDS["thin_linear"]}
+            and texture_score >= args.surface_bridge_texture_score
+            and (shape_score >= args.surface_bridge_shape_score or scores["prototype"] >= args.surface_bridge_prototype_score)
+        )
+        if bucket not in {dominant, BUCKET_IDS["unknown"]} and not surface_bridge:
             return False, 0.0, "stable_bucket_mismatch", scores
         if rgb_dist > args.max_color_distance * 1.9 and color_std_delta > 55.0:
             return False, 0.0, "stable_color_texture_jump", scores
-        if angle > min(args.max_normal_angle * 1.7, 88.0):
+        if angle > min(args.max_normal_angle * 1.7, 88.0) and not surface_bridge:
             return False, 0.0, "stable_normal_jump", scores
-        if plane_residual > args.max_plane_residual * args.stable_plane_factor:
+        if plane_residual > args.max_plane_residual * args.stable_plane_factor and not surface_bridge:
             return False, 0.0, "stable_plane_residual", scores
-        if dominant == BUCKET_IDS["horizontal"] and dz > args.max_height_delta * args.stable_height_factor:
+        if dominant == BUCKET_IDS["horizontal"] and dz > args.max_height_delta * args.stable_height_factor and not surface_bridge:
             return False, 0.0, "stable_height_jump", scores
-        total = (
-            0.28 * scores["plane"]
-            + 0.24 * scores["normal"]
-            + 0.18 * texture_score
-            + 0.12 * scores["bucket"]
-            + 0.10 * shape_score
-            + 0.08 * scores["height"]
-        )
-        threshold = args.min_surface_membership_score
+        if surface_bridge:
+            total = (
+                0.52 * texture_score
+                + 0.18 * shape_score
+                + 0.12 * scores["prototype"]
+                + 0.10 * scores["bucket"]
+                + 0.08 * scores["height"]
+            )
+            threshold = args.min_surface_bridge_score
+        else:
+            total = (
+                0.26 * scores["plane"]
+                + 0.22 * scores["normal"]
+                + 0.17 * texture_score
+                + 0.13 * scores["prototype"]
+                + 0.12 * scores["bucket"]
+                + 0.07 * shape_score
+                + 0.03 * scores["height"]
+            )
+            threshold = args.min_surface_membership_score
     else:
         if bucket not in FINE_OBJECT_BUCKETS and dominant in FINE_OBJECT_BUCKETS:
             return False, 0.0, "fine_to_stable_bucket_block", scores
@@ -220,6 +301,7 @@ def membership_score(
             total = (
                 args.rough_texture_weight * texture_score
                 + args.rough_shape_weight * shape_score
+                + args.rough_prototype_weight * scores["prototype"]
                 + args.rough_height_weight * scores["height"]
                 + args.rough_bucket_weight * scores["bucket"]
                 + args.rough_normal_weight * scores["normal"]
@@ -227,6 +309,7 @@ def membership_score(
             ) / max(
                 args.rough_texture_weight
                 + args.rough_shape_weight
+                + args.rough_prototype_weight
                 + args.rough_height_weight
                 + args.rough_bucket_weight
                 + args.rough_normal_weight
@@ -238,6 +321,7 @@ def membership_score(
             total = (
                 args.object_texture_weight * texture_score
                 + args.object_shape_weight * shape_score
+                + args.object_prototype_weight * scores["prototype"]
                 + args.object_height_weight * scores["height"]
                 + args.object_bucket_weight * scores["bucket"]
                 + args.object_normal_weight * scores["normal"]
@@ -245,6 +329,7 @@ def membership_score(
             ) / max(
                 args.object_texture_weight
                 + args.object_shape_weight
+                + args.object_prototype_weight
                 + args.object_height_weight
                 + args.object_bucket_weight
                 + args.object_normal_weight
@@ -426,20 +511,28 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--stable-surface-ratio", type=float, default=0.72)
     parser.add_argument("--stable-plane-factor", type=float, default=2.4)
     parser.add_argument("--stable-height-factor", type=float, default=2.4)
+    parser.add_argument("--prototype-distance-scale", type=float, default=0.54)
     parser.add_argument("--min-surface-membership-score", type=float, default=0.50)
+    parser.add_argument("--min-surface-bridge-score", type=float, default=0.56)
+    parser.add_argument("--enable-surface-multimodal-bridge", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--surface-bridge-texture-score", type=float, default=0.62)
+    parser.add_argument("--surface-bridge-shape-score", type=float, default=0.24)
+    parser.add_argument("--surface-bridge-prototype-score", type=float, default=0.48)
     parser.add_argument("--min-object-membership-score", type=float, default=0.48)
     parser.add_argument("--min-rough-membership-score", type=float, default=0.44)
     parser.add_argument("--object-color-factor", type=float, default=1.85)
     parser.add_argument("--object-texture-delta", type=float, default=64.0)
     parser.add_argument("--object-roughness-delta", type=float, default=0.34)
     parser.add_argument("--object-texture-weight", type=float, default=0.30)
-    parser.add_argument("--object-shape-weight", type=float, default=0.30)
+    parser.add_argument("--object-shape-weight", type=float, default=0.27)
+    parser.add_argument("--object-prototype-weight", type=float, default=0.12)
     parser.add_argument("--object-height-weight", type=float, default=0.12)
     parser.add_argument("--object-bucket-weight", type=float, default=0.12)
     parser.add_argument("--object-normal-weight", type=float, default=0.06)
     parser.add_argument("--object-plane-weight", type=float, default=0.10)
-    parser.add_argument("--rough-texture-weight", type=float, default=0.42)
-    parser.add_argument("--rough-shape-weight", type=float, default=0.34)
+    parser.add_argument("--rough-texture-weight", type=float, default=0.36)
+    parser.add_argument("--rough-shape-weight", type=float, default=0.29)
+    parser.add_argument("--rough-prototype-weight", type=float, default=0.18)
     parser.add_argument("--rough-height-weight", type=float, default=0.04)
     parser.add_argument("--rough-bucket-weight", type=float, default=0.14)
     parser.add_argument("--rough-normal-weight", type=float, default=0.03)

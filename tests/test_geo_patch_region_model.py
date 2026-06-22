@@ -21,20 +21,28 @@ def region_args(**overrides):
         "stable_surface_ratio": 0.72,
         "stable_plane_factor": 2.0,
         "stable_height_factor": 2.0,
+        "prototype_distance_scale": 0.54,
         "min_surface_membership_score": 0.45,
+        "min_surface_bridge_score": 0.56,
+        "enable_surface_multimodal_bridge": True,
+        "surface_bridge_texture_score": 0.62,
+        "surface_bridge_shape_score": 0.24,
+        "surface_bridge_prototype_score": 0.48,
         "min_object_membership_score": 0.42,
         "min_rough_membership_score": 0.44,
         "object_color_factor": 1.85,
         "object_texture_delta": 64.0,
         "object_roughness_delta": 0.34,
         "object_texture_weight": 0.30,
-        "object_shape_weight": 0.30,
+        "object_shape_weight": 0.27,
+        "object_prototype_weight": 0.12,
         "object_height_weight": 0.12,
         "object_bucket_weight": 0.12,
         "object_normal_weight": 0.06,
         "object_plane_weight": 0.10,
-        "rough_texture_weight": 0.42,
-        "rough_shape_weight": 0.34,
+        "rough_texture_weight": 0.36,
+        "rough_shape_weight": 0.29,
+        "rough_prototype_weight": 0.18,
         "rough_height_weight": 0.04,
         "rough_bucket_weight": 0.14,
         "rough_normal_weight": 0.03,
@@ -150,6 +158,86 @@ def test_rough_membership_downweights_plane_normal_and_centroid_height():
         model,
         3,
         region_args(max_height_delta=0.10, max_normal_angle=20.0),
+    )
+
+    assert ok, (score, reason, scores)
+    assert reason == "accepted"
+
+
+def test_region_model_matches_existing_local_prototype_not_only_mean():
+    rough = region_model.BUCKET_IDS["rough_mixed"]
+    arrays = make_arrays(
+        xyz=[
+            [0.0, 0.0, 0.0],
+            [0.1, 0.0, 0.0],
+            [0.2, 0.0, 0.0],
+            [0.3, 0.0, 0.0],
+            [0.4, 0.0, 0.0],
+        ],
+        rgb=[
+            [35, 120, 42],
+            [37, 123, 43],
+            [150, 145, 135],
+            [152, 147, 136],
+            [36, 121, 43],
+        ],
+        normals=[
+            [0, 0, 1],
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 1, 0],
+            [1, 0, 0],
+        ],
+        buckets=[rough] * 5,
+    )
+    model = region_model.PatchModel(seed_index=0, seed_bucket=rough)
+    for i in range(4):
+        model.add(arrays, i, 1.0)
+
+    ok, score, reason, scores = region_model.membership_score(
+        arrays,
+        model,
+        4,
+        region_args(max_color_distance=90.0, object_color_factor=1.2),
+    )
+
+    assert ok, (score, reason, scores)
+    assert scores["prototype"] > scores["color"]
+
+
+def test_horizontal_surface_can_bridge_rough_same_texture_substructure():
+    horizontal = region_model.BUCKET_IDS["horizontal"]
+    rough = region_model.BUCKET_IDS["rough_mixed"]
+    arrays = make_arrays(
+        xyz=[
+            [0.0, 0.0, 0.0],
+            [0.1, 0.0, 0.0],
+            [0.2, 0.0, 0.0],
+            [0.3, 0.0, 0.08],
+        ],
+        rgb=[
+            [110, 108, 102],
+            [112, 109, 103],
+            [111, 110, 104],
+            [113, 111, 105],
+        ],
+        normals=[
+            [0, 0, 1],
+            [0, 0, 1],
+            [0, 0, 1],
+            [1, 0, 0],
+        ],
+        buckets=[horizontal, horizontal, horizontal, rough],
+    )
+    model = region_model.PatchModel(seed_index=0, seed_bucket=horizontal)
+    for i in range(3):
+        model.add(arrays, i, 1.0)
+
+    ok, score, reason, scores = region_model.membership_score(
+        arrays,
+        model,
+        3,
+        region_args(max_normal_angle=20.0, max_plane_residual=0.02),
     )
 
     assert ok, (score, reason, scores)
