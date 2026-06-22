@@ -103,13 +103,24 @@ def parse_header(path: Path) -> tuple[list[str], int, int, str, int]:
     return props, vertex_count, header_lines, ply_format, header_bytes
 
 
-def read_voxels(path: Path, voxel_size: float, max_points: int | None = None) -> dict[tuple[int, int, int], dict[str, Any]]:
+def read_voxels(
+    path: Path,
+    voxel_size: float,
+    max_points: int | None = None,
+    voxel_backend: str = "numpy",
+    torch_device: str = "cuda:0",
+    binary_voxel_input: bool = False,
+) -> dict[tuple[int, int, int], dict[str, Any]]:
     props, vertex_count, header_lines, ply_format, header_bytes = parse_header(path)
     idx = {name: i for i, name in enumerate(props)}
     for required in ("x", "y", "z", "red", "green", "blue"):
         if required not in idx:
             raise ValueError(f"PLY missing {required}: {path}")
     if ply_format == "binary_little_endian":
+        if binary_voxel_input:
+            return read_binary_voxel_rows(path, props, vertex_count, header_bytes, voxel_size, max_points)
+        if voxel_backend == "torch":
+            return read_binary_voxels_torch(path, props, vertex_count, header_bytes, voxel_size, max_points, torch_device)
         return read_binary_voxels(path, props, vertex_count, header_bytes, voxel_size, max_points)
     if ply_format != "ascii":
         raise ValueError(f"unsupported PLY format {ply_format}: {path}")
@@ -139,6 +150,23 @@ def read_voxels(path: Path, voxel_size: float, max_points: int | None = None) ->
         count = max(float(item["count"]), 1.0)
         item["xyz"] = item["xyz_sum"] / count
         item["rgb"] = item["rgb_sum"] / count
+    return voxels
+
+
+def rows_to_voxel_dict(
+    keys: np.ndarray,
+    xyz: np.ndarray,
+    rgb: np.ndarray,
+    counts: np.ndarray,
+) -> dict[tuple[int, int, int], dict[str, Any]]:
+    voxels: dict[tuple[int, int, int], dict[str, Any]] = {}
+    for i in range(len(keys)):
+        key = (int(keys[i, 0]), int(keys[i, 1]), int(keys[i, 2]))
+        voxels[key] = {
+            "count": int(counts[i]),
+            "xyz": xyz[i].astype(np.float64, copy=False),
+            "rgb": rgb[i].astype(np.float64, copy=False),
+        }
     return voxels
 
 
@@ -189,15 +217,81 @@ def read_binary_voxels(
     inv_counts = 1.0 / counts.astype(np.float64)
     xyz_mean = xyz_sum * inv_counts[:, None]
     rgb_mean = rgb_sum * inv_counts[:, None]
-    voxels: dict[tuple[int, int, int], dict[str, Any]] = {}
-    for i in range(voxel_count):
-        key = (int(unique_arr[i, 0]), int(unique_arr[i, 1]), int(unique_arr[i, 2]))
-        voxels[key] = {
-            "count": int(counts[i]),
-            "xyz": xyz_mean[i],
-            "rgb": rgb_mean[i],
-        }
-    return voxels
+    return rows_to_voxel_dict(unique_arr, xyz_mean, rgb_mean, counts)
+
+
+def read_binary_voxel_rows(
+    path: Path,
+    props: list[str],
+    vertex_count: int,
+    header_bytes: int,
+    voxel_size: float,
+    max_points: int | None,
+) -> dict[tuple[int, int, int], dict[str, Any]]:
+    dtype = binary_dtype_for_props(props)
+    count = min(vertex_count, max_points) if max_points is not None else vertex_count
+    data = np.memmap(path, dtype=dtype, mode="r", offset=header_bytes, shape=(vertex_count,))
+    if count != vertex_count:
+        data = data[:count]
+    xyz = np.empty((count, 3), dtype=np.float64)
+    xyz[:, 0] = data["x"]
+    xyz[:, 1] = data["y"]
+    xyz[:, 2] = data["z"]
+    rgb = np.empty((count, 3), dtype=np.float64)
+    rgb[:, 0] = data["red"]
+    rgb[:, 1] = data["green"]
+    rgb[:, 2] = data["blue"]
+    keys = np.floor(xyz / float(voxel_size)).astype(np.int32, copy=False)
+    counts = np.ones(count, dtype=np.int32)
+    return rows_to_voxel_dict(keys, xyz, rgb, counts)
+
+
+def read_binary_voxels_torch(
+    path: Path,
+    props: list[str],
+    vertex_count: int,
+    header_bytes: int,
+    voxel_size: float,
+    max_points: int | None,
+    device: str,
+) -> dict[tuple[int, int, int], dict[str, Any]]:
+    try:
+        import torch
+    except Exception as exc:  # pragma: no cover - exercised on remote CUDA hosts.
+        raise RuntimeError("torch voxel backend requested but torch is unavailable") from exc
+    if not torch.cuda.is_available() and device.startswith("cuda"):
+        raise RuntimeError(f"torch CUDA device requested but CUDA is unavailable: {device}")
+
+    dtype = binary_dtype_for_props(props)
+    count = min(vertex_count, max_points) if max_points is not None else vertex_count
+    data = np.memmap(path, dtype=dtype, mode="r", offset=header_bytes, shape=(vertex_count,))
+    if count != vertex_count:
+        data = data[:count]
+
+    xyz_np = np.empty((count, 3), dtype=np.float32)
+    xyz_np[:, 0] = data["x"]
+    xyz_np[:, 1] = data["y"]
+    xyz_np[:, 2] = data["z"]
+    rgb_np = np.empty((count, 3), dtype=np.float32)
+    rgb_np[:, 0] = data["red"]
+    rgb_np[:, 1] = data["green"]
+    rgb_np[:, 2] = data["blue"]
+
+    dev = torch.device(device)
+    xyz_t = torch.as_tensor(xyz_np, dtype=torch.float32, device=dev)
+    rgb_t = torch.as_tensor(rgb_np, dtype=torch.float32, device=dev)
+    keys_t = torch.floor(xyz_t / float(voxel_size)).to(torch.int32)
+    unique_keys, inverse, counts_t = torch.unique(keys_t, dim=0, return_inverse=True, return_counts=True)
+    voxel_count = int(unique_keys.shape[0])
+
+    xyz_sum = torch.zeros((voxel_count, 3), dtype=torch.float32, device=dev)
+    rgb_sum = torch.zeros((voxel_count, 3), dtype=torch.float32, device=dev)
+    xyz_sum.index_add_(0, inverse, xyz_t)
+    rgb_sum.index_add_(0, inverse, rgb_t)
+    counts_f = counts_t.to(torch.float32).unsqueeze(1).clamp_min(1.0)
+    xyz_mean = (xyz_sum / counts_f).cpu().numpy()
+    rgb_mean = (rgb_sum / counts_f).cpu().numpy()
+    return rows_to_voxel_dict(unique_keys.cpu().numpy(), xyz_mean, rgb_mean, counts_t.cpu().numpy())
 
 
 def neighbor_offsets(radius: int) -> list[tuple[int, int, int]]:
@@ -796,8 +890,10 @@ def write_outputs(
         "params": {
             "feature_radius_voxels": args.feature_radius_voxels,
             "feature_backend": args.feature_backend,
+            "voxel_backend": args.voxel_backend,
+            "binary_voxel_input": args.binary_voxel_input,
             "feature_batch_size": args.feature_batch_size,
-            "torch_device": args.torch_device if args.feature_backend == "torch" else "",
+            "torch_device": args.torch_device if args.feature_backend == "torch" or args.voxel_backend == "torch" else "",
             "connect_radius_voxels": args.connect_radius_voxels,
             "max_normal_angle": args.max_normal_angle,
             "max_color_distance": args.max_color_distance,
@@ -819,6 +915,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input-ply", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--voxel-size", type=float, default=0.10)
+    parser.add_argument("--voxel-backend", choices=("numpy", "torch"), default="numpy")
+    parser.add_argument("--binary-voxel-input", action="store_true")
     parser.add_argument("--feature-radius-voxels", type=int, default=3)
     parser.add_argument("--feature-backend", choices=("cpu", "torch"), default="cpu")
     parser.add_argument("--feature-batch-size", type=int, default=8192)
@@ -838,7 +936,14 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    voxels = read_voxels(args.input_ply, args.voxel_size, args.max_points)
+    voxels = read_voxels(
+        args.input_ply,
+        args.voxel_size,
+        args.max_points,
+        args.voxel_backend,
+        args.torch_device,
+        args.binary_voxel_input,
+    )
     if args.feature_backend == "torch":
         compute_local_features_torch(voxels, args.feature_radius_voxels, args.torch_device, args.feature_batch_size)
     else:

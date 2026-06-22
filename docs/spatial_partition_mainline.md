@@ -133,6 +133,18 @@ Dense colorized source note:
   `colorized_visible_0000_6180_voxel010.ply` (`3729996` voxels). The helper
   `export_binary_ply_viewer_ascii.py` converts it to the ASCII schema accepted
   by `semantic_ply_viewer.html`. Use stride exports for browser stability.
+- `build_geo_patch_demo.py` has two dense-path acceleration switches:
+  - `--voxel-backend torch`: use torch/CUDA for binary PLY voxel aggregation.
+  - `--binary-voxel-input`: treat an already-voxelized binary PLY as voxel rows
+    and skip re-aggregation.
+- Validated smoke tests:
+  - cached voxel direct-read `200k` rows + torch PCA: completed in about `11s`.
+  - full binary dense `1M` raw points + torch voxelization + torch PCA:
+    completed in about `20s`.
+- Full cached voxel010 patch run:
+  - `3729979` voxels, `100106` patches, `91538` small patches.
+  - output: `server_parking_priority_s10/full_dense_cached_voxel010_identity_object_model_torch`
+  - viewer preview: `geo_patches_random_color_stride5.ply` (`745996` points).
 - Production patching should cache voxelized dense clouds as NPZ/PLY once and
   move connectivity/growing out of Python dict BFS into C++ or tensor graph
   operations.

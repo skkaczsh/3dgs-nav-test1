@@ -29,34 +29,48 @@ def read_header(path: Path) -> tuple[list[str], int, int]:
     return header, vertex_count, header_lines
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("input", type=Path)
-    parser.add_argument("output", type=Path)
-    parser.add_argument("--stride", type=int, default=10)
-    args = parser.parse_args()
-    if args.stride <= 0:
+def stride_ascii_ply(input_ply: Path, output_ply: Path, stride: int) -> None:
+    if stride <= 0:
         raise ValueError("--stride must be positive")
-
-    header, vertex_count, header_lines = read_header(args.input)
-    kept = (vertex_count + args.stride - 1) // args.stride
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    with args.input.open("r", encoding="utf-8", errors="replace") as src, args.output.open("w", encoding="utf-8") as dst:
+    header, vertex_count, header_lines = read_header(input_ply)
+    kept = (vertex_count + stride - 1) // stride
+    output_ply.parent.mkdir(parents=True, exist_ok=True)
+    with input_ply.open("r", encoding="utf-8", errors="replace") as src, output_ply.open("w", encoding="utf-8") as dst:
         for _ in range(header_lines):
             next(src)
         for line in header:
             dst.write(line.replace("__VERTEX_COUNT__", str(kept)))
         written = 0
         for i, line in enumerate(src):
-            if i % args.stride == 0:
+            if i % stride == 0:
                 dst.write(line)
                 written += 1
     if written != kept:
         raise RuntimeError(f"stride count mismatch: expected={kept} written={written}")
     print(f"input_vertices={vertex_count}")
     print(f"output_vertices={written}")
-    print(f"stride={args.stride}")
-    print(f"output={args.output}")
+    print(f"stride={stride}")
+    print(f"output={output_ply}")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("input", nargs="?", type=Path)
+    parser.add_argument("output", nargs="?", type=Path)
+    parser.add_argument("--input-ply", type=Path)
+    parser.add_argument("--output-ply", type=Path)
+    parser.add_argument("--stride", type=int, default=10)
+    args = parser.parse_args()
+    args.input = args.input_ply or args.input
+    args.output = args.output_ply or args.output
+    if args.input is None or args.output is None:
+        parser.error("provide input/output positional args or --input-ply/--output-ply")
+    return args
+
+
+def main() -> None:
+    args = parse_args()
+    stride_ascii_ply(args.input, args.output, args.stride)
 
 
 if __name__ == "__main__":
