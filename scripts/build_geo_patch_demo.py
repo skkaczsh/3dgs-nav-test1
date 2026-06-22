@@ -27,6 +27,9 @@ class RegionState:
         self.normal_sum = np.zeros(3, dtype=np.float64)
         self.roughness_sum = 0.0
         self.planarity_sum = 0.0
+        self.linearity_sum = 0.0
+        self.local_color_std_sum = 0.0
+        self.height_range_sum = 0.0
         self.seed_bucket = str(seed["bucket"])
         self.seed_normal = np.array(seed["normal"], dtype=np.float64)
         self.add(seed)
@@ -41,6 +44,9 @@ class RegionState:
         self.normal_sum += normal
         self.roughness_sum += float(item["roughness"])
         self.planarity_sum += float(item["planarity"])
+        self.linearity_sum += float(item["linearity"])
+        self.local_color_std_sum += float(item["local_color_std"])
+        self.height_range_sum += float(item["height_range"])
 
     def centroid(self) -> np.ndarray:
         return self.xyz_sum / max(float(self.count), 1.0)
@@ -59,6 +65,15 @@ class RegionState:
 
     def planarity(self) -> float:
         return self.planarity_sum / max(float(self.count), 1.0)
+
+    def linearity(self) -> float:
+        return self.linearity_sum / max(float(self.count), 1.0)
+
+    def local_color_std(self) -> float:
+        return self.local_color_std_sum / max(float(self.count), 1.0)
+
+    def height_range(self) -> float:
+        return self.height_range_sum / max(float(self.count), 1.0)
 
 
 def parse_header(path: Path) -> tuple[list[str], int, int]:
@@ -462,6 +477,72 @@ def region_candidate_score(
     return float(total), scores
 
 
+def object_candidate_score(
+    state: RegionState,
+    item: dict[str, Any],
+    max_normal_angle: float,
+    max_color_distance: float,
+    max_height_delta: float,
+    max_plane_residual: float,
+) -> tuple[float, dict[str, float]]:
+    """Score whether a voxel fits the current object-like patch model.
+
+    Object parts may have sharp normal changes. This scorer therefore treats
+    normal and plane residual as weak evidence, while color/texture, local
+    roughness, and local shape statistics carry the decision.
+    """
+    patch_normal = state.normal()
+    angle = normal_angle_deg(patch_normal, item["normal"])
+    rgb_dist = float(np.linalg.norm(state.color() - item["rgb"]))
+    plane_residual = abs(float(np.dot(item["xyz"] - state.centroid(), patch_normal)))
+    rough_delta = abs(float(state.roughness() - item["roughness"]))
+    planarity_delta = abs(float(state.planarity() - item["planarity"]))
+    linearity_delta = abs(float(state.linearity() - item["linearity"]))
+    color_std_delta = abs(float(state.local_color_std() - item["local_color_std"]))
+    height_range_delta = abs(float(state.height_range() - item["height_range"]))
+    dz = abs(float(item["xyz"][2] - state.centroid()[2]))
+
+    # True discontinuities. These are loose because the input is sparse LiDAR,
+    # but they prevent color/texture jumps from bridging unrelated structures.
+    if rgb_dist > max_color_distance * 1.75 and color_std_delta > 55.0:
+        return 0.0, {"veto": 1.0, "color_texture": 0.0}
+    if dz > max_height_delta * 3.5 and state.seed_bucket == "horizontal":
+        return 0.0, {"veto": 1.0, "height": 0.0}
+    if rough_delta > 0.32 and color_std_delta > 70.0:
+        return 0.0, {"veto": 1.0, "rough_texture": 0.0}
+
+    normal_score = clamp01(1.0 - angle / max(max_normal_angle * 1.8, 1e-6))
+    plane_score = clamp01(1.0 - plane_residual / max(max_plane_residual * 2.5, 1e-6))
+    scores = {
+        "color": clamp01(1.0 - rgb_dist / max(max_color_distance, 1e-6)),
+        "color_texture": clamp01(1.0 - color_std_delta / 85.0),
+        "roughness": clamp01(1.0 - rough_delta / 0.24),
+        "planarity": clamp01(1.0 - planarity_delta / 0.50),
+        "linearity": clamp01(1.0 - linearity_delta / 0.50),
+        "height_range": clamp01(1.0 - height_range_delta / 0.28),
+        "height": clamp01(1.0 - dz / max(max_height_delta * 2.8, 1e-6)),
+        "bucket": bucket_score(state.seed_bucket, str(item["bucket"])),
+        "normal": normal_score,
+        "plane": plane_score,
+    }
+    shape_score = (
+        0.38 * scores["roughness"]
+        + 0.24 * scores["linearity"]
+        + 0.24 * scores["planarity"]
+        + 0.14 * scores["height_range"]
+    )
+    texture_score = 0.62 * scores["color"] + 0.38 * scores["color_texture"]
+    total = (
+        0.36 * texture_score
+        + 0.28 * shape_score
+        + 0.12 * scores["height"]
+        + 0.10 * scores["bucket"]
+        + 0.07 * scores["normal"]
+        + 0.07 * scores["plane"]
+    )
+    return float(total), scores
+
+
 def build_patches(
     voxels: dict[tuple[int, int, int], dict[str, Any]],
     connect_radius_voxels: int,
@@ -477,7 +558,7 @@ def build_patches(
     for item in voxels.values():
         item["bucket"] = geometry_bucket(item)
     offsets = neighbor_offsets(connect_radius_voxels)
-    if edge_mode == "region-model":
+    if edge_mode in {"region-model", "object-model"}:
         seed_order = sorted(
             voxels,
             key=lambda key: (
@@ -532,10 +613,21 @@ def build_patches(
                     )
                     if score < min_region_score:
                         continue
+                elif edge_mode == "object-model":
+                    score, _parts = object_candidate_score(
+                        state,
+                        nbr,
+                        max_normal_angle,
+                        max_color_distance,
+                        max_height_delta,
+                        max_plane_residual,
+                    )
+                    if score < min_region_score:
+                        continue
                 unvisited.remove(nbr_key)
                 queue.append(nbr_key)
                 component.append(nbr_key)
-                if edge_mode == "region-model":
+                if edge_mode in {"region-model", "object-model"}:
                     state.add(nbr)
         patch_id = next_patch_id
         next_patch_id += 1
@@ -668,7 +760,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-color-distance", type=float, default=58.0)
     parser.add_argument("--max-height-delta", type=float, default=0.18)
     parser.add_argument("--strict-bucket", action="store_true")
-    parser.add_argument("--edge-mode", choices=("hard", "score", "region-model"), default="hard")
+    parser.add_argument("--edge-mode", choices=("hard", "score", "region-model", "object-model"), default="hard")
     parser.add_argument("--min-edge-score", type=float, default=0.56)
     parser.add_argument("--min-region-score", type=float, default=0.54)
     parser.add_argument("--max-plane-residual", type=float, default=0.07)

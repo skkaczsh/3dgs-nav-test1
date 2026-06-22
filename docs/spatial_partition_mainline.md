@@ -102,6 +102,22 @@ Region-model BFS test:
   production version should use prioritized region growing plus explicit
   seed/model classes, preferably in the `drivability_cpp` grid implementation.
 
+Object-model BFS test:
+
+- `build_geo_patch_demo.py --edge-mode object-model` relaxes the assumption that
+  one patch must have a stable normal. Candidate voxels are compared with the
+  growing patch state using color/texture, roughness, linearity, planarity,
+  local height range, height continuity, bucket compatibility, and weak
+  normal/plane evidence.
+- Full 4090D torch result at `0.03m`:
+  - previous `region-model`: `123819` patches, `117800` small patches.
+  - `object-model`: `113503` patches, `108409` small patches.
+- This confirms that allowing normal jumps helps folded/same-texture objects,
+  but the remaining fragmentation is still too high. The next production step
+  should not keep tuning global BFS thresholds; it should use structure-specific
+  seed models and priority growth: hard ground seeds, weak wall seeds,
+  stair-step grouping, and thin-structure grouping.
+
 ## Absorption Stage
 
 `absorb_spatial_partition_objects.py` is the second stage. It remaps small component object ids to nearby compatible anchor ids; it does not duplicate points or allow overlap.
