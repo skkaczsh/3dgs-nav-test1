@@ -118,6 +118,45 @@ Object-model BFS test:
   seed models and priority growth: hard ground seeds, weak wall seeds,
   stair-step grouping, and thin-structure grouping.
 
+## Array Region-Model Patch Growth
+
+`build_geo_patch_graph.py` is fast and scalable, but its connected-component
+step is pairwise: if `A-B` and `B-C` are valid edges, `A` and `C` enter the same
+patch even when `C` no longer fits the whole patch.  This is the main failure
+mode behind both over-fragmentation and bridge-based over-merging.
+
+`build_geo_patch_region_model.py` keeps the graph route's voxel/PCA feature
+assets and edge-admissibility pass, then replaces connected components with
+model-aware region growing:
+
+1. Build local candidate edges using the existing graph scorer.
+2. Grow seeds in a stable-first order, so large horizontal/vertical surfaces
+   lock their structure before rough objects can bridge through them.
+3. For each frontier candidate, check whether the voxel fits the accumulated
+   patch model, not just whether it matches the boundary voxel.
+4. Use different membership gates for stable surfaces and object-like patches:
+   stable surfaces emphasize plane residual and normal consistency; rough/thin
+   objects emphasize color/texture, shape statistics, and height continuity with
+   weak normal evidence.
+5. Emit per-patch `rejected_reasons_top` so QA can see whether a boundary was
+   cut by plane residual, height jump, color/texture jump, or low membership
+   score.
+
+Initial 4090D smoke results on
+`colorized_visible_0000_6180_voxel010.ply`:
+
+- `region_model_smoke_200k`: `200000` voxels, `17844` patches,
+  `16479` small patches.
+- `region_model_smoke_1m`: `1000000` voxels, `45667` patches,
+  `41636` small patches.
+
+Largest-patch inspection shows no obvious cross-bucket disaster: the largest
+patches are pure `horizontal`, pure `vertical`, or mostly `rough_mixed` with
+small `unknown/thin_linear` support.  The route is therefore safer than loose
+graph connectivity, but still conservative.  Next tuning should focus on
+object-like membership gates and adaptive radius for rough/vegetation patches,
+not on globally loosening normal thresholds.
+
 Dense colorized source note:
 
 - The full colorized reconstruction is
