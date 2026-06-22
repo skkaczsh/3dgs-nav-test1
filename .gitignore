@@ -35,6 +35,9 @@ outputs/
 !docs/
 docs/preserved_run_reports_*/
 .local/
+third_party/potree/
+third_party/PotreeConverter*/
+node_modules/
 
 # === 其他 ===
 *.log
