@@ -282,3 +282,58 @@ def test_stable_surface_membership_uses_local_chart_not_global_plane():
     assert ok, (score, reason, scores)
     assert scores["chart_plane"] > scores["plane"]
     assert scores["chart_height"] > scores["height"]
+
+
+def test_stable_surface_frontier_chart_rescues_graph_local_growth():
+    horizontal = region_model.BUCKET_IDS["horizontal"]
+    arrays = make_arrays(
+        xyz=[
+            [0.0, 0.0, 0.0],
+            [0.1, 0.0, 0.0],
+            [0.2, 0.0, 0.0],
+            [1.0, 0.0, 0.42],
+            [1.1, 0.0, 0.42],
+            [1.2, 0.0, 0.42],
+            [1.3, 0.0, 0.42],
+        ],
+        rgb=[
+            [110, 108, 102],
+            [111, 109, 103],
+            [112, 110, 104],
+            [116, 112, 106],
+            [117, 113, 107],
+            [116, 112, 106],
+            [118, 114, 108],
+        ],
+        normals=[[0, 0, 1]] * 7,
+        buckets=[horizontal] * 7,
+    )
+    model = region_model.PatchModel(seed_index=0, seed_bucket=horizontal)
+    for i in range(6):
+        model.add(arrays, i, 1.0)
+
+    # Simulate an older chart atlas that has not retained the current frontier
+    # as a local prototype. The graph edge from 5 -> 6 should still provide a
+    # valid local chart for the same surface.
+    model.prototypes = [region_model.local_signature(arrays, 0)]
+    model.prototype_counts = [model.count]
+    model.prototype_xyz = [arrays["xyz"][0].astype(np.float64)]
+    model.prototype_normals = [arrays["normal"][0].astype(np.float64)]
+
+    without_frontier = region_model.membership_score(
+        arrays,
+        model,
+        6,
+        region_args(max_height_delta=0.06, max_plane_residual=0.03),
+    )
+    with_frontier = region_model.membership_score(
+        arrays,
+        model,
+        6,
+        region_args(max_height_delta=0.06, max_plane_residual=0.03),
+        source_index=5,
+    )
+
+    assert not without_frontier[0]
+    assert with_frontier[0], with_frontier
+    assert with_frontier[3]["chart_height"] > without_frontier[3]["chart_height"]

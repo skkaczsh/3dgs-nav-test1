@@ -246,6 +246,12 @@ Local chart atlas update:
   when global plane/normal/height gates would reject the candidate.  This keeps
   the single graph formulation while avoiding chart lookup for every stable
   surface edge.
+- Graph formulation update: stable-surface membership now evaluates a candidate
+  against both the patch's chart atlas and the accepted frontier voxel that
+  reached it.  This makes a patch a connected subgraph with multiple local
+  chart peaks, not one global plane.  `stable_plane_residual` therefore remains
+  a useful reject reason only when the candidate fails both global/atlas
+  consistency and graph-local continuity.
 - Full run candidate:
   - output: `full_region_model_voxel010_local_chart_rescue_v5`
   - status: launched on 4090D.

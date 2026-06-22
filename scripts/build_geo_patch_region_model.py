@@ -93,6 +93,38 @@ def signature_distance(a: np.ndarray, b: np.ndarray) -> float:
     return 0.46 * color + 0.42 * shape + 0.12 * normal_z
 
 
+def frontier_chart_metrics(arrays: dict[str, np.ndarray], source_index: int, index: int, distance_scale: float) -> dict[str, float]:
+    """Measure candidate continuity against the accepted frontier voxel.
+
+    Region growth is a graph problem: a candidate is reached through one
+    already accepted neighbor.  Stable surfaces therefore need both global
+    patch consistency and local chart continuity.  This frontier chart keeps a
+    long surface from being forced into one global plane while still requiring
+    graph-local geometric agreement.
+    """
+
+    signature = local_signature(arrays, index)
+    source_signature = local_signature(arrays, source_index)
+    xyz = arrays["xyz"][index].astype(np.float64, copy=False)
+    source_xyz = arrays["xyz"][source_index].astype(np.float64, copy=False)
+    normal = arrays["normal"][index].astype(np.float64, copy=False)
+    source_normal = arrays["normal"][source_index].astype(np.float64, copy=False)
+    sig_distance = signature_distance(signature, source_signature)
+    plane_residual = abs(float(np.dot(xyz - source_xyz, source_normal)))
+    normal_angle = normal_angle_deg_np(source_normal, normal)
+    dz = abs(float(xyz[2] - source_xyz[2]))
+    combined = sig_distance
+    combined += 0.28 * min(plane_residual / PROTOTYPE_CHART_UPDATE_PLANE_DISTANCE, 2.0)
+    combined += 0.12 * min(normal_angle / max(PROTOTYPE_CHART_UPDATE_NORMAL_ANGLE, 1e-6), 2.0)
+    return {
+        "score": float(max(0.0, min(1.0, 1.0 - sig_distance / max(distance_scale, 1e-6)))),
+        "plane_residual": plane_residual,
+        "normal_angle": normal_angle,
+        "dz": dz,
+        "combined": combined,
+    }
+
+
 @dataclass
 class PatchModel:
     """Incremental statistics used by model-aware growth."""
@@ -225,6 +257,7 @@ class PatchModel:
                     "plane_residual": plane_residual,
                     "normal_angle": normal_angle,
                     "dz": dz,
+                    "combined": combined,
                 }
         assert best is not None
         return best
@@ -274,6 +307,7 @@ def membership_score(
     model: PatchModel,
     index: int,
     args: argparse.Namespace,
+    source_index: int | None = None,
 ) -> tuple[bool, float, str, dict[str, float]]:
     """Return whether a voxel fits the current patch model."""
 
@@ -340,6 +374,13 @@ def membership_score(
         needs_chart = (global_normal_fail or global_plane_fail or global_height_fail) and not surface_bridge
         if needs_chart:
             chart = model.chart_metrics(arrays, index, args.prototype_distance_scale)
+            if source_index is not None:
+                source_bucket = int(arrays["buckets"][source_index])
+                source_is_compatible_chart = source_bucket in {dominant, BUCKET_IDS["unknown"]}
+                if source_is_compatible_chart:
+                    frontier_chart = frontier_chart_metrics(arrays, source_index, index, args.prototype_distance_scale)
+                    if frontier_chart["combined"] < chart["combined"]:
+                        chart = frontier_chart
             scores["chart"] = chart["score"]
             scores["chart_plane"] = float(
                 clamp01_np(np.asarray([1.0 - chart["plane_residual"] / max(args.max_plane_residual * 2.5, 1e-6)]))[0]
@@ -476,7 +517,7 @@ def grow_region_model(
             for nbr in adjacency[current]:
                 if labels[nbr] != -1:
                     continue
-                ok, score, reason, _scores = membership_score(arrays, model, int(nbr), args)
+                ok, score, reason, _scores = membership_score(arrays, model, int(nbr), args, source_index=current)
                 if not ok:
                     model.rejected_reasons[reason] += 1
                     continue
