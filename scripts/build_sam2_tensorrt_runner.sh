@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
 CXX="${CXX:-g++}"
-OUT="${OUT:-/root/epfs/sam2_tensorrt/bin/sam2_trt_runner}"
-SRC="${SRC:-/root/epfs/new_route_tools/sam2_trt_runner.cpp}"
+OUT="${OUT:-${REPO_ROOT}/build/sam2_tensorrt/bin/sam2_trt_runner}"
+SRC="${SRC:-${REPO_ROOT}/tools/sam2_trt_runner.cpp}"
 CUDA_HOME="${CUDA_HOME:-/usr/local/cuda}"
 OPENCV_FLAGS="${OPENCV_FLAGS:-}"
 

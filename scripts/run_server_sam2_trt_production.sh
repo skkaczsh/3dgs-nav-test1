@@ -9,6 +9,7 @@ set -euo pipefail
 # pass/fail.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 START="${START:-2000}"
 END="${END:-2999}"
@@ -17,8 +18,8 @@ INPUT_DIR="${INPUT_DIR:-/root/epfs/new_route_stage1_skymask/sam2_input_${START}_
 OUTPUT_DIR="${OUTPUT_DIR:-/root/epfs/new_route_stage1_skymask/sam_masks_${START}_${END}_trt_candidate}"
 REPORT_DIR="${REPORT_DIR:-/root/epfs/sam2_tensorrt/reports/production_${START}_${END}}"
 BASELINE_DIR="${BASELINE_DIR:-}"
-RUNNER="${RUNNER:-/root/epfs/sam2_tensorrt/bin/sam2_trt_amg_runner}"
-RUNNER_SRC="${RUNNER_SRC:-/root/epfs/new_route_tools/sam2_trt_amg_runner.cpp}"
+RUNNER="${RUNNER:-${REPO_ROOT}/build/sam2_tensorrt/bin/sam2_trt_amg_runner}"
+RUNNER_SRC="${RUNNER_SRC:-${REPO_ROOT}/tools/sam2_trt_amg_runner.cpp}"
 IMAGE_GLOB="${IMAGE_GLOB:-${INPUT_DIR}/*.png}"
 OUTPUT_MODE="${OUTPUT_MODE:-uncompressed_rle}"
 OVERWRITE="${OVERWRITE:-0}"

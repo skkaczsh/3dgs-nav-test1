@@ -2,20 +2,20 @@
 set -euo pipefail
 
 GPU_ID="${GPU_ID:-0}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 IMAGE_GLOB="${IMAGE_GLOB:-/root/epfs/new_route_stage1_skymask/sam2_input_2000_2999/cam0_00200[0-9].png}"
 BASELINE_DIR="${BASELINE_DIR:-/root/epfs/new_route_stage1_skymask/sam_masks_2000_2999_combined}"
 CANDIDATE_DIR="${CANDIDATE_DIR:-/root/epfs/sam2_tensorrt/sam_masks_candidate_benchmark}"
 REPORT_DIR="${REPORT_DIR:-/root/epfs/sam2_tensorrt/reports}"
-RUNNER="${RUNNER:-/root/epfs/sam2_tensorrt/bin/sam2_trt_amg_runner}"
-RUNNER_SRC="${RUNNER_SRC:-/root/epfs/new_route_tools/sam2_trt_amg_runner.cpp}"
+RUNNER="${RUNNER:-${REPO_ROOT}/build/sam2_tensorrt/bin/sam2_trt_amg_runner}"
+RUNNER_SRC="${RUNNER_SRC:-${REPO_ROOT}/tools/sam2_trt_amg_runner.cpp}"
 OUTPUT_MODE="${OUTPUT_MODE:-uncompressed_rle}"
 PRED_IOU_THRESH="${PRED_IOU_THRESH:-0.7}"
 STABILITY_SCORE_THRESH="${STABILITY_SCORE_THRESH:-0.92}"
 BOX_NMS_THRESH="${BOX_NMS_THRESH:-0.7}"
 CROP_NMS_THRESH="${CROP_NMS_THRESH:-0.65}"
 MIN_MASK_AREA="${MIN_MASK_AREA:-500}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 mkdir -p "${CANDIDATE_DIR}" "${REPORT_DIR}"
 
 if [[ ! -x "${RUNNER}" ]]; then
