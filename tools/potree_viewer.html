@@ -88,6 +88,17 @@
 
   <script>
     const params = new URLSearchParams(window.location.search);
+    // Potree 1.8 tries to parse "pointSize" during Viewer construction and
+    // calls a missing setPointSize() method. Keep our UI parameter under
+    // "size", while accepting old links and removing the unsafe parameter
+    // before Potree reads window.location.
+    const legacyPointSize = params.get("pointSize");
+    if (legacyPointSize !== null) {
+      params.set("size", legacyPointSize);
+      params.delete("pointSize");
+      const sanitized = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
+      window.history.replaceState(null, "", sanitized);
+    }
     const cloudUrl = params.get("cloud") || params.get("metadata");
     const name = params.get("name") || "pointcloud";
     const statusEl = document.querySelector("#status");
@@ -97,14 +108,13 @@
 
     const budget = Number(params.get("budget"));
     if (Number.isFinite(budget) && budget > 0) budgetEl.value = String(Math.floor(budget));
-    const pointSize = Number(params.get("pointSize"));
+    const pointSize = Number(params.get("size"));
     if (Number.isFinite(pointSize) && pointSize > 0) pointSizeEl.value = String(pointSize);
 
     window.viewer = new Potree.Viewer(document.getElementById("potree_render_area"));
     viewer.setEDLEnabled(false);
     viewer.setFOV(60);
     viewer.setPointBudget(Number(budgetEl.value));
-    viewer.loadSettingsFromURL();
     viewer.setBackground("black");
     viewer.setDescription("SCAN Potree viewer");
 
