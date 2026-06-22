@@ -118,6 +118,25 @@ Object-model BFS test:
   seed models and priority growth: hard ground seeds, weak wall seeds,
   stair-step grouping, and thin-structure grouping.
 
+Dense colorized source note:
+
+- The full colorized reconstruction is
+  `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
+  It is a binary PLY with `92984215` colored points and about `95%` color
+  coverage.
+- `build_geo_patch_demo.py` now supports binary little-endian XYZRGB PLY input,
+  but the current Python dict/FIFO BFS implementation is not suitable for
+  repeated dense full-scene production. A full `0.05m` rebuild from 93M raw
+  colored points spends minutes in CPU voxel aggregation before reaching GPU
+  PCA.
+- For viewer QA, use the cached full-scene colorized voxel file:
+  `colorized_visible_0000_6180_voxel010.ply` (`3729996` voxels). The helper
+  `export_binary_ply_viewer_ascii.py` converts it to the ASCII schema accepted
+  by `semantic_ply_viewer.html`. Use stride exports for browser stability.
+- Production patching should cache voxelized dense clouds as NPZ/PLY once and
+  move connectivity/growing out of Python dict BFS into C++ or tensor graph
+  operations.
+
 ## Absorption Stage
 
 `absorb_spatial_partition_objects.py` is the second stage. It remaps small component object ids to nearby compatible anchor ids; it does not duplicate points or allow overlap.

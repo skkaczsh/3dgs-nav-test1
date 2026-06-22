@@ -76,15 +76,21 @@ class RegionState:
         return self.height_range_sum / max(float(self.count), 1.0)
 
 
-def parse_header(path: Path) -> tuple[list[str], int, int]:
+def parse_header(path: Path) -> tuple[list[str], int, int, str, int]:
     props: list[str] = []
     vertex_count = 0
     header_lines = 0
+    header_bytes = 0
+    ply_format = "ascii"
     in_vertex = False
-    with path.open("r", encoding="utf-8", errors="replace") as f:
-        for line in f:
+    with path.open("rb") as f:
+        for raw_line in f:
+            header_bytes += len(raw_line)
             header_lines += 1
+            line = raw_line.decode("utf-8", errors="replace")
             parts = line.strip().split()
+            if len(parts) >= 3 and parts[0] == "format":
+                ply_format = parts[1]
             if len(parts) >= 3 and parts[0] == "element" and parts[1] == "vertex":
                 vertex_count = int(parts[2])
                 in_vertex = True
@@ -94,15 +100,19 @@ def parse_header(path: Path) -> tuple[list[str], int, int]:
                 props.append(parts[-1])
             if line.strip() == "end_header":
                 break
-    return props, vertex_count, header_lines
+    return props, vertex_count, header_lines, ply_format, header_bytes
 
 
 def read_voxels(path: Path, voxel_size: float, max_points: int | None = None) -> dict[tuple[int, int, int], dict[str, Any]]:
-    props, vertex_count, header_lines = parse_header(path)
+    props, vertex_count, header_lines, ply_format, header_bytes = parse_header(path)
     idx = {name: i for i, name in enumerate(props)}
     for required in ("x", "y", "z", "red", "green", "blue"):
         if required not in idx:
             raise ValueError(f"PLY missing {required}: {path}")
+    if ply_format == "binary_little_endian":
+        return read_binary_voxels(path, props, vertex_count, header_bytes, voxel_size, max_points)
+    if ply_format != "ascii":
+        raise ValueError(f"unsupported PLY format {ply_format}: {path}")
     voxels: dict[tuple[int, int, int], dict[str, Any]] = {}
     with path.open("r", encoding="utf-8", errors="replace") as f:
         for _ in range(header_lines):
@@ -129,6 +139,64 @@ def read_voxels(path: Path, voxel_size: float, max_points: int | None = None) ->
         count = max(float(item["count"]), 1.0)
         item["xyz"] = item["xyz_sum"] / count
         item["rgb"] = item["rgb_sum"] / count
+    return voxels
+
+
+def binary_dtype_for_props(props: list[str]) -> np.dtype:
+    dtype_fields: list[tuple[str, str]] = []
+    for name in props:
+        if name in {"x", "y", "z"}:
+            dtype_fields.append((name, "<f4"))
+        elif name in {"red", "green", "blue"}:
+            dtype_fields.append((name, "u1"))
+        else:
+            raise ValueError(f"unsupported binary PLY vertex property: {name}")
+    return np.dtype(dtype_fields)
+
+
+def read_binary_voxels(
+    path: Path,
+    props: list[str],
+    vertex_count: int,
+    header_bytes: int,
+    voxel_size: float,
+    max_points: int | None,
+) -> dict[tuple[int, int, int], dict[str, Any]]:
+    dtype = binary_dtype_for_props(props)
+    count = min(vertex_count, max_points) if max_points is not None else vertex_count
+    data = np.memmap(path, dtype=dtype, mode="r", offset=header_bytes, shape=(vertex_count,))
+    if count != vertex_count:
+        data = data[:count]
+
+    xyz = np.empty((count, 3), dtype=np.float32)
+    xyz[:, 0] = data["x"]
+    xyz[:, 1] = data["y"]
+    xyz[:, 2] = data["z"]
+    keys = np.floor(xyz / np.float32(voxel_size)).astype(np.int32, copy=False)
+    key_dtype = np.dtype([("x", "<i4"), ("y", "<i4"), ("z", "<i4")])
+    key_view = np.ascontiguousarray(keys).view(key_dtype).reshape(-1)
+    unique_keys, inverse, counts = np.unique(key_view, return_inverse=True, return_counts=True)
+
+    voxel_count = int(len(unique_keys))
+    xyz_sum = np.empty((voxel_count, 3), dtype=np.float64)
+    rgb_sum = np.empty((voxel_count, 3), dtype=np.float64)
+    for axis, name in enumerate(("x", "y", "z")):
+        xyz_sum[:, axis] = np.bincount(inverse, weights=xyz[:, axis], minlength=voxel_count)
+    for axis, name in enumerate(("red", "green", "blue")):
+        rgb_sum[:, axis] = np.bincount(inverse, weights=data[name].astype(np.float32), minlength=voxel_count)
+
+    unique_arr = unique_keys.view(np.int32).reshape(-1, 3)
+    inv_counts = 1.0 / counts.astype(np.float64)
+    xyz_mean = xyz_sum * inv_counts[:, None]
+    rgb_mean = rgb_sum * inv_counts[:, None]
+    voxels: dict[tuple[int, int, int], dict[str, Any]] = {}
+    for i in range(voxel_count):
+        key = (int(unique_arr[i, 0]), int(unique_arr[i, 1]), int(unique_arr[i, 2]))
+        voxels[key] = {
+            "count": int(counts[i]),
+            "xyz": xyz_mean[i],
+            "rgb": rgb_mean[i],
+        }
     return voxels
 
 
