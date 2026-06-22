@@ -235,14 +235,20 @@ Local chart atlas update:
   from a single plane to a small local atlas.
 - 1M-voxel comparison:
   - multimodal v4: `43373` patches, `39682` small patches.
-  - local-chart v5 smoke: `42470` patches, `38935` small patches.
-  - `stable_plane_residual` rejects dropped from `235380` to `31173`.
-  - largest vertical chart grew from `123347` to `138230` voxels while staying
+  - full local-chart v5 smoke: `42470` patches, `38935` small patches.
+  - rescue-only local-chart v5 smoke: `42531` patches, `39000` small patches.
+  - `stable_plane_residual` rejects dropped from `235380` to `36735` in the
+    rescue-only version.
+  - largest vertical chart grew from `123347` to `148482` voxels while staying
     pure `vertical`.
+- Implementation note: local chart lookup is now rescue-only.  The script uses
+  the fast global surface model first and only queries the local chart atlas
+  when global plane/normal/height gates would reject the candidate.  This keeps
+  the single graph formulation while avoiding chart lookup for every stable
+  surface edge.
 - Full run candidate:
-  - output: `full_region_model_voxel010_local_chart_v5`
-  - status: launched on 4090D; expected to be slower than v4 because chart
-    matching is still Python-loop based.
+  - output: `full_region_model_voxel010_local_chart_rescue_v5`
+  - status: launched on 4090D.
 
 Dense colorized source note:
 

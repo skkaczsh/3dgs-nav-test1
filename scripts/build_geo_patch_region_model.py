@@ -322,15 +322,6 @@ def membership_score(
     texture_score = 0.62 * scores["color"] + 0.38 * scores["color_texture"]
 
     if dominant in STABLE_SURFACE_BUCKETS and model.dominant_ratio() >= args.stable_surface_ratio:
-        chart = model.chart_metrics(arrays, index, args.prototype_distance_scale)
-        scores["chart"] = chart["score"]
-        scores["chart_plane"] = float(
-            clamp01_np(np.asarray([1.0 - chart["plane_residual"] / max(args.max_plane_residual * 2.5, 1e-6)]))[0]
-        )
-        scores["chart_normal"] = float(
-            clamp01_np(np.asarray([1.0 - chart["normal_angle"] / max(args.max_normal_angle * 1.8, 1e-6)]))[0]
-        )
-        scores["chart_height"] = float(clamp01_np(np.asarray([1.0 - chart["dz"] / max(args.max_height_delta * 2.8, 1e-6)]))[0])
         surface_bridge = (
             args.enable_surface_multimodal_bridge
             and dominant == BUCKET_IDS["horizontal"]
@@ -342,12 +333,35 @@ def membership_score(
             return False, 0.0, "stable_bucket_mismatch", scores
         if rgb_dist > args.max_color_distance * 1.9 and color_std_delta > 55.0:
             return False, 0.0, "stable_color_texture_jump", scores
-        if chart["normal_angle"] > min(args.max_normal_angle * 1.7, 88.0) and not surface_bridge:
-            return False, 0.0, "stable_normal_jump", scores
-        if chart["plane_residual"] > args.max_plane_residual * args.stable_plane_factor and not surface_bridge:
-            return False, 0.0, "stable_plane_residual", scores
-        if dominant == BUCKET_IDS["horizontal"] and chart["dz"] > args.max_height_delta * args.stable_height_factor and not surface_bridge:
-            return False, 0.0, "stable_height_jump", scores
+        normal_limit = min(args.max_normal_angle * 1.7, 88.0)
+        global_normal_fail = angle > normal_limit
+        global_plane_fail = plane_residual > args.max_plane_residual * args.stable_plane_factor
+        global_height_fail = dominant == BUCKET_IDS["horizontal"] and dz > args.max_height_delta * args.stable_height_factor
+        needs_chart = (global_normal_fail or global_plane_fail or global_height_fail) and not surface_bridge
+        if needs_chart:
+            chart = model.chart_metrics(arrays, index, args.prototype_distance_scale)
+            scores["chart"] = chart["score"]
+            scores["chart_plane"] = float(
+                clamp01_np(np.asarray([1.0 - chart["plane_residual"] / max(args.max_plane_residual * 2.5, 1e-6)]))[0]
+            )
+            scores["chart_normal"] = float(
+                clamp01_np(np.asarray([1.0 - chart["normal_angle"] / max(args.max_normal_angle * 1.8, 1e-6)]))[0]
+            )
+            scores["chart_height"] = float(clamp01_np(np.asarray([1.0 - chart["dz"] / max(args.max_height_delta * 2.8, 1e-6)]))[0])
+            chart_normal_fail = chart["normal_angle"] > normal_limit
+            chart_plane_fail = chart["plane_residual"] > args.max_plane_residual * args.stable_plane_factor
+            chart_height_fail = dominant == BUCKET_IDS["horizontal"] and chart["dz"] > args.max_height_delta * args.stable_height_factor
+            if chart_normal_fail:
+                return False, 0.0, "stable_normal_jump", scores
+            if chart_plane_fail:
+                return False, 0.0, "stable_plane_residual", scores
+            if chart_height_fail:
+                return False, 0.0, "stable_height_jump", scores
+        else:
+            scores["chart"] = scores["prototype"]
+            scores["chart_plane"] = scores["plane"]
+            scores["chart_normal"] = scores["normal"]
+            scores["chart_height"] = scores["height"]
         if surface_bridge:
             total = (
                 0.52 * texture_score
