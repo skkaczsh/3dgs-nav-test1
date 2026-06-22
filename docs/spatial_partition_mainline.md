@@ -252,8 +252,16 @@ Local chart atlas update:
   chart peaks, not one global plane.  `stable_plane_residual` therefore remains
   a useful reject reason only when the candidate fails both global/atlas
   consistency and graph-local continuity.
+- 1M-voxel frontier-chart smoke:
+  - patches: `42180`, small patches: `38719`.
+  - `stable_plane_residual` rejects dropped from rescue-only `36735` to `21`.
+  - largest vertical patch grew from `148482` to `160383` voxels while remaining
+    pure `vertical`.
+  - largest horizontal patch remained pure `horizontal` at `178505` voxels.
+  - dominant remaining reject is now `membership_score_low`, which is a real
+    model-fit boundary rather than a single-plane contradiction.
 - Full run candidate:
-  - output: `full_region_model_voxel010_local_chart_rescue_v5`
+  - output: `full_region_model_voxel010_frontier_chart_v6`
   - status: launched on 4090D.
 
 Dense colorized source note:
