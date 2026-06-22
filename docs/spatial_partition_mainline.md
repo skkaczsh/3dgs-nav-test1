@@ -145,6 +145,16 @@ Dense colorized source note:
   - `3729979` voxels, `100106` patches, `91538` small patches.
   - output: `server_parking_priority_s10/full_dense_cached_voxel010_identity_object_model_torch`
   - viewer preview: `geo_patches_random_color_stride5.ply` (`745996` points).
+- Graph segmentation test:
+  - `build_geo_patch_graph.py` replaces Python FIFO region growing with a
+    vectorized pairwise similarity graph and sparse connected components.
+  - It is a scaling baseline: no dynamic patch state, but much faster on dense
+    full-scene inputs.
+  - Full cached voxel010 `radius=2, score=0.46` result:
+    `3729979` voxels, `56801` patches, `53868` small patches.
+  - output: `server_parking_priority_s10/full_graph_cached_voxel010_r2_s046_torch`
+  - viewer preview: `geo_patches_graph_random_color_stride3.ply`
+    (`1243327` points).
 - Production patching should cache voxelized dense clouds as NPZ/PLY once and
   move connectivity/growing out of Python dict BFS into C++ or tensor graph
   operations.
