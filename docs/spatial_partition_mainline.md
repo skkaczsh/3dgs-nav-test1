@@ -264,6 +264,19 @@ Local chart atlas update:
   - output: `full_region_model_voxel010_frontier_chart_v6`
   - status: launched on 4090D.
 
+C++ smoke status:
+
+- `tools/geo_patch_region_model_smoke.cpp` is the first C++ parity guard for
+  the patch mainline.  It does not read production PLY files yet; it validates
+  the core graph-region invariant in a small synthetic fixture.
+- Verified invariants:
+  - frontier local chart can rescue stable-surface growth that a single global
+    plane would reject.
+  - pairwise graph chains cannot bridge a large horizontal height jump into the
+    same patch.
+- Build entry: `scripts/build_geo_patch_cpp_smoke.sh`.
+- Verified locally and on `scan-rtx5070`.
+
 Dense colorized source note:
 
 - The full colorized reconstruction is
