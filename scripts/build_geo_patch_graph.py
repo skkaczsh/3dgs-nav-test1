@@ -190,6 +190,26 @@ def edge_keep(
     veto |= rough_delta > 0.36
     veto |= dz > max_height_delta * 3.0
     veto |= plane_residual > max_plane_residual * 3.5
+    if bucket_guard in {"same-bucket-or-color", "same-bucket-or-fine-color"}:
+        if bucket_guard == "same-bucket-or-fine-color":
+            bridge_buckets = np.isin(
+                arrays["buckets"][src],
+                [BUCKET_IDS["rough_mixed"], BUCKET_IDS["thin_linear"], BUCKET_IDS["unknown"]],
+            ) & np.isin(
+                arrays["buckets"][dst],
+                [BUCKET_IDS["rough_mixed"], BUCKET_IDS["thin_linear"], BUCKET_IDS["unknown"]],
+            )
+        else:
+            bridge_buckets = np.ones_like(veto, dtype=bool)
+        color_bridge = (
+            bridge_buckets
+            & (rgb_dist <= max_color_distance * 0.45)
+            & (color_std_delta <= 28.0)
+            & (rough_delta <= 0.22)
+            & (dz <= max_height_delta * 1.6)
+            & (plane_residual <= max_plane_residual * 2.0)
+        )
+        veto &= ~color_bridge
 
     scores = {
         "color": clamp01_np(1.0 - rgb_dist / max(max_color_distance, 1e-6)),
@@ -235,7 +255,7 @@ def bucket_guard_veto(a: np.ndarray, b: np.ndarray, mode: str) -> np.ndarray:
     veto = np.zeros(a.shape, dtype=bool)
     if mode == "same-or-unknown":
         veto |= ~(same | has_unknown)
-    elif mode == "same-bucket":
+    elif mode in {"same-bucket", "same-bucket-or-color", "same-bucket-or-fine-color"}:
         veto |= ~same
     elif mode == "no-rough-bridge":
         has_rough = (a == rough) | (b == rough)
@@ -354,7 +374,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-height-delta", type=float, default=0.22)
     parser.add_argument("--max-normal-angle", type=float, default=58.0)
     parser.add_argument("--max-plane-residual", type=float, default=0.12)
-    parser.add_argument("--bucket-guard", choices=("loose", "same-or-unknown", "no-rough-bridge", "same-bucket"), default="loose")
+    parser.add_argument(
+        "--bucket-guard",
+        choices=(
+            "loose",
+            "same-or-unknown",
+            "no-rough-bridge",
+            "same-bucket",
+            "same-bucket-or-color",
+            "same-bucket-or-fine-color",
+        ),
+        default="loose",
+    )
     parser.add_argument("--texture-weight", type=float, default=0.36)
     parser.add_argument("--shape-weight", type=float, default=0.28)
     parser.add_argument("--height-weight", type=float, default=0.12)
