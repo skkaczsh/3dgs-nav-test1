@@ -77,7 +77,10 @@
     <span>Potree</span>
     <label>点预算 <input id="budget" type="number" min="100000" step="100000" value="1500000"></label>
     <label>点大小 <input id="pointSize" type="number" min="0.2" step="0.1" value="1.0"></label>
-    <button id="fit">适配</button>
+    <button id="viewIso">斜视</button>
+    <button id="viewTop">顶视</button>
+    <button id="viewFront">前视</button>
+    <button id="viewSide">侧视</button>
     <span id="status"></span>
   </div>
 
@@ -104,7 +107,50 @@
     const statusEl = document.querySelector("#status");
     const budgetEl = document.querySelector("#budget");
     const pointSizeEl = document.querySelector("#pointSize");
-    const fitEl = document.querySelector("#fit");
+    const viewIsoEl = document.querySelector("#viewIso");
+    const viewTopEl = document.querySelector("#viewTop");
+    const viewFrontEl = document.querySelector("#viewFront");
+    const viewSideEl = document.querySelector("#viewSide");
+    let sceneBounds = null;
+
+    async function loadSceneBounds(url) {
+      const response = await fetch(url, { cache: "no-store" });
+      const metadata = await response.json();
+      const position = (metadata.attributes || []).find(attr => attr.name === "position");
+      const min = position?.min || metadata.boundingBox?.min;
+      const max = position?.max || metadata.boundingBox?.max;
+      if (!min || !max) return null;
+      const center = [
+        (Number(min[0]) + Number(max[0])) / 2,
+        (Number(min[1]) + Number(max[1])) / 2,
+        (Number(min[2]) + Number(max[2])) / 2,
+      ];
+      const size = [
+        Number(max[0]) - Number(min[0]),
+        Number(max[1]) - Number(min[1]),
+        Number(max[2]) - Number(min[2]),
+      ];
+      const radius = Math.max(size[0], size[1], size[2], 1);
+      return { min, max, center, size, radius };
+    }
+
+    function setViewPreset(preset, duration = 0) {
+      if (!sceneBounds) {
+        viewer.fitToScreen();
+        return;
+      }
+      const [cx, cy, cz] = sceneBounds.center;
+      const r = sceneBounds.radius;
+      const views = {
+        iso: [cx + r * 0.85, cy - r * 1.15, cz + r * 0.75],
+        top: [cx, cy, cz + r * 1.6],
+        front: [cx, cy - r * 1.7, cz + r * 0.15],
+        side: [cx + r * 1.7, cy, cz + r * 0.15],
+      };
+      const pos = views[preset] || views.iso;
+      viewer.scene.view.setView(pos, sceneBounds.center, duration);
+      viewer.setMoveSpeed(r / 2);
+    }
 
     const budget = Number(params.get("budget"));
     if (Number.isFinite(budget) && budget > 0) budgetEl.value = String(Math.floor(budget));
@@ -127,7 +173,10 @@
       viewer.setPointBudget(Math.max(100000, Number(budgetEl.value) || 1500000));
     });
 
-    fitEl.addEventListener("click", () => viewer.fitToScreen());
+    viewIsoEl.addEventListener("click", () => setViewPreset("iso", 400));
+    viewTopEl.addEventListener("click", () => setViewPreset("top", 400));
+    viewFrontEl.addEventListener("click", () => setViewPreset("front", 400));
+    viewSideEl.addEventListener("click", () => setViewPreset("side", 400));
 
     if (!cloudUrl) {
       statusEl.textContent = "缺少 ?cloud=/path/to/metadata.json";
@@ -141,8 +190,14 @@
         material.shape = Potree.PointShape.SQUARE;
         material.activeAttributeName = "rgba";
         viewer.scene.addPointCloud(pointcloud);
-        viewer.fitToScreen();
-        statusEl.textContent = `${name}: ${cloudUrl}`;
+        loadSceneBounds(cloudUrl).then(bounds => {
+          sceneBounds = bounds;
+          setViewPreset(params.get("view") || "iso");
+          statusEl.textContent = `${name}: ${cloudUrl}`;
+        }).catch(err => {
+          viewer.fitToScreen();
+          statusEl.textContent = `${name}: ${cloudUrl}；bounds 加载失败: ${err.message}`;
+        });
 
         pointSizeEl.addEventListener("change", () => {
           material.size = Math.max(0.2, Number(pointSizeEl.value) || 1.0);

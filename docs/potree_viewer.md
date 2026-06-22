@@ -47,14 +47,18 @@ python3 -m http.server 8765 --bind 127.0.0.1
 Open:
 
 ```text
-http://127.0.0.1:8765/tools/potree_viewer.html?cloud=/path/to/potree/data/metadata.json&budget=1500000&pointSize=1.0
+http://127.0.0.1:8765/tools/potree_viewer.html?cloud=/path/to/potree/data/metadata.json&budget=1500000&size=1.0&view=iso
 ```
 
 Example generated in this workspace:
 
 ```text
-http://127.0.0.1:8765/tools/potree_viewer.html?cloud=/server_parking_priority_s10/full_graph_cached_voxel010_r2_s046_samebucket_torch/potree/data/metadata.json&name=samebucket_patch&budget=1500000&pointSize=1.0
+http://127.0.0.1:8765/tools/potree_viewer.html?cloud=/server_parking_priority_s10/full_graph_cached_voxel010_r2_s046_samebucket_torch/potree/data/metadata.json&name=samebucket_patch&budget=1500000&size=1.0&view=iso
 ```
+
+`view` supports `iso`, `top`, `front`, and `side`. The custom viewer computes
+camera presets from the real `position` attribute bounds instead of Potree's
+cubic conversion bounding box, which may contain large padding on the Z axis.
 
 ## Notes
 
