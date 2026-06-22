@@ -173,6 +173,27 @@ Object height gate correction:
   improvement should tune the object membership score rather than add back a
   centroid-height veto.
 
+Rough/object membership score update:
+
+- `rough_mixed` patches now use a separate membership score that strongly
+  weights color/texture and local shape statistics, while downweighting normal,
+  plane residual, and centroid height.
+- This matches shrubs and other rough objects: top and side faces can have very
+  different normals while still being the same physical object if color,
+  texture, roughness, and local shape remain compatible.
+- 1M-voxel comparison:
+  - previous no-height-veto: `45191` patches, `40092` small patches.
+  - rough-score update: `43836` patches, `40092` small patches.
+  - `membership_score_low` rejects dropped from `81371` to `37486`.
+- Full `voxel010` result:
+  - output: `full_region_model_voxel010_rough_score_v3`
+  - `3729992` voxels, `141958` patches, `129824` small patches.
+  - previous no-height-veto full run had `152549` patches and `139188` small
+    patches.
+  - largest rough patches grew substantially while largest horizontal/vertical
+    patches remained pure buckets, so the update improves object-like merging
+    without obvious stable-surface contamination.
+
 Dense colorized source note:
 
 - The full colorized reconstruction is

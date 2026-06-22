@@ -23,6 +23,7 @@ def region_args(**overrides):
         "stable_height_factor": 2.0,
         "min_surface_membership_score": 0.45,
         "min_object_membership_score": 0.42,
+        "min_rough_membership_score": 0.44,
         "object_color_factor": 1.85,
         "object_texture_delta": 64.0,
         "object_roughness_delta": 0.34,
@@ -32,6 +33,12 @@ def region_args(**overrides):
         "object_bucket_weight": 0.12,
         "object_normal_weight": 0.06,
         "object_plane_weight": 0.10,
+        "rough_texture_weight": 0.42,
+        "rough_shape_weight": 0.34,
+        "rough_height_weight": 0.04,
+        "rough_bucket_weight": 0.14,
+        "rough_normal_weight": 0.03,
+        "rough_plane_weight": 0.03,
     }
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -109,3 +116,41 @@ def test_region_model_allows_tall_rough_object_growth_when_edges_are_local():
     assert len(set(labels.tolist())) == 1
     assert len(patches) == 1
     assert patches[0]["voxel_count"] == 8
+
+
+def test_rough_membership_downweights_plane_normal_and_centroid_height():
+    rough = region_model.BUCKET_IDS["rough_mixed"]
+    arrays = make_arrays(
+        xyz=[
+            [0.0, 0.0, 0.0],
+            [0.1, 0.0, 0.1],
+            [0.2, 0.0, 0.2],
+            [0.3, 0.0, 0.75],
+        ],
+        rgb=[
+            [35, 120, 42],
+            [38, 123, 44],
+            [36, 121, 43],
+            [39, 124, 45],
+        ],
+        normals=[
+            [0, 0, 1],
+            [1, 0, 0],
+            [0, 1, 0],
+            [1, 0, 0],
+        ],
+        buckets=[rough, rough, rough, rough],
+    )
+    model = region_model.PatchModel(seed_index=0, seed_bucket=rough)
+    for i in range(3):
+        model.add(arrays, i, 1.0)
+
+    ok, score, reason, scores = region_model.membership_score(
+        arrays,
+        model,
+        3,
+        region_args(max_height_delta=0.10, max_normal_angle=20.0),
+    )
+
+    assert ok, (score, reason, scores)
+    assert reason == "accepted"

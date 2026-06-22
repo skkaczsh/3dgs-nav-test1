@@ -216,23 +216,42 @@ def membership_score(
         # objects naturally grow away from their centroid.  Local height
         # continuity is already enforced by the edge-admissibility pass; here
         # height is only weak evidence in the membership score.
-        total = (
-            args.object_texture_weight * texture_score
-            + args.object_shape_weight * shape_score
-            + args.object_height_weight * scores["height"]
-            + args.object_bucket_weight * scores["bucket"]
-            + args.object_normal_weight * scores["normal"]
-            + args.object_plane_weight * scores["plane"]
-        ) / max(
-            args.object_texture_weight
-            + args.object_shape_weight
-            + args.object_height_weight
-            + args.object_bucket_weight
-            + args.object_normal_weight
-            + args.object_plane_weight,
-            1e-6,
-        )
-        threshold = args.min_object_membership_score
+        if dominant == BUCKET_IDS["rough_mixed"]:
+            total = (
+                args.rough_texture_weight * texture_score
+                + args.rough_shape_weight * shape_score
+                + args.rough_height_weight * scores["height"]
+                + args.rough_bucket_weight * scores["bucket"]
+                + args.rough_normal_weight * scores["normal"]
+                + args.rough_plane_weight * scores["plane"]
+            ) / max(
+                args.rough_texture_weight
+                + args.rough_shape_weight
+                + args.rough_height_weight
+                + args.rough_bucket_weight
+                + args.rough_normal_weight
+                + args.rough_plane_weight,
+                1e-6,
+            )
+            threshold = args.min_rough_membership_score
+        else:
+            total = (
+                args.object_texture_weight * texture_score
+                + args.object_shape_weight * shape_score
+                + args.object_height_weight * scores["height"]
+                + args.object_bucket_weight * scores["bucket"]
+                + args.object_normal_weight * scores["normal"]
+                + args.object_plane_weight * scores["plane"]
+            ) / max(
+                args.object_texture_weight
+                + args.object_shape_weight
+                + args.object_height_weight
+                + args.object_bucket_weight
+                + args.object_normal_weight
+                + args.object_plane_weight,
+                1e-6,
+            )
+            threshold = args.min_object_membership_score
 
     if total < threshold:
         return False, float(total), "membership_score_low", scores
@@ -409,6 +428,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--stable-height-factor", type=float, default=2.4)
     parser.add_argument("--min-surface-membership-score", type=float, default=0.50)
     parser.add_argument("--min-object-membership-score", type=float, default=0.48)
+    parser.add_argument("--min-rough-membership-score", type=float, default=0.44)
     parser.add_argument("--object-color-factor", type=float, default=1.85)
     parser.add_argument("--object-texture-delta", type=float, default=64.0)
     parser.add_argument("--object-roughness-delta", type=float, default=0.34)
@@ -418,6 +438,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--object-bucket-weight", type=float, default=0.12)
     parser.add_argument("--object-normal-weight", type=float, default=0.06)
     parser.add_argument("--object-plane-weight", type=float, default=0.10)
+    parser.add_argument("--rough-texture-weight", type=float, default=0.42)
+    parser.add_argument("--rough-shape-weight", type=float, default=0.34)
+    parser.add_argument("--rough-height-weight", type=float, default=0.04)
+    parser.add_argument("--rough-bucket-weight", type=float, default=0.14)
+    parser.add_argument("--rough-normal-weight", type=float, default=0.03)
+    parser.add_argument("--rough-plane-weight", type=float, default=0.03)
     return parser.parse_args()
 
 
