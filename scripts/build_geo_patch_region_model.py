@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import subprocess
 from collections import Counter, defaultdict, deque
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -550,6 +551,156 @@ def grow_region_model(
     return labels, patches
 
 
+def summarize_patches_from_labels(
+    arrays: dict[str, np.ndarray],
+    labels: np.ndarray,
+    args: argparse.Namespace,
+) -> list[dict[str, Any]]:
+    """Build viewer/report metadata from labels returned by a native backend."""
+
+    patches: list[dict[str, Any]] = []
+    for patch_id in sorted(int(v) for v in np.unique(labels)):
+        mask = labels == patch_id
+        if not np.any(mask):
+            continue
+        xyz = arrays["xyz"][mask].astype(np.float64, copy=False)
+        rgb = arrays["rgb"][mask].astype(np.float64, copy=False)
+        normals = arrays["normal"][mask].astype(np.float64, copy=False)
+        normal = normals.mean(axis=0)
+        norm = float(np.linalg.norm(normal))
+        if norm > 1e-9:
+            normal = normal / norm
+        bucket_counts_raw = Counter(int(v) for v in arrays["buckets"][mask].tolist())
+        dominant_bucket, dominant_count = bucket_counts_raw.most_common(1)[0]
+        dominant_ratio = float(dominant_count) / max(float(mask.sum()), 1.0)
+        geometry_type = ID_BUCKETS[dominant_bucket] if dominant_ratio >= 0.65 else "mixed"
+        patches.append(
+            {
+                "patch_id": patch_id,
+                "voxel_count": int(mask.sum()),
+                "status": "small_patch" if int(mask.sum()) < args.small_patch_voxels else "geo_patch",
+                "geometry_type": geometry_type,
+                "bucket_counts": {ID_BUCKETS[int(k)]: int(v) for k, v in bucket_counts_raw.items()},
+                "centroid": xyz.mean(axis=0).astype(float).tolist(),
+                "bbox_3d": {"min": xyz.min(axis=0).astype(float).tolist(), "max": xyz.max(axis=0).astype(float).tolist()},
+                "extent": (xyz.max(axis=0) - xyz.min(axis=0)).astype(float).tolist(),
+                "mean_rgb": rgb.mean(axis=0).astype(float).tolist(),
+                "mean_normal": normal.astype(float).tolist(),
+                "mean_membership_score": None,
+                "rejected_reasons_top": {},
+            }
+        )
+    return patches
+
+
+def _write_cpp_region_input(path: Path, arrays: dict[str, np.ndarray], src: np.ndarray, dst: np.ndarray) -> None:
+    n = np.asarray([len(arrays["xyz"])], dtype="<i8")
+    m = np.asarray([len(src)], dtype="<i8")
+    with path.open("wb") as f:
+        f.write(b"GPRGv1\n")
+        n.tofile(f)
+        m.tofile(f)
+        np.asarray(arrays["xyz"], dtype="<f4", order="C").tofile(f)
+        np.asarray(arrays["rgb"], dtype="<f4", order="C").tofile(f)
+        np.asarray(arrays["normal"], dtype="<f4", order="C").tofile(f)
+        np.asarray(arrays["roughness"], dtype="<f4", order="C").tofile(f)
+        np.asarray(arrays["planarity"], dtype="<f4", order="C").tofile(f)
+        np.asarray(arrays["linearity"], dtype="<f4", order="C").tofile(f)
+        np.asarray(arrays["local_color_std"], dtype="<f4", order="C").tofile(f)
+        np.asarray(arrays["height_range"], dtype="<f4", order="C").tofile(f)
+        np.asarray(arrays["buckets"], dtype="<i2", order="C").tofile(f)
+        np.asarray(src, dtype="<i4", order="C").tofile(f)
+        np.asarray(dst, dtype="<i4", order="C").tofile(f)
+
+
+def _read_cpp_region_labels(path: Path) -> np.ndarray:
+    with path.open("rb") as f:
+        magic = f.read(len(b"GPRGlabels1\n"))
+        if magic != b"GPRGlabels1\n":
+            raise RuntimeError(f"invalid C++ region-grower output magic: {magic!r}")
+        n = np.fromfile(f, dtype="<i8", count=1)
+        if len(n) != 1 or int(n[0]) <= 0:
+            raise RuntimeError("invalid C++ region-grower output length")
+        labels = np.fromfile(f, dtype="<i4", count=int(n[0]))
+        if len(labels) != int(n[0]):
+            raise RuntimeError("truncated C++ region-grower label output")
+        return labels.astype(np.int32, copy=False)
+
+
+def _cpp_flag_args(args: argparse.Namespace) -> list[str]:
+    out: list[str] = []
+    for name in [
+        "max_color_distance",
+        "max_height_delta",
+        "max_normal_angle",
+        "max_plane_residual",
+        "stable_surface_ratio",
+        "stable_plane_factor",
+        "stable_height_factor",
+        "prototype_distance_scale",
+        "min_surface_membership_score",
+        "min_surface_bridge_score",
+        "surface_bridge_texture_score",
+        "surface_bridge_shape_score",
+        "surface_bridge_prototype_score",
+        "min_object_membership_score",
+        "min_rough_membership_score",
+        "object_color_factor",
+        "object_texture_delta",
+        "object_roughness_delta",
+        "object_texture_weight",
+        "object_shape_weight",
+        "object_prototype_weight",
+        "object_height_weight",
+        "object_bucket_weight",
+        "object_normal_weight",
+        "object_plane_weight",
+        "rough_texture_weight",
+        "rough_shape_weight",
+        "rough_prototype_weight",
+        "rough_height_weight",
+        "rough_bucket_weight",
+        "rough_normal_weight",
+        "rough_plane_weight",
+    ]:
+        out.extend([f"--{name.replace('_', '-')}", str(getattr(args, name))])
+    out.append("--enable-surface-multimodal-bridge" if args.enable_surface_multimodal_bridge else "--disable-surface-multimodal-bridge")
+    return out
+
+
+def grow_region_model_cpp(
+    arrays: dict[str, np.ndarray],
+    src: np.ndarray,
+    dst: np.ndarray,
+    args: argparse.Namespace,
+) -> tuple[np.ndarray, list[dict[str, Any]]]:
+    grower = Path(args.cpp_grower)
+    if not grower.is_absolute():
+        grower = Path(__file__).resolve().parents[1] / grower
+    if not grower.exists():
+        raise FileNotFoundError(
+            f"C++ region grower not found: {grower}. Build it with scripts/build_geo_patch_cpp_smoke.sh"
+        )
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    input_path = args.output_dir / "_cpp_region_grower_input.bin"
+    output_path = args.output_dir / "_cpp_region_grower_labels.bin"
+    _write_cpp_region_input(input_path, arrays, src, dst)
+    command = [
+        str(grower),
+        "--input",
+        str(input_path),
+        "--output",
+        str(output_path),
+        *_cpp_flag_args(args),
+    ]
+    subprocess.run(command, check=True)
+    labels = _read_cpp_region_labels(output_path)
+    if len(labels) != len(arrays["xyz"]):
+        raise RuntimeError(f"C++ region-grower returned {len(labels)} labels for {len(arrays['xyz'])} voxels")
+    patches = summarize_patches_from_labels(arrays, labels, args)
+    return labels, patches
+
+
 def patch_color(patch_id: int) -> tuple[int, int, int]:
     rng = random.Random(int(patch_id) * 1000003)
     return (rng.randint(40, 245), rng.randint(40, 245), rng.randint(40, 245))
@@ -617,6 +768,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--feature-radius-voxels", type=int, default=3)
     parser.add_argument("--feature-batch-size", type=int, default=8192)
     parser.add_argument("--torch-device", default="cuda:0")
+    parser.add_argument("--region-grow-backend", choices=("python", "cpp"), default="python")
+    parser.add_argument("--cpp-grower", type=Path, default=Path("build/geo_patch/geo_patch_region_grower"))
     parser.add_argument("--connect-radius-voxels", type=int, default=2)
     parser.add_argument("--min-edge-score", type=float, default=0.46)
     parser.add_argument("--max-color-distance", type=float, default=150.0)
@@ -715,8 +868,11 @@ def main() -> int:
         args.color_bridge_distance_factor,
         args.color_bridge_texture_delta,
     )
-    adjacency = build_adjacency(len(arrays["keys"]), src, dst)
-    labels, patches = grow_region_model(arrays, adjacency, args)
+    if args.region_grow_backend == "cpp":
+        labels, patches = grow_region_model_cpp(arrays, src, dst, args)
+    else:
+        adjacency = build_adjacency(len(arrays["keys"]), src, dst)
+        labels, patches = grow_region_model(arrays, adjacency, args)
     write_outputs(args.output_dir, arrays, labels, patches, args)
     return 0
 

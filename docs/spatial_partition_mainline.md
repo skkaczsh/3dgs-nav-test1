@@ -264,18 +264,29 @@ Local chart atlas update:
   - output: `full_region_model_voxel010_frontier_chart_v6`
   - status: launched on 4090D.
 
-C++ smoke status:
+C++ backend status:
 
-- `tools/geo_patch_region_model_smoke.cpp` is the first C++ parity guard for
-  the patch mainline.  It does not read production PLY files yet; it validates
-  the core graph-region invariant in a small synthetic fixture.
+- `tools/geo_patch_region_model_core.hpp` now holds the shared C++ region-model
+  core.
+- `tools/geo_patch_region_model_smoke.cpp` validates the core graph-region
+  invariant in a small synthetic fixture.
+- `tools/geo_patch_region_grower.cpp` is wired into
+  `build_geo_patch_region_model.py` behind `--region-grow-backend cpp`.
+- Scope: Python still owns PLY IO, voxelization, local PCA/features, edge
+  construction, output PLY/JSONL, and QA reports.  C++ currently owns only the
+  region-growing label assignment.
 - Verified invariants:
   - frontier local chart can rescue stable-surface growth that a single global
     plane would reject.
   - pairwise graph chains cannot bridge a large horizontal height jump into the
     same patch.
 - Build entry: `scripts/build_geo_patch_cpp_smoke.sh`.
-- Verified locally and on `scan-rtx5070`.
+- Verified locally with pytest and smoke binary.  Next benchmark should compare
+  `--region-grow-backend python` vs `cpp` on a fixed 200k/1M voxel sample before
+  changing production defaults.
+- CLI smoke on a real parking-scene PLY also succeeds with
+  `--region-grow-backend cpp`; output remains compatible with the existing
+  `geo_patches_region_model_random_color.ply` / JSONL viewer format.
 
 Dense colorized source note:
 
