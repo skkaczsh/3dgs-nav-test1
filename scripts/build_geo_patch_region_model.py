@@ -47,6 +47,8 @@ STABLE_SURFACE_BUCKETS = {BUCKET_IDS["horizontal"], BUCKET_IDS["vertical"]}
 FINE_OBJECT_BUCKETS = {BUCKET_IDS["rough_mixed"], BUCKET_IDS["thin_linear"], BUCKET_IDS["unknown"]}
 MAX_PATCH_PROTOTYPES = 24
 PROTOTYPE_UPDATE_DISTANCE = 0.34
+PROTOTYPE_CHART_UPDATE_PLANE_DISTANCE = 0.18
+PROTOTYPE_CHART_UPDATE_NORMAL_ANGLE = 42.0
 
 
 def normal_angle_deg_np(a: np.ndarray, b: np.ndarray) -> float:
@@ -113,6 +115,8 @@ class PatchModel:
     rejected_reasons: Counter[str] = field(default_factory=Counter)
     prototypes: list[np.ndarray] = field(default_factory=list)
     prototype_counts: list[int] = field(default_factory=list)
+    prototype_xyz: list[np.ndarray] = field(default_factory=list)
+    prototype_normals: list[np.ndarray] = field(default_factory=list)
 
     def add(self, arrays: dict[str, np.ndarray], index: int, score: float = 1.0) -> None:
         xyz = arrays["xyz"][index].astype(np.float64, copy=False)
@@ -138,20 +142,58 @@ class PatchModel:
 
     def update_prototypes(self, arrays: dict[str, np.ndarray], index: int) -> None:
         signature = local_signature(arrays, index)
+        xyz = arrays["xyz"][index].astype(np.float64, copy=False)
+        normal = arrays["normal"][index].astype(np.float64, copy=True)
+        norm = float(np.linalg.norm(normal))
+        if norm > 1e-9:
+            normal = normal / norm
         if not self.prototypes:
             self.prototypes.append(signature.copy())
             self.prototype_counts.append(1)
+            self.prototype_xyz.append(xyz.copy())
+            self.prototype_normals.append(normal.copy())
             return
-        distances = [signature_distance(signature, proto) for proto in self.prototypes]
+        distances: list[float] = []
+        for proto, proto_xyz, proto_normal in zip(self.prototypes, self.prototype_xyz, self.prototype_normals, strict=True):
+            chart_plane = abs(float(np.dot(xyz - proto_xyz, proto_normal)))
+            chart_angle = normal_angle_deg_np(proto_normal, normal)
+            chart_penalty = 0.0
+            if self.seed_bucket in STABLE_SURFACE_BUCKETS:
+                chart_penalty += 0.35 * min(chart_plane / PROTOTYPE_CHART_UPDATE_PLANE_DISTANCE, 2.0)
+                chart_penalty += 0.20 * min(chart_angle / max(PROTOTYPE_CHART_UPDATE_NORMAL_ANGLE, 1e-6), 2.0)
+            distances.append(signature_distance(signature, proto) + chart_penalty)
         nearest = int(np.argmin(distances))
-        if distances[nearest] <= PROTOTYPE_UPDATE_DISTANCE or len(self.prototypes) >= MAX_PATCH_PROTOTYPES:
+        nearest_plane = abs(float(np.dot(xyz - self.prototype_xyz[nearest], self.prototype_normals[nearest])))
+        nearest_angle = normal_angle_deg_np(self.prototype_normals[nearest], normal)
+        same_chart = (
+            distances[nearest] <= PROTOTYPE_UPDATE_DISTANCE
+            and (
+                self.seed_bucket not in STABLE_SURFACE_BUCKETS
+                or (
+                    nearest_plane <= PROTOTYPE_CHART_UPDATE_PLANE_DISTANCE
+                    and nearest_angle <= PROTOTYPE_CHART_UPDATE_NORMAL_ANGLE
+                )
+            )
+        )
+        if same_chart or len(self.prototypes) >= MAX_PATCH_PROTOTYPES:
             count = self.prototype_counts[nearest]
             alpha = 1.0 / float(count + 1)
             self.prototypes[nearest] = (1.0 - alpha) * self.prototypes[nearest] + alpha * signature
+            self.prototype_xyz[nearest] = (1.0 - alpha) * self.prototype_xyz[nearest] + alpha * xyz
+            proto_normal = self.prototype_normals[nearest]
+            if np.dot(proto_normal, normal) < 0:
+                normal = -normal
+            updated_normal = (1.0 - alpha) * proto_normal + alpha * normal
+            updated_norm = float(np.linalg.norm(updated_normal))
+            if updated_norm > 1e-9:
+                updated_normal = updated_normal / updated_norm
+            self.prototype_normals[nearest] = updated_normal
             self.prototype_counts[nearest] = count + 1
         else:
             self.prototypes.append(signature.copy())
             self.prototype_counts.append(1)
+            self.prototype_xyz.append(xyz.copy())
+            self.prototype_normals.append(normal.copy())
 
     def prototype_score(self, arrays: dict[str, np.ndarray], index: int, distance_scale: float) -> float:
         if not self.prototypes:
@@ -159,6 +201,33 @@ class PatchModel:
         signature = local_signature(arrays, index)
         min_distance = min(signature_distance(signature, proto) for proto in self.prototypes)
         return float(max(0.0, min(1.0, 1.0 - min_distance / max(distance_scale, 1e-6))))
+
+    def chart_metrics(self, arrays: dict[str, np.ndarray], index: int, distance_scale: float) -> dict[str, float]:
+        if not self.prototypes:
+            return {"score": 0.0, "plane_residual": float("inf"), "normal_angle": 180.0, "dz": float("inf")}
+        signature = local_signature(arrays, index)
+        xyz = arrays["xyz"][index].astype(np.float64, copy=False)
+        normal = arrays["normal"][index].astype(np.float64, copy=False)
+        best: dict[str, float] | None = None
+        best_distance = float("inf")
+        for proto, proto_xyz, proto_normal in zip(self.prototypes, self.prototype_xyz, self.prototype_normals, strict=True):
+            sig_distance = signature_distance(signature, proto)
+            plane_residual = abs(float(np.dot(xyz - proto_xyz, proto_normal)))
+            normal_angle = normal_angle_deg_np(proto_normal, normal)
+            dz = abs(float(xyz[2] - proto_xyz[2]))
+            combined = sig_distance
+            combined += 0.28 * min(plane_residual / PROTOTYPE_CHART_UPDATE_PLANE_DISTANCE, 2.0)
+            combined += 0.12 * min(normal_angle / max(PROTOTYPE_CHART_UPDATE_NORMAL_ANGLE, 1e-6), 2.0)
+            if combined < best_distance:
+                best_distance = combined
+                best = {
+                    "score": float(max(0.0, min(1.0, 1.0 - sig_distance / max(distance_scale, 1e-6)))),
+                    "plane_residual": plane_residual,
+                    "normal_angle": normal_angle,
+                    "dz": dz,
+                }
+        assert best is not None
+        return best
 
     def mean(self, key: str) -> float:
         return float(getattr(self, f"{key}_sum") / max(float(self.count), 1.0))
@@ -225,6 +294,7 @@ def membership_score(
     linearity_delta = abs(model.mean("linearity") - float(arrays["linearity"][index]))
     color_std_delta = abs(model.mean("local_color_std") - float(arrays["local_color_std"][index]))
     height_range_delta = abs(model.mean("height_range") - float(arrays["height_range"][index]))
+    prototype_score = model.prototype_score(arrays, index, args.prototype_distance_scale)
 
     scores = {
         "color": float(clamp01_np(np.asarray([1.0 - rgb_dist / max(args.max_color_distance, 1e-6)]))[0]),
@@ -237,7 +307,11 @@ def membership_score(
         "bucket": float(bucket_score_np(np.asarray([dominant], dtype=np.int16), np.asarray([bucket], dtype=np.int16))[0]),
         "normal": float(clamp01_np(np.asarray([1.0 - angle / max(args.max_normal_angle * 1.8, 1e-6)]))[0]),
         "plane": float(clamp01_np(np.asarray([1.0 - plane_residual / max(args.max_plane_residual * 2.5, 1e-6)]))[0]),
-        "prototype": model.prototype_score(arrays, index, args.prototype_distance_scale),
+        "prototype": prototype_score,
+        "chart": prototype_score,
+        "chart_plane": 0.0,
+        "chart_normal": 0.0,
+        "chart_height": 0.0,
     }
     shape_score = (
         0.38 * scores["roughness"]
@@ -248,6 +322,15 @@ def membership_score(
     texture_score = 0.62 * scores["color"] + 0.38 * scores["color_texture"]
 
     if dominant in STABLE_SURFACE_BUCKETS and model.dominant_ratio() >= args.stable_surface_ratio:
+        chart = model.chart_metrics(arrays, index, args.prototype_distance_scale)
+        scores["chart"] = chart["score"]
+        scores["chart_plane"] = float(
+            clamp01_np(np.asarray([1.0 - chart["plane_residual"] / max(args.max_plane_residual * 2.5, 1e-6)]))[0]
+        )
+        scores["chart_normal"] = float(
+            clamp01_np(np.asarray([1.0 - chart["normal_angle"] / max(args.max_normal_angle * 1.8, 1e-6)]))[0]
+        )
+        scores["chart_height"] = float(clamp01_np(np.asarray([1.0 - chart["dz"] / max(args.max_height_delta * 2.8, 1e-6)]))[0])
         surface_bridge = (
             args.enable_surface_multimodal_bridge
             and dominant == BUCKET_IDS["horizontal"]
@@ -259,30 +342,30 @@ def membership_score(
             return False, 0.0, "stable_bucket_mismatch", scores
         if rgb_dist > args.max_color_distance * 1.9 and color_std_delta > 55.0:
             return False, 0.0, "stable_color_texture_jump", scores
-        if angle > min(args.max_normal_angle * 1.7, 88.0) and not surface_bridge:
+        if chart["normal_angle"] > min(args.max_normal_angle * 1.7, 88.0) and not surface_bridge:
             return False, 0.0, "stable_normal_jump", scores
-        if plane_residual > args.max_plane_residual * args.stable_plane_factor and not surface_bridge:
+        if chart["plane_residual"] > args.max_plane_residual * args.stable_plane_factor and not surface_bridge:
             return False, 0.0, "stable_plane_residual", scores
-        if dominant == BUCKET_IDS["horizontal"] and dz > args.max_height_delta * args.stable_height_factor and not surface_bridge:
+        if dominant == BUCKET_IDS["horizontal"] and chart["dz"] > args.max_height_delta * args.stable_height_factor and not surface_bridge:
             return False, 0.0, "stable_height_jump", scores
         if surface_bridge:
             total = (
                 0.52 * texture_score
                 + 0.18 * shape_score
-                + 0.12 * scores["prototype"]
+                + 0.12 * scores["chart"]
                 + 0.10 * scores["bucket"]
-                + 0.08 * scores["height"]
+                + 0.08 * scores["chart_height"]
             )
             threshold = args.min_surface_bridge_score
         else:
             total = (
-                0.26 * scores["plane"]
-                + 0.22 * scores["normal"]
+                0.26 * scores["chart_plane"]
+                + 0.22 * scores["chart_normal"]
                 + 0.17 * texture_score
-                + 0.13 * scores["prototype"]
+                + 0.13 * scores["chart"]
                 + 0.12 * scores["bucket"]
                 + 0.07 * shape_score
-                + 0.03 * scores["height"]
+                + 0.03 * scores["chart_height"]
             )
             threshold = args.min_surface_membership_score
     else:

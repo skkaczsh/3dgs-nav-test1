@@ -221,6 +221,29 @@ Multimodal patch signature update:
   significantly slower than v3.  Before making it the default production route,
   prototype matching should be vectorized or restricted to object-like buckets.
 
+Local chart atlas update:
+
+- The v4 prototype route still used a global centroid/mean-normal plane for
+  stable surfaces.  That conflicts with the multimodal premise: a large wall,
+  ground region, roof, or stair-connected floor may be one patch made from
+  multiple local plane charts.
+- `PatchModel` now stores `prototype_xyz` and `prototype_normals` alongside each
+  feature prototype.  Stable-surface `plane_residual`, `normal`, and height gates
+  are evaluated against the best local chart instead of the global patch mean.
+- This keeps the single graph/region-growing data flow intact.  It does not
+  split large surfaces into a separate algorithm; it changes the patch model
+  from a single plane to a small local atlas.
+- 1M-voxel comparison:
+  - multimodal v4: `43373` patches, `39682` small patches.
+  - local-chart v5 smoke: `42470` patches, `38935` small patches.
+  - `stable_plane_residual` rejects dropped from `235380` to `31173`.
+  - largest vertical chart grew from `123347` to `138230` voxels while staying
+    pure `vertical`.
+- Full run candidate:
+  - output: `full_region_model_voxel010_local_chart_v5`
+  - status: launched on 4090D; expected to be slower than v4 because chart
+    matching is still Python-loop based.
+
 Dense colorized source note:
 
 - The full colorized reconstruction is

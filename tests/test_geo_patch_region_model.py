@@ -242,3 +242,43 @@ def test_horizontal_surface_can_bridge_rough_same_texture_substructure():
 
     assert ok, (score, reason, scores)
     assert reason == "accepted"
+
+
+def test_stable_surface_membership_uses_local_chart_not_global_plane():
+    horizontal = region_model.BUCKET_IDS["horizontal"]
+    arrays = make_arrays(
+        xyz=[
+            [0.0, 0.0, 0.0],
+            [0.1, 0.0, 0.0],
+            [0.2, 0.0, 0.0],
+            [1.0, 0.0, 0.45],
+            [1.1, 0.0, 0.45],
+            [1.2, 0.0, 0.45],
+            [1.3, 0.0, 0.45],
+        ],
+        rgb=[
+            [110, 108, 102],
+            [111, 109, 103],
+            [112, 110, 104],
+            [116, 112, 106],
+            [117, 113, 107],
+            [116, 112, 106],
+            [118, 114, 108],
+        ],
+        normals=[[0, 0, 1]] * 7,
+        buckets=[horizontal] * 7,
+    )
+    model = region_model.PatchModel(seed_index=0, seed_bucket=horizontal)
+    for i in range(6):
+        model.add(arrays, i, 1.0)
+
+    ok, score, reason, scores = region_model.membership_score(
+        arrays,
+        model,
+        6,
+        region_args(max_height_delta=0.06, max_plane_residual=0.03),
+    )
+
+    assert ok, (score, reason, scores)
+    assert scores["chart_plane"] > scores["plane"]
+    assert scores["chart_height"] > scores["height"]
