@@ -173,6 +173,117 @@ def compute_local_features(
         item["height_range"] = float(arr[:, 2].max() - arr[:, 2].min())
 
 
+def compute_local_features_torch(
+    voxels: dict[tuple[int, int, int], dict[str, Any]],
+    feature_radius_voxels: int,
+    device: str,
+    batch_size: int,
+) -> None:
+    try:
+        import torch
+    except Exception as exc:  # pragma: no cover - exercised on remote CUDA hosts.
+        raise RuntimeError("torch feature backend requested but torch is unavailable") from exc
+    if not torch.cuda.is_available() and device.startswith("cuda"):
+        raise RuntimeError(f"torch CUDA device requested but CUDA is unavailable: {device}")
+
+    keys_list = list(voxels)
+    keys_np = np.asarray(keys_list, dtype=np.int64)
+    xyz_np = np.vstack([voxels[key]["xyz"] for key in keys_list]).astype(np.float32)
+    rgb_np = np.vstack([voxels[key]["rgb"] for key in keys_list]).astype(np.float32)
+
+    mins = keys_np.min(axis=0)
+    shifted_np = keys_np - mins[None, :]
+    spans = shifted_np.max(axis=0) + 1
+    stride_y = int(spans[2])
+    stride_x = int(spans[1] * spans[2])
+    linear_np = shifted_np[:, 0] * stride_x + shifted_np[:, 1] * stride_y + shifted_np[:, 2]
+    order_np = np.argsort(linear_np)
+    sorted_linear_np = linear_np[order_np]
+
+    offsets_np = np.asarray([(0, 0, 0)] + neighbor_offsets(feature_radius_voxels), dtype=np.int64)
+    offset_linear_np = offsets_np[:, 0] * stride_x + offsets_np[:, 1] * stride_y + offsets_np[:, 2]
+
+    dev = torch.device(device)
+    sorted_linear = torch.as_tensor(sorted_linear_np, dtype=torch.long, device=dev)
+    xyz_sorted = torch.as_tensor(xyz_np[order_np], dtype=torch.float32, device=dev)
+    rgb_sorted = torch.as_tensor(rgb_np[order_np], dtype=torch.float32, device=dev)
+    base_linear = torch.as_tensor(linear_np, dtype=torch.long, device=dev)
+    offset_linear = torch.as_tensor(offset_linear_np, dtype=torch.long, device=dev)
+
+    n = len(keys_list)
+    normals = np.zeros((n, 3), dtype=np.float32)
+    planarity = np.zeros(n, dtype=np.float32)
+    linearity = np.zeros(n, dtype=np.float32)
+    roughness = np.ones(n, dtype=np.float32)
+    height_range = np.zeros(n, dtype=np.float32)
+    local_neighbor_count = np.zeros(n, dtype=np.int32)
+    local_color_std = np.zeros(n, dtype=np.float32)
+
+    eps = 1e-12
+    for start in range(0, n, batch_size):
+        end = min(start + batch_size, n)
+        query_linear = base_linear[start:end, None] + offset_linear[None, :]
+        pos = torch.searchsorted(sorted_linear, query_linear)
+        in_bounds = pos < sorted_linear.numel()
+        safe_pos = torch.clamp(pos, max=max(sorted_linear.numel() - 1, 0))
+        found = in_bounds & (sorted_linear[safe_pos] == query_linear)
+
+        pts = xyz_sorted[safe_pos]
+        rgbs = rgb_sorted[safe_pos]
+        mask = found.to(torch.float32)
+        count = mask.sum(dim=1).clamp_min(1.0)
+        local_neighbor_count[start:end] = count.to(torch.int32).cpu().numpy()
+
+        pts_masked = pts * mask[:, :, None]
+        mean = pts_masked.sum(dim=1) / count[:, None]
+        centered = (pts - mean[:, None, :]) * mask[:, :, None]
+        cov = torch.matmul(centered.transpose(1, 2), centered) / (count[:, None, None] - 1.0).clamp_min(1.0)
+        eigvals, eigvecs = torch.linalg.eigh(cov)
+        eigvals = eigvals.clamp_min(eps)
+        # torch.linalg.eigh returns ascending eigenvalues. Largest are at index 2.
+        l1 = eigvals[:, 2]
+        l2 = eigvals[:, 1]
+        l3 = eigvals[:, 0]
+        normal = eigvecs[:, :, 0]
+        normal = torch.where(normal[:, 2:3] < 0, -normal, normal)
+        normals[start:end] = normal.cpu().numpy()
+        linearity[start:end] = ((l1 - l2) / l1).cpu().numpy()
+        planarity[start:end] = ((l2 - l3) / l1).cpu().numpy()
+        roughness[start:end] = (l3 / l1).cpu().numpy()
+
+        valid_pts_z_max = torch.where(found, pts[:, :, 2], torch.full_like(pts[:, :, 2], -1.0e9))
+        valid_pts_z_min = torch.where(found, pts[:, :, 2], torch.full_like(pts[:, :, 2], 1.0e9))
+        z_max = valid_pts_z_max.max(dim=1).values
+        z_min = valid_pts_z_min.min(dim=1).values
+        empty = count <= 0
+        z_max = torch.where(empty, torch.zeros_like(z_max), z_max)
+        z_min = torch.where(empty, torch.zeros_like(z_min), z_min)
+        height_range[start:end] = (z_max - z_min).cpu().numpy()
+
+        rgb_masked = rgbs * mask[:, :, None]
+        rgb_mean = rgb_masked.sum(dim=1) / count[:, None]
+        rgb_centered = (rgbs - rgb_mean[:, None, :]) * mask[:, :, None]
+        rgb_var = (rgb_centered * rgb_centered).sum(dim=1) / count[:, None]
+        local_color_std[start:end] = torch.linalg.norm(torch.sqrt(rgb_var), dim=1).cpu().numpy()
+
+    for i, key in enumerate(keys_list):
+        item = voxels[key]
+        item["local_neighbor_count"] = int(local_neighbor_count[i])
+        item["local_color_std"] = float(local_color_std[i])
+        if local_neighbor_count[i] < 4:
+            item["normal"] = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+            item["planarity"] = 0.0
+            item["linearity"] = 0.0
+            item["roughness"] = 1.0
+            item["height_range"] = 0.0
+        else:
+            item["normal"] = normals[i].astype(np.float64)
+            item["planarity"] = float(planarity[i])
+            item["linearity"] = float(linearity[i])
+            item["roughness"] = float(roughness[i])
+            item["height_range"] = float(height_range[i])
+
+
 def normal_angle_deg(a: np.ndarray, b: np.ndarray) -> float:
     an = float(np.linalg.norm(a))
     bn = float(np.linalg.norm(b))
@@ -524,6 +635,9 @@ def write_outputs(
         "patch_geometry_counts": dict(geometry_counts),
         "params": {
             "feature_radius_voxels": args.feature_radius_voxels,
+            "feature_backend": args.feature_backend,
+            "feature_batch_size": args.feature_batch_size,
+            "torch_device": args.torch_device if args.feature_backend == "torch" else "",
             "connect_radius_voxels": args.connect_radius_voxels,
             "max_normal_angle": args.max_normal_angle,
             "max_color_distance": args.max_color_distance,
@@ -546,6 +660,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--voxel-size", type=float, default=0.10)
     parser.add_argument("--feature-radius-voxels", type=int, default=3)
+    parser.add_argument("--feature-backend", choices=("cpu", "torch"), default="cpu")
+    parser.add_argument("--feature-batch-size", type=int, default=8192)
+    parser.add_argument("--torch-device", default="cuda:1")
     parser.add_argument("--connect-radius-voxels", type=int, default=1)
     parser.add_argument("--max-normal-angle", type=float, default=28.0)
     parser.add_argument("--max-color-distance", type=float, default=58.0)
@@ -562,7 +679,10 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     voxels = read_voxels(args.input_ply, args.voxel_size, args.max_points)
-    compute_local_features(voxels, args.feature_radius_voxels)
+    if args.feature_backend == "torch":
+        compute_local_features_torch(voxels, args.feature_radius_voxels, args.torch_device, args.feature_batch_size)
+    else:
+        compute_local_features(voxels, args.feature_radius_voxels)
     patch_for_voxel, patches = build_patches(
         voxels,
         args.connect_radius_voxels,
