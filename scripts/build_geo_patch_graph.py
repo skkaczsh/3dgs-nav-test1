@@ -116,6 +116,7 @@ def collect_edges(
     max_normal_angle: float,
     max_plane_residual: float,
     bucket_guard: str,
+    weights: dict[str, float],
 ) -> tuple[np.ndarray, np.ndarray]:
     keys = arrays["keys"]
     linear, order, sorted_linear, (stride_x, stride_y) = sorted_linear_index(keys)
@@ -144,6 +145,7 @@ def collect_edges(
             max_normal_angle,
             max_plane_residual,
             bucket_guard,
+            weights,
         )
         if np.any(keep):
             src_chunks.append(src[keep].astype(np.int32))
@@ -163,6 +165,7 @@ def edge_keep(
     max_normal_angle: float,
     max_plane_residual: float,
     bucket_guard: str,
+    weights: dict[str, float],
 ) -> np.ndarray:
     xyz_a = arrays["xyz"][src]
     xyz_b = arrays["xyz"][dst]
@@ -207,14 +210,15 @@ def edge_keep(
         + 0.14 * scores["height_range"]
     )
     texture_score = 0.62 * scores["color"] + 0.38 * scores["color_texture"]
+    total_weight = max(float(sum(weights.values())), 1e-6)
     total = (
-        0.36 * texture_score
-        + 0.28 * shape_score
-        + 0.12 * scores["height"]
-        + 0.10 * scores["bucket"]
-        + 0.07 * scores["normal"]
-        + 0.07 * scores["plane"]
-    )
+        weights["texture"] * texture_score
+        + weights["shape"] * shape_score
+        + weights["height"] * scores["height"]
+        + weights["bucket"] * scores["bucket"]
+        + weights["normal"] * scores["normal"]
+        + weights["plane"] * scores["plane"]
+    ) / total_weight
     return (~veto) & (total >= min_edge_score)
 
 
@@ -351,6 +355,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-normal-angle", type=float, default=58.0)
     parser.add_argument("--max-plane-residual", type=float, default=0.12)
     parser.add_argument("--bucket-guard", choices=("loose", "same-or-unknown", "no-rough-bridge", "same-bucket"), default="loose")
+    parser.add_argument("--texture-weight", type=float, default=0.36)
+    parser.add_argument("--shape-weight", type=float, default=0.28)
+    parser.add_argument("--height-weight", type=float, default=0.12)
+    parser.add_argument("--bucket-weight", type=float, default=0.10)
+    parser.add_argument("--normal-weight", type=float, default=0.07)
+    parser.add_argument("--plane-weight", type=float, default=0.07)
     parser.add_argument("--small-patch-voxels", type=int, default=8)
     parser.add_argument("--max-points", type=int, default=None)
     return parser.parse_args()
@@ -382,6 +392,14 @@ def main() -> int:
         args.max_normal_angle,
         args.max_plane_residual,
         args.bucket_guard,
+        {
+            "texture": args.texture_weight,
+            "shape": args.shape_weight,
+            "height": args.height_weight,
+            "bucket": args.bucket_weight,
+            "normal": args.normal_weight,
+            "plane": args.plane_weight,
+        },
     )
     _count, labels = connected_labels(len(arrays["keys"]), src, dst)
     write_outputs(args.output_dir, arrays, labels, args)
