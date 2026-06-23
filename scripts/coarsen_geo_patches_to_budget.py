@@ -16,6 +16,8 @@ from __future__ import annotations
 import argparse
 import heapq
 import json
+import sys
+import time
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,6 +40,10 @@ from optimize_geo_patch_merges import (
 
 
 STABLE_TYPES = {"horizontal", "vertical"}
+
+
+def log(message: str) -> None:
+    print(f"[{time.strftime('%Y-%m-%dT%H:%M:%S')}] {message}", file=sys.stderr, flush=True)
 
 
 class DSU:
@@ -467,6 +473,9 @@ def coarsen(
         for patch_id, patch_stats in stats.items()
         if patch_stats.count <= args.noise_patch_voxels
     }
+    precollapsed_noise_id = getattr(args, "precollapsed_noise_id", None)
+    if precollapsed_noise_id is not None and int(precollapsed_noise_id) in stats:
+        noise_source_ids.add(int(precollapsed_noise_id))
     active = {patch_id: patch_stats for patch_id, patch_stats in stats.items() if patch_id not in noise_source_ids}
     if not active:
         raise ValueError("all patches were filtered as noise; lower --noise-patch-voxels")
@@ -541,6 +550,35 @@ def coarsen(
     return out, active, report, merge_log, overlap_log
 
 
+def precollapse_tiny_patches(labels: np.ndarray, threshold: int) -> tuple[np.ndarray, dict[str, Any]]:
+    if threshold <= 0:
+        return labels, {"enabled": False}
+    max_label = int(labels.max())
+    counts = np.bincount(labels.astype(np.int64, copy=False), minlength=max_label + 1)
+    present = counts > 0
+    tiny = present & (counts <= threshold)
+    tiny_ids = np.flatnonzero(tiny)
+    if len(tiny_ids) == 0:
+        return labels, {
+            "enabled": True,
+            "threshold": int(threshold),
+            "tiny_patch_count": 0,
+            "tiny_voxel_count": 0,
+            "noise_patch_id": None,
+        }
+    noise_id = max_label + 1
+    table = np.arange(noise_id + 1, dtype=np.int32)
+    table[tiny_ids] = noise_id
+    out = table[labels]
+    return out, {
+        "enabled": True,
+        "threshold": int(threshold),
+        "tiny_patch_count": int(len(tiny_ids)),
+        "tiny_voxel_count": int(counts[tiny_ids].sum()),
+        "noise_patch_id": int(noise_id),
+    }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--region-input", type=Path, required=True)
@@ -548,6 +586,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--target-patches", type=int, default=1000)
     parser.add_argument("--noise-patch-voxels", type=int, default=0, help="Collapse source patches at or below this voxel count into one noise patch before coarsening")
+    parser.add_argument("--precollapse-noise", action=argparse.BooleanOptionalAction, default=True, help="Vector-collapse tiny source labels before expensive per-patch statistics")
     parser.add_argument("--grid-cell-size", type=float, default=2.0, help="Deprecated; kept for CLI compatibility")
     parser.add_argument("--neighbors-per-patch", type=int, default=12)
     parser.add_argument("--max-centroid-distance", type=float, default=3.0)
@@ -595,16 +634,37 @@ def main() -> int:
     args = parse_args()
     if args.target_patches <= 0:
         raise ValueError("--target-patches must be positive")
+    log(f"read region input: {args.region_input}")
     arrays, _, _ = read_region_input(args.region_input)
+    log(f"read labels: {args.labels}")
     labels = read_labels(args.labels)
     if len(labels) != len(arrays["xyz"]):
         raise ValueError(f"label count mismatch: labels={len(labels)} voxels={len(arrays['xyz'])}")
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    precollapse_report = {"enabled": False}
+    if args.precollapse_noise and args.noise_patch_voxels > 0:
+        log(f"precollapse tiny patches <= {args.noise_patch_voxels} voxels")
+        labels, precollapse_report = precollapse_tiny_patches(labels, args.noise_patch_voxels)
+        # The labels now contain one explicit residual patch, so the slower
+        # stats-level tiny-patch collapse is no longer needed.
+        args.noise_patch_voxels = 0
+        args.precollapsed_noise_id = precollapse_report.get("noise_patch_id")
+        log(
+            "precollapse done: "
+            f"tiny_patches={precollapse_report.get('tiny_patch_count')} "
+            f"tiny_voxels={precollapse_report.get('tiny_voxel_count')}"
+        )
+    log("compute patch stats")
     stats = compute_patch_stats(arrays, labels)
+    log(f"coarsen active stats: {len(stats)} patches")
     out, component_stats, report, merge_log, overlap_log = coarsen(arrays, labels, stats, args)
+    report["precollapse_noise"] = precollapse_report
+    log(f"coarsen done: output_patches={len(component_stats)}")
     report["output_ply"] = str(args.output_dir / f"geo_patches_coarse_stride{args.preview_stride}.ply")
     report["output_jsonl"] = str(args.output_dir / "geo_patches_coarse.jsonl")
+    log(f"write preview ply: {report['output_ply']}")
     report["preview_points"] = write_ply(Path(report["output_ply"]), arrays, out, args.preview_stride)
+    log(f"write jsonl: {report['output_jsonl']}")
     report["jsonl_patch_count"] = write_component_jsonl(Path(report["output_jsonl"]), component_stats, args)
     (args.output_dir / "coarse_merge_log.jsonl").write_text(
         "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in merge_log),

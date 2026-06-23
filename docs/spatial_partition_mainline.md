@@ -403,6 +403,54 @@ Patch graph energy v3 on 5070Ti:
     current 700k-patch graph is unlikely to reach the target thousand-level
     patch budget without over-merging.
 
+Coarse supernode diagnostic on 5070Ti:
+
+- Scripts:
+  - `scripts/coarsen_geo_patches_to_budget.py`
+  - `scripts/run_rtx5070_geo_patch_coarsen.sh`
+- Reason:
+  - The 0.03m C++ region run produced `718,025` patches, with median size `1`
+    voxel and p90 size `3` voxels.  A full Python coarsen on all 718k labels did
+    not produce any stage output after several minutes because it was spending
+    time building per-patch Python statistics for mostly tiny components.
+- Implementation change:
+  - Added vectorized pre-collapse for tiny labels before expensive patch
+    statistics.
+  - Added stage logging to the coarsen script so long runs show whether they
+    are in read, pre-collapse, stats, merge, or write.
+- Size distribution from `_cpp_region_grower_labels.bin`:
+  - total voxels: `4,572,554`.
+  - total patches: `718,025`.
+  - patches `<=1` voxel: `516,451` (`516,451` voxels).
+  - patches `<=3` voxels: `651,931` (`822,595` voxels).
+  - patches `<=8` voxels: `698,189` (`1,062,108` voxels).
+- `target=20,000`, pre-collapse `<=8` result:
+  - active input patches after pre-collapse: `19,837`.
+  - output patches: `19,533`.
+  - main merge count: `0` because active count was already below target.
+  - overlap suppression merge count: `304`.
+  - `0.20m` mixed object voxel ratio on stride5 preview: `0.2268`.
+- `target=5,000`, pre-collapse `<=8` result:
+  - active input patches after pre-collapse: `19,837`.
+  - output patches: `4,804`.
+  - main merge count: `14,837`.
+  - evaluated edges: `15,278`.
+  - low-score rejects: `440`.
+  - overlap suppression merge count: `196`.
+  - `0.20m` mixed object voxel ratio on stride5 preview: `0.2096`.
+  - top-1000 AABB overlap pairs: `3,639 / 499,500`.
+- Interpretation:
+  - Pre-collapse proves the coarsen stage can operate at useful scale once the
+    pathological one-voxel patch population is removed.
+  - The current pre-collapse is only a diagnostic: collapsing all `<=8` voxel
+    patches into one residual consumes `1,062,108` voxels, so it cannot be a
+    final object boundary model.
+  - The next production change should replace global residual collapse with
+    spatially connected residual components, then let residual components merge
+    back into neighboring supernodes only when geometry/color compatibility is
+    strong.  This keeps the graph tractable without losing 23% of voxels into a
+    single non-object bucket.
+
 Dense colorized source note:
 
 - The full colorized reconstruction is
