@@ -548,6 +548,39 @@ Dense colorized source note:
     point ownership conflict. The next metric must use fine voxel intersection
     or shared occupied-cell evidence before accepting more merges, otherwise
     the optimizer will over-merge buildings, trees, and ground again.
+- Dense energy-graph labels and fine-cell overlap diagnostics:
+  - `optimize_patch_graph_energy.py` now writes final one-voxel-one-owner labels
+    as `*_labels.bin` with the same `GPRGlabels1` schema used by coarsening.
+    This is required for precise diagnostics and later object construction.
+  - output: `dense_las_voxel003_energy_v4_overlap_candidates_rerun_labels_20260624`.
+    It reproduces the v4 result (`50000 -> 48750`) and adds final labels.
+  - `analyze_geo_patch_bbox_overlap.py` now optionally reads region input and
+    labels to report fine-cell co-occupancy, not just AABB overlap.
+  - top-1000 v4 fine-cell diagnostic:
+    - AABB overlap pairs: `2055`.
+    - AABB near-contained pairs: `1350`.
+    - at `0.08m` fine cells: `1165` bbox pairs share at least one occupied
+      cell, `352` have fine-cell ratio `>=0.5`, and only `4` have ratio
+      `>=0.95`.
+    - at `0.05m` fine cells: `1093` bbox pairs share at least one occupied
+      cell, `65` have fine-cell ratio `>=0.5`, and `0` have ratio `>=0.95`.
+    - `418` of the AABB near-contained pairs have no `0.05m` fine-cell overlap
+      at all.
+  - Interpretation: residual AABB containment is mostly a bounding-box artifact,
+    not proof that two patches occupy the same space. Continuing to merge based
+    on AABB alone is mathematically wrong.
+- Dense energy-graph v5 with fine-cell candidates:
+  - output: `dense_las_voxel003_energy_v5_fine_overlap_candidates_20260624`.
+  - settings: v4 plus `--enable-fine-overlap-merge-candidates` at `0.05m`.
+  - result: same patch counts and overlap metrics as v4 (`50000 -> 48750`,
+    top-1000 AABB overlap `2055`).
+  - merge log: `7` accepted candidates carried `fine_overlap` evidence; the run
+    remained dominated by AABB overlap candidates.
+  - Interpretation: fine-cell evidence is useful as a diagnostic and future
+    gate, but the current v5 still treats it as an additive candidate source.
+    The next optimizer revision should make occupied-cell support a gate or
+    primary support term for overlap-only merges, while AABB should be only a
+    cheap recall prefilter.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color

@@ -91,6 +91,14 @@ def read_labels(path: Path) -> np.ndarray:
         return np.fromfile(f, dtype="<i4", count=n).astype(np.int32, copy=False)
 
 
+def write_labels(path: Path, labels: np.ndarray) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as f:
+        f.write(b"GPRGlabels1\n")
+        np.array([len(labels)], dtype="<i8").tofile(f)
+        labels.astype("<i4", copy=False).tofile(f)
+
+
 def normalize_rows(value: np.ndarray) -> np.ndarray:
     norm = np.linalg.norm(value, axis=1)
     out = np.zeros_like(value, dtype=np.float64)
@@ -411,10 +419,66 @@ def build_overlap_candidate_scores(stats: dict[int, PatchStats], args: argparse.
     return out
 
 
+def linearize_cells(xyz: np.ndarray, voxel_size: float) -> np.ndarray:
+    grid = np.floor(xyz / voxel_size).astype(np.int64, copy=False)
+    grid -= grid.min(axis=0)
+    dims = grid.max(axis=0) + 1
+    return (grid[:, 0] * dims[1] + grid[:, 1]) * dims[2] + grid[:, 2]
+
+
+def build_fine_overlap_candidate_scores(
+    xyz: np.ndarray,
+    labels: np.ndarray,
+    stats: dict[int, PatchStats],
+    args: argparse.Namespace,
+) -> dict[tuple[int, int], float]:
+    if not args.enable_fine_overlap_merge_candidates or args.fine_overlap_voxel_size <= 0:
+        return {}
+    cell_ids = linearize_cells(xyz, args.fine_overlap_voxel_size)
+    order = np.lexsort((labels, cell_ids))
+    cell_ids = cell_ids[order]
+    sorted_labels = labels[order].astype(np.int64, copy=False)
+    starts = np.r_[0, np.flatnonzero(np.diff(cell_ids)) + 1]
+    ends = np.r_[starts[1:], len(cell_ids)]
+
+    patch_cell_counts: Counter[int] = Counter()
+    pair_cell_counts: Counter[tuple[int, int]] = Counter()
+    for start, end in zip(starts.tolist(), ends.tolist()):
+        cell_labels = np.unique(sorted_labels[start:end])
+        if len(cell_labels) < 2 or len(cell_labels) > args.fine_overlap_max_labels_per_cell:
+            if len(cell_labels) == 1:
+                patch_cell_counts[int(cell_labels[0])] += 1
+            continue
+        labels_list = [int(v) for v in cell_labels.tolist() if int(v) in stats]
+        if len(labels_list) < 2:
+            continue
+        for label in labels_list:
+            patch_cell_counts[label] += 1
+        for i, a in enumerate(labels_list):
+            for b in labels_list[i + 1 :]:
+                pair_cell_counts[(a, b)] += 1
+
+    out: dict[tuple[int, int], float] = {}
+    for (a, b), shared in pair_cell_counts.items():
+        if shared < args.fine_overlap_min_cells:
+            continue
+        min_cells = min(patch_cell_counts.get(a, 0), patch_cell_counts.get(b, 0))
+        if min_cells <= 0:
+            continue
+        ratio = float(shared) / max(float(min_cells), 1.0)
+        if ratio < args.fine_overlap_min_ratio:
+            continue
+        out[(a, b)] = ratio
+        if len(out) >= args.fine_overlap_max_pairs:
+            break
+    return out
+
+
 def build_merge_candidates(
     edge_counts: dict[tuple[int, int], int],
     stats: dict[int, PatchStats],
     args: argparse.Namespace,
+    fine_scores: dict[tuple[int, int], float] | None = None,
 ) -> list[dict[str, Any]]:
     candidates: dict[tuple[int, int], dict[str, Any]] = {}
     for pair, shared in edge_counts.items():
@@ -428,6 +492,7 @@ def build_merge_candidates(
             "support": support,
             "source": "adjacency",
             "overlap_support": 0.0,
+            "fine_overlap_support": 0.0,
         }
 
     overlap_scores = build_overlap_candidate_scores(stats, args)
@@ -443,6 +508,24 @@ def build_merge_candidates(
             "support": float(score),
             "source": "overlap",
             "overlap_support": float(score),
+            "fine_overlap_support": 0.0,
+        }
+
+    for pair, score in (fine_scores or {}).items():
+        if pair in candidates:
+            candidates[pair]["support"] = max(float(candidates[pair]["support"]), float(score))
+            candidates[pair]["fine_overlap_support"] = float(score)
+            source = str(candidates[pair]["source"])
+            if "fine_overlap" not in source:
+                candidates[pair]["source"] = f"{source}+fine_overlap"
+            continue
+        candidates[pair] = {
+            "pair": pair,
+            "shared_edges": 0,
+            "support": float(score),
+            "source": "fine_overlap",
+            "overlap_support": 0.0,
+            "fine_overlap_support": float(score),
         }
 
     out = list(candidates.values())
@@ -735,7 +818,8 @@ def merge_step(
     temp: float,
 ) -> tuple[np.ndarray, int, list[dict[str, Any]], int]:
     edge_counts = build_edge_counts(labels, arrays["src"] if "src" in arrays else np.array([], dtype=np.int32), arrays["dst"] if "dst" in arrays else np.array([], dtype=np.int32))
-    candidates = build_merge_candidates(edge_counts, stats, args)
+    fine_scores = build_fine_overlap_candidate_scores(arrays["xyz"], labels, stats, args)
+    candidates = build_merge_candidates(edge_counts, stats, args, fine_scores=fine_scores)
     if not candidates:
         return labels, 0, [], 0
 
@@ -749,6 +833,7 @@ def merge_step(
         candidate_source = str(candidate["source"])
         candidate_support = float(candidate["support"])
         overlap_support = float(candidate.get("overlap_support", 0.0))
+        fine_overlap_support = float(candidate.get("fine_overlap_support", 0.0))
         if a not in stats or b not in stats:
             continue
         if min(stats[a].count, stats[b].count) < args.min_anchor_voxels:
@@ -767,11 +852,17 @@ def merge_step(
 
         adjacency_share = float(shared) / max(float(min(anchor.count, src_stats.count)), 1.0)
         neighbor_share = max(adjacency_share, candidate_support)
-        if candidate_source == "overlap":
-            if overlap_support < args.overlap_candidate_min_ratio:
-                continue
-        elif adjacency_share < args.merge_min_neighbor_support and overlap_support < args.overlap_candidate_min_ratio:
+        if candidate_source == "overlap" and overlap_support < args.overlap_candidate_min_ratio:
             continue
+        if candidate_source == "fine_overlap" and fine_overlap_support < args.fine_overlap_min_ratio:
+            continue
+        if "adjacency" in candidate_source:
+            if (
+                adjacency_share < args.merge_min_neighbor_support
+                and overlap_support < args.overlap_candidate_min_ratio
+                and fine_overlap_support < args.fine_overlap_min_ratio
+            ):
+                continue
         gain, detail = merge_pair_gain(anchor, src_stats, shared, neighbor_share, args)
         accepted_decision = False
         if gain >= args.min_merge_gain:
@@ -793,6 +884,7 @@ def merge_step(
                         "neighbor_share": float(neighbor_share),
                         "adjacency_share": float(adjacency_share),
                         "overlap_support": float(overlap_support),
+                        "fine_overlap_support": float(fine_overlap_support),
                         "candidate_source": candidate_source,
                         "reason": "min_gain_or_anneal_fail",
                         **detail,
@@ -815,6 +907,7 @@ def merge_step(
                     "neighbor_share": float(neighbor_share),
                     "adjacency_share": float(adjacency_share),
                     "overlap_support": float(overlap_support),
+                    "fine_overlap_support": float(fine_overlap_support),
                     "candidate_source": candidate_source,
                     "gain": float(gain),
                     **detail,
@@ -1047,6 +1140,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--overlap-candidate-max-centroid", type=float, default=20.0)
     parser.add_argument("--overlap-candidate-long-min-ratio", type=float, default=0.90)
     parser.add_argument("--overlap-candidate-max-pairs", type=int, default=60000)
+    parser.add_argument("--enable-fine-overlap-merge-candidates", action="store_true")
+    parser.add_argument("--fine-overlap-voxel-size", type=float, default=0.05)
+    parser.add_argument("--fine-overlap-min-cells", type=int, default=4)
+    parser.add_argument("--fine-overlap-min-ratio", type=float, default=0.50)
+    parser.add_argument("--fine-overlap-max-labels-per-cell", type=int, default=8)
+    parser.add_argument("--fine-overlap-max-pairs", type=int, default=80000)
 
     parser.add_argument("--anneal-temp-start", type=float, default=0.33)
     parser.add_argument("--anneal-temp-min", type=float, default=0.02)
@@ -1079,16 +1178,19 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     stem = args.output_stem
-    report["schema"] = "geo-patch-energy-graph-v4"
+    report["schema"] = "geo-patch-energy-graph-v5" if args.enable_fine_overlap_merge_candidates else "geo-patch-energy-graph-v4"
     report["region_input"] = str(args.region_input)
     report["labels_in"] = str(args.labels)
     log("write preview ply")
     report["preview_points"] = write_ply(out_dir / f"{stem}_stride{args.preview_stride}.ply", arrays, optimized, args.preview_stride)
+    report["output_labels"] = str(out_dir / f"{stem}_labels.bin")
     report["output_jsonl"] = str(out_dir / f"{stem}.jsonl")
     report["output_report"] = str(out_dir / f"{stem}_report.json")
     report["output_split_log"] = str(out_dir / "split_log.jsonl")
     report["output_boundary_log"] = str(out_dir / "boundary_log.jsonl")
     report["output_merge_log"] = str(out_dir / "merge_log.jsonl")
+    log("write labels")
+    write_labels(Path(report["output_labels"]), optimized)
     log("write jsonl")
     report["jsonl_patch_count"] = write_jsonl(out_dir / f"{stem}.jsonl", stats, args)
 

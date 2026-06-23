@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Analyze AABB overlap among the largest geometry patches."""
+"""Analyze AABB and fine-cell overlap among the largest geometry patches."""
 
 from __future__ import annotations
 
@@ -12,6 +12,16 @@ from pathlib import Path
 
 
 SIZE_BINS = [0, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 10**18]
+np = None
+
+
+def require_numpy():
+    global np
+    if np is None:
+        import numpy as _np
+
+        np = _np
+    return np
 
 
 def size_bin_label(value: int) -> str:
@@ -104,7 +114,92 @@ def write_csv(path: Path, rows: list[dict], fields: list[str]) -> None:
         writer.writerows(rows)
 
 
-def analyze(input_jsonl: Path, output_dir: Path, top_n: int, bbox_pad: float) -> dict:
+def read_region_xyz(path: Path) -> np.ndarray:
+    np = require_numpy()
+    with path.open("rb") as f:
+        if f.read(len(b"GPRGv1\n")) != b"GPRGv1\n":
+            raise ValueError(f"invalid region input magic: {path}")
+        n = int(np.fromfile(f, dtype="<i8", count=1)[0])
+        _m = int(np.fromfile(f, dtype="<i8", count=1)[0])
+        return np.fromfile(f, dtype="<f4", count=n * 3).reshape(n, 3)
+
+
+def read_labels(path: Path) -> np.ndarray:
+    np = require_numpy()
+    with path.open("rb") as f:
+        if f.read(len(b"GPRGlabels1\n")) != b"GPRGlabels1\n":
+            raise ValueError(f"invalid labels magic: {path}")
+        n = int(np.fromfile(f, dtype="<i8", count=1)[0])
+        labels = np.fromfile(f, dtype="<i4", count=n)
+    if len(labels) != n:
+        raise ValueError(f"label file ended early: expected={n} got={len(labels)}")
+    return labels
+
+
+def linearize_cells(xyz: np.ndarray, voxel_size: float) -> np.ndarray:
+    np = require_numpy()
+    grid = np.floor(xyz / voxel_size).astype(np.int64, copy=False)
+    grid -= grid.min(axis=0)
+    dims = grid.max(axis=0) + 1
+    return (grid[:, 0] * dims[1] + grid[:, 1]) * dims[2] + grid[:, 2]
+
+
+def fine_cell_overlap(
+    region_input: Path,
+    labels_path: Path,
+    patch_ids: set[int],
+    voxel_size: float,
+    max_labels_per_cell: int,
+) -> tuple[dict[int, int], dict[tuple[int, int], int]]:
+    np = require_numpy()
+    xyz = read_region_xyz(region_input)
+    labels = read_labels(labels_path)
+    if len(labels) != len(xyz):
+        raise ValueError(f"label count mismatch: labels={len(labels)} xyz={len(xyz)}")
+
+    unique_patch_ids = np.array(sorted(patch_ids), dtype=np.int32)
+    mask = np.isin(labels, unique_patch_ids)
+    if not np.any(mask):
+        return {}, {}
+
+    selected_labels = labels[mask].astype(np.int64, copy=False)
+    cell_ids = linearize_cells(xyz[mask], voxel_size)
+    order = np.lexsort((selected_labels, cell_ids))
+    cell_ids = cell_ids[order]
+    selected_labels = selected_labels[order]
+
+    patch_cell_counts: Counter[int] = Counter()
+    pair_cell_counts: Counter[tuple[int, int]] = Counter()
+    starts = np.r_[0, np.flatnonzero(np.diff(cell_ids)) + 1]
+    ends = np.r_[starts[1:], len(cell_ids)]
+    for start, end in zip(starts.tolist(), ends.tolist()):
+        cell_labels = np.unique(selected_labels[start:end])
+        if len(cell_labels) == 0:
+            continue
+        if len(cell_labels) > max_labels_per_cell:
+            # Large mixed cells are usually coarse quantization artifacts.
+            continue
+        labels_list = [int(v) for v in cell_labels.tolist()]
+        for label in labels_list:
+            patch_cell_counts[label] += 1
+        if len(labels_list) < 2:
+            continue
+        for i, a in enumerate(labels_list):
+            for b in labels_list[i + 1 :]:
+                pair_cell_counts[(a, b)] += 1
+    return dict(patch_cell_counts), dict(pair_cell_counts)
+
+
+def analyze(
+    input_jsonl: Path,
+    output_dir: Path,
+    top_n: int,
+    bbox_pad: float,
+    region_input: Path | None,
+    labels_path: Path | None,
+    fine_voxel_size: float,
+    max_labels_per_cell: int,
+) -> dict:
     output_dir.mkdir(parents=True, exist_ok=True)
     top = load_top_patches(input_jsonl, top_n=top_n, bbox_pad=bbox_pad)
     if len(top) < 2:
@@ -128,6 +223,17 @@ def analyze(input_jsonl: Path, output_dir: Path, top_n: int, bbox_pad: float) ->
         }
         for patch in top
     }
+    top_patch_ids = {int(patch["patch_id"]) for patch in top}
+    fine_patch_cells: dict[int, int] = {}
+    fine_pair_cells: dict[tuple[int, int], int] = {}
+    if region_input and labels_path:
+        fine_patch_cells, fine_pair_cells = fine_cell_overlap(
+            region_input=region_input,
+            labels_path=labels_path,
+            patch_ids=top_patch_ids,
+            voxel_size=fine_voxel_size,
+            max_labels_per_cell=max_labels_per_cell,
+        )
 
     for i, a in enumerate(top):
         for b in top[i + 1 :]:
@@ -160,6 +266,9 @@ def analyze(input_jsonl: Path, output_dir: Path, top_n: int, bbox_pad: float) ->
                     "overlap_dz": dims[2],
                     "volume_a": a["volume"],
                     "volume_b": b["volume"],
+                    "shared_fine_cells": fine_pair_cells.get(tuple(sorted((int(a["patch_id"]), int(b["patch_id"])))), 0),
+                    "fine_cells_a": fine_patch_cells.get(int(a["patch_id"]), 0),
+                    "fine_cells_b": fine_patch_cells.get(int(b["patch_id"]), 0),
                 }
             )
 
@@ -173,6 +282,17 @@ def analyze(input_jsonl: Path, output_dir: Path, top_n: int, bbox_pad: float) ->
                     stats["high_pairs_50"] += 1
                 if ratio_min >= 0.95:
                     stats["high_pairs_95"] += 1
+
+    for row in pair_rows:
+        shared = int(row["shared_fine_cells"])
+        cells_a = int(row["fine_cells_a"])
+        cells_b = int(row["fine_cells_b"])
+        min_cells = min(cells_a, cells_b)
+        max_cells = max(cells_a, cells_b)
+        union_cells = cells_a + cells_b - shared
+        row["fine_ratio_min_cells"] = shared / min_cells if min_cells > 0 else 0.0
+        row["fine_ratio_max_cells"] = shared / max_cells if max_cells > 0 else 0.0
+        row["fine_iou_cells"] = shared / union_cells if union_cells > 0 else 0.0
 
     pair_rows.sort(key=lambda row: (row["ratio_min_volume"], row["overlap_volume"]), reverse=True)
     patch_rows = list(patch_stats.values())
@@ -221,7 +341,23 @@ def analyze(input_jsonl: Path, output_dir: Path, top_n: int, bbox_pad: float) ->
             "overlap_dz",
             "volume_a",
             "volume_b",
+            "shared_fine_cells",
+            "fine_cells_a",
+            "fine_cells_b",
+            "fine_ratio_min_cells",
+            "fine_ratio_max_cells",
+            "fine_iou_cells",
         ],
+    )
+
+    fine_enabled = bool(region_input and labels_path)
+    fine_pair_count = sum(1 for row in pair_rows if row.get("shared_fine_cells", 0) > 0)
+    fine_high_50 = sum(1 for row in pair_rows if row.get("fine_ratio_min_cells", 0.0) >= 0.5)
+    fine_high_95 = sum(1 for row in pair_rows if row.get("fine_ratio_min_cells", 0.0) >= 0.95)
+    bbox_high_no_fine = sum(
+        1
+        for row in pair_rows
+        if row["ratio_min_volume"] >= 0.95 and row.get("shared_fine_cells", 0) == 0
     )
     write_csv(
         patch_csv,
@@ -251,6 +387,18 @@ def analyze(input_jsonl: Path, output_dir: Path, top_n: int, bbox_pad: float) ->
         "possible_pair_count": top_n * (top_n - 1) // 2,
         "overlap_pair_ratio": len(pair_rows) / (top_n * (top_n - 1) // 2),
         "ratio_min_volume_hist": dict(ratio_hist),
+        "fine_cell_overlap": {
+            "enabled": fine_enabled,
+            "region_input": str(region_input) if region_input else None,
+            "labels": str(labels_path) if labels_path else None,
+            "fine_voxel_size": fine_voxel_size if fine_enabled else None,
+            "max_labels_per_cell": max_labels_per_cell if fine_enabled else None,
+            "patches_with_fine_cells": len(fine_patch_cells),
+            "fine_overlap_pair_count_among_bbox_pairs": fine_pair_count,
+            "fine_high_pairs_50": fine_high_50,
+            "fine_high_pairs_95": fine_high_95,
+            "bbox_near_contained_without_fine_overlap": bbox_high_no_fine,
+        },
         "patch_size_summary": patch_size_summary,
         "top_geometry_ratio_bins": [
             {"geometry_pair": key[0], "ratio_bin": key[1], "count": count}
@@ -275,6 +423,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--top-n", type=int, default=1000)
     parser.add_argument("--bbox-pad", type=float, default=0.05)
+    parser.add_argument("--region-input", type=Path)
+    parser.add_argument("--labels", type=Path)
+    parser.add_argument("--fine-voxel-size", type=float, default=0.08)
+    parser.add_argument("--max-labels-per-cell", type=int, default=8)
     return parser.parse_args()
 
 
@@ -285,6 +437,10 @@ def main() -> None:
         output_dir=args.output_dir,
         top_n=args.top_n,
         bbox_pad=args.bbox_pad,
+        region_input=args.region_input,
+        labels_path=args.labels,
+        fine_voxel_size=args.fine_voxel_size,
+        max_labels_per_cell=args.max_labels_per_cell,
     )
     print(
         json.dumps(
@@ -296,6 +452,7 @@ def main() -> None:
                 "possible_pair_count": report["possible_pair_count"],
                 "overlap_pair_ratio": report["overlap_pair_ratio"],
                 "ratio_min_volume_hist": report["ratio_min_volume_hist"],
+                "fine_cell_overlap": report["fine_cell_overlap"],
                 "output_pairs_csv": report["output_pairs_csv"],
                 "output_patch_csv": report["output_patch_csv"],
             },
