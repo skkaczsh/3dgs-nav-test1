@@ -496,6 +496,25 @@ Dense colorized source note:
     `0.03m`.  The next architecture step is not another data-source change; it
     is a real patch coarsening/graph optimization stage with one-voxel-one-owner
     invariants and streaming/binary output.
+- Dense coarsening tests on the above run:
+  - `dense_las_voxel003_coarsen50k_conncompat_20260624`
+    - tiny source patches `<=8`: `977000` patches / `1489358` voxels.
+    - connected-compatible precollapse reduced active stats to `130990`
+      patches.
+    - budget coarsen output: `50000` patches in `0:26.15`, peak RSS `4.3GB`.
+    - top-1000 AABB overlap: `3804 / 499500` pairs, including `1736`
+      near-contained pairs (`ratio_min_volume >= 0.95`).
+  - `dense_las_voxel003_coarsen50k_conncompat_overlap020_20260624`
+    - same precollapse and budget, plus `0.20m` overlap suppression.
+    - output: `44765` patches in `0:31.35`, peak RSS `4.3GB`.
+    - overlap suppression merged `5235` pairs, but top-1000 AABB overlap only
+      changed to `3718 / 499500` pairs and near-contained pairs increased to
+      `1792`.
+  - Interpretation: connected-compatible precollapse is useful and should stay.
+    Post-hoc AABB overlap suppression is not the right boundary fix.  The next
+    stage should do unified graph/energy optimization over patch boundaries and
+    object ownership, using overlap as a term in the objective rather than a
+    separate after-the-fact merge pass.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color

@@ -554,11 +554,13 @@ def precollapse_tiny_patches(
     labels: np.ndarray,
     src: np.ndarray,
     dst: np.ndarray,
-    xyz: np.ndarray,
+    arrays: dict[str, np.ndarray],
     threshold: int,
     mode: str,
     grid_size: float,
     min_component_voxels: int,
+    compatible_color_distance: float,
+    compatible_normal_dot: float,
 ) -> tuple[np.ndarray, dict[str, Any]]:
     if threshold <= 0:
         return labels, {"enabled": False}
@@ -616,6 +618,23 @@ def precollapse_tiny_patches(
     edge_a = labels[src]
     edge_b = labels[dst]
     tiny_edges = tiny_mask[edge_a] & tiny_mask[edge_b] & (edge_a != edge_b)
+    if mode == "connected-compatible":
+        rgb = arrays["rgb"].astype(np.float32, copy=False)
+        normal = arrays["normal"].astype(np.float32, copy=False)
+        buckets = arrays["buckets"].astype(np.int16, copy=False)
+        color_dist = np.linalg.norm(rgb[src] - rgb[dst], axis=1)
+        normal_dot = np.abs(np.sum(normal[src] * normal[dst], axis=1))
+        same_bucket = buckets[src] == buckets[dst]
+        flexible_bucket = (
+            np.isin(buckets[src], [0, 3, 4])
+            & np.isin(buckets[dst], [0, 3, 4])
+        )
+        compatible = (
+            (color_dist <= compatible_color_distance)
+            & ((normal_dot >= compatible_normal_dot) | flexible_bucket)
+            & (same_bucket | flexible_bucket)
+        )
+        tiny_edges &= compatible
     for a, b in zip(edge_a[tiny_edges].tolist(), edge_b[tiny_edges].tolist(), strict=True):
         union(int(a), int(b))
 
@@ -660,8 +679,9 @@ def precollapse_tiny_patches(
                     next_id += 1
                     connected_component_count += 1
                 table[int(label)] = root_to_new[int(root)]
-        elif mode == "connected-grid":
+        elif mode in {"connected-grid", "connected-compatible"}:
             small_indices = np.flatnonzero(small_label_mask)
+            xyz = arrays["xyz"]
             small_xyz = xyz[small_indices].astype(np.float64, copy=False)
             origin = np.floor(xyz.min(axis=0) / grid_size).astype(np.int64)
             grid = np.floor(small_xyz / max(grid_size, 1e-6)).astype(np.int64) - origin
@@ -702,6 +722,8 @@ def precollapse_tiny_patches(
         "small_component_voxel_count": int(small_component_voxel_count),
         "min_component_voxels": int(min_component_voxels),
         "grid_size": float(grid_size),
+        "compatible_color_distance": float(compatible_color_distance),
+        "compatible_normal_dot": float(compatible_normal_dot),
     }
 
 
@@ -713,9 +735,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target-patches", type=int, default=1000)
     parser.add_argument("--noise-patch-voxels", type=int, default=0, help="Collapse source patches at or below this voxel count into one noise patch before coarsening")
     parser.add_argument("--precollapse-noise", action=argparse.BooleanOptionalAction, default=True, help="Vector-collapse tiny source labels before expensive per-patch statistics")
-    parser.add_argument("--precollapse-mode", choices=["global", "connected", "connected-grid"], default="global")
+    parser.add_argument("--precollapse-mode", choices=["global", "connected", "connected-grid", "connected-compatible"], default="global")
     parser.add_argument("--precollapse-grid-size", type=float, default=0.50)
     parser.add_argument("--precollapse-min-component-voxels", type=int, default=24)
+    parser.add_argument("--precollapse-compatible-color-distance", type=float, default=95.0)
+    parser.add_argument("--precollapse-compatible-normal-dot", type=float, default=0.30)
     parser.add_argument("--grid-cell-size", type=float, default=2.0, help="Deprecated; kept for CLI compatibility")
     parser.add_argument("--neighbors-per-patch", type=int, default=12)
     parser.add_argument("--max-centroid-distance", type=float, default=3.0)
@@ -777,11 +801,13 @@ def main() -> int:
             labels=labels,
             src=src,
             dst=dst,
-            xyz=arrays["xyz"],
+            arrays=arrays,
             threshold=args.noise_patch_voxels,
             mode=args.precollapse_mode,
             grid_size=args.precollapse_grid_size,
             min_component_voxels=args.precollapse_min_component_voxels,
+            compatible_color_distance=args.precollapse_compatible_color_distance,
+            compatible_normal_dot=args.precollapse_compatible_normal_dot,
         )
         # The labels now contain explicit residual components, so the slower
         # stats-level tiny-patch collapse is no longer needed unless the mode
