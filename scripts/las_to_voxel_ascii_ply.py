@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Convert LAS/LAZ XYZRGB points to the ASCII XYZRGB PLY used by this repo.
+"""Convert LAS/LAZ XYZRGB points to the XYZRGB PLY used by this repo.
 
-The geo patch pipeline consumes ASCII PLY and performs its own feature
-construction.  For large scanner exports, writing every raw point as ASCII is
-unnecessarily large, so this tool can aggregate directly to a voxel grid and
-write one averaged RGB point per occupied voxel.
+The geo patch pipeline consumes XYZRGB PLY and performs its own feature
+construction.  For large scanner exports, writing every raw point is
+unnecessarily large, so this tool aggregates directly to a voxel grid and
+writes one averaged RGB point per occupied voxel.
 """
 
 from __future__ import annotations
@@ -102,12 +102,50 @@ def write_ascii_ply(output_ply: Path, accum: dict[str, np.ndarray]) -> None:
             )
 
 
+def write_binary_ply(output_ply: Path, accum: dict[str, np.ndarray]) -> None:
+    output_ply.parent.mkdir(parents=True, exist_ok=True)
+    order = np.argsort(accum["keys"], kind="stable")
+    dtype = np.dtype(
+        [
+            ("x", "<f4"),
+            ("y", "<f4"),
+            ("z", "<f4"),
+            ("red", "u1"),
+            ("green", "u1"),
+            ("blue", "u1"),
+        ]
+    )
+    rows = np.empty(len(order), dtype=dtype)
+    rows["x"] = accum["x"][order].astype(np.float32, copy=False)
+    rows["y"] = accum["y"][order].astype(np.float32, copy=False)
+    rows["z"] = accum["z"][order].astype(np.float32, copy=False)
+    rows["red"] = np.clip(np.rint(accum["red"][order]), 0, 255).astype(np.uint8, copy=False)
+    rows["green"] = np.clip(np.rint(accum["green"][order]), 0, 255).astype(np.uint8, copy=False)
+    rows["blue"] = np.clip(np.rint(accum["blue"][order]), 0, 255).astype(np.uint8, copy=False)
+    with output_ply.open("wb") as f:
+        header = (
+            "ply\n"
+            "format binary_little_endian 1.0\n"
+            f"element vertex {len(rows)}\n"
+            "property float x\n"
+            "property float y\n"
+            "property float z\n"
+            "property uchar red\n"
+            "property uchar green\n"
+            "property uchar blue\n"
+            "end_header\n"
+        )
+        f.write(header.encode("ascii"))
+        rows.tofile(f)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-las", type=Path, required=True)
     parser.add_argument("--output-ply", type=Path, required=True)
     parser.add_argument("--report-json", type=Path, required=True)
     parser.add_argument("--voxel-size", type=float, default=0.10)
+    parser.add_argument("--output-format", choices=("ascii", "binary_little_endian"), default="ascii")
     return parser.parse_args()
 
 
@@ -116,8 +154,12 @@ def main() -> int:
     if not math.isfinite(args.voxel_size) or args.voxel_size <= 0:
         raise ValueError("--voxel-size must be positive")
     accum, report = aggregate_las(args.input_las, args.voxel_size)
-    write_ascii_ply(args.output_ply, accum)
+    if args.output_format == "binary_little_endian":
+        write_binary_ply(args.output_ply, accum)
+    else:
+        write_ascii_ply(args.output_ply, accum)
     report["output_ply"] = str(args.output_ply)
+    report["output_format"] = args.output_format
     args.report_json.parent.mkdir(parents=True, exist_ok=True)
     args.report_json.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))

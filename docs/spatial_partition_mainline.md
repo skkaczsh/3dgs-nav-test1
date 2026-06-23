@@ -466,6 +466,21 @@ Coarse supernode diagnostic on 5070Ti:
 
 Dense colorized source note:
 
+- Dense source contract:
+  - The authoritative dense geometry/RGB source for `MT20260616-175807` is the
+    2.92GB LAS export:
+    `datasets/MT20260616-175807/3dgs_20260616_3dgs_0095fd8ebe7845f2b24820cb98de4abb_task_c967d04831bf45f0b9d7c3fac31b4103_output_pointcloud_CommandProcessLXOutput_MANIFOLD_MT20260616-175807-Opt.las`.
+  - It contains `97194579` points with XYZ, RGB, intensity, classification, and
+    extra `Label` dimensions.
+  - The canonical patch input derived from it on the 5070Ti host is:
+    `/home/zsh/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_20260624/dense_las_voxel003_binary.ply`.
+  - Conversion command:
+    `python scripts/las_to_voxel_ascii_ply.py --input-las <las> --output-ply <ply> --report-json <json> --voxel-size 0.03 --output-format binary_little_endian`.
+  - Conversion result: `14482557` occupied `0.03m` voxels, binary XYZRGB PLY,
+    `208MB`, validated by `build_geo_patch_demo.py` binary direct-read smoke.
+  - `frame_object_points_stride10.ply` and other viewer stride PLY files are
+    diagnostic/review artifacts only. They must not be used as authoritative
+    geometry inputs for patch-quality conclusions.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color
