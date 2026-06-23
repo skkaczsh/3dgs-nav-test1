@@ -358,12 +358,50 @@ Boundary transfer optimizer v1:
   - resolved cells: `12493`.
   - transferred points: `12538`.
   - `0.05m` conflict extra ratio: `0.5024%` -> `0.1668%`.
-  - `0.10m` conflict extra ratio: `4.7814%` -> `4.7017%`.
+- `0.10m` conflict extra ratio: `4.7814%` -> `4.7017%`.
 - Interpretation: direct boundary ownership transfer is much more effective
   than small-patch absorption for fine-cell conflicts.  The remaining coarse
   `0.10m` conflicts are mostly caused by using a coarser analysis grid than the
   ownership grid; reducing them will require either ownership at `0.10m` or
   producing viewer/output points at canonical voxel centers.
+
+Patch graph energy v3 on 5070Ti:
+
+- Scripts:
+  - `scripts/optimize_patch_graph_energy.py`
+  - `scripts/run_rtx5070_geo_patch_energy.sh`
+- Input:
+  `frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_object_points_stride10.ply`.
+- Parameters:
+  - voxel size: `0.03m`.
+  - backend: torch feature extraction + C++ region grower.
+  - optimizer: split + boundary transfer + annealing merge, output stem
+    `geo_patches_energy_v3`.
+- Implementation fixes in v3:
+  - Fine-cell normal is now the normalized mean normal of all normals in the
+    cell, not the first normalized row.
+  - Random-color preview no longer has bitwise precedence leakage, so patch
+    display has stronger deterministic contrast.
+  - Reports now include boundary and merge rejection reason counts.
+- 2026-06-24 full-run result:
+  - voxel count: `4,572,554`.
+  - initial C++ region patches: `718,025`.
+  - small patches: `694,648`.
+  - energy output patches: `705,693`.
+  - boundary moved points: `75,275`.
+  - boundary rejected cells: `735,815`.
+  - merge accepted/rejected: `75 / 24`.
+  - top-1000 AABB overlap pairs: `2,843 / 499,500`.
+  - `0.20m` mixed object voxel ratio on stride3 preview: `0.4553`.
+- Interpretation:
+  - v3 confirms the dominant failure is not viewer, VLM, or color display.  The
+    region candidate layer is already too fragmented, and the current energy
+    merge objective is too weak to recover object-scale patches after the fact.
+  - The next change should move object-scale compatibility into candidate
+    generation or make the energy objective optimize patch assignment over a
+    coarser supernode graph.  Continuing to tune scalar merge thresholds on the
+    current 700k-patch graph is unlikely to reach the target thousand-level
+    patch budget without over-merging.
 
 Dense colorized source note:
 
