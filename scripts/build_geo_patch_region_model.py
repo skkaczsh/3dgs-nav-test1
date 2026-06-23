@@ -558,34 +558,50 @@ def summarize_patches_from_labels(
 ) -> list[dict[str, Any]]:
     """Build viewer/report metadata from labels returned by a native backend."""
 
+    if len(labels) == 0:
+        return []
+    order = np.argsort(labels, kind="stable")
+    sorted_labels = labels[order]
+    starts = np.r_[0, np.flatnonzero(np.diff(sorted_labels)) + 1]
+    ends = np.r_[starts[1:], len(sorted_labels)]
+    patch_ids = sorted_labels[starts].astype(np.int32, copy=False)
+    counts = (ends - starts).astype(np.int64, copy=False)
+
+    xyz_sorted = arrays["xyz"][order].astype(np.float64, copy=False)
+    rgb_sorted = arrays["rgb"][order].astype(np.float64, copy=False)
+    normals_sorted = arrays["normal"][order].astype(np.float64, copy=False)
+    buckets_sorted = arrays["buckets"][order]
+
+    xyz_sum = np.add.reduceat(xyz_sorted, starts, axis=0)
+    rgb_sum = np.add.reduceat(rgb_sorted, starts, axis=0)
+    normal_sum = np.add.reduceat(normals_sorted, starts, axis=0)
+    xyz_min = np.minimum.reduceat(xyz_sorted, starts, axis=0)
+    xyz_max = np.maximum.reduceat(xyz_sorted, starts, axis=0)
+    centroids = xyz_sum / counts[:, None]
+    mean_rgb = rgb_sum / counts[:, None]
+    normal_norm = np.linalg.norm(normal_sum, axis=1)
+    mean_normals = np.zeros_like(normal_sum)
+    valid_normals = normal_norm > 1e-9
+    mean_normals[valid_normals] = normal_sum[valid_normals] / normal_norm[valid_normals, None]
+
     patches: list[dict[str, Any]] = []
-    for patch_id in sorted(int(v) for v in np.unique(labels)):
-        mask = labels == patch_id
-        if not np.any(mask):
-            continue
-        xyz = arrays["xyz"][mask].astype(np.float64, copy=False)
-        rgb = arrays["rgb"][mask].astype(np.float64, copy=False)
-        normals = arrays["normal"][mask].astype(np.float64, copy=False)
-        normal = normals.mean(axis=0)
-        norm = float(np.linalg.norm(normal))
-        if norm > 1e-9:
-            normal = normal / norm
-        bucket_counts_raw = Counter(int(v) for v in arrays["buckets"][mask].tolist())
+    for row_i, (patch_id, start, end, count) in enumerate(zip(patch_ids, starts, ends, counts, strict=True)):
+        bucket_counts_raw = Counter(int(v) for v in buckets_sorted[start:end].tolist())
         dominant_bucket, dominant_count = bucket_counts_raw.most_common(1)[0]
-        dominant_ratio = float(dominant_count) / max(float(mask.sum()), 1.0)
+        dominant_ratio = float(dominant_count) / max(float(count), 1.0)
         geometry_type = ID_BUCKETS[dominant_bucket] if dominant_ratio >= 0.65 else "mixed"
         patches.append(
             {
-                "patch_id": patch_id,
-                "voxel_count": int(mask.sum()),
-                "status": "small_patch" if int(mask.sum()) < args.small_patch_voxels else "geo_patch",
+                "patch_id": int(patch_id),
+                "voxel_count": int(count),
+                "status": "small_patch" if int(count) < args.small_patch_voxels else "geo_patch",
                 "geometry_type": geometry_type,
                 "bucket_counts": {ID_BUCKETS[int(k)]: int(v) for k, v in bucket_counts_raw.items()},
-                "centroid": xyz.mean(axis=0).astype(float).tolist(),
-                "bbox_3d": {"min": xyz.min(axis=0).astype(float).tolist(), "max": xyz.max(axis=0).astype(float).tolist()},
-                "extent": (xyz.max(axis=0) - xyz.min(axis=0)).astype(float).tolist(),
-                "mean_rgb": rgb.mean(axis=0).astype(float).tolist(),
-                "mean_normal": normal.astype(float).tolist(),
+                "centroid": centroids[row_i].astype(float).tolist(),
+                "bbox_3d": {"min": xyz_min[row_i].astype(float).tolist(), "max": xyz_max[row_i].astype(float).tolist()},
+                "extent": (xyz_max[row_i] - xyz_min[row_i]).astype(float).tolist(),
+                "mean_rgb": mean_rgb[row_i].astype(float).tolist(),
+                "mean_normal": mean_normals[row_i].astype(float).tolist(),
                 "mean_membership_score": None,
                 "rejected_reasons_top": {},
             }

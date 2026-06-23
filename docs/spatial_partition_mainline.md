@@ -288,6 +288,34 @@ C++ backend status:
   `--region-grow-backend cpp`; output remains compatible with the existing
   `geo_patches_region_model_random_color.ply` / JSONL viewer format.
 
+5070Ti 1M-voxel backend comparison:
+
+- Input:
+  `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_voxel010_ascii.ply`
+- Parameters: `--voxel-size 0.10 --max-points 1000000 --feature-backend torch`.
+- Initial full-pipeline timing:
+  - Python backend: `210s`.
+  - C++ backend before summary optimization: `209s`.
+  - Diagnosis: the C++ core was fast, but Python's label-to-patch summary used
+    one full boolean mask per patch, making the native backend spend most time
+    in O(voxels * patches) post-processing.
+- Region-grow core-only timing on the same serialized arrays/edges:
+  - Python core: `190.775s`.
+  - C++ core: `1.308s`.
+  - core speedup: `145.868x`.
+- After vectorizing the C++ label summary by sorted label groups:
+  - C++ full pipeline: `18s`.
+  - end-to-end speedup vs Python backend: about `11.7x`.
+- Result difference:
+  - Python: `999998` voxels, `42189` patches, `38729` small patches.
+  - C++: `999998` voxels, `42186` patches, `38726` small patches.
+  - same label id ratio: `0.9809`.
+  - Python patch -> C++ majority overlap: `1.0000`.
+  - C++ patch -> Python majority overlap: `0.999992`.
+- Interpretation: C++ backend is now suitable as the default region-growing
+  backend for large runs. Remaining pipeline bottlenecks are feature/edge
+  preparation and output writing, not region growth.
+
 Dense colorized source note:
 
 - The full colorized reconstruction is
