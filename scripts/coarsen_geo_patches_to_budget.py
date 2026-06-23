@@ -278,6 +278,19 @@ def suppress_overlap(
                 continue
             if current_stats[a].geometry_type == "noise_residual" or current_stats[b].geometry_type == "noise_residual":
                 continue
+            geom_a = current_stats[a].geometry_type
+            geom_b = current_stats[b].geometry_type
+            if args.overlap_block_stable_mismatch and geom_a in STABLE_TYPES and geom_b in STABLE_TYPES and geom_a != geom_b:
+                continue
+            if args.overlap_block_stable_rough:
+                rough_types = {"rough_mixed", "thin_linear", "unknown", "mixed"}
+                stable_rough = (geom_a in STABLE_TYPES and geom_b in rough_types) or (geom_b in STABLE_TYPES and geom_a in rough_types)
+                if stable_rough:
+                    continue
+            if args.overlap_same_geometry_only and geom_a != geom_b:
+                continue
+            if float(np.max(merged_extent(current_stats[a], current_stats[b]))) > args.overlap_hard_max_extent:
+                continue
             min_cells = min(cell_counts.get(a, 0), cell_counts.get(b, 0))
             if shared < args.overlap_min_cells or min_cells <= 0:
                 continue
@@ -351,6 +364,96 @@ def suppress_overlap(
     return current_labels, current_stats, report, logs
 
 
+def split_large_components(
+    arrays: dict[str, np.ndarray],
+    labels: np.ndarray,
+    component_stats: dict[int, PatchStats],
+    args: argparse.Namespace,
+) -> tuple[np.ndarray, dict[int, PatchStats], dict[str, Any]]:
+    if not args.split_large_patches:
+        return labels, component_stats, {"enabled": False}
+
+    split_ids = []
+    for patch_id, stats in component_stats.items():
+        if stats.geometry_type == "noise_residual":
+            continue
+        extent = stats.bbox_max - stats.bbox_min
+        if stats.count >= args.split_large_min_voxels or float(np.max(extent)) >= args.split_large_min_extent:
+            split_ids.append(int(patch_id))
+
+    if not split_ids:
+        return labels, component_stats, {
+            "enabled": True,
+            "candidate_patch_count": 0,
+            "split_patch_count": 0,
+            "new_patch_count": int(len(component_stats)),
+        }
+
+    next_labels = labels.copy()
+    next_id = int(max(int(labels.max()), max(component_stats))) + 1
+    rows: list[dict[str, Any]] = []
+    xyz = arrays["xyz"]
+    buckets = arrays["buckets"].astype(np.int64, copy=False)
+
+    for patch_id in split_ids:
+        stats = component_stats.get(patch_id)
+        if stats is None:
+            continue
+        indices = np.flatnonzero(next_labels == patch_id)
+        if len(indices) == 0:
+            continue
+        local_xyz = xyz[indices]
+        cell = np.floor((local_xyz - stats.bbox_min) / max(args.split_large_cell_size, 1e-6)).astype(np.int64)
+        cell -= cell.min(axis=0)
+        span = cell.max(axis=0) + 1
+        keys = (cell[:, 0] * max(int(span[1]), 1) + cell[:, 1]) * max(int(span[2]), 1) + cell[:, 2]
+        if args.split_large_by_bucket:
+            keys = keys * 16 + buckets[indices]
+        unique_keys, inverse, counts = np.unique(keys, return_inverse=True, return_counts=True)
+        if len(unique_keys) <= 1:
+            continue
+        keep_group = int(np.argmax(counts))
+        created = 0
+        for group_idx in range(len(unique_keys)):
+            group_mask = inverse == group_idx
+            group_count = int(np.count_nonzero(group_mask))
+            if group_count < args.split_large_min_child_voxels:
+                continue
+            if group_idx == keep_group:
+                continue
+            next_labels[indices[group_mask]] = next_id
+            next_id += 1
+            created += 1
+        if created:
+            rows.append(
+                {
+                    "patch_id": int(patch_id),
+                    "old_voxels": int(stats.count),
+                    "old_geometry_type": stats.geometry_type,
+                    "old_extent": (stats.bbox_max - stats.bbox_min).astype(float).tolist(),
+                    "raw_group_count": int(len(unique_keys)),
+                    "created_child_count": int(created),
+                }
+            )
+
+    next_stats = compute_patch_stats(arrays, next_labels)
+    report = {
+        "enabled": True,
+        "cell_size": float(args.split_large_cell_size),
+        "by_bucket": bool(args.split_large_by_bucket),
+        "min_voxels": int(args.split_large_min_voxels),
+        "min_extent": float(args.split_large_min_extent),
+        "min_child_voxels": int(args.split_large_min_child_voxels),
+        "candidate_patch_count": int(len(split_ids)),
+        "split_patch_count": int(len(rows)),
+        "created_child_count": int(sum(row["created_child_count"] for row in rows)),
+        "old_patch_count": int(len(component_stats)),
+        "new_patch_count": int(len(next_stats)),
+        "rows": rows[: args.max_log_rows],
+    }
+    return next_labels, next_stats, report
+
+
 def coarsen(
     arrays: dict[str, np.ndarray],
     labels: np.ndarray,
@@ -415,6 +518,7 @@ def coarsen(
             noise_stats.geometry_type = "noise_residual"
             active[noise_id] = noise_stats
     out, active, overlap_report, overlap_log = suppress_overlap(arrays=arrays, labels=out, component_stats=active, args=args)
+    out, active, split_report = split_large_components(arrays=arrays, labels=out, component_stats=active, args=args)
     report = {
         "schema": "geo-patch-coarsen-budget/v1",
         "input_patch_count": int(len(stats)),
@@ -431,6 +535,7 @@ def coarsen(
         "evaluated_edges": int(evaluated),
         "rejected": dict(rejected),
         "overlap_suppression": overlap_report,
+        "large_patch_split": split_report,
         "params": vars(args),
     }
     return out, active, report, merge_log, overlap_log
@@ -473,6 +578,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--overlap-ratio-weight", type=float, default=0.24)
     parser.add_argument("--overlap-min-score", type=float, default=0.48)
     parser.add_argument("--overlap-max-component-voxels", type=int, default=8000000)
+    parser.add_argument("--overlap-hard-max-extent", type=float, default=1e9)
+    parser.add_argument("--overlap-block-stable-mismatch", action="store_true")
+    parser.add_argument("--overlap-block-stable-rough", action="store_true")
+    parser.add_argument("--overlap-same-geometry-only", action="store_true")
+    parser.add_argument("--split-large-patches", action="store_true")
+    parser.add_argument("--split-large-min-voxels", type=int, default=500000)
+    parser.add_argument("--split-large-min-extent", type=float, default=45.0)
+    parser.add_argument("--split-large-cell-size", type=float, default=12.0)
+    parser.add_argument("--split-large-min-child-voxels", type=int, default=2000)
+    parser.add_argument("--split-large-by-bucket", action="store_true")
     return parser.parse_args()
 
 
