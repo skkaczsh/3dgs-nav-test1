@@ -23,6 +23,9 @@ OUTPUT_DIR="${OUTPUT_DIR:-${REMOTE_WORK}/${OUT_NAME}}"
 
 TARGET_PATCHES="${TARGET_PATCHES:-20000}"
 NOISE_PATCH_VOXELS="${NOISE_PATCH_VOXELS:-3}"
+PRECOLLAPSE_MODE="${PRECOLLAPSE_MODE:-connected-grid}"
+PRECOLLAPSE_GRID_SIZE="${PRECOLLAPSE_GRID_SIZE:-0.50}"
+PRECOLLAPSE_MIN_COMPONENT_VOXELS="${PRECOLLAPSE_MIN_COMPONENT_VOXELS:-24}"
 NEIGHBORS_PER_PATCH="${NEIGHBORS_PER_PATCH:-18}"
 MAX_CENTROID_DISTANCE="${MAX_CENTROID_DISTANCE:-2.5}"
 MAX_BBOX_GAP="${MAX_BBOX_GAP:-0.45}"
@@ -72,6 +75,9 @@ printf '%s\n' "\${OUT}" > "${REMOTE_WORK}/latest_geo_patch_5070_coarsen.txt"
   --output-dir "\${OUT}" \
   --target-patches "${TARGET_PATCHES}" \
   --noise-patch-voxels "${NOISE_PATCH_VOXELS}" \
+  --precollapse-mode "${PRECOLLAPSE_MODE}" \
+  --precollapse-grid-size "${PRECOLLAPSE_GRID_SIZE}" \
+  --precollapse-min-component-voxels "${PRECOLLAPSE_MIN_COMPONENT_VOXELS}" \
   --neighbors-per-patch "${NEIGHBORS_PER_PATCH}" \
   --max-centroid-distance "${MAX_CENTROID_DISTANCE}" \
   --max-bbox-gap "${MAX_BBOX_GAP}" \
@@ -109,4 +115,3 @@ tmux kill-session -t "${TMUX_SESSION}" 2>/dev/null || true
 tmux new-session -d -s "${TMUX_SESSION}" "${REMOTE_WORK}/run_scripts/${OUT_NAME}.sh"
 tmux ls
 REMOTE
-

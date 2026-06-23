@@ -550,7 +550,16 @@ def coarsen(
     return out, active, report, merge_log, overlap_log
 
 
-def precollapse_tiny_patches(labels: np.ndarray, threshold: int) -> tuple[np.ndarray, dict[str, Any]]:
+def precollapse_tiny_patches(
+    labels: np.ndarray,
+    src: np.ndarray,
+    dst: np.ndarray,
+    xyz: np.ndarray,
+    threshold: int,
+    mode: str,
+    grid_size: float,
+    min_component_voxels: int,
+) -> tuple[np.ndarray, dict[str, Any]]:
     if threshold <= 0:
         return labels, {"enabled": False}
     max_label = int(labels.max())
@@ -566,16 +575,133 @@ def precollapse_tiny_patches(labels: np.ndarray, threshold: int) -> tuple[np.nda
             "tiny_voxel_count": 0,
             "noise_patch_id": None,
         }
-    noise_id = max_label + 1
-    table = np.arange(noise_id + 1, dtype=np.int32)
-    table[tiny_ids] = noise_id
+    if mode == "global":
+        noise_id = max_label + 1
+        table = np.arange(noise_id + 1, dtype=np.int32)
+        table[tiny_ids] = noise_id
+        out = table[labels]
+        return out, {
+            "enabled": True,
+            "mode": mode,
+            "threshold": int(threshold),
+            "tiny_patch_count": int(len(tiny_ids)),
+            "tiny_voxel_count": int(counts[tiny_ids].sum()),
+            "noise_patch_id": int(noise_id),
+            "residual_component_count": 1,
+            "grid_residual_count": 0,
+        }
+
+    tiny_mask = np.zeros(max_label + 1, dtype=bool)
+    tiny_mask[tiny_ids] = True
+    parent = np.arange(max_label + 1, dtype=np.int32)
+    rank = np.zeros(max_label + 1, dtype=np.uint8)
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = int(parent[x])
+        return int(x)
+
+    def union(a: int, b: int) -> None:
+        ra = find(a)
+        rb = find(b)
+        if ra == rb:
+            return
+        if rank[ra] < rank[rb]:
+            ra, rb = rb, ra
+        parent[rb] = ra
+        if rank[ra] == rank[rb]:
+            rank[ra] += 1
+
+    edge_a = labels[src]
+    edge_b = labels[dst]
+    tiny_edges = tiny_mask[edge_a] & tiny_mask[edge_b] & (edge_a != edge_b)
+    for a, b in zip(edge_a[tiny_edges].tolist(), edge_b[tiny_edges].tolist(), strict=True):
+        union(int(a), int(b))
+
+    roots = np.fromiter((find(int(label)) for label in tiny_ids.tolist()), dtype=np.int32, count=len(tiny_ids))
+    component_voxels: Counter[int] = Counter()
+    for label, root in zip(tiny_ids.tolist(), roots.tolist(), strict=True):
+        component_voxels[int(root)] += int(counts[int(label)])
+
+    next_id = max_label + 1
+    root_to_new: dict[int, int] = {}
+    table = np.arange(max_label + 1, dtype=np.int32)
+    small_tiny_label_mask = np.zeros(max_label + 1, dtype=bool)
+    connected_component_count = 0
+    small_component_label_count = 0
+    small_component_voxel_count = 0
+
+    for label, root in zip(tiny_ids.tolist(), roots.tolist(), strict=True):
+        root = int(root)
+        comp_voxels = int(component_voxels[root])
+        if comp_voxels >= min_component_voxels:
+            if root not in root_to_new:
+                root_to_new[root] = next_id
+                next_id += 1
+                connected_component_count += 1
+            table[int(label)] = root_to_new[root]
+        else:
+            small_component_label_count += 1
+            small_component_voxel_count += int(counts[int(label)])
+            small_tiny_label_mask[int(label)] = True
+
+    small_label_mask = small_tiny_label_mask[labels]
+    grid_residual_count = 0
+    if np.any(small_label_mask):
+        if mode == "connected":
+            # Preserve exact connected components. This can be very fragmented
+            # but is useful for diagnostics.
+            for label, root in zip(tiny_ids.tolist(), roots.tolist(), strict=True):
+                if component_voxels[int(root)] >= min_component_voxels:
+                    continue
+                if int(root) not in root_to_new:
+                    root_to_new[int(root)] = next_id
+                    next_id += 1
+                    connected_component_count += 1
+                table[int(label)] = root_to_new[int(root)]
+        elif mode == "connected-grid":
+            small_indices = np.flatnonzero(small_label_mask)
+            small_xyz = xyz[small_indices].astype(np.float64, copy=False)
+            origin = np.floor(xyz.min(axis=0) / grid_size).astype(np.int64)
+            grid = np.floor(small_xyz / max(grid_size, 1e-6)).astype(np.int64) - origin
+            shape = grid.max(axis=0).astype(np.int64) + 1
+            ny = int(max(shape[1], 1))
+            nz = int(max(shape[2], 1))
+            grid_keys = (grid[:, 0] * ny + grid[:, 1]) * nz + grid[:, 2]
+            unique_keys = np.unique(grid_keys)
+            key_to_new = {int(key): int(next_id + i) for i, key in enumerate(unique_keys.tolist())}
+            next_id += len(unique_keys)
+            grid_residual_count = int(len(unique_keys))
+            small_labels = labels[small_indices]
+            # Assign all tiny labels that appear in a local grid cell to that
+            # local residual id.  A tiny label may span multiple cells; the
+            # first observed local bucket is sufficient because these labels
+            # are already below the tiny threshold.
+            label_to_grid: dict[int, int] = {}
+            for label, key in zip(small_labels.tolist(), grid_keys.tolist(), strict=True):
+                label_to_grid.setdefault(int(label), key_to_new[int(key)])
+            for label, new_id in label_to_grid.items():
+                table[int(label)] = int(new_id)
+        else:
+            raise ValueError(f"unsupported --precollapse-mode: {mode}")
+
     out = table[labels]
+    residual_ids = np.unique(table[tiny_ids])
     return out, {
         "enabled": True,
+        "mode": mode,
         "threshold": int(threshold),
         "tiny_patch_count": int(len(tiny_ids)),
         "tiny_voxel_count": int(counts[tiny_ids].sum()),
-        "noise_patch_id": int(noise_id),
+        "noise_patch_id": None,
+        "residual_component_count": int(len(residual_ids)),
+        "connected_component_count": int(connected_component_count),
+        "grid_residual_count": int(grid_residual_count),
+        "small_component_label_count": int(small_component_label_count),
+        "small_component_voxel_count": int(small_component_voxel_count),
+        "min_component_voxels": int(min_component_voxels),
+        "grid_size": float(grid_size),
     }
 
 
@@ -587,6 +713,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target-patches", type=int, default=1000)
     parser.add_argument("--noise-patch-voxels", type=int, default=0, help="Collapse source patches at or below this voxel count into one noise patch before coarsening")
     parser.add_argument("--precollapse-noise", action=argparse.BooleanOptionalAction, default=True, help="Vector-collapse tiny source labels before expensive per-patch statistics")
+    parser.add_argument("--precollapse-mode", choices=["global", "connected", "connected-grid"], default="global")
+    parser.add_argument("--precollapse-grid-size", type=float, default=0.50)
+    parser.add_argument("--precollapse-min-component-voxels", type=int, default=24)
     parser.add_argument("--grid-cell-size", type=float, default=2.0, help="Deprecated; kept for CLI compatibility")
     parser.add_argument("--neighbors-per-patch", type=int, default=12)
     parser.add_argument("--max-centroid-distance", type=float, default=3.0)
@@ -635,7 +764,7 @@ def main() -> int:
     if args.target_patches <= 0:
         raise ValueError("--target-patches must be positive")
     log(f"read region input: {args.region_input}")
-    arrays, _, _ = read_region_input(args.region_input)
+    arrays, src, dst = read_region_input(args.region_input)
     log(f"read labels: {args.labels}")
     labels = read_labels(args.labels)
     if len(labels) != len(arrays["xyz"]):
@@ -644,9 +773,19 @@ def main() -> int:
     precollapse_report = {"enabled": False}
     if args.precollapse_noise and args.noise_patch_voxels > 0:
         log(f"precollapse tiny patches <= {args.noise_patch_voxels} voxels")
-        labels, precollapse_report = precollapse_tiny_patches(labels, args.noise_patch_voxels)
-        # The labels now contain one explicit residual patch, so the slower
-        # stats-level tiny-patch collapse is no longer needed.
+        labels, precollapse_report = precollapse_tiny_patches(
+            labels=labels,
+            src=src,
+            dst=dst,
+            xyz=arrays["xyz"],
+            threshold=args.noise_patch_voxels,
+            mode=args.precollapse_mode,
+            grid_size=args.precollapse_grid_size,
+            min_component_voxels=args.precollapse_min_component_voxels,
+        )
+        # The labels now contain explicit residual components, so the slower
+        # stats-level tiny-patch collapse is no longer needed unless the mode
+        # intentionally produced one global residual.
         args.noise_patch_voxels = 0
         args.precollapsed_noise_id = precollapse_report.get("noise_patch_id")
         log(

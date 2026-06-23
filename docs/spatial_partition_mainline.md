@@ -439,17 +439,30 @@ Coarse supernode diagnostic on 5070Ti:
   - overlap suppression merge count: `196`.
   - `0.20m` mixed object voxel ratio on stride5 preview: `0.2096`.
   - top-1000 AABB overlap pairs: `3,639 / 499,500`.
+- `target=5,000`, connected-grid residual result:
+  - mode: `connected-grid`, grid size `0.50m`, tiny threshold `<=8`.
+  - tiny source patches: `698,189`, `1,062,108` voxels.
+  - residual components after local grouping: `55,628`.
+  - active input patches after residual grouping: `75,464`.
+  - output patches: `4,469`.
+  - main merge count: `50,000`.
+  - evaluated edges: `88,810`.
+  - overlap suppression merge count: `531`.
+  - `0.20m` mixed object voxel ratio on stride5 preview: `0.1545`.
+  - top-1000 AABB overlap pairs: `4,136 / 499,500`.
 - Interpretation:
   - Pre-collapse proves the coarsen stage can operate at useful scale once the
     pathological one-voxel patch population is removed.
-  - The current pre-collapse is only a diagnostic: collapsing all `<=8` voxel
-    patches into one residual consumes `1,062,108` voxels, so it cannot be a
+  - Global residual collapse was only a diagnostic: collapsing all `<=8` voxel
+    patches into one residual consumed `1,062,108` voxels, so it could not be a
     final object boundary model.
-  - The next production change should replace global residual collapse with
-    spatially connected residual components, then let residual components merge
-    back into neighboring supernodes only when geometry/color compatibility is
-    strong.  This keeps the graph tractable without losing 23% of voxels into a
-    single non-object bucket.
+  - Connected-grid residual is the current preferred architecture: it keeps
+    dense 0.03m voxels in local spatial components, preserves one-object-per-
+    voxel ownership, and gives the coarsen stage a tractable graph without
+    deleting or globally pooling the sparse original data.
+  - The next production change should make the connected residual grouping
+    less grid-shaped by using local adjacency + color/geometry compatibility
+    before fallback grid bucketing.
 
 Dense colorized source note:
 
