@@ -481,6 +481,21 @@ Dense colorized source note:
   - `frame_object_points_stride10.ply` and other viewer stride PLY files are
     diagnostic/review artifacts only. They must not be used as authoritative
     geometry inputs for patch-quality conclusions.
+- First full dense LAS patch run:
+  - output: `server_parking_priority_s10/dense_las_voxel003_region_model_full_cpp_20260624`
+    on the 5070Ti host.
+  - command input: `dense_las_voxel003_binary.ply`, `--voxel-size 0.03`,
+    `--binary-voxel-input`, torch local features, C++ region grower.
+  - runtime: `3:44.59`, peak RSS `24.4GB`.
+  - result: `14405828` voxels, `1017019` patches, `971957` small patches
+    (`95.6%` of patches).
+  - review preview: `geo_patches_region_model_random_color_stride10.ply`
+    (`1440583` points).
+  - interpretation: the authoritative dense source is now correct and usable,
+    but the current region-grow patch model is still much too fragmented at
+    `0.03m`.  The next architecture step is not another data-source change; it
+    is a real patch coarsening/graph optimization stage with one-voxel-one-owner
+    invariants and streaming/binary output.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color
