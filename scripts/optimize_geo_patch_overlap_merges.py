@@ -41,6 +41,7 @@ class Candidate:
     bbox_iou: float
     centroid_distance: float
     overlap_dims: np.ndarray
+    centroid_bypass: bool = False
 
 
 class DSU:
@@ -81,6 +82,25 @@ def bbox_overlap(a: PatchStats, b: PatchStats) -> tuple[float, float, float, flo
     )
 
 
+def patch_aspect_ratio(stats: PatchStats) -> float:
+    extent = np.maximum(stats.bbox_max - stats.bbox_min, 1e-3)
+    return float(np.max(extent) / max(float(np.min(extent)), 1e-3))
+
+
+def allow_long_patch_centroid_bypass(
+    a: PatchStats,
+    b: PatchStats,
+    ratio_min: float,
+    bbox_iou: float,
+    args: argparse.Namespace,
+) -> bool:
+    if min(a.count, b.count) < args.long_patch_min_voxels:
+        return False
+    if ratio_min < args.long_patch_min_bbox_ratio or bbox_iou < args.long_patch_min_bbox_iou:
+        return False
+    return max(patch_aspect_ratio(a), patch_aspect_ratio(b)) >= args.long_patch_aspect_ratio
+
+
 def build_candidates(stats: dict[int, PatchStats], args: argparse.Namespace) -> list[Candidate]:
     large = [s for s in stats.values() if s.count >= args.min_patch_voxels]
     large.sort(key=lambda s: s.count, reverse=True)
@@ -97,7 +117,10 @@ def build_candidates(stats: dict[int, PatchStats], args: argparse.Namespace) -> 
                 continue
             if iou < args.min_bbox_iou:
                 continue
+            centroid_bypass = False
             if centroid_distance > args.max_centroid_distance:
+                centroid_bypass = allow_long_patch_centroid_bypass(a, b, ratio_min, iou, args)
+            if centroid_distance > args.max_centroid_distance and not centroid_bypass:
                 continue
             candidates.append(
                 Candidate(
@@ -108,6 +131,7 @@ def build_candidates(stats: dict[int, PatchStats], args: argparse.Namespace) -> 
                     bbox_iou=iou,
                     centroid_distance=centroid_distance,
                     overlap_dims=dims,
+                    centroid_bypass=centroid_bypass,
                 )
             )
     candidates.sort(key=lambda c: (c.ratio_min_volume, c.bbox_iou), reverse=True)
@@ -317,6 +341,7 @@ def optimize_overlap_merges(
                         "ratio_max_volume": float(candidate.ratio_max_volume),
                         "bbox_iou": float(candidate.bbox_iou),
                         "centroid_distance": float(candidate.centroid_distance),
+                        "centroid_bypass": bool(candidate.centroid_bypass),
                         **details,
                     }
                 )
@@ -342,6 +367,7 @@ def optimize_overlap_merges(
                 "ratio_max_volume": float(candidate.ratio_max_volume),
                 "bbox_iou": float(candidate.bbox_iou),
                 "centroid_distance": float(candidate.centroid_distance),
+                "centroid_bypass": bool(candidate.centroid_bypass),
                 **details,
             }
         )
@@ -377,6 +403,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-bbox-ratio", type=float, default=0.72)
     parser.add_argument("--min-bbox-iou", type=float, default=0.08)
     parser.add_argument("--max-centroid-distance", type=float, default=8.0)
+    parser.add_argument("--long-patch-min-voxels", type=int, default=100000)
+    parser.add_argument("--long-patch-aspect-ratio", type=float, default=2.5)
+    parser.add_argument("--long-patch-min-bbox-ratio", type=float, default=0.80)
+    parser.add_argument("--long-patch-min-bbox-iou", type=float, default=0.12)
     parser.add_argument("--near-distance", type=float, default=0.35)
     parser.add_argument("--min-near-ratio", type=float, default=0.35)
     parser.add_argument("--max-nn-median", type=float, default=0.45)
