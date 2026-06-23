@@ -202,8 +202,17 @@ def write_component_jsonl(path: Path, component_stats: dict[int, PatchStats], ar
 
 
 def coarsen(labels: np.ndarray, stats: dict[int, PatchStats], args: argparse.Namespace) -> tuple[np.ndarray, dict[int, PatchStats], dict[str, Any], list[dict[str, Any]]]:
-    dsu = DSU(list(stats))
-    active = dict(stats)
+    max_input_label = int(labels.max())
+    noise_id = max_input_label + 1
+    noise_source_ids = {
+        patch_id
+        for patch_id, patch_stats in stats.items()
+        if patch_stats.count <= args.noise_patch_voxels
+    }
+    active = {patch_id: patch_stats for patch_id, patch_stats in stats.items() if patch_id not in noise_source_ids}
+    if not active:
+        raise ValueError("all patches were filtered as noise; lower --noise-patch-voxels")
+    dsu = DSU(list(stats) + [noise_id])
     pairs = build_grid_candidates(active, args)
     heap: list[tuple[float, int, int]] = []
     for a, b in pairs:
@@ -216,7 +225,8 @@ def coarsen(labels: np.ndarray, stats: dict[int, PatchStats], args: argparse.Nam
     rejected = Counter()
     evaluated = 0
 
-    while heap and len(active) > args.target_patches:
+    effective_target = max(1, args.target_patches - (1 if noise_source_ids else 0))
+    while heap and len(active) > effective_target:
         _, a, b = heapq.heappop(heap)
         ra = dsu.find(a)
         rb = dsu.find(b)
@@ -239,18 +249,32 @@ def coarsen(labels: np.ndarray, stats: dict[int, PatchStats], args: argparse.Nam
         if len(merge_log) < args.max_log_rows:
             merge_log.append({"keep": int(keep), "drop": int(drop), "score": float(score), **features})
 
-    max_label = int(labels.max())
-    table = np.arange(max_label + 1, dtype=np.int32)
+    table = np.arange(noise_id + 1, dtype=np.int32)
     for patch_id in stats:
-        root = dsu.find(patch_id)
-        if patch_id <= max_label:
-            table[patch_id] = root
+        if patch_id in noise_source_ids:
+            table[patch_id] = noise_id
+        else:
+            table[patch_id] = dsu.find(patch_id)
     out = table[labels]
+    if noise_source_ids:
+        noise_stats: PatchStats | None = None
+        for patch_id in noise_source_ids:
+            patch_stats = stats[patch_id]
+            noise_stats = patch_stats if noise_stats is None else merge_stats(noise_id, noise_stats, patch_stats)
+        if noise_stats is not None:
+            noise_stats.patch_id = noise_id
+            noise_stats.geometry_type = "noise_residual"
+            active[noise_id] = noise_stats
     report = {
         "schema": "geo-patch-coarsen-budget/v1",
         "input_patch_count": int(len(stats)),
         "output_patch_count": int(len(active)),
+        "effective_output_patch_count": int(len(active) - (1 if noise_source_ids else 0)),
         "target_patches": int(args.target_patches),
+        "effective_target_patches": int(effective_target),
+        "noise_patch_count": int(len(noise_source_ids)),
+        "noise_voxel_count": int(sum(stats[pid].count for pid in noise_source_ids)),
+        "noise_patch_id": int(noise_id) if noise_source_ids else None,
         "initial_candidate_pairs": int(len(pairs)),
         "merge_count": int(len(merge_log)),
         "stale_heap_pops": int(stale),
@@ -267,6 +291,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--labels", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--target-patches", type=int, default=1000)
+    parser.add_argument("--noise-patch-voxels", type=int, default=0, help="Collapse source patches at or below this voxel count into one noise patch before coarsening")
     parser.add_argument("--grid-cell-size", type=float, default=2.0, help="Deprecated; kept for CLI compatibility")
     parser.add_argument("--neighbors-per-patch", type=int, default=12)
     parser.add_argument("--max-centroid-distance", type=float, default=3.0)
