@@ -21,6 +21,7 @@ from typing import Any
 import numpy as np
 
 from optimize_geo_patch_merges import (
+    BUCKET_NAMES,
     PatchStats,
     compatible_bucket_score,
     compute_patch_stats,
@@ -28,7 +29,6 @@ from optimize_geo_patch_merges import (
     normal_score,
     read_labels,
     read_region_input,
-    write_jsonl,
     write_ply,
 )
 
@@ -254,7 +254,56 @@ def merge_patch_stats(keep_id: int, a: PatchStats, b: PatchStats) -> PatchStats:
     )
 
 
-def cluster(labels: np.ndarray, stats: dict[int, PatchStats], edges: list[Edge], args: argparse.Namespace) -> tuple[np.ndarray, dict[str, Any], list[dict[str, Any]]]:
+def build_component_stats(stats: dict[int, PatchStats], dsu: DSU) -> dict[int, PatchStats]:
+    component_stats: dict[int, PatchStats] = {}
+    for patch_id, patch_stats in stats.items():
+        root = dsu.find(patch_id)
+        if root in component_stats:
+            component_stats[root] = merge_patch_stats(root, component_stats[root], patch_stats)
+        else:
+            component_stats[root] = PatchStats(
+                patch_id=root,
+                count=patch_stats.count,
+                centroid=patch_stats.centroid.copy(),
+                mean_rgb=patch_stats.mean_rgb.copy(),
+                mean_normal=patch_stats.mean_normal.copy(),
+                bbox_min=patch_stats.bbox_min.copy(),
+                bbox_max=patch_stats.bbox_max.copy(),
+                bucket_counts=Counter(patch_stats.bucket_counts),
+                geometry_type=patch_stats.geometry_type,
+                source_patch_ids=set(patch_stats.source_patch_ids),
+            )
+    return component_stats
+
+
+def write_component_jsonl(path: Path, component_stats: dict[int, PatchStats], args: argparse.Namespace) -> int:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        for patch_id in sorted(component_stats):
+            s = component_stats[patch_id]
+            source_patch_ids = sorted(int(v) for v in s.source_patch_ids)
+            row = {
+                "patch_id": int(patch_id),
+                "object": int(patch_id),
+                "voxel_count": int(s.count),
+                "status": "small_patch" if s.count < args.small_patch_voxels else "geo_patch",
+                "geometry_type": s.geometry_type,
+                "semantic_label": s.geometry_type,
+                "description": f"unified geometry primitive: {s.geometry_type}",
+                "bucket_counts": {BUCKET_NAMES[int(k)]: int(v) for k, v in s.bucket_counts.items()},
+                "centroid": s.centroid.astype(float).tolist(),
+                "bbox_3d": {"min": s.bbox_min.astype(float).tolist(), "max": s.bbox_max.astype(float).tolist()},
+                "extent": (s.bbox_max - s.bbox_min).astype(float).tolist(),
+                "mean_rgb": s.mean_rgb.astype(float).tolist(),
+                "mean_normal": s.mean_normal.astype(float).tolist(),
+                "source_patch_count": len(source_patch_ids),
+                "source_patch_ids": source_patch_ids,
+            }
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    return len(component_stats)
+
+
+def cluster(labels: np.ndarray, stats: dict[int, PatchStats], edges: list[Edge], args: argparse.Namespace) -> tuple[np.ndarray, dict[str, Any], list[dict[str, Any]], dict[int, PatchStats]]:
     dsu = DSU(list(stats))
     merge_log: list[dict[str, Any]] = []
     component_size = {pid: stats[pid].count for pid in stats}
@@ -291,20 +340,21 @@ def cluster(labels: np.ndarray, stats: dict[int, PatchStats], edges: list[Edge],
         if patch_id <= max_label:
             table[patch_id] = root
     out = table[labels]
+    component_stats = build_component_stats(stats, dsu)
     report = {
         "schema": "geo-primitive-unified-cluster/v1",
         "input_patch_count": int(len(stats)),
         "edge_count": int(len(edges)),
         "accepted_merge_count": int(len(merge_log)),
-        "output_patch_count": int(len(np.unique(out))),
+        "output_patch_count": int(len(component_stats)),
         "edge_reason_counts": dict(Counter(edge.reason for edge in edges)),
         "edge_source_counts": dict(Counter(edge.source for edge in edges)),
         "params": vars(args),
     }
-    return out, report, merge_log
+    return out, report, merge_log, component_stats
 
 
-def cluster_dynamic(labels: np.ndarray, stats: dict[int, PatchStats], edges: list[Edge], args: argparse.Namespace) -> tuple[np.ndarray, dict[str, Any], list[dict[str, Any]]]:
+def cluster_dynamic(labels: np.ndarray, stats: dict[int, PatchStats], edges: list[Edge], args: argparse.Namespace) -> tuple[np.ndarray, dict[str, Any], list[dict[str, Any]], dict[int, PatchStats]]:
     dsu = DSU(list(stats))
     component_stats = dict(stats)
     component_size = {pid: stats[pid].count for pid in stats}
@@ -428,14 +478,14 @@ def cluster_dynamic(labels: np.ndarray, stats: dict[int, PatchStats], edges: lis
         "input_patch_count": int(len(stats)),
         "initial_edge_count": int(len(edges)),
         "accepted_merge_count": int(len(merge_log)),
-        "output_patch_count": int(len(np.unique(out))),
+        "output_patch_count": int(len(component_stats)),
         "stale_heap_pops": stale_pops,
         "rejected_size_count": rejected_size,
         "heap_push_count": pushes,
         "merge_reason_counts": dict(Counter(row["reason"] for row in merge_log)),
         "params": vars(args),
     }
-    return out, report, merge_log
+    return out, report, merge_log, component_stats
 
 
 def parse_args() -> argparse.Namespace:
@@ -482,13 +532,13 @@ def main() -> int:
     stats = compute_patch_stats(arrays, labels)
     edges = build_edges(stats, labels, src, dst, args)
     if args.dynamic:
-        out, report, merge_log = cluster_dynamic(labels, stats, edges, args)
+        out, report, merge_log, component_stats = cluster_dynamic(labels, stats, edges, args)
     else:
-        out, report, merge_log = cluster(labels, stats, edges, args)
+        out, report, merge_log, component_stats = cluster(labels, stats, edges, args)
     report["output_ply"] = str(args.output_dir / f"geo_primitives_unified_stride{args.preview_stride}.ply")
     report["output_jsonl"] = str(args.output_dir / "geo_primitives_unified.jsonl")
     report["preview_points"] = write_ply(Path(report["output_ply"]), arrays, out, args.preview_stride)
-    report["jsonl_patch_count"] = write_jsonl(Path(report["output_jsonl"]), arrays, out, args)
+    report["jsonl_patch_count"] = write_component_jsonl(Path(report["output_jsonl"]), component_stats, args)
     (args.output_dir / "primitive_graph_edges.jsonl").write_text(
         "".join(json.dumps({"a": e.a, "b": e.b, "source": e.source, "reason": e.reason, "score": e.score, **e.features}, ensure_ascii=False) + "\n" for e in edges[: args.max_log_rows]),
         encoding="utf-8",
