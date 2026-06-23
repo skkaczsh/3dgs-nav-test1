@@ -227,6 +227,26 @@ def bbox_gap(a: PatchStats, b: PatchStats) -> float:
     return float(np.linalg.norm(gap))
 
 
+def bbox_volume(stats: PatchStats) -> float:
+    extent = np.maximum(stats.bbox_max - stats.bbox_min, 1e-3)
+    return float(np.prod(extent))
+
+
+def bbox_overlap_features(a: PatchStats, b: PatchStats) -> dict[str, float]:
+    dims = np.maximum(0.0, np.minimum(a.bbox_max, b.bbox_max) - np.maximum(a.bbox_min, b.bbox_min))
+    overlap = float(np.prod(dims))
+    va = bbox_volume(a)
+    vb = bbox_volume(b)
+    union = va + vb - overlap
+    return {
+        "bbox_overlap_volume": overlap,
+        "bbox_ratio_min": overlap / max(min(va, vb), 1e-9),
+        "bbox_ratio_max": overlap / max(max(va, vb), 1e-9),
+        "bbox_iou": overlap / max(union, 1e-9),
+        "bbox_centroid_distance": float(np.linalg.norm(a.centroid - b.centroid)),
+    }
+
+
 def geometry_size_penalty(stats: PatchStats) -> float:
     # Encourage compact, coherent geometry model, but avoid over-penalizing very large surfaces.
     extent = np.maximum(stats.bbox_max - stats.bbox_min, 1e-6)
@@ -297,7 +317,7 @@ def merge_pair_gain(
     a: PatchStats,
     b: PatchStats,
     shared_edges: int,
-    neighbor_share: int,
+    neighbor_share: float,
     args: argparse.Namespace,
 ) -> tuple[float, dict[str, float]]:
     color_dist = float(np.linalg.norm(a.mean_rgb - b.mean_rgb))
@@ -368,6 +388,66 @@ def build_edge_counts(labels: np.ndarray, src: np.ndarray, dst: np.ndarray) -> d
         (int(k // (max_label + 1)), int(k % (max_label + 1))): int(c)
         for k, c in zip(uk.tolist(), uc.tolist())
     }
+
+
+def build_overlap_candidate_scores(stats: dict[int, PatchStats], args: argparse.Namespace) -> dict[tuple[int, int], float]:
+    if not args.enable_overlap_merge_candidates or args.overlap_candidate_top_n <= 1:
+        return {}
+    selected = sorted(stats.values(), key=lambda row: row.count, reverse=True)[: args.overlap_candidate_top_n]
+    out: dict[tuple[int, int], float] = {}
+    for i, a in enumerate(selected):
+        for b in selected[i + 1 :]:
+            f = bbox_overlap_features(a, b)
+            if f["bbox_overlap_volume"] <= 0:
+                continue
+            if f["bbox_ratio_min"] < args.overlap_candidate_min_ratio and f["bbox_iou"] < args.overlap_candidate_min_iou:
+                continue
+            if f["bbox_centroid_distance"] > args.overlap_candidate_max_centroid and f["bbox_ratio_min"] < args.overlap_candidate_long_min_ratio:
+                continue
+            pa, pb = sorted((int(a.patch_id), int(b.patch_id)))
+            out[(pa, pb)] = max(float(f["bbox_ratio_min"]), float(f["bbox_iou"]))
+            if len(out) >= args.overlap_candidate_max_pairs:
+                return out
+    return out
+
+
+def build_merge_candidates(
+    edge_counts: dict[tuple[int, int], int],
+    stats: dict[int, PatchStats],
+    args: argparse.Namespace,
+) -> list[dict[str, Any]]:
+    candidates: dict[tuple[int, int], dict[str, Any]] = {}
+    for pair, shared in edge_counts.items():
+        a, b = pair
+        if a not in stats or b not in stats:
+            continue
+        support = float(shared) / max(float(min(stats[a].count, stats[b].count)), 1.0)
+        candidates[pair] = {
+            "pair": pair,
+            "shared_edges": int(shared),
+            "support": support,
+            "source": "adjacency",
+            "overlap_support": 0.0,
+        }
+
+    overlap_scores = build_overlap_candidate_scores(stats, args)
+    for pair, score in overlap_scores.items():
+        if pair in candidates:
+            candidates[pair]["support"] = max(float(candidates[pair]["support"]), float(score))
+            candidates[pair]["overlap_support"] = float(score)
+            candidates[pair]["source"] = "adjacency+overlap"
+            continue
+        candidates[pair] = {
+            "pair": pair,
+            "shared_edges": 0,
+            "support": float(score),
+            "source": "overlap",
+            "overlap_support": float(score),
+        }
+
+    out = list(candidates.values())
+    out.sort(key=lambda row: (float(row["support"]), int(row["shared_edges"])), reverse=True)
+    return out[: args.max_merge_candidates]
 
 
 def build_conflict_cells(
@@ -655,23 +735,20 @@ def merge_step(
     temp: float,
 ) -> tuple[np.ndarray, int, list[dict[str, Any]], int]:
     edge_counts = build_edge_counts(labels, arrays["src"] if "src" in arrays else np.array([], dtype=np.int32), arrays["dst"] if "dst" in arrays else np.array([], dtype=np.int32))
-    if not edge_counts:
+    candidates = build_merge_candidates(edge_counts, stats, args)
+    if not candidates:
         return labels, 0, [], 0
 
-    # neighbors info
     accepted = 0
     rejects = 0
     logs: list[dict[str, Any]] = []
 
-    # Candidate edges sorted by support.
-    candidates = sorted(
-        [((a, b), shared) for (a, b), shared in edge_counts.items()],
-        key=lambda x: x[1],
-        reverse=True,
-    )
-
-    # Keep only top candidates this pass.
-    for (a, b), shared in candidates[: args.max_merge_candidates]:
+    for candidate in candidates:
+        a, b = candidate["pair"]
+        shared = int(candidate["shared_edges"])
+        candidate_source = str(candidate["source"])
+        candidate_support = float(candidate["support"])
+        overlap_support = float(candidate.get("overlap_support", 0.0))
         if a not in stats or b not in stats:
             continue
         if min(stats[a].count, stats[b].count) < args.min_anchor_voxels:
@@ -688,8 +765,12 @@ def merge_step(
         if src_id == anchor_id:
             continue
 
-        neighbor_share = float(shared) / max(float(min(anchor.count, src_stats.count)), 1.0)
-        if neighbor_share < args.merge_min_neighbor_support:
+        adjacency_share = float(shared) / max(float(min(anchor.count, src_stats.count)), 1.0)
+        neighbor_share = max(adjacency_share, candidate_support)
+        if candidate_source == "overlap":
+            if overlap_support < args.overlap_candidate_min_ratio:
+                continue
+        elif adjacency_share < args.merge_min_neighbor_support and overlap_support < args.overlap_candidate_min_ratio:
             continue
         gain, detail = merge_pair_gain(anchor, src_stats, shared, neighbor_share, args)
         accepted_decision = False
@@ -710,6 +791,9 @@ def merge_step(
                         "shared_edges": int(shared),
                         "gain": float(gain),
                         "neighbor_share": float(neighbor_share),
+                        "adjacency_share": float(adjacency_share),
+                        "overlap_support": float(overlap_support),
+                        "candidate_source": candidate_source,
                         "reason": "min_gain_or_anneal_fail",
                         **detail,
                     }
@@ -729,6 +813,9 @@ def merge_step(
                     "merge_patch_id": int(src_id),
                     "shared_edges": int(shared),
                     "neighbor_share": float(neighbor_share),
+                    "adjacency_share": float(adjacency_share),
+                    "overlap_support": float(overlap_support),
+                    "candidate_source": candidate_source,
                     "gain": float(gain),
                     **detail,
                 }
@@ -953,6 +1040,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pair-share-norm", type=float, default=5000.0)
     parser.add_argument("--patch-target-size", type=float, default=3200.0)
     parser.add_argument("--max-patch-sources", type=float, default=18)
+    parser.add_argument("--enable-overlap-merge-candidates", action="store_true")
+    parser.add_argument("--overlap-candidate-top-n", type=int, default=2000)
+    parser.add_argument("--overlap-candidate-min-ratio", type=float, default=0.65)
+    parser.add_argument("--overlap-candidate-min-iou", type=float, default=0.12)
+    parser.add_argument("--overlap-candidate-max-centroid", type=float, default=20.0)
+    parser.add_argument("--overlap-candidate-long-min-ratio", type=float, default=0.90)
+    parser.add_argument("--overlap-candidate-max-pairs", type=int, default=60000)
 
     parser.add_argument("--anneal-temp-start", type=float, default=0.33)
     parser.add_argument("--anneal-temp-min", type=float, default=0.02)
@@ -985,7 +1079,7 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     stem = args.output_stem
-    report["schema"] = "geo-patch-energy-graph-v3"
+    report["schema"] = "geo-patch-energy-graph-v4"
     report["region_input"] = str(args.region_input)
     report["labels_in"] = str(args.labels)
     log("write preview ply")

@@ -529,6 +529,25 @@ Dense colorized source note:
     boundary/merge optimization is the better direction.
   - Engineering note: `optimize_patch_graph_energy.py` now emits stage logs;
     previous silent runs were hard to diagnose.
+- Dense energy-graph v4 with overlap/containment candidates:
+  - output: `dense_las_voxel003_energy_v4_overlap_candidates_20260624`.
+  - code change: high AABB-overlap patch pairs are now inserted into the same
+    merge-candidate list as graph-adjacent pairs, then judged by the existing
+    energy objective. This is not a post-hoc merge pass.
+  - result: `50000 -> 48750` patches, `396659` boundary points moved,
+    `1024` merge accepts, `56` merge rejects.
+  - merge source: `696` accepts from `adjacency+overlap`, `326` from pure
+    `overlap`, and `2` from pure adjacency. This confirms the change targets
+    the previously missed high-overlap candidates.
+  - runtime: `2:00.66`, peak RSS `4.2GB`.
+  - top-1000 AABB overlap: `2055 / 499500` pairs, including `1350`
+    near-contained pairs. This is the current best overlap metric among the
+    dense LAS runs.
+  - Remaining issue: most residual near-contained pairs are small patches
+    inside huge `mixed` AABBs. AABB containment alone is too weak to prove true
+    point ownership conflict. The next metric must use fine voxel intersection
+    or shared occupied-cell evidence before accepting more merges, otherwise
+    the optimizer will over-merge buildings, trees, and ground again.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color
