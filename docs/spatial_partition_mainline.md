@@ -316,6 +316,31 @@ C++ backend status:
   backend for large runs. Remaining pipeline bottlenecks are feature/edge
   preparation and output writing, not region growth.
 
+Patch graph optimization v1/v2:
+
+- Script: `scripts/optimize_geo_patch_merges.py`.
+- Input: C++ region-grower `_cpp_region_grower_input.bin` and
+  `_cpp_region_grower_labels.bin`; no PCA/edge rebuild.
+- Method: conservative greedy small-patch absorption.  Only original small
+  patches may merge into existing anchors; large-large merges are disabled.
+- v1 parameters:
+  - `small_patch_voxels=8`, `anchor_min_voxels=64`, `min_gain=0.66`.
+  - merged small patches: `1050`.
+  - final patches: `135904`.
+- v2 parameters:
+  - `small_patch_voxels=8`, `anchor_min_voxels=16`, `min_gain=0.58`.
+  - merged small patches: `3820`.
+  - final patches: `133134`.
+- v2 viewer output:
+  `server_parking_priority_s10/geo_patch_full_cpp_v1_4090d_optimized_small_absorb_v2/`.
+- Overlap result on stride5 preview:
+  - original half-voxel conflict extra ratio: about `0.0948%`.
+  - v2 half-voxel conflict extra ratio: about `0.0938%`.
+- Interpretation: patch graph absorption can reduce fragmentation modestly, but
+  it does not materially solve spatial ownership conflicts.  The next optimizer
+  must include fine-cell ownership directly in the objective, rather than only
+  merging by patch adjacency.
+
 Dense colorized source note:
 
 - The full colorized reconstruction is
