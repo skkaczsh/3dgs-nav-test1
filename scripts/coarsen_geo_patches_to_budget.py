@@ -207,6 +207,14 @@ def write_component_jsonl(path: Path, component_stats: dict[int, PatchStats], ar
     return len(component_stats)
 
 
+def write_labels(path: Path, labels: np.ndarray) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as f:
+        f.write(b"GPRGlabels1\n")
+        np.asarray([len(labels)], dtype="<i8").tofile(f)
+        labels.astype("<i4", copy=False).tofile(f)
+
+
 def remap_labels(labels: np.ndarray, stats: dict[int, PatchStats], dsu: DSU, noise_source_ids: set[int], noise_id: int) -> np.ndarray:
     table = np.arange(noise_id + 1, dtype=np.int32)
     for patch_id in stats:
@@ -827,8 +835,11 @@ def main() -> int:
     log(f"coarsen done: output_patches={len(component_stats)}")
     report["output_ply"] = str(args.output_dir / f"geo_patches_coarse_stride{args.preview_stride}.ply")
     report["output_jsonl"] = str(args.output_dir / "geo_patches_coarse.jsonl")
+    report["output_labels"] = str(args.output_dir / "geo_patches_coarse_labels.bin")
     log(f"write preview ply: {report['output_ply']}")
     report["preview_points"] = write_ply(Path(report["output_ply"]), arrays, out, args.preview_stride)
+    log(f"write labels: {report['output_labels']}")
+    write_labels(Path(report["output_labels"]), out)
     log(f"write jsonl: {report['output_jsonl']}")
     report["jsonl_patch_count"] = write_component_jsonl(Path(report["output_jsonl"]), component_stats, args)
     (args.output_dir / "coarse_merge_log.jsonl").write_text(

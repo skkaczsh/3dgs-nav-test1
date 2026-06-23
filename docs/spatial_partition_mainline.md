@@ -515,6 +515,20 @@ Dense colorized source note:
     stage should do unified graph/energy optimization over patch boundaries and
     object ownership, using overlap as a term in the objective rather than a
     separate after-the-fact merge pass.
+- Dense energy-graph test:
+  - input labels: `dense_las_voxel003_coarsen50k_conncompat_labels_20260624/geo_patches_coarse_labels.bin`.
+  - output: `dense_las_voxel003_energy_v3_from_coarsen50k_20260624`.
+  - settings: `3` iterations, boundary transfer enabled, annealing enabled,
+    no split stage.
+  - result: `50000 -> 49313` patches, `364700` boundary points moved,
+    `480` merge accepts, `235` merge rejects.
+  - runtime: `1:10.29`, peak RSS `4.2GB`.
+  - top-1000 AABB overlap: `2951 / 499500` pairs, including `1651`
+    near-contained pairs.  This improves over plain coarsen (`3804` / `1736`)
+    and post-hoc overlap suppression (`3718` / `1792`), so unified
+    boundary/merge optimization is the better direction.
+  - Engineering note: `optimize_patch_graph_energy.py` now emits stage logs;
+    previous silent runs were hard to diagnose.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color

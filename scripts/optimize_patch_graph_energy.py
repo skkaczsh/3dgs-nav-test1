@@ -20,6 +20,8 @@ import argparse
 import json
 import math
 import random
+import sys
+import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,6 +37,10 @@ BUCKET_NAMES = {
     3: "thin_linear",
     4: "rough_mixed",
 }
+
+
+def log(message: str) -> None:
+    print(f"[{time.strftime('%Y-%m-%dT%H:%M:%S')}] {message}", file=sys.stderr, flush=True)
 
 
 @dataclass
@@ -803,6 +809,7 @@ def optimize(
     rng = random.Random(args.seed)
     report: dict[str, Any] = {}
 
+    log("compute initial patch stats")
     stats = compute_patch_stats(arrays, labels)
     report["input_patch_count"] = int(len(stats))
     report["input_point_count"] = int(len(labels))
@@ -825,6 +832,7 @@ def optimize(
 
     # optional split first to prevent huge mixed patches blocking objective
     if args.enable_split:
+        log("propose initial splits")
         labels, _next, split_rows, split_cnt = propose_splits(labels, working, src, dst, stats, args)
         split_log.extend(split_rows)
         total_split = split_cnt
@@ -836,9 +844,11 @@ def optimize(
 
     for step in range(max(args.max_iters, 1)):
         changed = False
+        log(f"iteration {step + 1}/{max(args.max_iters, 1)} start: patch_count={len(stats)} temp={temp:.4f}")
 
         # 1) boundary reassignment in current geometry
         if args.enable_boundary:
+            log("boundary transfer")
             next_labels, moved, rejected, bal, brl = boundary_transfer(working, labels, stats, args, rng)
             total_boundary_ok += moved
             total_boundary_reject += rejected
@@ -849,7 +859,9 @@ def optimize(
                 labels = next_labels
 
         # 2) recompute then merge
+        log("compute stats before merge")
         stats = compute_patch_stats(working, labels)
+        log("merge step")
         next_labels, merged, mlog, mrej = merge_step(working, labels, stats, args, rng, temp)
         if merged > 0:
             changed = True
@@ -859,6 +871,7 @@ def optimize(
 
         labels = next_labels
         stats = compute_patch_stats(working, labels)
+        log(f"iteration {step + 1} done: patch_count={len(stats)} boundary_moved={moved if args.enable_boundary else 0} merge_accept={merged}")
 
         if not changed:
             # convergence
@@ -953,9 +966,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    log(f"read region input: {args.region_input}")
     arrays, src, dst = read_region_input(args.region_input)
+    log(f"read labels: {args.labels}")
     labels = read_labels(args.labels)
 
+    log("optimize")
     optimized, report, split_log, boundary_log, merge_log = optimize(
         arrays,
         labels,
@@ -972,14 +988,17 @@ def main() -> int:
     report["schema"] = "geo-patch-energy-graph-v3"
     report["region_input"] = str(args.region_input)
     report["labels_in"] = str(args.labels)
+    log("write preview ply")
     report["preview_points"] = write_ply(out_dir / f"{stem}_stride{args.preview_stride}.ply", arrays, optimized, args.preview_stride)
     report["output_jsonl"] = str(out_dir / f"{stem}.jsonl")
     report["output_report"] = str(out_dir / f"{stem}_report.json")
     report["output_split_log"] = str(out_dir / "split_log.jsonl")
     report["output_boundary_log"] = str(out_dir / "boundary_log.jsonl")
     report["output_merge_log"] = str(out_dir / "merge_log.jsonl")
+    log("write jsonl")
     report["jsonl_patch_count"] = write_jsonl(out_dir / f"{stem}.jsonl", stats, args)
 
+    log("write logs and report")
     (out_dir / "split_log.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in split_log), encoding="utf-8")
     (out_dir / "boundary_log.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in boundary_log), encoding="utf-8")
     (out_dir / "merge_log.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in merge_log), encoding="utf-8")
