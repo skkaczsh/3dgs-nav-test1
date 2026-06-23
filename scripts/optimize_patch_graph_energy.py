@@ -852,6 +852,28 @@ def merge_step(
 
         adjacency_share = float(shared) / max(float(min(anchor.count, src_stats.count)), 1.0)
         neighbor_share = max(adjacency_share, candidate_support)
+        if (
+            args.overlap_only_require_fine_overlap
+            and candidate_source == "overlap"
+            and fine_overlap_support < args.fine_overlap_min_ratio
+        ):
+            rejects += 1
+            if len(logs) < args.max_log_rows:
+                logs.append(
+                    {
+                        "status": "reject",
+                        "a": int(anchor_id),
+                        "b": int(src_id),
+                        "shared_edges": int(shared),
+                        "neighbor_share": float(neighbor_share),
+                        "adjacency_share": float(adjacency_share),
+                        "overlap_support": float(overlap_support),
+                        "fine_overlap_support": float(fine_overlap_support),
+                        "candidate_source": candidate_source,
+                        "reason": "overlap_only_without_fine_overlap",
+                    }
+                )
+            continue
         if candidate_source == "overlap" and overlap_support < args.overlap_candidate_min_ratio:
             continue
         if candidate_source == "fine_overlap" and fine_overlap_support < args.fine_overlap_min_ratio:
@@ -1146,6 +1168,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fine-overlap-min-ratio", type=float, default=0.50)
     parser.add_argument("--fine-overlap-max-labels-per-cell", type=int, default=8)
     parser.add_argument("--fine-overlap-max-pairs", type=int, default=80000)
+    parser.add_argument("--overlap-only-require-fine-overlap", action="store_true")
 
     parser.add_argument("--anneal-temp-start", type=float, default=0.33)
     parser.add_argument("--anneal-temp-min", type=float, default=0.02)
@@ -1178,7 +1201,12 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     stem = args.output_stem
-    report["schema"] = "geo-patch-energy-graph-v5" if args.enable_fine_overlap_merge_candidates else "geo-patch-energy-graph-v4"
+    if args.overlap_only_require_fine_overlap:
+        report["schema"] = "geo-patch-energy-graph-v6"
+    elif args.enable_fine_overlap_merge_candidates:
+        report["schema"] = "geo-patch-energy-graph-v5"
+    else:
+        report["schema"] = "geo-patch-energy-graph-v4"
     report["region_input"] = str(args.region_input)
     report["labels_in"] = str(args.labels)
     log("write preview ply")

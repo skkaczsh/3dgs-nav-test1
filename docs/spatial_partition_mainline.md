@@ -581,6 +581,28 @@ Dense colorized source note:
     The next optimizer revision should make occupied-cell support a gate or
     primary support term for overlap-only merges, while AABB should be only a
     cheap recall prefilter.
+- Dense energy-graph v6 with fine-cell gated overlap:
+  - output: `dense_las_voxel003_energy_v6_fine_gated_overlap_20260624`.
+  - settings: v5 plus `--overlap-only-require-fine-overlap`.
+  - behavior: pure AABB-overlap candidates must have `0.05m` fine-cell support
+    before they can be merged. AABB remains a recall prefilter, not a merge
+    proof.
+  - result: `50000 -> 48863` patches, `411277` boundary points moved,
+    `911` merge accepts, `918` merge rejects.
+  - reject reasons: `813` pure-overlap candidates rejected as
+    `overlap_only_without_fine_overlap`; `105` rejected by normal
+    gain/annealing.
+  - merge source: accepted merges were `891` from `adjacency+overlap`, `13`
+    from `adjacency+overlap+fine_overlap`, and `7` from plain adjacency. No
+    pure AABB-only merge was accepted.
+  - top-1000 diagnostic at `0.05m`: AABB overlap pairs increased from `2055`
+    to `2168` because more patch boundaries were preserved, but fine-cell
+    high-overlap pairs (`fine_ratio_min_cells >= 0.5`) dropped from `65` to
+    `51`; `fine_ratio >= 0.95` remained `0`.
+  - Interpretation: v6 is more faithful to the spatial-partition invariant than
+    v4/v5. AABB metrics alone look slightly worse, but the stronger occupied
+    cell metric improves. Use v6 as the current decision baseline unless visual
+    QA shows unacceptable fragmentation.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color
