@@ -11,6 +11,7 @@ merges edges whose score passes a threshold.
 from __future__ import annotations
 
 import argparse
+import heapq
 import json
 from collections import Counter
 from dataclasses import dataclass
@@ -23,6 +24,7 @@ from optimize_geo_patch_merges import (
     PatchStats,
     compatible_bucket_score,
     compute_patch_stats,
+    dominant_geometry,
     normal_score,
     read_labels,
     read_region_input,
@@ -227,6 +229,31 @@ def build_edges(
     return edges[: args.max_edges]
 
 
+def merge_patch_stats(keep_id: int, a: PatchStats, b: PatchStats) -> PatchStats:
+    total = a.count + b.count
+    centroid = (a.centroid * a.count + b.centroid * b.count) / total
+    mean_rgb = (a.mean_rgb * a.count + b.mean_rgb * b.count) / total
+    normal = a.mean_normal * a.count + b.mean_normal * b.count
+    norm = float(np.linalg.norm(normal))
+    mean_normal = normal / norm if norm > 1e-9 else normal
+    bucket_counts = Counter(a.bucket_counts)
+    bucket_counts.update(b.bucket_counts)
+    source_patch_ids = set(a.source_patch_ids)
+    source_patch_ids.update(b.source_patch_ids)
+    return PatchStats(
+        patch_id=keep_id,
+        count=total,
+        centroid=centroid,
+        mean_rgb=mean_rgb,
+        mean_normal=mean_normal,
+        bbox_min=np.minimum(a.bbox_min, b.bbox_min),
+        bbox_max=np.maximum(a.bbox_max, b.bbox_max),
+        bucket_counts=bucket_counts,
+        geometry_type=dominant_geometry(bucket_counts),
+        source_patch_ids=source_patch_ids,
+    )
+
+
 def cluster(labels: np.ndarray, stats: dict[int, PatchStats], edges: list[Edge], args: argparse.Namespace) -> tuple[np.ndarray, dict[str, Any], list[dict[str, Any]]]:
     dsu = DSU(list(stats))
     merge_log: list[dict[str, Any]] = []
@@ -277,6 +304,140 @@ def cluster(labels: np.ndarray, stats: dict[int, PatchStats], edges: list[Edge],
     return out, report, merge_log
 
 
+def cluster_dynamic(labels: np.ndarray, stats: dict[int, PatchStats], edges: list[Edge], args: argparse.Namespace) -> tuple[np.ndarray, dict[str, Any], list[dict[str, Any]]]:
+    dsu = DSU(list(stats))
+    component_stats = dict(stats)
+    component_size = {pid: stats[pid].count for pid in stats}
+    neighbors: dict[int, set[int]] = {pid: set() for pid in stats}
+    shared_edges: Counter[tuple[int, int]] = Counter()
+    source_rank: dict[tuple[int, int], str] = {}
+
+    for edge in edges:
+        pa, pb = sorted((edge.a, edge.b))
+        neighbors[pa].add(pb)
+        neighbors[pb].add(pa)
+        approx_shared = int(round(float(edge.features.get("contact", 0.0)) * min(stats[pa].count, stats[pb].count)))
+        shared_edges[(pa, pb)] += max(approx_shared, 0)
+        if edge.source == "adjacency" or (pa, pb) not in source_rank:
+            source_rank[(pa, pb)] = edge.source
+
+    heap: list[tuple[float, int, int, int, str, dict[str, float | str]]] = []
+    version = {pid: 0 for pid in stats}
+    pushes = 0
+
+    def push_edge(a: int, b: int) -> None:
+        nonlocal pushes
+        ra = dsu.find(a)
+        rb = dsu.find(b)
+        if ra == rb or ra not in component_stats or rb not in component_stats:
+            return
+        pa, pb = sorted((ra, rb))
+        shared = shared_edges.get((pa, pb), 0)
+        source = source_rank.get((pa, pb), "bbox")
+        score, reason, features = score_edge(component_stats[pa], component_stats[pb], shared, source, args)
+        threshold = args.min_edge_score
+        if reason == "porous":
+            threshold = args.min_porous_score
+        elif reason == "interleaved":
+            threshold = args.min_interleaved_score
+        elif source == "bbox":
+            threshold = max(threshold, args.min_bbox_edge_score)
+        if score < threshold:
+            return
+        pushes += 1
+        heapq.heappush(heap, (-score, pa, pb, version[pa] + version[pb], reason, features))
+
+    for pa, pb in shared_edges:
+        push_edge(pa, pb)
+
+    merge_log: list[dict[str, Any]] = []
+    stale_pops = 0
+    rejected_size = 0
+    while heap and len(merge_log) < args.max_dynamic_merges:
+        neg_score, pa, pb, edge_version, reason, features = heapq.heappop(heap)
+        ra = dsu.find(pa)
+        rb = dsu.find(pb)
+        if ra == rb or ra not in component_stats or rb not in component_stats:
+            stale_pops += 1
+            continue
+        ca, cb = sorted((ra, rb))
+        if edge_version != version.get(ca, 0) + version.get(cb, 0):
+            stale_pops += 1
+            push_edge(ca, cb)
+            continue
+        if component_size.get(ca, component_stats[ca].count) + component_size.get(cb, component_stats[cb].count) > args.max_component_voxels:
+            rejected_size += 1
+            continue
+
+        keep, drop = (ca, cb) if component_size.get(ca, 0) >= component_size.get(cb, 0) else (cb, ca)
+        score = -neg_score
+        if not dsu.union(keep, drop):
+            continue
+
+        keep_stats = component_stats[keep]
+        drop_stats = component_stats[drop]
+        component_stats[keep] = merge_patch_stats(keep, keep_stats, drop_stats)
+        component_stats.pop(drop, None)
+        component_size[keep] = component_size.get(keep, 0) + component_size.get(drop, 0)
+        component_size.pop(drop, None)
+        version[keep] = version.get(keep, 0) + 1
+        version.pop(drop, None)
+
+        merged_neighbors = (neighbors.get(keep, set()) | neighbors.get(drop, set())) - {keep, drop}
+        neighbors[keep] = set()
+        neighbors.pop(drop, None)
+        for nbr in merged_neighbors:
+            rn = dsu.find(nbr)
+            if rn == keep or rn not in component_stats:
+                continue
+            old_a = tuple(sorted((keep, rn)))
+            old_b = tuple(sorted((drop, rn)))
+            new_key = tuple(sorted((keep, rn)))
+            shared_edges[new_key] = shared_edges.get(old_a, 0) + shared_edges.get(old_b, 0)
+            if source_rank.get(old_a) == "adjacency" or source_rank.get(old_b) == "adjacency":
+                source_rank[new_key] = "adjacency"
+            else:
+                source_rank[new_key] = source_rank.get(old_a) or source_rank.get(old_b) or "bbox"
+            neighbors[keep].add(rn)
+            neighbors.setdefault(rn, set()).discard(drop)
+            neighbors[rn].add(keep)
+            push_edge(keep, rn)
+
+        if len(merge_log) < args.max_log_rows:
+            merge_log.append(
+                {
+                    "keep": int(keep),
+                    "drop": int(drop),
+                    "edge_a": int(ca),
+                    "edge_b": int(cb),
+                    "reason": reason,
+                    "score": float(score),
+                    **features,
+                }
+            )
+
+    max_label = int(labels.max())
+    table = np.arange(max_label + 1, dtype=np.int32)
+    for patch_id in stats:
+        root = dsu.find(patch_id)
+        if patch_id <= max_label:
+            table[patch_id] = root
+    out = table[labels]
+    report = {
+        "schema": "geo-primitive-unified-dynamic-cluster/v1",
+        "input_patch_count": int(len(stats)),
+        "initial_edge_count": int(len(edges)),
+        "accepted_merge_count": int(len(merge_log)),
+        "output_patch_count": int(len(np.unique(out))),
+        "stale_heap_pops": stale_pops,
+        "rejected_size_count": rejected_size,
+        "heap_push_count": pushes,
+        "merge_reason_counts": dict(Counter(row["reason"] for row in merge_log)),
+        "params": vars(args),
+    }
+    return out, report, merge_log
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--region-input", type=Path, required=True)
@@ -306,6 +467,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-log-rows", type=int, default=50000)
     parser.add_argument("--small-patch-voxels", type=int, default=8)
     parser.add_argument("--preview-stride", type=int, default=5)
+    parser.add_argument("--dynamic", action="store_true")
+    parser.add_argument("--max-dynamic-merges", type=int, default=5000)
     return parser.parse_args()
 
 
@@ -318,7 +481,10 @@ def main() -> int:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     stats = compute_patch_stats(arrays, labels)
     edges = build_edges(stats, labels, src, dst, args)
-    out, report, merge_log = cluster(labels, stats, edges, args)
+    if args.dynamic:
+        out, report, merge_log = cluster_dynamic(labels, stats, edges, args)
+    else:
+        out, report, merge_log = cluster(labels, stats, edges, args)
     report["output_ply"] = str(args.output_dir / f"geo_primitives_unified_stride{args.preview_stride}.ply")
     report["output_jsonl"] = str(args.output_dir / "geo_primitives_unified.jsonl")
     report["preview_points"] = write_ply(Path(report["output_ply"]), arrays, out, args.preview_stride)
