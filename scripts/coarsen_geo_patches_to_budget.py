@@ -201,7 +201,162 @@ def write_component_jsonl(path: Path, component_stats: dict[int, PatchStats], ar
     return len(component_stats)
 
 
-def coarsen(labels: np.ndarray, stats: dict[int, PatchStats], args: argparse.Namespace) -> tuple[np.ndarray, dict[int, PatchStats], dict[str, Any], list[dict[str, Any]]]:
+def remap_labels(labels: np.ndarray, stats: dict[int, PatchStats], dsu: DSU, noise_source_ids: set[int], noise_id: int) -> np.ndarray:
+    table = np.arange(noise_id + 1, dtype=np.int32)
+    for patch_id in stats:
+        if patch_id in noise_source_ids:
+            table[patch_id] = noise_id
+        else:
+            table[patch_id] = dsu.find(patch_id)
+    return table[labels]
+
+
+def coarse_cell_pair_counts(
+    xyz: np.ndarray,
+    labels: np.ndarray,
+    voxel_size: float,
+    max_labels_per_cell: int,
+) -> tuple[Counter[tuple[int, int]], Counter[int]]:
+    origin = np.floor(xyz.min(axis=0) / voxel_size).astype(np.int64)
+    grid = np.floor(xyz / voxel_size).astype(np.int64) - origin
+    shape = grid.max(axis=0).astype(np.int64) + 1
+    ny = int(shape[1])
+    nz = int(shape[2])
+    keys = (grid[:, 0] * ny + grid[:, 1]) * nz + grid[:, 2]
+    order = np.lexsort((labels, keys))
+    sorted_keys = keys[order]
+    sorted_labels = labels[order]
+    starts = np.r_[0, np.flatnonzero(np.diff(sorted_keys)) + 1]
+    ends = np.r_[starts[1:], len(sorted_keys)]
+    pair_counts: Counter[tuple[int, int]] = Counter()
+    cell_counts: Counter[int] = Counter()
+    for start, end in zip(starts.tolist(), ends.tolist(), strict=True):
+        unique_labels = np.unique(sorted_labels[start:end]).astype(np.int64, copy=False).tolist()
+        if not unique_labels:
+            continue
+        for label in unique_labels:
+            cell_counts[int(label)] += 1
+        if len(unique_labels) < 2 or len(unique_labels) > max_labels_per_cell:
+            continue
+        for i, a in enumerate(unique_labels):
+            for b in unique_labels[i + 1 :]:
+                pair_counts[(int(a), int(b))] += 1
+    return pair_counts, cell_counts
+
+
+def suppress_overlap(
+    arrays: dict[str, np.ndarray],
+    labels: np.ndarray,
+    component_stats: dict[int, PatchStats],
+    args: argparse.Namespace,
+) -> tuple[np.ndarray, dict[int, PatchStats], dict[str, Any], list[dict[str, Any]]]:
+    if args.overlap_voxel_size <= 0 or args.overlap_merge_passes <= 0:
+        return labels, component_stats, {"enabled": False}, []
+
+    total_merges = 0
+    logs: list[dict[str, Any]] = []
+    report: dict[str, Any] = {
+        "enabled": True,
+        "voxel_size": args.overlap_voxel_size,
+        "passes": [],
+    }
+    current_labels = labels
+    current_stats = component_stats
+
+    for pass_idx in range(args.overlap_merge_passes):
+        pair_counts, cell_counts = coarse_cell_pair_counts(
+            arrays["xyz"],
+            current_labels,
+            args.overlap_voxel_size,
+            args.overlap_max_labels_per_cell,
+        )
+        candidates: list[tuple[float, int, int, int, float, dict[str, float | str]]] = []
+        for (a, b), shared in pair_counts.items():
+            if a not in current_stats or b not in current_stats:
+                continue
+            if a == b:
+                continue
+            if current_stats[a].geometry_type == "noise_residual" or current_stats[b].geometry_type == "noise_residual":
+                continue
+            min_cells = min(cell_counts.get(a, 0), cell_counts.get(b, 0))
+            if shared < args.overlap_min_cells or min_cells <= 0:
+                continue
+            overlap_ratio = shared / max(float(min_cells), 1.0)
+            if overlap_ratio < args.overlap_min_ratio:
+                continue
+            score, features = score_pair(current_stats[a], current_stats[b], args)
+            overlap_boosted_score = score + args.overlap_ratio_weight * min(1.0, overlap_ratio)
+            if overlap_boosted_score < args.overlap_min_score:
+                continue
+            candidates.append((overlap_boosted_score, int(a), int(b), int(shared), float(overlap_ratio), features))
+        candidates.sort(reverse=True)
+
+        dsu = DSU(list(current_stats))
+        next_stats = dict(current_stats)
+        pass_merges = 0
+        for score, a, b, shared, overlap_ratio, features in candidates:
+            ra = dsu.find(a)
+            rb = dsu.find(b)
+            if ra == rb or ra not in next_stats or rb not in next_stats:
+                continue
+            if next_stats[ra].count + next_stats[rb].count > args.overlap_max_component_voxels:
+                continue
+            keep, drop = (ra, rb) if next_stats[ra].count >= next_stats[rb].count else (rb, ra)
+            if not dsu.union(keep, drop):
+                continue
+            next_stats[keep] = merge_stats(keep, next_stats[keep], next_stats[drop])
+            next_stats.pop(drop, None)
+            pass_merges += 1
+            total_merges += 1
+            if len(logs) < args.max_log_rows:
+                logs.append(
+                    {
+                        "pass": pass_idx,
+                        "keep": int(keep),
+                        "drop": int(drop),
+                        "score": float(score),
+                        "shared_overlap_cells": int(shared),
+                        "overlap_ratio_min": float(overlap_ratio),
+                        **features,
+                    }
+                )
+        if pass_merges == 0:
+            report["passes"].append(
+                {
+                    "pass": pass_idx,
+                    "candidate_pair_count": len(candidates),
+                    "merge_count": 0,
+                    "patch_count": len(current_stats),
+                }
+            )
+            break
+        max_label = int(current_labels.max())
+        table = np.arange(max(max_label, max(current_stats)) + 1, dtype=np.int32)
+        for label in current_stats:
+            if label < len(table):
+                table[label] = dsu.find(label)
+        current_labels = table[current_labels]
+        current_stats = next_stats
+        report["passes"].append(
+            {
+                "pass": pass_idx,
+                "candidate_pair_count": len(candidates),
+                "merge_count": pass_merges,
+                "patch_count": len(current_stats),
+            }
+        )
+
+    report["merge_count"] = total_merges
+    report["output_patch_count"] = len(current_stats)
+    return current_labels, current_stats, report, logs
+
+
+def coarsen(
+    arrays: dict[str, np.ndarray],
+    labels: np.ndarray,
+    stats: dict[int, PatchStats],
+    args: argparse.Namespace,
+) -> tuple[np.ndarray, dict[int, PatchStats], dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
     max_input_label = int(labels.max())
     noise_id = max_input_label + 1
     noise_source_ids = {
@@ -249,13 +404,7 @@ def coarsen(labels: np.ndarray, stats: dict[int, PatchStats], args: argparse.Nam
         if len(merge_log) < args.max_log_rows:
             merge_log.append({"keep": int(keep), "drop": int(drop), "score": float(score), **features})
 
-    table = np.arange(noise_id + 1, dtype=np.int32)
-    for patch_id in stats:
-        if patch_id in noise_source_ids:
-            table[patch_id] = noise_id
-        else:
-            table[patch_id] = dsu.find(patch_id)
-    out = table[labels]
+    out = remap_labels(labels, stats, dsu, noise_source_ids, noise_id)
     if noise_source_ids:
         noise_stats: PatchStats | None = None
         for patch_id in noise_source_ids:
@@ -265,6 +414,7 @@ def coarsen(labels: np.ndarray, stats: dict[int, PatchStats], args: argparse.Nam
             noise_stats.patch_id = noise_id
             noise_stats.geometry_type = "noise_residual"
             active[noise_id] = noise_stats
+    out, active, overlap_report, overlap_log = suppress_overlap(arrays=arrays, labels=out, component_stats=active, args=args)
     report = {
         "schema": "geo-patch-coarsen-budget/v1",
         "input_patch_count": int(len(stats)),
@@ -280,9 +430,10 @@ def coarsen(labels: np.ndarray, stats: dict[int, PatchStats], args: argparse.Nam
         "stale_heap_pops": int(stale),
         "evaluated_edges": int(evaluated),
         "rejected": dict(rejected),
+        "overlap_suppression": overlap_report,
         "params": vars(args),
     }
-    return out, active, report, merge_log
+    return out, active, report, merge_log, overlap_log
 
 
 def parse_args() -> argparse.Namespace:
@@ -314,6 +465,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--preview-stride", type=int, default=10)
     parser.add_argument("--max-log-rows", type=int, default=50000)
     parser.add_argument("--max-source-patch-ids", type=int, default=256)
+    parser.add_argument("--overlap-voxel-size", type=float, default=0.0)
+    parser.add_argument("--overlap-merge-passes", type=int, default=1)
+    parser.add_argument("--overlap-max-labels-per-cell", type=int, default=8)
+    parser.add_argument("--overlap-min-cells", type=int, default=4)
+    parser.add_argument("--overlap-min-ratio", type=float, default=0.18)
+    parser.add_argument("--overlap-ratio-weight", type=float, default=0.24)
+    parser.add_argument("--overlap-min-score", type=float, default=0.48)
+    parser.add_argument("--overlap-max-component-voxels", type=int, default=8000000)
     return parser.parse_args()
 
 
@@ -327,13 +486,17 @@ def main() -> int:
         raise ValueError(f"label count mismatch: labels={len(labels)} voxels={len(arrays['xyz'])}")
     args.output_dir.mkdir(parents=True, exist_ok=True)
     stats = compute_patch_stats(arrays, labels)
-    out, component_stats, report, merge_log = coarsen(labels, stats, args)
+    out, component_stats, report, merge_log, overlap_log = coarsen(arrays, labels, stats, args)
     report["output_ply"] = str(args.output_dir / f"geo_patches_coarse_stride{args.preview_stride}.ply")
     report["output_jsonl"] = str(args.output_dir / "geo_patches_coarse.jsonl")
     report["preview_points"] = write_ply(Path(report["output_ply"]), arrays, out, args.preview_stride)
     report["jsonl_patch_count"] = write_component_jsonl(Path(report["output_jsonl"]), component_stats, args)
     (args.output_dir / "coarse_merge_log.jsonl").write_text(
         "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in merge_log),
+        encoding="utf-8",
+    )
+    (args.output_dir / "overlap_suppression_log.jsonl").write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in overlap_log),
         encoding="utf-8",
     )
     (args.output_dir / "coarse_report.json").write_text(
