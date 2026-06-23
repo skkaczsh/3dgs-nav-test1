@@ -341,6 +341,30 @@ Patch graph optimization v1/v2:
   must include fine-cell ownership directly in the objective, rather than only
   merging by patch adjacency.
 
+Boundary transfer optimizer v1:
+
+- Script: `scripts/optimize_geo_patch_boundaries.py`.
+- Method: operate only on `0.05m` fine cells containing multiple patch ids.
+  Each conflict cell is assigned to the candidate patch whose current model
+  best explains that cell using RGB, geometry bucket, normal, occupancy support,
+  and patch size prior.  This dynamically changes boundary ownership instead of
+  only absorbing small patches.
+- Output:
+  `server_parking_priority_s10/geo_patch_full_cpp_v1_4090d_boundary_transfer_v1/`.
+- Results:
+  - input patches: `136954`.
+  - output patches: `136726`.
+  - conflict cells seen: `18711`.
+  - resolved cells: `12493`.
+  - transferred points: `12538`.
+  - `0.05m` conflict extra ratio: `0.5024%` -> `0.1668%`.
+  - `0.10m` conflict extra ratio: `4.7814%` -> `4.7017%`.
+- Interpretation: direct boundary ownership transfer is much more effective
+  than small-patch absorption for fine-cell conflicts.  The remaining coarse
+  `0.10m` conflicts are mostly caused by using a coarser analysis grid than the
+  ownership grid; reducing them will require either ownership at `0.10m` or
+  producing viewer/output points at canonical voxel centers.
+
 Dense colorized source note:
 
 - The full colorized reconstruction is
