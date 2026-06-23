@@ -603,6 +603,25 @@ Dense colorized source note:
     v4/v5. AABB metrics alone look slightly worse, but the stronger occupied
     cell metric improves. Use v6 as the current decision baseline unless visual
     QA shows unacceptable fragmentation.
+- Patch-to-object candidate report on v6:
+  - script: `propose_geo_patch_object_merges.py`.
+  - purpose: report adjacent, visually/geometrically compatible patch pairs for
+    the Object-building stage without changing patch ownership.
+  - output: `dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/object_merge_candidates_v1`.
+  - input: v6 labels and the dense LAS region input.
+  - result: `48863` patches, `22921` adjacent patch pairs, `273` high-score
+    object-merge candidates.
+  - main reject reasons: `21694` small patch pairs, `481` bucket mismatch,
+    `240` color distance, `104` low shared edges, `70` score, `44` low contact
+    ratio, `15` stable normal mismatch.
+  - candidate geometry pairs: `mixed+mixed` (`101`), `mixed+rough_mixed`
+    (`59`), `mixed+unknown` (`45`), `rough_mixed+vertical` (`26`),
+    `unknown+vertical` (`15`), plus smaller stable pairs.
+  - `181 / 273` candidates are big-mixed-attachment cases. These should not be
+    auto-merged blindly; they are a review or stricter object-building class.
+    The clean automatic object-building set should start with same-scale,
+    same/stable-bucket, high-contact candidates and keep big mixed attachments
+    separate until visual or structural evidence supports absorption.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color
