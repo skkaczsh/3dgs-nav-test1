@@ -229,6 +229,23 @@ def merge_decision(
     geometry_guard = 0.0
     if {a.geometry_type, b.geometry_type} in [{"horizontal", "vertical"}, {"vertical", "rough_mixed"}, {"horizontal", "rough_mixed"}]:
         geometry_guard = args.geometry_mismatch_penalty
+    multimodal_score = None
+    if args.allow_multimodal_merge:
+        near_raw = 0.5 * (nn["near_ratio_ab"] + nn["near_ratio_ba"])
+        bbox_score = min(1.0, 0.5 * (candidate.ratio_min_volume + candidate.bbox_iou / max(args.multimodal_bbox_iou_scale, 1e-6)))
+        # Multi-modal objects are allowed to contain several geometry/color
+        # modes.  We still require spatial interleaving, reasonable color
+        # relation, and normal/chart compatibility; we simply stop treating a
+        # bucket mismatch as a hard semantic penalty.
+        multimodal_score = (
+            0.36 * min(1.0, near_raw / max(args.min_near_ratio, 1e-6))
+            + 0.22 * bbox_score
+            + 0.18 * terms["normal"]
+            + 0.14 * terms["color"]
+            + 0.10 * terms["balance"]
+        )
+        merge_score = max(merge_score, multimodal_score)
+
     gain = merge_score - separate_score - geometry_guard
     near_raw = 0.5 * (nn["near_ratio_ab"] + nn["near_ratio_ba"])
     accept = (
@@ -244,6 +261,7 @@ def merge_decision(
         "geometry_guard": geometry_guard,
         "merged_geometry_type": merged.geometry_type,
         "near_ratio": near_raw,
+        "multimodal_score": multimodal_score if multimodal_score is not None else -1.0,
         **terms,
         **nn,
     }
@@ -367,6 +385,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--geometry-mismatch-penalty", type=float, default=0.06)
     parser.add_argument("--min-merge-score", type=float, default=0.50)
     parser.add_argument("--min-gain", type=float, default=0.02)
+    parser.add_argument("--allow-multimodal-merge", action="store_true")
+    parser.add_argument("--multimodal-bbox-iou-scale", type=float, default=0.65)
     parser.add_argument("--max-reject-log-rows", type=int, default=20000)
     parser.add_argument("--small-patch-voxels", type=int, default=8)
     parser.add_argument("--preview-stride", type=int, default=5)
