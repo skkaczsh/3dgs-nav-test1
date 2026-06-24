@@ -53,9 +53,45 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def candidate_is_attachment(row: dict[str, Any], args: argparse.Namespace) -> tuple[bool, str]:
+    """Accept only high-confidence small-fragment attachment to a large patch.
+
+    Big mixed attachments are structurally different from same-scale object
+    merges.  A small fragment can be absorbed by a large patch only when the
+    boundary contact and local appearance are both strong.  This keeps the
+    patch partition exclusive while avoiding a global threshold relaxation.
+    """
+    small = min(int(row.get("voxels_a", 0)), int(row.get("voxels_b", 0)))
+    large = max(int(row.get("voxels_a", 0)), int(row.get("voxels_b", 0)))
+    if small <= 0 or large <= 0:
+        return False, "attachment_missing_size"
+    if small > args.attachment_max_fragment_voxels:
+        return False, "attachment_fragment_too_large"
+    if large < args.attachment_min_anchor_voxels:
+        return False, "attachment_anchor_too_small"
+    if float(row.get("size_ratio", 0.0)) < args.attachment_min_size_ratio:
+        return False, "attachment_size_ratio"
+    if float(row.get("score", 0.0)) < args.attachment_min_score:
+        return False, "attachment_score"
+    if float(row.get("contact_ratio_min", 0.0)) < args.attachment_min_contact_ratio:
+        return False, "attachment_contact_ratio"
+    if float(row.get("shared_edges", 0.0)) < args.attachment_min_shared_edges:
+        return False, "attachment_shared_edges"
+    if float(row.get("color_distance", 1e9)) > args.attachment_max_color_distance:
+        return False, "attachment_color_distance"
+    if float(row.get("normal_score", 0.0)) < args.attachment_min_normal_score:
+        return False, "attachment_normal"
+    if float(row.get("bbox_gap", 1e9)) > args.attachment_max_bbox_gap:
+        return False, "attachment_bbox_gap"
+    return True, "accepted_attachment"
+
+
 def candidate_is_clean(row: dict[str, Any], args: argparse.Namespace) -> tuple[bool, str]:
-    if float(row.get("big_mixed_attachment", 0.0)) > 0 and not args.allow_big_mixed_attachment:
-        return False, "big_mixed_attachment"
+    if float(row.get("big_mixed_attachment", 0.0)) > 0:
+        if args.enable_attachment_model:
+            return candidate_is_attachment(row, args)
+        if not args.allow_big_mixed_attachment:
+            return False, "big_mixed_attachment"
     if float(row.get("score", 0.0)) < args.min_score:
         return False, "score"
     if float(row.get("contact_ratio_min", 0.0)) < args.min_contact_ratio:
@@ -173,6 +209,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-normal-score", type=float, default=0.65)
     parser.add_argument("--same-geometry-only", action="store_true")
     parser.add_argument("--allow-big-mixed-attachment", action="store_true")
+    parser.add_argument("--enable-attachment-model", action="store_true")
+    parser.add_argument("--attachment-min-score", type=float, default=0.84)
+    parser.add_argument("--attachment-min-contact-ratio", type=float, default=0.18)
+    parser.add_argument("--attachment-min-shared-edges", type=int, default=80)
+    parser.add_argument("--attachment-max-color-distance", type=float, default=28.0)
+    parser.add_argument("--attachment-min-normal-score", type=float, default=0.75)
+    parser.add_argument("--attachment-max-bbox-gap", type=float, default=0.05)
+    parser.add_argument("--attachment-max-fragment-voxels", type=int, default=1200)
+    parser.add_argument("--attachment-min-anchor-voxels", type=int, default=100000)
+    parser.add_argument("--attachment-min-size-ratio", type=float, default=500.0)
     return parser.parse_args()
 
 

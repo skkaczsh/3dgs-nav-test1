@@ -667,6 +667,39 @@ Dense colorized source note:
   - Interpretation: candidate recall matters, but the dominant unresolved class
     is now big mixed attachment. The next stage should model attachments to
     large mixed surfaces explicitly instead of globally relaxing object gates.
+- Attachment-specific object test on 4090D r4 labels:
+  - input: `geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623`, using
+    `_cpp_region_grower_input.bin` and `_cpp_region_grower_labels.bin`.
+  - tiny-fragment candidate output:
+    `geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/object_merge_candidates_v3_tiny_attach_recall`.
+  - candidate settings: `min_patch_voxels=1`, `min_shared_edges=1`,
+    `min_contact_ratio=0.001`, `max_color_distance=120`,
+    `min_bucket_score=0.40`, `min_score=0.50`.
+  - candidate result: `200535` patches, `10723` adjacent pairs, `4195`
+    candidates, `95` big-mixed attachments. The previous high-recall run with
+    `min_patch_voxels=80` only yielded `61` candidates and `7` big-mixed
+    attachments, so the small-patch filter was suppressing the exact class this
+    stage needs to handle.
+  - clean baseline output:
+    `geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v4_tiny_recall_clean`.
+    Result: `82` accepted rows, `200535 -> 200453` objects, and all `95`
+    big-mixed attachments blocked.
+  - strict attachment output:
+    `geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v5_attachment_model`.
+    Result: same as clean (`82` accepted rows); strict defaults rejected `93`
+    attachments by score and `2` by size ratio.
+  - relaxed attachment output:
+    `geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v6_attachment_model_relaxed`.
+    Settings: `attachment_min_score=0.76`, `attachment_min_contact_ratio=0.10`,
+    `attachment_min_shared_edges=1`, `attachment_max_color_distance=65`,
+    `attachment_min_normal_score=0.45`.
+    Result: `103` accepted rows, including `21` `accepted_attachment`, and
+    `200535 -> 200432` objects.
+  - Interpretation: attachment-specific gating works and avoids global
+    threshold relaxation, but the current r4 patch labels are still too
+    fragmented (`200k` patches). The next improvement should move small-fragment
+    attachment evidence earlier into patch candidate generation or seed growth,
+    rather than relying on object-stage union alone.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color
