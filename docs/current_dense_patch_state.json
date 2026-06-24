@@ -294,6 +294,8 @@
         "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
         "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall"
       ]
-    }
+    },
+    "healthcheck_command": "python3 scripts/validate_current_mainline.py",
+    "healthcheck_status": "passed_with_visual_acceptance_warning"
   }
 }
