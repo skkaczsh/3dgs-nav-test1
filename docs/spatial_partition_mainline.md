@@ -700,6 +700,28 @@ Dense colorized source note:
     fragmented (`200k` patches). The next improvement should move small-fragment
     attachment evidence earlier into patch candidate generation or seed growth,
     rather than relying on object-stage union alone.
+- Patch-stage attachment merge:
+  - script: `optimize_patch_graph_energy.py`.
+  - output:
+    `geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v1_patch_stage`.
+  - change: `--enable-attachment-merge` lets merge step process small fragment
+    candidates before the normal `min_anchor_voxels` filter, but only through
+    the attachment-specific gate. General patch merges are unchanged.
+  - settings: one iteration, no split/boundary, `min_anchor_voxels=900`,
+    attachment defaults (`score>=0.76`, contact ratio `>=0.10`,
+    shared edges `>=1`, color distance `<=65`, normal score `>=0.45`).
+  - result: `200535 -> 200369` patches, `166` merge accepts, `10544` merge
+    rejects, preview points `1448243`.
+  - merge log: `160` accepts were `accepted_attachment`; `6` were ordinary
+    adjacency merges. Main attachment rejects were color distance (`5393`),
+    anchor too small (`4256`), score (`408`), normal (`290`), bucket (`156`),
+    contact ratio (`31`), and size ratio (`6`).
+  - Interpretation: moving attachment into patch-stage labels works. The effect
+    is still modest because this r4 source is extremely fragmented and many
+    fragments attach to anchors below `100000` voxels or differ strongly in
+    color. This is now the correct place to iterate: improve attachment seed
+    eligibility and local color/normal evidence, instead of doing object-stage
+    post-hoc union.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color
