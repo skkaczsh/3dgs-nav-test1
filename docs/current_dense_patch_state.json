@@ -206,7 +206,8 @@
       "Semantic guard outputs must keep floor/wall surface labels unless there is direct contradictory geometry evidence; missing teacher evidence alone is not enough to demote to unknown."
     ],
     "preflight_command": "python3 scripts/validate_current_mainline.py",
-    "remote_runner_preflight": "RUN_PREFLIGHT=1 is default; RUN=1 will stop before rsync/ssh/tmux if the current mainline healthcheck fails."
+    "remote_runner_preflight": "RUN_PREFLIGHT=1 is default; RUN=1 will stop before rsync/ssh/tmux if the current mainline healthcheck fails.",
+    "python_runner_healthcheck": "scripts/run_dense_patch_object_refinement_v7.py --run defaults to mainline healthcheck; pass --skip-mainline-healthcheck only from a trusted outer launcher."
   },
   "current_qa_report": {
     "id": "current_dense_mainline_qa",

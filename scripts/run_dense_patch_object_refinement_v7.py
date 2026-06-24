@@ -13,6 +13,7 @@ import argparse
 import json
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,9 @@ FORBIDDEN_INPUT_SUBSTRINGS = (
     "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
     "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_MAINLINE_HEALTHCHECK = REPO_ROOT / "scripts" / "validate_current_mainline.py"
 
 
 def shell_join(parts: list[str]) -> str:
@@ -187,6 +191,15 @@ def run_command(argv: list[str], cwd: Path) -> None:
     subprocess.run(argv, cwd=cwd, check=True)
 
 
+def run_mainline_healthcheck(args: argparse.Namespace) -> None:
+    if args.skip_mainline_healthcheck:
+        return
+    script = args.mainline_healthcheck
+    if not script.exists():
+        raise FileNotFoundError(f"mainline healthcheck missing: {script}")
+    subprocess.run([sys.executable, str(script)], cwd=REPO_ROOT, check=True)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state", type=Path, default=Path("docs/current_dense_patch_state.json"))
@@ -196,6 +209,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--python", default="python")
     parser.add_argument("--run", action="store_true", help="Execute commands; default only writes command plan")
     parser.add_argument("--plan-json", type=Path, help="Optional path for the generated command plan")
+    parser.add_argument("--mainline-healthcheck", type=Path, default=DEFAULT_MAINLINE_HEALTHCHECK)
+    parser.add_argument(
+        "--skip-mainline-healthcheck",
+        action="store_true",
+        help="Skip the local current-mainline healthcheck. Use only when a trusted outer launcher already ran it.",
+    )
 
     parser.add_argument("--edge-source", choices=("region", "grid6"), default="region")
     parser.add_argument("--grid-voxel-size", type=float, default=0.03)
@@ -256,6 +275,7 @@ def main() -> int:
     print(json.dumps(plan, ensure_ascii=False, indent=2))
 
     if args.run:
+        run_mainline_healthcheck(args)
         cwd = Path.cwd()
         for item in plan["commands"]:
             run_command([str(part) for part in item["argv"]], cwd)

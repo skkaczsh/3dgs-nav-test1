@@ -142,6 +142,7 @@ ${PYTHON} scripts/run_dense_patch_object_refinement_v7.py \
   --attachment-max-fragment-voxels "${ATTACHMENT_MAX_FRAGMENT_VOXELS}" \
   --attachment-min-anchor-voxels "${ATTACHMENT_MIN_ANCHOR_VOXELS}" \
   --attachment-min-size-ratio "${ATTACHMENT_MIN_SIZE_RATIO}" \
+  --skip-mainline-healthcheck \
   --run \
   > "${OUTPUT_DIR}/run_dense_patch_object_refinement_v7.log" 2>&1
 date -Is > "${OUTPUT_DIR}/DONE"

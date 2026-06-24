@@ -33,6 +33,8 @@ def base_args(tmp_path: Path) -> argparse.Namespace:
         python="python",
         run=False,
         plan_json=None,
+        mainline_healthcheck=ROOT / "scripts" / "validate_current_mainline.py",
+        skip_mainline_healthcheck=False,
         edge_source="region",
         grid_voxel_size=0.03,
         min_patch_voxels=40,
@@ -139,3 +141,66 @@ def test_v7_runner_does_not_require_state_when_patch_labels_are_explicit(
     monkeypatch.setattr("sys.argv", argv)
     assert module.main() == 0
     assert (args.output_dir / "dense_patch_object_refinement_v7_plan.json").exists()
+
+
+def test_v7_runner_run_mode_checks_mainline_health_before_commands(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = load_module()
+    args = base_args(tmp_path)
+    calls: list[tuple[str, list[str]]] = []
+
+    def fake_run_command(argv: list[str], cwd: Path) -> None:
+        calls.append(("command", argv))
+
+    def fake_healthcheck(parsed: argparse.Namespace) -> None:
+        calls.append(("healthcheck", [str(parsed.mainline_healthcheck)]))
+
+    monkeypatch.setattr(module, "run_command", fake_run_command)
+    monkeypatch.setattr(module, "run_mainline_healthcheck", fake_healthcheck)
+    argv = [
+        "run_dense_patch_object_refinement_v7.py",
+        "--state",
+        str(args.state),
+        "--region-input",
+        str(args.region_input),
+        "--patch-labels",
+        str(args.patch_labels),
+        "--output-dir",
+        str(args.output_dir),
+        "--run",
+    ]
+    monkeypatch.setattr("sys.argv", argv)
+
+    assert module.main() == 0
+    assert calls[0][0] == "healthcheck"
+    assert [name for name, _ in calls].count("command") == 2
+
+
+def test_v7_runner_can_skip_mainline_healthcheck_when_outer_launcher_checked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = load_module()
+    args = base_args(tmp_path)
+    calls: list[str] = []
+
+    monkeypatch.setattr(module, "run_command", lambda argv, cwd: calls.append("command"))
+    argv = [
+        "run_dense_patch_object_refinement_v7.py",
+        "--state",
+        str(args.state),
+        "--region-input",
+        str(args.region_input),
+        "--patch-labels",
+        str(args.patch_labels),
+        "--output-dir",
+        str(args.output_dir),
+        "--mainline-healthcheck",
+        str(tmp_path / "missing_healthcheck.py"),
+        "--skip-mainline-healthcheck",
+        "--run",
+    ]
+    monkeypatch.setattr("sys.argv", argv)
+
+    assert module.main() == 0
+    assert calls == ["command", "command"]

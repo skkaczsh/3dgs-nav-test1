@@ -29,4 +29,5 @@ def test_scan_train_dense_patch_runner_runs_mainline_preflight_before_remote_lau
     assert 'RUN_PREFLIGHT="${RUN_PREFLIGHT:-1}"' in text
     assert 'PREFLIGHT="${PREFLIGHT:-${LOCAL_REPO}/scripts/validate_current_mainline.py}"' in text
     assert "preflight=skipped" in text
+    assert "--skip-mainline-healthcheck" in text
     assert preflight_pos < rsync_pos < ssh_pos < tmux_pos
