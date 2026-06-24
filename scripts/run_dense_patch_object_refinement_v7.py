@@ -17,16 +17,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
-FORBIDDEN_INPUT_SUBSTRINGS = (
-    "frame_object_points_stride10.ply",
-    "objects_v12_teacher_v20_grid6_unknown_absorb",
-    "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
-    "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
-    "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
-)
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.current_mainline_contract import forbidden_artifact_match
+
 DEFAULT_MAINLINE_HEALTHCHECK = REPO_ROOT / "scripts" / "validate_current_mainline.py"
 
 
@@ -35,10 +31,9 @@ def shell_join(parts: list[str]) -> str:
 
 
 def reject_forbidden_path(path: Path) -> None:
-    value = str(path)
-    for forbidden in FORBIDDEN_INPUT_SUBSTRINGS:
-        if forbidden in value:
-            raise ValueError(f"forbidden input path contains {forbidden}: {value}")
+    forbidden = forbidden_artifact_match(path)
+    if forbidden:
+        raise ValueError(f"forbidden input path contains {forbidden}: {path}")
 
 
 def existing_file(path: Path, name: str) -> None:

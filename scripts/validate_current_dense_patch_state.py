@@ -5,8 +5,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.current_mainline_contract import FORBIDDEN_ARTIFACT_SUBSTRINGS
 
 
 REQUIRED_SCHEMA = "current-dense-patch-state/v1"
@@ -26,13 +33,7 @@ REQUIRED_TOP_LEVEL = {
     "next_action",
 }
 
-REQUIRED_FORBIDDEN_PATTERNS = {
-    "frame_object_points_stride10.ply",
-    "objects_v12_teacher_v20_grid6_unknown_absorb",
-    "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
-    "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
-    "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
-}
+REQUIRED_FORBIDDEN_PATTERNS = set(FORBIDDEN_ARTIFACT_SUBSTRINGS)
 
 REQUIRED_STAGE_RULES = {
     "dense_source",

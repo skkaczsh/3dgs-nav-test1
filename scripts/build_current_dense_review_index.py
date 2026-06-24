@@ -6,11 +6,17 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.current_mainline_contract import FORBIDDEN_ARTIFACT_SUBSTRINGS, forbidden_artifact_match
+
 DEFAULT_QA = REPO_ROOT / "docs" / "current_dense_mainline_qa.json"
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "current_dense_review_index.html"
 
@@ -58,15 +64,6 @@ ARTIFACTS = [
     },
 ]
 
-FORBIDDEN_ARTIFACT_SUBSTRINGS = (
-    "frame_object_points_stride10.ply",
-    "objects_v12_teacher_v20_grid6_unknown_absorb",
-    "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
-    "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
-    "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
-)
-
-
 def read_json(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as fh:
         data = json.load(fh)
@@ -110,9 +107,9 @@ def validate_artifact_allowlist(artifacts: list[dict[str, Any]] = ARTIFACTS) -> 
             str(item.get(key, ""))
             for key in ("id", "title", "role", "ply", "objects", "note")
         )
-        for forbidden in FORBIDDEN_ARTIFACT_SUBSTRINGS:
-            if forbidden in haystack:
-                errors.append(f"forbidden_artifact_reference={item.get('id')}:{forbidden}")
+        forbidden = forbidden_artifact_match(haystack)
+        if forbidden:
+            errors.append(f"forbidden_artifact_reference={item.get('id')}:{forbidden}")
     return {
         "schema": "current-dense-review-artifact-allowlist/v1",
         "passed": not errors,
