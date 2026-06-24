@@ -27,7 +27,7 @@ def test_rtx5070_geo_patch_energy_rejects_stride_viewer_input() -> None:
     )
 
     assert result.returncode == 2
-    assert "forbidden production input" in result.stderr
+    assert "forbidden_production_input=frame_object_points_stride10.ply" in result.stderr
 
 
 def test_rtx5070_geo_patch_energy_dry_run_reports_dense_input() -> None:

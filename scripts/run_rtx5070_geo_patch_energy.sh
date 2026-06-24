@@ -13,6 +13,7 @@ REMOTE_REPO="${REMOTE_REPO:-/home/zsh/Work/SCAN/new_route}"
 REMOTE_WORK="${REMOTE_WORK:-/home/zsh/Work/SCAN/work_MT20260616-175807}"
 REMOTE_VENV="${REMOTE_VENV:-/home/zsh/Work/SCAN/.venvs/scan-semantic}"
 REMOTE_PYTHON="${REMOTE_PYTHON:-python}"
+LOCAL_PYTHON="${LOCAL_PYTHON:-python3}"
 TMUX_SESSION="${TMUX_SESSION:-scan_patch_energy_v3_003}"
 
 RUN="${RUN:-0}"
@@ -36,16 +37,7 @@ MAX_MERGE_CANDIDATES="${MAX_MERGE_CANDIDATES:-240000}"
 SSH=(ssh -i "${REMOTE_KEY}" -p "${REMOTE_PORT}" "${REMOTE_HOST}")
 RSYNC_SSH="ssh -i ${REMOTE_KEY} -p ${REMOTE_PORT}"
 
-reject_forbidden_input() {
-  case "$1" in
-    *frame_object_points_stride10.ply*|*objects_v12_teacher_v20_grid6_unknown_absorb*|*objects_v14_teacher_v20_grid6_geometry_guard_wall_recall*|*objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor*|*objects_v16_teacher_v20_grid6_geometry_guard_surface_recall*)
-      echo "forbidden production input: $1" >&2
-      exit 2
-      ;;
-  esac
-}
-
-reject_forbidden_input "${INPUT_PLY}"
+"${LOCAL_PYTHON}" scripts/validate_production_inputs.py "${INPUT_PLY}"
 
 echo "remote=${REMOTE_HOST}:${REMOTE_PORT}"
 echo "input_ply=${INPUT_PLY}"
