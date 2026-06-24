@@ -1,6 +1,6 @@
 {
   "schema": "current-dense-patch-state/v1",
-  "updated_at": "2026-06-24T19:05:00+08:00",
+  "updated_at": "2026-06-24T19:45:00+08:00",
   "dataset": "MT20260616-175807",
   "purpose": "Track the dense raw-data Patch/Object mainline separately from semantic experiments and viewer artifacts.",
   "authoritative_source": {
@@ -291,7 +291,6 @@
         "v17_surface_preserve_guard"
       ],
       "forbidden_substrings": [
-        "frame_object_points_stride10.ply",
         "objects_v12_teacher_v20_grid6_unknown_absorb",
         "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
         "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
