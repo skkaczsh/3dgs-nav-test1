@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Geometry-first post-processing route for scan-rtx5070.
+# Deprecated viewer-input geometry-first post-processing route for scan-rtx5070.
 #
 # This route consumes a validated viewer PLY/Object JSONL pair and rebuilds
 # object boundaries from GeoPatch geometry before semantic classification.
-# Default mode is dry-run; set RUN=1 to execute remotely.
+# It is not a dense production route. Use run_rtx5070_geo_patch_energy.sh for
+# the current dense 0.03m voxel patch route. Default mode is dry-run; set
+# RUN=1 ALLOW_VIEWER_INPUT_ROUTE=1 only when intentionally reproducing this
+# legacy viewer-input experiment.
 
 REMOTE_HOST="${REMOTE_HOST:-scan-rtx5070}"
 REMOTE_REPO="${REMOTE_REPO:-/home/zsh/Work/SCAN/new_route}"
@@ -13,6 +16,7 @@ REMOTE_WORK="${REMOTE_WORK:-/home/zsh/Work/SCAN/work_MT20260616-175807}"
 REMOTE_PYTHON="${REMOTE_PYTHON:-python3}"
 
 RUN="${RUN:-0}"
+ALLOW_VIEWER_INPUT_ROUTE="${ALLOW_VIEWER_INPUT_ROUTE:-0}"
 OUT_SUFFIX="${OUT_SUFFIX:-geo_patch_objects_window_3000_3600_v1}"
 INPUT_VIEWER_DIR="${INPUT_VIEWER_DIR:-${REMOTE_WORK}/frame_object_viewer_attachment_localgeom_pure_surface_visibility_window_3000_3600}"
 INPUT_PLY="${INPUT_PLY:-${INPUT_VIEWER_DIR}/frame_object_points_stride10.ply}"
@@ -29,9 +33,15 @@ ENABLE_EVIDENCE_BFS_SPLIT="${ENABLE_EVIDENCE_BFS_SPLIT:-0}"
 
 echo "input_ply=${INPUT_PLY}"
 echo "output_dir=${OUTPUT_DIR}"
+echo "deprecated_viewer_input_route=1"
+echo "dense_replacement=scripts/run_rtx5070_geo_patch_energy.sh"
 if [[ "${RUN}" != "1" ]]; then
   echo "dry_run=1"
   exit 0
+fi
+if [[ "${ALLOW_VIEWER_INPUT_ROUTE}" != "1" ]]; then
+  echo "refusing to run deprecated viewer-input route; use scripts/run_rtx5070_geo_patch_energy.sh or set ALLOW_VIEWER_INPUT_ROUTE=1 for an intentional legacy reproduction" >&2
+  exit 2
 fi
 
 build_extra_args=()
