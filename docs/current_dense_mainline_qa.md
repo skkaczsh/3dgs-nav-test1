@@ -25,6 +25,13 @@ Base: `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_la
 
 Unknown point delta v17-v9: `0`
 
+## Rejected Guard Diagnostics
+
+| variant | unknown points | delta vs v9 | top rejection reasons |
+|---|---:|---:|---|
+| objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor | 1079157 | 1006072 | kept_unchecked_label=98413, wall_fragment_too_small_without_teacher=37037, floor_fragment_too_small_without_teacher=27477 |
+| objects_v16_teacher_v20_grid6_geometry_guard_surface_recall | 1030136 | 957051 | kept_unchecked_label=98413, kept_wall_geometry_guard=38507, kept_floor_geometry_guard=27674 |
+
 ## Gates
 
 - Object ownership must remain exclusive.

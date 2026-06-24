@@ -55,6 +55,28 @@ def make_fixture(base: Path) -> None:
         / "objects_v17_teacher_v20_surface_preserve_guard_report.json",
         {"object_count": 100, "changed_object_count": 0, "label_point_counts": {"wall": 50, "unknown": 10}},
     )
+    write_json(
+        base
+        / "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor"
+        / "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor_report.json",
+        {
+            "object_count": 90,
+            "changed_object_count": 20,
+            "label_point_counts": {"wall": 5, "unknown": 70},
+            "reason_counts": {"wall_fragment_too_small_without_teacher": 12, "kept_unchecked_label": 10},
+        },
+    )
+    write_json(
+        base
+        / "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall"
+        / "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall_report.json",
+        {
+            "object_count": 90,
+            "changed_object_count": 5,
+            "label_point_counts": {"wall": 10, "unknown": 60},
+            "reason_counts": {"wall_horizontal_or_up_normal": 7, "kept_unchecked_label": 10},
+        },
+    )
 
 
 def test_build_report_compares_dense_object_and_surface_guard(tmp_path: Path) -> None:
@@ -69,6 +91,10 @@ def test_build_report_compares_dense_object_and_surface_guard(tmp_path: Path) ->
     assert report["surface_guard"]["changed_object_count"] == 0
     assert report["surface_guard"]["label_point_counts"]["delta_v17_minus_v9"] == {"unknown": 0, "wall": 0}
     assert report["surface_guard"]["unknown_point_delta_v17_minus_v9"] == 0
+    rejected = report["rejected_guard_diagnostics"]["variants"]
+    assert rejected[0]["id"] == "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor"
+    assert rejected[0]["unknown_delta_vs_v9"] == 60
+    assert rejected[0]["top_reason_counts"][0]["reason"] == "wall_fragment_too_small_without_teacher"
 
 
 def test_format_md_includes_key_sections(tmp_path: Path) -> None:
@@ -80,6 +106,8 @@ def test_format_md_includes_key_sections(tmp_path: Path) -> None:
     assert "| candidate_count | 10 | 30 | 20 |" in text
     assert "| wall | 50 | 50 | 0 |" in text
     assert "Unknown point delta v17-v9: `0`" in text
+    assert "## Rejected Guard Diagnostics" in text
+    assert "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor" in text
 
 
 def test_cli_writes_json_and_markdown(tmp_path: Path) -> None:

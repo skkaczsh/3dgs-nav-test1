@@ -77,6 +77,76 @@
     "changed_object_count": 0,
     "interpretation": "v17 confirms the unknown spike in v15/v16 was caused by guard-policy demotion. Preserving floor/wall labels keeps point counts aligned with v9 while still documenting guard status."
   },
+  "rejected_guard_diagnostics": {
+    "schema": "rejected-guard-diagnostics/v1",
+    "baseline": "objects_v9_teacher_v20_semantic",
+    "baseline_unknown_points": 73085,
+    "variants": [
+      {
+        "id": "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
+        "status": "rejected",
+        "reason": "Rejected over-demotion to unknown after disabling wall-to-floor promotion.",
+        "unknown_points": 1079157,
+        "unknown_delta_vs_v9": 1006072,
+        "object_count": 195168,
+        "changed_object_count": 67749,
+        "top_reason_counts": [
+          {
+            "reason": "kept_unchecked_label",
+            "count": 98413
+          },
+          {
+            "reason": "wall_fragment_too_small_without_teacher",
+            "count": 37037
+          },
+          {
+            "reason": "floor_fragment_too_small_without_teacher",
+            "count": 27477
+          },
+          {
+            "reason": "kept_railing_geometry_guard",
+            "count": 27262
+          },
+          {
+            "reason": "wall_horizontal_or_up_normal",
+            "count": 3143
+          }
+        ]
+      },
+      {
+        "id": "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
+        "status": "rejected",
+        "reason": "Diagnostic only; still high point-level unknown.",
+        "unknown_points": 1030136,
+        "unknown_delta_vs_v9": 957051,
+        "object_count": 195168,
+        "changed_object_count": 3236,
+        "top_reason_counts": [
+          {
+            "reason": "kept_unchecked_label",
+            "count": 98413
+          },
+          {
+            "reason": "kept_wall_geometry_guard",
+            "count": 38507
+          },
+          {
+            "reason": "kept_floor_geometry_guard",
+            "count": 27674
+          },
+          {
+            "reason": "kept_railing_geometry_guard",
+            "count": 27262
+          },
+          {
+            "reason": "wall_horizontal_or_up_normal",
+            "count": 3143
+          }
+        ]
+      }
+    ],
+    "interpretation": "These rejected variants document the known failure mode where geometry guard rules treated missing or unstable evidence as a reason to erase floor/wall labels."
+  },
   "promotion_gates": [
     "Object ownership must remain exclusive.",
     "Mixed-object coarse voxel ratio must not regress while fragmentation decreases.",

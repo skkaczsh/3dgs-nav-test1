@@ -235,6 +235,48 @@
     "visual_acceptance_update_command": "python3 scripts/update_current_dense_visual_acceptance.py --check-id <check_id> --status accepted --reviewer <name> --notes <brief_evidence>",
     "visual_acceptance_gate_command": "python3 scripts/gate_current_dense_mainline_promotion.py --qa-json docs/current_dense_mainline_qa.json --visual-acceptance docs/current_dense_visual_acceptance.json --output docs/current_dense_promotion_gate.json",
     "unknown_point_delta_v17_minus_v9": 0,
-    "promotion_gate_unknown_spike_policy": "max_unknown_point_delta=0; any floor/wall guard run that increases unknown points above v9 is blocked."
+    "promotion_gate_unknown_spike_policy": "max_unknown_point_delta=0; any floor/wall guard run that increases unknown points above v9 is blocked.",
+    "rejected_guard_diagnostics": {
+      "baseline": "objects_v9_teacher_v20_semantic",
+      "baseline_unknown_points": 73085,
+      "variants": [
+        {
+          "id": "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
+          "unknown_delta_vs_v9": 1006072,
+          "top_reasons": [
+            {
+              "reason": "kept_unchecked_label",
+              "count": 98413
+            },
+            {
+              "reason": "wall_fragment_too_small_without_teacher",
+              "count": 37037
+            },
+            {
+              "reason": "floor_fragment_too_small_without_teacher",
+              "count": 27477
+            }
+          ]
+        },
+        {
+          "id": "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
+          "unknown_delta_vs_v9": 957051,
+          "top_reasons": [
+            {
+              "reason": "kept_unchecked_label",
+              "count": 98413
+            },
+            {
+              "reason": "kept_wall_geometry_guard",
+              "count": 38507
+            },
+            {
+              "reason": "kept_floor_geometry_guard",
+              "count": 27674
+            }
+          ]
+        }
+      ]
+    }
   }
 }

@@ -160,6 +160,58 @@ def compare_surface_guard(base: Path) -> dict[str, Any]:
     }
 
 
+def top_reasons(report: dict[str, Any], limit: int = 5) -> list[dict[str, Any]]:
+    reasons = report.get("reason_counts") or {}
+    if not isinstance(reasons, dict):
+        return []
+    rows = sorted(((str(k), as_int(v)) for k, v in reasons.items()), key=lambda item: item[1], reverse=True)
+    return [{"reason": key, "count": count} for key, count in rows[:limit]]
+
+
+def compare_rejected_guard_diagnostics(base: Path) -> dict[str, Any]:
+    baseline_name = "objects_v9_teacher_v20_semantic"
+    baseline = read_json(base / baseline_name / f"{baseline_name}_report.json")
+    baseline_points = {str(k): as_int(v) for k, v in (baseline.get("label_point_counts") or {}).items()}
+    baseline_unknown = baseline_points.get("unknown", 0)
+    rejected = [
+        (
+            "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
+            "Rejected over-demotion to unknown after disabling wall-to-floor promotion.",
+        ),
+        (
+            "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
+            "Diagnostic only; still high point-level unknown.",
+        ),
+    ]
+    variants: list[dict[str, Any]] = []
+    for name, reason in rejected:
+        report = read_json(base / name / f"{name}_report.json")
+        points = {str(k): as_int(v) for k, v in (report.get("label_point_counts") or {}).items()}
+        unknown = points.get("unknown", 0)
+        variants.append(
+            {
+                "id": name,
+                "status": "rejected",
+                "reason": reason,
+                "unknown_points": unknown,
+                "unknown_delta_vs_v9": unknown - baseline_unknown,
+                "object_count": as_int(report.get("object_count")),
+                "changed_object_count": as_int(report.get("changed_object_count")),
+                "top_reason_counts": top_reasons(report),
+            }
+        )
+    return {
+        "schema": "rejected-guard-diagnostics/v1",
+        "baseline": baseline_name,
+        "baseline_unknown_points": baseline_unknown,
+        "variants": variants,
+        "interpretation": (
+            "These rejected variants document the known failure mode where geometry guard rules "
+            "treated missing or unstable evidence as a reason to erase floor/wall labels."
+        ),
+    }
+
+
 def build_report(base: Path) -> dict[str, Any]:
     base = resolve_path(base)
     return {
@@ -167,6 +219,7 @@ def build_report(base: Path) -> dict[str, Any]:
         "base_dir": str(base),
         "object_refinement": compare_object_refinement(base),
         "surface_guard": compare_surface_guard(base),
+        "rejected_guard_diagnostics": compare_rejected_guard_diagnostics(base),
         "promotion_gates": [
             "Object ownership must remain exclusive.",
             "Mixed-object coarse voxel ratio must not regress while fragmentation decreases.",
@@ -214,6 +267,22 @@ def format_md(report: dict[str, Any]) -> str:
         )
     lines.append("")
     lines.append(f"Unknown point delta v17-v9: `{report['surface_guard']['unknown_point_delta_v17_minus_v9']}`")
+
+    rejected = report.get("rejected_guard_diagnostics", {})
+    lines.extend(
+        [
+            "",
+            "## Rejected Guard Diagnostics",
+            "",
+            "| variant | unknown points | delta vs v9 | top rejection reasons |",
+            "|---|---:|---:|---|",
+        ]
+    )
+    for row in rejected.get("variants", []):
+        top = ", ".join(f"{item['reason']}={item['count']}" for item in row.get("top_reason_counts", [])[:3])
+        lines.append(
+            f"| {row['id']} | {row['unknown_points']} | {row['unknown_delta_vs_v9']} | {top} |"
+        )
 
     lines.extend(["", "## Gates", ""])
     lines.extend(f"- {item}" for item in report["promotion_gates"])
