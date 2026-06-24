@@ -180,6 +180,18 @@ Runs:
     conservative for final semantics. It should be used as a diagnostic safety
     bound, not as the active semantic baseline.
 
+- `objects_v16_teacher_v20_grid6_geometry_guard_surface_recall`
+  - input: v12
+  - stage: no wall-to-floor promotion, and no automatic demotion of small
+    floor/wall fragments
+  - changed objects: `3236`
+  - object labels: unknown `101463`, wall `38507`, floor `27674`,
+    railing `27262`, grass `186`, car `76`
+  - point labels: unknown `1030136`, grass `206076`, floor `124081`,
+    wall `66325`, railing `13518`, car `8107`
+  - conclusion: repairs v15's over-demotion of surfaces, but the high point-level
+    unknown ratio shows that v12 remains a weak semantic/coarsening base.
+
 Viewer:
 
 ```text
@@ -196,6 +208,12 @@ No wall-to-floor diagnostic viewer:
 
 ```text
 http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor/objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor/objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor.jsonl&mode=semantic&stride=1&pointSize=1.2
+```
+
+Surface-recall diagnostic viewer:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v16_teacher_v20_grid6_geometry_guard_surface_recall/objects_v16_teacher_v20_grid6_geometry_guard_surface_recall.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v16_teacher_v20_grid6_geometry_guard_surface_recall/objects_v16_teacher_v20_grid6_geometry_guard_surface_recall.jsonl&mode=semantic&stride=1&pointSize=1.2
 ```
 
 Remaining bottleneck:

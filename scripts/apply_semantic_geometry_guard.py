@@ -108,7 +108,7 @@ def choose_label(row: dict[str, Any], args: argparse.Namespace) -> tuple[str, st
         if geom != "horizontal":
             return "unknown", "floor_geometry_not_horizontal"
         broad = count >= args.floor_min_voxels or h_extent >= args.floor_min_extent
-        if not broad and not teacher_ok:
+        if args.demote_small_surfaces and not broad and not teacher_ok:
             return "unknown", "floor_fragment_too_small_without_teacher"
         if z_ext > args.floor_max_z_extent and not teacher_ok:
             return "unknown", "floor_fragment_too_thick"
@@ -125,7 +125,7 @@ def choose_label(row: dict[str, Any], args: argparse.Namespace) -> tuple[str, st
             return "unknown", "wall_horizontal_or_up_normal"
         if geom not in {"vertical", "mixed", "rough_mixed", "unknown"}:
             return "unknown", "wall_geometry_veto"
-        if count < args.wall_min_voxels and not teacher_ok:
+        if args.demote_small_surfaces and count < args.wall_min_voxels and not teacher_ok:
             return "unknown", "wall_fragment_too_small_without_teacher"
         return label, "kept_wall_geometry_guard"
 
@@ -255,6 +255,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--floor-max-z-extent", type=float, default=0.9)
     parser.add_argument("--wall-min-voxels", type=int, default=400)
     parser.add_argument("--wall-max-normal-abs-z", type=float, default=0.62)
+    parser.add_argument(
+        "--demote-small-surfaces",
+        action="store_true",
+        help="Demote small floor/wall fragments without teacher support. Disabled by default because it can erase valid fragmented surfaces.",
+    )
     parser.add_argument(
         "--allow-wall-to-floor",
         action="store_true",
