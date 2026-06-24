@@ -25,6 +25,8 @@ def test_show_current_mainline_json_output() -> None:
     assert data["dense_object_baseline"]["id"] == "dense_las_voxel003_objects_v3_high_recall_clean_20260624"
     assert data["current_qa_report"]["promotion_gate_status"] == "awaiting_required_visual_checks"
     assert data["current_qa_report"]["review_index_url"] == "/docs/current_dense_review_index.html"
+    assert data["current_qa_report"]["review_artifact_allowlist"]["passed"] is True
+    assert data["current_qa_report"]["rejected_guard_diagnostics"]["variants"][0]["unknown_delta_vs_v9"] > 0
     assert any(item["pattern"] == "frame_object_points_stride10.ply" for item in data["forbidden_inputs"])
 
 
@@ -49,6 +51,9 @@ def test_show_current_mainline_text_output() -> None:
     assert "promotion_gate_status: awaiting_required_visual_checks" in result.stdout
     assert "update_command: python3 scripts/update_current_dense_visual_acceptance.py" in result.stdout
     assert "gate_command: python3 scripts/gate_current_dense_mainline_promotion.py" in result.stdout
+    assert "review_allowlist: passed=True" in result.stdout
+    assert "rejected_guard: objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor" in result.stdout
+    assert "unknown_delta_vs_v9=1006072" in result.stdout
     assert "forbidden inputs:" in result.stdout
     assert "frame_object_points_stride10.ply" in result.stdout
 

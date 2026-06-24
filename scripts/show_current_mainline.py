@@ -126,6 +126,28 @@ def format_text(summary: dict[str, Any]) -> str:
             lines.append(f"  gate_command: {qa.get('visual_acceptance_gate_command')}")
         for reason in qa.get("promotion_gate_current_reasons", []):
             lines.append(f"  blocked_by: {reason}")
+        allowlist = qa.get("review_artifact_allowlist", {})
+        if allowlist:
+            lines.append(
+                f"  review_allowlist: passed={allowlist.get('passed')} "
+                f"artifacts={allowlist.get('artifact_ids')}"
+            )
+        rejected = qa.get("rejected_guard_diagnostics", {})
+        if rejected:
+            lines.append(
+                f"  rejected_guard_baseline: {rejected.get('baseline')} "
+                f"unknown_points={rejected.get('baseline_unknown_points')}"
+            )
+            for row in rejected.get("variants", []):
+                top_reasons = ", ".join(
+                    f"{item.get('reason')}={item.get('count')}"
+                    for item in row.get("top_reasons", [])[:2]
+                )
+                lines.append(
+                    f"  rejected_guard: {row.get('id')} "
+                    f"unknown_delta_vs_v9={row.get('unknown_delta_vs_v9')} "
+                    f"top={top_reasons}"
+                )
         lines.append("")
     next_action = summary.get("next_action", {})
     lines.append("next action:")
