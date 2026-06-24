@@ -21,7 +21,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.current_mainline_contract import forbidden_artifact_match
+from scripts.current_mainline_contract import forbidden_production_input_match
 
 DEFAULT_MAINLINE_HEALTHCHECK = REPO_ROOT / "scripts" / "validate_current_mainline.py"
 
@@ -31,7 +31,7 @@ def shell_join(parts: list[str]) -> str:
 
 
 def reject_forbidden_path(path: Path) -> None:
-    forbidden = forbidden_artifact_match(path)
+    forbidden = forbidden_production_input_match(path)
     if forbidden:
         raise ValueError(f"forbidden input path contains {forbidden}: {path}")
 
