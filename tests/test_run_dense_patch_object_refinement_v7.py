@@ -117,3 +117,25 @@ def test_v7_runner_main_writes_plan_in_dry_run(tmp_path: Path, monkeypatch: pyte
     data = json.loads(plan_path.read_text(encoding="utf-8"))
     assert data["commands"][0]["name"] == "propose_candidates"
     assert data["commands"][1]["name"] == "build_objects"
+
+
+def test_v7_runner_does_not_require_state_when_patch_labels_are_explicit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = load_module()
+    args = base_args(tmp_path)
+    missing_state = tmp_path / "missing_state.json"
+    argv = [
+        "run_dense_patch_object_refinement_v7.py",
+        "--state",
+        str(missing_state),
+        "--region-input",
+        str(args.region_input),
+        "--patch-labels",
+        str(args.patch_labels),
+        "--output-dir",
+        str(args.output_dir),
+    ]
+    monkeypatch.setattr("sys.argv", argv)
+    assert module.main() == 0
+    assert (args.output_dir / "dense_patch_object_refinement_v7_plan.json").exists()

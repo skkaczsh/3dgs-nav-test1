@@ -40,7 +40,27 @@ def test_dense_patch_state_stage_contract_is_geometry_first() -> None:
     semantic_stage = next(item for item in data["stage_contract"] if item["stage"] == "semantic_evidence")
     assert "evidence only" in semantic_stage["rule"]
     assert data["next_action"]["runner"] == "scripts/run_dense_patch_object_refinement_v7.py"
+    assert data["next_action"]["remote_runner"] == "scripts/run_scan_train_dense_patch_object_refinement_v7.sh"
     assert "_cpp_region_grower_input.bin" in data["next_action"]["current_blocker"]
+
+
+def test_dense_patch_state_records_remote_executable_baseline() -> None:
+    data = load_state()
+    remote = data["remote_executable_baseline"]
+    assert remote["host"] == "scan-train"
+    assert remote["metrics"]["r4_region_voxel_count"] > 10_000_000
+    assert any(path.endswith("_cpp_region_grower_input.bin") for path in remote["remote_paths"])
+    assert any(path.endswith("_labels.bin") for path in remote["remote_paths"])
+
+
+def test_dense_patch_state_records_latest_remote_run() -> None:
+    data = load_state()
+    latest = data["latest_remote_run"]
+    assert latest["status"] == "completed"
+    assert latest["runner"] == "scripts/run_scan_train_dense_patch_object_refinement_v7.sh"
+    assert latest["object_metrics"]["accepted_candidate_rows"] > 0
+    assert latest["object_metrics"]["output_object_count"] > 0
+    assert latest["candidate_metrics"]["structural_multimaterial_candidates"] > 0
 
 
 def test_dense_patch_validator_passes() -> None:

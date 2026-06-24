@@ -18,6 +18,8 @@ REQUIRED_TOP_LEVEL = {
     "derived_dense_input",
     "current_patch_baseline",
     "current_object_baseline",
+    "remote_executable_baseline",
+    "latest_remote_run",
     "stage_contract",
     "forbidden_inputs",
     "next_action",
@@ -107,6 +109,35 @@ def validate(path: Path) -> dict[str, Any]:
         metrics = patch.get("metrics", {})
         if isinstance(metrics, dict) and int(metrics.get("output_patch_count", 0)) <= 0:
             errors.append("current_patch_output_patch_count_missing")
+
+    remote = data.get("remote_executable_baseline", {})
+    if isinstance(remote, dict):
+        remote_paths = [str(item) for item in remote.get("remote_paths", [])]
+        if not any(item.endswith("_cpp_region_grower_input.bin") for item in remote_paths):
+            errors.append("remote_baseline_missing_region_input")
+        if not any(item.endswith("_labels.bin") for item in remote_paths):
+            errors.append("remote_baseline_missing_patch_labels")
+        metrics = remote.get("metrics", {})
+        if isinstance(metrics, dict):
+            if int(metrics.get("r4_region_voxel_count", 0)) < 10_000_000:
+                errors.append("remote_baseline_voxel_count_too_low")
+            if int(metrics.get("attach_v4_output_patch_count", 0)) <= 0:
+                errors.append("remote_baseline_patch_count_missing")
+
+    latest = data.get("latest_remote_run", {})
+    if isinstance(latest, dict):
+        if latest.get("status") != "completed":
+            errors.append("latest_remote_run_not_completed")
+        object_metrics = latest.get("object_metrics", {})
+        if isinstance(object_metrics, dict):
+            if int(object_metrics.get("output_object_count", 0)) <= 0:
+                errors.append("latest_remote_run_missing_output_objects")
+            if int(object_metrics.get("accepted_candidate_rows", 0)) <= 0:
+                errors.append("latest_remote_run_no_accepted_candidates")
+        candidate_metrics = latest.get("candidate_metrics", {})
+        if isinstance(candidate_metrics, dict):
+            if int(candidate_metrics.get("structural_multimaterial_candidates", 0)) <= 0:
+                errors.append("latest_remote_run_no_structural_candidates")
 
     return {
         "passed": not errors,

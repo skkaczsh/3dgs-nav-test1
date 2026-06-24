@@ -47,6 +47,8 @@ def summarize(architecture: dict[str, Any], dense_patch: dict[str, Any]) -> dict
         "dense_authoritative_source": dense_patch.get("authoritative_source", {}),
         "dense_patch_baseline": dense_patch.get("current_patch_baseline", {}),
         "dense_object_baseline": dense_patch.get("current_object_baseline", {}),
+        "remote_executable_baseline": dense_patch.get("remote_executable_baseline", {}),
+        "latest_remote_run": dense_patch.get("latest_remote_run", {}),
         "next_action": dense_patch.get("next_action", {}),
         "forbidden_inputs": dense_patch.get("forbidden_inputs", []),
         "rejected_semantic_artifacts": rejected,
@@ -81,11 +83,29 @@ def format_text(summary: dict[str, Any]) -> str:
     lines.append(f"- {obj.get('id')} [{obj.get('status')}]")
     lines.append(f"  output_object_count: {obj_metrics.get('output_object_count')}")
     lines.append("")
+    remote = summary.get("remote_executable_baseline", {})
+    remote_metrics = remote.get("metrics", {})
+    lines.append("remote executable baseline:")
+    lines.append(f"- {remote.get('id')} [{remote.get('status')}] on {remote.get('host')}")
+    lines.append(f"  r4_region_voxel_count: {remote_metrics.get('r4_region_voxel_count')}")
+    lines.append(f"  attach_v4_output_patch_count: {remote_metrics.get('attach_v4_output_patch_count')}")
+    lines.append("")
+    latest = summary.get("latest_remote_run", {})
+    latest_obj = latest.get("object_metrics", {})
+    latest_cand = latest.get("candidate_metrics", {})
+    lines.append("latest remote run:")
+    lines.append(f"- {latest.get('id')} [{latest.get('status')}]")
+    lines.append(f"  candidates: {latest_cand.get('candidate_count')}")
+    lines.append(f"  accepted_candidate_rows: {latest_obj.get('accepted_candidate_rows')}")
+    lines.append(f"  output_object_count: {latest_obj.get('output_object_count')}")
+    lines.append("")
     next_action = summary.get("next_action", {})
     lines.append("next action:")
     lines.append(f"- {next_action.get('id')}: {next_action.get('description')}")
     if next_action.get("runner"):
         lines.append(f"  runner: {next_action.get('runner')}")
+    if next_action.get("remote_runner"):
+        lines.append(f"  remote_runner: {next_action.get('remote_runner')}")
     if next_action.get("current_blocker"):
         lines.append(f"  blocker: {next_action.get('current_blocker')}")
     for item in next_action.get("success_criteria", []):

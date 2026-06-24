@@ -241,8 +241,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    state = read_state(args.state)
     if args.patch_labels is None:
+        state = read_state(args.state)
         args.patch_labels = default_patch_labels(state)
 
     existing_file(args.region_input, "region input")

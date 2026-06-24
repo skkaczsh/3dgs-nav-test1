@@ -59,6 +59,54 @@
       "preview_points_stride10": 1440583
     }
   },
+  "remote_executable_baseline": {
+    "id": "geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623",
+    "status": "available_on_scan_train",
+    "reason": "The current 4090D host has the 2.8GB Opt LAS, the 0.03m LAS voxel PLY, the C++ region input, and r4 contact-evidence patch labels. This is the available dense raw-data chain for immediate v7 object-refinement runs.",
+    "host": "scan-train",
+    "remote_paths": [
+      "/root/epfs/SCAN/work_MT20260616-175807/inputs_las_opt/MANIFOLD_MT20260616-175807-Opt.las",
+      "/root/epfs/SCAN/work_MT20260616-175807/las_opt_voxel003/MANIFOLD_MT20260616-175807-Opt_voxel003_ascii.ply",
+      "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/_cpp_region_grower_input.bin",
+      "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_labels.bin"
+    ],
+    "metrics": {
+      "raw_las_point_count": 97194579,
+      "voxel003_count": 14482557,
+      "r4_region_voxel_count": 14482421,
+      "r4_region_patch_count": 200535,
+      "attach_v4_output_patch_count": 197630
+    }
+  },
+  "latest_remote_run": {
+    "id": "dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126",
+    "status": "completed",
+    "host": "scan-train",
+    "runner": "scripts/run_scan_train_dense_patch_object_refinement_v7.sh",
+    "remote_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126",
+    "local_report_dir": "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126",
+    "inputs": {
+      "region_input": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/_cpp_region_grower_input.bin",
+      "patch_labels": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_labels.bin"
+    },
+    "candidate_metrics": {
+      "patch_count": 197630,
+      "edge_pair_count": 7793,
+      "candidate_count": 239,
+      "same_material_candidates": 159,
+      "structural_multimaterial_candidates": 80,
+      "big_mixed_attachment_count": 25
+    },
+    "object_metrics": {
+      "input_patch_count": 197630,
+      "input_candidate_count": 239,
+      "accepted_candidate_rows": 96,
+      "accepted_structural_multimaterial": 78,
+      "output_object_count": 197534,
+      "preview_points_stride10": 1448243
+    },
+    "interpretation": "This run proves the remote v7 runner works on the available dense r4 chain. It is intentionally conservative; fragmentation remains, but ownership is preserved and semantic labels are not used as merge evidence."
+  },
   "stage_contract": [
     {
       "stage": "dense_source",
@@ -117,13 +165,14 @@
     "id": "dense_patch_object_refinement_v7",
     "description": "Continue from v6 fine-gated patch labels and improve object building using dense local evidence, not semantic hard labels.",
     "runner": "scripts/run_dense_patch_object_refinement_v7.py",
+    "remote_runner": "scripts/run_scan_train_dense_patch_object_refinement_v7.sh",
     "required_inputs": [
       "dense_las_voxel003_region_model_full_cpp_20260624/_cpp_region_grower_input.bin",
       "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap_labels.bin",
       "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap.jsonl",
       "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/object_merge_candidates_v2_high_recall/geo_patch_object_merge_candidates.jsonl"
     ],
-    "current_blocker": "The local checkout has v6 labels and reports but not dense_las_voxel003_region_model_full_cpp_20260624/_cpp_region_grower_input.bin. The current 4090D host also does not have the dense v6 run under /root/epfs/SCAN/work_MT20260616-175807/server_parking_priority_s10. Rebuild or sync this region input before running v7 full-scale.",
+    "current_blocker": "The local checkout has v6 labels and reports but not dense_las_voxel003_region_model_full_cpp_20260624/_cpp_region_grower_input.bin. For immediate execution on 4090D, use remote_runner with the available r4 contact-evidence baseline instead of the missing local v6 chain.",
     "success_criteria": [
       "Patch/object ownership remains exclusive.",
       "Fine occupied-cell overlap does not regress while object fragmentation decreases.",
