@@ -19,56 +19,41 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from apply_drivability_prior_to_residual import (
-    GEOM_GROUND,
-    GEOM_NAMES,
-    GEOM_WALL,
-    build_prior_voxels,
-    label_from_rgb,
-    read_pcd_xyzrgb,
-    vote_points,
-)
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+try:
+    from apply_drivability_prior_to_residual import (
+        GEOM_GROUND,
+        GEOM_NAMES,
+        GEOM_WALL,
+        build_prior_voxels,
+        label_from_rgb,
+        read_pcd_xyzrgb,
+        vote_points,
+    )
+except ModuleNotFoundError:
+    from scripts.apply_drivability_prior_to_residual import (
+        GEOM_GROUND,
+        GEOM_NAMES,
+        GEOM_WALL,
+        build_prior_voxels,
+        label_from_rgb,
+        read_pcd_xyzrgb,
+        vote_points,
+    )
+from scripts.semantic_label_contract import LABEL_TO_SEMANTIC, SEMANTIC_COLORS, SEMANTIC_TO_LABEL
 
 
-LABEL_TO_SEMANTIC = {
-    "unknown": 0,
-    "other": 1,
-    "wall": 2,
-    "floor": 3,
-    "ceiling": 4,
-    "grass": 5,
-    "tree": 6,
-    "person": 7,
-    "car": 8,
-    "railing": 9,
-    "building": 10,
-    "sky": 11,
-    "road": 12,
-    "water": 13,
-    "furniture": 14,
-    "pipe": 15,
-    "equipment": 16,
-    "fine_candidate": 17,
-    "ignore": 255,
-}
-SEMANTIC_TO_LABEL = {value: key for key, value in LABEL_TO_SEMANTIC.items()}
-
-LABEL_COLORS = {
-    "unknown": (90, 90, 90),
-    "wall": (160, 170, 180),
-    "floor": (190, 172, 135),
-    "ceiling": (180, 180, 210),
-    "grass": (70, 150, 80),
-    "car": (235, 90, 80),
-    "railing": (245, 200, 35),
-    "fine_candidate": (230, 55, 220),
-}
+LABEL_COLORS = {label: SEMANTIC_COLORS[semantic] for semantic, label in SEMANTIC_TO_LABEL.items()}
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:

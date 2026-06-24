@@ -1,41 +1,26 @@
 #!/usr/bin/env python3
 """Apply conservative relabels from geometry-conflict findings to a viewer PLY.
 
-This is intentionally conservative: it demotes clearly inconsistent priority
-objects to `unknown`, and only promotes wall -> floor for clean horizontal
-surface fragments. It does not split objects; that should be a later plane/local
-geometry stage.
+This is intentionally conservative: trusted surface labels are preserved by
+default.  Explicit `--allow-surface-relabel` is required before wall/floor/etc.
+can be changed by geometry conflicts. It does not split objects; that should be
+a later plane/local geometry stage.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-LABEL_TO_SEMANTIC = {
-    "unknown": 0,
-    "other": 1,
-    "wall": 2,
-    "floor": 3,
-    "ceiling": 4,
-    "grass": 5,
-    "tree": 6,
-    "person": 7,
-    "car": 8,
-    "railing": 9,
-    "building": 10,
-    "sky": 11,
-    "road": 12,
-    "water": 13,
-    "furniture": 14,
-    "pipe": 15,
-    "equipment": 16,
-    "ignore": 255,
-}
+from scripts.semantic_label_contract import LABEL_TO_SEMANTIC, TRUSTED_SURFACE_LABELS
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -61,6 +46,9 @@ def choose_relabel(finding: dict[str, Any], args: argparse.Namespace) -> tuple[s
     planarity = float(metrics.get("planarity") or 0.0)
     thickness = float(metrics.get("thickness_rms") or 0.0)
     centroid_z = float(metrics.get("centroid_z") or 0.0)
+
+    if label in TRUSTED_SURFACE_LABELS and not args.allow_surface_relabel:
+        return None, "trusted_surface_relabel_locked"
 
     if label == "wall":
         if "wall_has_horizontal_normal" in reasons and planarity >= args.clean_horizontal_planarity and thickness <= args.clean_horizontal_thickness:
@@ -220,6 +208,11 @@ def main() -> None:
     )
     parser.add_argument("--wall-horizontal-low-label", default="floor")
     parser.add_argument("--wall-horizontal-high-label", default="floor")
+    parser.add_argument(
+        "--allow-surface-relabel",
+        action="store_true",
+        help="Allow trusted surface labels to be changed by geometry conflicts. Off by default to avoid surface-to-unknown regressions.",
+    )
     parser.add_argument(
         "--only-label",
         action="append",

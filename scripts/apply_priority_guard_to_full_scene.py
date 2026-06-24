@@ -14,31 +14,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-LABEL_TO_SEMANTIC = {
-    "unknown": 0,
-    "other": 1,
-    "wall": 2,
-    "floor": 3,
-    "ceiling": 4,
-    "grass": 5,
-    "tree": 6,
-    "person": 7,
-    "car": 8,
-    "railing": 9,
-    "building": 10,
-    "sky": 11,
-    "road": 12,
-    "water": 13,
-    "furniture": 14,
-    "pipe": 15,
-    "equipment": 16,
-    "ignore": 255,
-}
+from scripts.semantic_label_contract import LABEL_TO_SEMANTIC, TRUSTED_SURFACE_LABELS
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -64,7 +49,11 @@ def load_guard(path: Path) -> dict[int, dict[str, Any]]:
     return guard
 
 
-def transform_object(obj: dict[str, Any], guard: dict[int, dict[str, Any]]) -> dict[str, Any]:
+def transform_object(
+    obj: dict[str, Any],
+    guard: dict[int, dict[str, Any]],
+    preserve_surface_rejections: bool = True,
+) -> dict[str, Any]:
     object_id = int(obj["object_id"])
     g = guard.get(object_id)
     out = dict(obj)
@@ -78,7 +67,12 @@ def transform_object(obj: dict[str, Any], guard: dict[int, dict[str, Any]]) -> d
     out["semantic_label_original"] = out.get("semantic_label_original") or original_label
     if "evidence_rank1" in g:
         out["evidence_rank1"] = g["evidence_rank1"]
-    if status == "geometry_rejected":
+    if status == "geometry_rejected" and preserve_surface_rejections and original_label in TRUSTED_SURFACE_LABELS:
+        out["status"] = "priority_geometry_rejected_surface_preserved"
+        out["downstream_stage"] = "surface_semantic_review"
+        out["review_priority"] = "high"
+        out["description"] = f"geometry rejected {original_label} evidence, but trusted surface label was preserved"
+    elif status == "geometry_rejected":
         out["semantic_label"] = "unknown"
         out["status"] = "priority_geometry_rejected"
         out["downstream_stage"] = "fine_semantic_review"
@@ -171,11 +165,18 @@ def main() -> None:
     parser.add_argument("--input-objects-jsonl", type=Path, required=True)
     parser.add_argument("--guard-jsonl", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument(
+        "--allow-surface-demotion",
+        action="store_true",
+        help="Allow geometry_rejected trusted surfaces to be demoted to unknown. Off by default.",
+    )
     args = parser.parse_args()
 
     guard = load_guard(args.guard_jsonl)
     objects = read_jsonl(args.input_objects_jsonl)
-    transformed = [transform_object(obj, guard) for obj in objects]
+    transformed = [
+        transform_object(obj, guard, preserve_surface_rejections=not args.allow_surface_demotion) for obj in objects
+    ]
     transformed_by_id = {int(obj["object_id"]): obj for obj in transformed}
 
     args.output_dir.mkdir(parents=True, exist_ok=True)

@@ -5,6 +5,8 @@ from pathlib import Path
 from scripts.export_frame_target_objects_for_viewer import LABEL_TO_SEMANTIC, SEMANTIC_COLORS
 from scripts import (
     analyze_residual_absorbability,
+    apply_surface_trust_guard_to_ply,
+    apply_visual_promotion_geometry_guard,
     build_parking_dataset_manifest,
     build_spatial_partition_objects,
     project_semantic,
@@ -70,6 +72,13 @@ def test_projection_and_partition_scripts_share_semantic_label_contract() -> Non
     assert analyze_residual_absorbability.SEMANTIC_NAMES is SEMANTIC_TO_LABEL
     assert analyze_residual_absorbability.SEMANTIC_IDS is CONTRACT_LABEL_TO_SEMANTIC
     assert analyze_residual_absorbability.LABEL_COLORS is CONTRACT_SEMANTIC_COLORS
+
+
+def test_guard_scripts_share_semantic_label_contract() -> None:
+    assert apply_surface_trust_guard_to_ply.LABEL_TO_SEMANTIC is CONTRACT_LABEL_TO_SEMANTIC
+    assert apply_surface_trust_guard_to_ply.SEMANTIC_TO_LABEL is SEMANTIC_TO_LABEL
+    assert apply_surface_trust_guard_to_ply.LABEL_COLORS["floor"] == CONTRACT_SEMANTIC_COLORS[3]
+    assert apply_visual_promotion_geometry_guard.LABEL_TO_SEMANTIC is CONTRACT_LABEL_TO_SEMANTIC
 
 
 def test_viewer_semantic_ids_match_python_contract() -> None:

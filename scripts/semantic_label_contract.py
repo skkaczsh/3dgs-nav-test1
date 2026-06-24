@@ -32,6 +32,19 @@ LABEL_TO_SEMANTIC: dict[str, int] = {label: semantic for semantic, label in SEMA
 LABEL_TO_SEMANTIC["ground"] = LABEL_TO_SEMANTIC["floor"]
 LABEL_TO_SEMANTIC["ambiguous"] = LABEL_TO_SEMANTIC["unknown"]
 
+TRUSTED_SURFACE_LABELS: frozenset[str] = frozenset(
+    {
+        "floor",
+        "ground",
+        "wall",
+        "ceiling",
+        "building",
+        "road",
+        "indoor_floor",
+        "roof",
+    }
+)
+
 SEMANTIC_COLORS: dict[int, tuple[int, int, int]] = {
     0: (150, 150, 150),
     1: (180, 180, 180),
@@ -56,4 +69,3 @@ SEMANTIC_COLORS: dict[int, tuple[int, int, int]] = {
     20: (165, 145, 210),
     255: (40, 40, 40),
 }
-
