@@ -20,6 +20,7 @@ REQUIRED_TOP_LEVEL = {
     "current_object_baseline",
     "remote_executable_baseline",
     "latest_remote_run",
+    "current_qa_report",
     "stage_contract",
     "forbidden_inputs",
     "next_action",
@@ -138,6 +139,25 @@ def validate(path: Path) -> dict[str, Any]:
         if isinstance(candidate_metrics, dict):
             if int(candidate_metrics.get("structural_multimaterial_candidates", 0)) <= 0:
                 errors.append("latest_remote_run_no_structural_candidates")
+
+    qa = data.get("current_qa_report", {})
+    if isinstance(qa, dict):
+        for key in ("json_path", "markdown_path"):
+            value = qa.get(key)
+            if not value:
+                errors.append(f"current_qa_report_missing_{key}")
+                continue
+            path_value = Path(str(value))
+            if not path_value.is_absolute():
+                path_value = path.parent / ".." / path_value
+            if not path_value.resolve().exists():
+                errors.append(f"current_qa_report_path_missing={value}")
+        findings = qa.get("key_findings", {})
+        if isinstance(findings, dict):
+            if findings.get("v17_label_point_delta_vs_v9_all_zero") is not True:
+                errors.append("current_qa_report_surface_guard_not_stable")
+            if float(findings.get("v8_mixed_object_voxel_ratio_delta_vs_v7", 1.0)) > 0:
+                errors.append("current_qa_report_overlap_regressed")
 
     return {
         "passed": not errors,

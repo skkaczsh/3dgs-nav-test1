@@ -1,0 +1,85 @@
+{
+  "schema": "current-dense-mainline-qa/v1",
+  "base_dir": "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623",
+  "object_refinement": {
+    "schema": "dense-object-refinement-compare/v1",
+    "baseline": "v7_r4_attach_v4",
+    "candidate": "v8_tiny_attach",
+    "metrics": {
+      "v7": {
+        "candidate_count": 239,
+        "same_material_candidates": 159,
+        "structural_multimaterial_candidates": 80,
+        "big_mixed_attachment_count": 25,
+        "accepted_candidate_rows": 96,
+        "output_object_count": 197534,
+        "mixed_object_voxel_ratio_020": 0.18651164133709347,
+        "object_count_in_overlap_preview": 51269
+      },
+      "v8": {
+        "candidate_count": 6656,
+        "same_material_candidates": 5457,
+        "structural_multimaterial_candidates": 1199,
+        "big_mixed_attachment_count": 163,
+        "accepted_candidate_rows": 1235,
+        "output_object_count": 196395,
+        "mixed_object_voxel_ratio_020": 0.186092957448242,
+        "object_count_in_overlap_preview": 50831
+      },
+      "delta_v8_minus_v7": {
+        "candidate_count": 6417,
+        "same_material_candidates": 5298,
+        "structural_multimaterial_candidates": 1119,
+        "big_mixed_attachment_count": 138,
+        "accepted_candidate_rows": 1139,
+        "output_object_count": -1139,
+        "mixed_object_voxel_ratio_020": -0.0004186838888514677,
+        "object_count_in_overlap_preview": -438
+      }
+    },
+    "interpretation": "v8 greatly increases merge candidate recall and accepted merges. The coarse 0.20m mixed-object voxel ratio is slightly lower than v7, so v8 is a viable visual-QA candidate rather than an automatic semantic baseline."
+  },
+  "surface_guard": {
+    "schema": "surface-guard-compare/v1",
+    "baseline": "objects_v9_teacher_v20_semantic",
+    "candidate": "objects_v17_teacher_v20_surface_preserve_guard",
+    "label_point_counts": {
+      "v9": {
+        "unknown": 73085,
+        "wall": 650971,
+        "railing": 13599,
+        "floor": 496641,
+        "grass": 205461,
+        "car": 8486
+      },
+      "v17": {
+        "unknown": 73085,
+        "wall": 650971,
+        "railing": 13599,
+        "floor": 496641,
+        "grass": 205461,
+        "car": 8486
+      },
+      "delta_v17_minus_v9": {
+        "car": 0,
+        "floor": 0,
+        "grass": 0,
+        "railing": 0,
+        "unknown": 0,
+        "wall": 0
+      }
+    },
+    "object_count": {
+      "v9": 197583,
+      "v17": 197583
+    },
+    "changed_object_count": 0,
+    "interpretation": "v17 confirms the unknown spike in v15/v16 was caused by guard-policy demotion. Preserving floor/wall labels keeps point counts aligned with v9 while still documenting guard status."
+  },
+  "promotion_gates": [
+    "Object ownership must remain exclusive.",
+    "Mixed-object coarse voxel ratio must not regress while fragmentation decreases.",
+    "Surface guard must not demote floor/wall to unknown solely due to missing teacher evidence.",
+    "Semantic variants remain QA references until visual inspection passes."
+  ]
+}

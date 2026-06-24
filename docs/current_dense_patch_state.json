@@ -1,6 +1,6 @@
 {
   "schema": "current-dense-patch-state/v1",
-  "updated_at": "2026-06-24T17:25:00+08:00",
+  "updated_at": "2026-06-24T17:45:00+08:00",
   "dataset": "MT20260616-175807",
   "purpose": "Track the dense raw-data Patch/Object mainline separately from semantic experiments and viewer artifacts.",
   "authoritative_source": {
@@ -205,5 +205,19 @@
       "Viewer output is generated only for QA after dense labels are produced.",
       "Semantic guard outputs must keep floor/wall surface labels unless there is direct contradictory geometry evidence; missing teacher evidence alone is not enough to demote to unknown."
     ]
+  },
+  "current_qa_report": {
+    "id": "current_dense_mainline_qa",
+    "schema": "current-dense-mainline-qa/v1",
+    "json_path": "docs/current_dense_mainline_qa.json",
+    "markdown_path": "docs/current_dense_mainline_qa.md",
+    "purpose": "Single report comparing v7/v8 object refinement and v9/v17 surface guard behavior before promoting any new baseline.",
+    "key_findings": {
+      "v8_candidate_delta_vs_v7": 6417,
+      "v8_accepted_delta_vs_v7": 1139,
+      "v8_output_object_delta_vs_v7": -1139,
+      "v8_mixed_object_voxel_ratio_delta_vs_v7": -0.0004186838888514677,
+      "v17_label_point_delta_vs_v9_all_zero": true
+    }
   }
 }

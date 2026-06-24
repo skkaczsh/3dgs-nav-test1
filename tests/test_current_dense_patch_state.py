@@ -65,6 +65,16 @@ def test_dense_patch_state_records_latest_remote_run() -> None:
     assert latest["qa_metrics"]["mixed_object_voxel_ratio"] < latest["qa_metrics"]["v7_mixed_object_voxel_ratio"]
 
 
+def test_dense_patch_state_records_current_qa_report() -> None:
+    data = load_state()
+    qa = data["current_qa_report"]
+    assert qa["schema"] == "current-dense-mainline-qa/v1"
+    assert qa["json_path"] == "docs/current_dense_mainline_qa.json"
+    assert qa["markdown_path"] == "docs/current_dense_mainline_qa.md"
+    assert qa["key_findings"]["v17_label_point_delta_vs_v9_all_zero"] is True
+    assert qa["key_findings"]["v8_mixed_object_voxel_ratio_delta_vs_v7"] < 0
+
+
 def test_dense_patch_validator_passes() -> None:
     result = subprocess.run(
         [sys.executable, str(VALIDATOR), "--state", str(STATE)],
