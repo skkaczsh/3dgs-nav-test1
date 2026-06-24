@@ -115,3 +115,57 @@ teacher stride10 field only covers about 42% of target preview points within the
 The next semantic step should not be direct SAM voting on every small Patch.
 Use the earlier surface-prior route as a teacher/evidence source, then improve
 Patch coarsening or object formation before semantic classification.
+
+## Teacher-Guided Object Coarsening
+
+Script:
+
+- `scripts/coarsen_objects_with_semantic_teacher.py`
+
+Purpose:
+
+- Use the v20 teacher-transfer labels as object merge evidence.
+- Keep voxel ownership exclusive.
+- Merge only adjacent objects when semantic label, geometry bucket, color, and
+  contact support agree.
+
+Runs:
+
+- `objects_v10_teacher_v20_coarsened`
+  - edge source: original region graph
+  - candidate edges: `7745`
+  - accepted merges: `43`
+  - output objects: `197540`
+  - conclusion: too conservative because the original sparse graph misses many
+    true object-object contacts.
+
+- `objects_v11_teacher_v20_coarsened_unknown_absorb`
+  - edge source: original region graph
+  - accepted merges: `156`
+  - output objects: `197427`
+  - change: allowed small `unknown` fragments to be absorbed by known semantic
+    neighbors under stricter color/contact rules.
+  - conclusion: improves recall slightly, but still graph-limited.
+
+- `objects_v12_teacher_v20_grid6_unknown_absorb`
+  - edge source: full `grid6` voxel adjacency
+  - candidate edges: `48630`
+  - accepted merges: `2415`
+  - output objects: `195168`
+  - accepted by label: wall `1557`, floor `281`, grass `539`, railing `37`,
+    car `1`
+  - conclusion: this is the first useful teacher-guided coarsening baseline.
+
+Viewer:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v12_teacher_v20_grid6_unknown_absorb/objects_v12_teacher_v20_grid6_unknown_absorb_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v12_teacher_v20_grid6_unknown_absorb/objects_v12_teacher_v20_grid6_unknown_absorb.jsonl&mode=semantic&stride=1&pointSize=1.2
+```
+
+Remaining bottleneck:
+
+- `shared_edges` is still the largest rejection reason, meaning many fragments
+  are spatially close but do not have enough direct voxel-face contact under
+  current `0.03m` graph adjacency.
+- `label_mismatch` is also still high, so semantic teacher disagreement should
+  be handled as review evidence, not forced into object merging.
