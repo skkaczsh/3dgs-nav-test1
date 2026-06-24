@@ -104,6 +104,9 @@ def choose_label(row: dict[str, Any], args: argparse.Namespace) -> tuple[str, st
     conf = teacher_confidence(row)
     teacher_ok = has_teacher_transfer(row) and conf >= args.teacher_confidence_keep
 
+    if label in {"floor", "wall"} and args.surface_label_policy == "preserve":
+        return label, f"kept_{label}_surface_policy_preserve"
+
     if label == "floor":
         if geom != "horizontal":
             return "unknown", "floor_geometry_not_horizontal"
@@ -255,6 +258,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--floor-max-z-extent", type=float, default=0.9)
     parser.add_argument("--wall-min-voxels", type=int, default=400)
     parser.add_argument("--wall-max-normal-abs-z", type=float, default=0.62)
+    parser.add_argument(
+        "--surface-label-policy",
+        choices=["veto_contradiction", "preserve"],
+        default="veto_contradiction",
+        help=(
+            "How floor/wall labels are treated. 'veto_contradiction' applies "
+            "the geometry safety checks. 'preserve' keeps transferred floor/wall "
+            "labels and only lets the guard handle fine-object risks such as car "
+            "or railing on surface-like patches."
+        ),
+    )
     parser.add_argument(
         "--demote-small-surfaces",
         action="store_true",
