@@ -19,12 +19,16 @@
   "visual": {
     "required": true,
     "accepted": false,
-    "status": "missing",
+    "status": "pending",
     "errors": [
-      "missing_visual_acceptance=docs/current_dense_visual_acceptance.json"
-    ]
+      "visual_status_not_accepted=pending",
+      "visual_required_checks_not_accepted=['v8_fragmentation_improves', 'v8_no_obvious_overmerge', 'surface_guard_no_unknown_regression', 'semantic_not_promoted_from_object_view']"
+    ],
+    "reviewer": "",
+    "reviewed_at": ""
   },
   "reasons": [
-    "missing_visual_acceptance=docs/current_dense_visual_acceptance.json"
+    "visual_status_not_accepted=pending",
+    "visual_required_checks_not_accepted=['v8_fragmentation_improves', 'v8_no_obvious_overmerge', 'surface_guard_no_unknown_regression', 'semantic_not_promoted_from_object_view']"
   ]
 }

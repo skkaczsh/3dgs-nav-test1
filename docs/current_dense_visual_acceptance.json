@@ -1,0 +1,70 @@
+{
+  "schema": "current-dense-visual-acceptance/v1",
+  "generated_at": "2026-06-24T09:28:22.506506+00:00",
+  "status": "pending",
+  "accepted_candidate": "v8_object_refinement",
+  "review_index_url": "http://127.0.0.1:8765/docs/current_dense_review_index.html",
+  "qa_json": "docs/current_dense_mainline_qa.json",
+  "qa_summary": {
+    "accepted_delta": 1139,
+    "output_object_delta": -1139,
+    "overlap_delta": -0.0004186838888514677,
+    "surface_guard_label_delta": {
+      "car": 0,
+      "floor": 0,
+      "grass": 0,
+      "railing": 0,
+      "unknown": 0,
+      "wall": 0
+    }
+  },
+  "reviewer": "",
+  "reviewed_at": "",
+  "summary": "",
+  "checks": [
+    {
+      "id": "v8_fragmentation_improves",
+      "required": true,
+      "status": "pending",
+      "question": "v8 visibly reduces object fragmentation compared with v7 in the same areas.",
+      "evidence": [
+        "v7 Object Refinement",
+        "v8 Object Refinement"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "v8_no_obvious_overmerge",
+      "required": true,
+      "status": "pending",
+      "question": "v8 does not visibly merge unrelated large structures such as ground/building/tree into one object.",
+      "evidence": [
+        "v8 Object Refinement object mode",
+        "v8 Object Refinement semantic mode"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "surface_guard_no_unknown_regression",
+      "required": true,
+      "status": "pending",
+      "question": "v17 keeps floor/wall visible and does not reproduce the v15/v16 unknown spike.",
+      "evidence": [
+        "v9 Teacher Semantic",
+        "v17 Surface Preserve Guard"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "semantic_not_promoted_from_object_view",
+      "required": true,
+      "status": "pending",
+      "question": "Object refinement is only promoted as geometry ownership; semantic labels remain evidence/QA references.",
+      "evidence": [
+        "current_dense_mainline_qa",
+        "current_dense_review_index"
+      ],
+      "notes": ""
+    }
+  ]
+}

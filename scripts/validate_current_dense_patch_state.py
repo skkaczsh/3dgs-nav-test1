@@ -142,7 +142,13 @@ def validate(path: Path) -> dict[str, Any]:
 
     qa = data.get("current_qa_report", {})
     if isinstance(qa, dict):
-        for key in ("json_path", "markdown_path", "review_index_html", "promotion_gate_json"):
+        for key in (
+            "json_path",
+            "markdown_path",
+            "review_index_html",
+            "promotion_gate_json",
+            "visual_acceptance_markdown",
+        ):
             value = qa.get(key)
             if not value:
                 errors.append(f"current_qa_report_missing_{key}")
@@ -159,7 +165,12 @@ def validate(path: Path) -> dict[str, Any]:
             if float(findings.get("v8_mixed_object_voxel_ratio_delta_vs_v7", 1.0)) > 0:
                 errors.append("current_qa_report_overlap_regressed")
         gate_status = qa.get("promotion_gate_status")
-        if gate_status not in {"awaiting_visual_acceptance", "accepted", "rejected"}:
+        if gate_status not in {
+            "awaiting_visual_acceptance",
+            "awaiting_required_visual_checks",
+            "accepted",
+            "rejected",
+        }:
             errors.append(f"unexpected_promotion_gate_status={gate_status}")
 
     return {

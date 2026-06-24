@@ -1,6 +1,6 @@
 {
   "schema": "current-dense-patch-state/v1",
-  "updated_at": "2026-06-24T18:25:00+08:00",
+  "updated_at": "2026-06-24T18:45:00+08:00",
   "dataset": "MT20260616-175807",
   "purpose": "Track the dense raw-data Patch/Object mainline separately from semantic experiments and viewer artifacts.",
   "authoritative_source": {
@@ -223,9 +223,14 @@
     "review_index_url": "/docs/current_dense_review_index.html",
     "review_index_purpose": "Small fixed viewer entrypoint for v7/v8 object and v9/v17 semantic guard comparison; excludes rejected diagnostic runs.",
     "promotion_gate_json": "docs/current_dense_promotion_gate.json",
-    "promotion_gate_status": "awaiting_visual_acceptance",
+    "promotion_gate_status": "awaiting_required_visual_checks",
     "promotion_gate_command": "python3 scripts/gate_current_dense_mainline_promotion.py --qa-json docs/current_dense_mainline_qa.json --visual-acceptance docs/current_dense_visual_acceptance.json --output docs/current_dense_promotion_gate.json",
     "visual_acceptance_expected_path": "docs/current_dense_visual_acceptance.json",
-    "visual_acceptance_requirement": "v8 can only be promoted after the fixed review index is manually inspected and required checks are recorded as accepted."
+    "visual_acceptance_requirement": "v8 can only be promoted after the fixed review index is manually inspected and required checks are recorded as accepted.",
+    "visual_acceptance_markdown": "docs/current_dense_visual_acceptance.md",
+    "promotion_gate_current_reasons": [
+      "visual_status_not_accepted=pending",
+      "visual_required_checks_not_accepted=['v8_fragmentation_improves', 'v8_no_obvious_overmerge', 'surface_guard_no_unknown_regression', 'semantic_not_promoted_from_object_view']"
+    ]
   }
 }
