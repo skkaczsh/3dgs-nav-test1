@@ -18,55 +18,22 @@ from collections import Counter
 from pathlib import Path
 
 import numpy as np
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 try:
     import cv2
 except ModuleNotFoundError:  # Allows importing label/z-buffer helpers without OpenCV.
     cv2 = None
 
-from project_color import load_ply_xyz
-
-
-LABEL_NAMES = {
-    0: "unknown",
-    1: "other",
-    2: "wall",
-    3: "floor",
-    4: "ceiling",
-    5: "grass",
-    6: "tree",
-    7: "person",
-    8: "car",
-    9: "railing",
-    10: "building",
-    11: "sky",
-    12: "road",
-    13: "water",
-    14: "furniture",
-    15: "pipe",
-    16: "equipment",
-    255: "ignore",
-}
-
-LABEL_COLORS = {
-    0: (128, 128, 128),
-    1: (160, 160, 160),
-    2: (200, 200, 200),
-    3: (139, 100, 60),
-    4: (240, 240, 240),
-    5: (80, 180, 80),
-    6: (20, 120, 40),
-    7: (255, 80, 80),
-    8: (60, 120, 255),
-    9: (255, 210, 40),
-    10: (190, 170, 140),
-    11: (135, 206, 250),
-    12: (80, 80, 80),
-    13: (30, 160, 220),
-    14: (120, 80, 200),
-    15: (255, 165, 0),
-    16: (255, 0, 255),
-    255: (30, 30, 30),
-}
+try:
+    from project_color import load_ply_xyz
+except ModuleNotFoundError:
+    from scripts.project_color import load_ply_xyz
+from scripts.semantic_label_contract import SEMANTIC_COLORS as LABEL_COLORS
+from scripts.semantic_label_contract import SEMANTIC_TO_LABEL as LABEL_NAMES
 
 
 def semantic_path(base: Path, combo: str, cam_id: int, frame_id: int) -> Path:

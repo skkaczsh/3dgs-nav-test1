@@ -3,7 +3,14 @@ import re
 from pathlib import Path
 
 from scripts.export_frame_target_objects_for_viewer import LABEL_TO_SEMANTIC, SEMANTIC_COLORS
-from scripts import build_parking_dataset_manifest, qa_object_voxel_overlap, qa_viewer_candidate
+from scripts import (
+    analyze_residual_absorbability,
+    build_parking_dataset_manifest,
+    build_spatial_partition_objects,
+    project_semantic,
+    qa_object_voxel_overlap,
+    qa_viewer_candidate,
+)
 from scripts.semantic_label_contract import (
     LABEL_TO_SEMANTIC as CONTRACT_LABEL_TO_SEMANTIC,
     SEMANTIC_COLORS as CONTRACT_SEMANTIC_COLORS,
@@ -50,6 +57,19 @@ def test_qa_scripts_share_semantic_label_contract() -> None:
     assert build_parking_dataset_manifest.SEMANTIC_NAMES is SEMANTIC_TO_LABEL
     assert SEMANTIC_TO_LABEL[8] == "car"
     assert SEMANTIC_TO_LABEL[9] == "railing"
+
+
+def test_projection_and_partition_scripts_share_semantic_label_contract() -> None:
+    assert project_semantic.LABEL_NAMES is SEMANTIC_TO_LABEL
+    assert project_semantic.LABEL_COLORS is CONTRACT_SEMANTIC_COLORS
+    assert build_spatial_partition_objects.LABELS is SEMANTIC_TO_LABEL
+    assert build_spatial_partition_objects.LABEL_TO_SEMANTIC is CONTRACT_LABEL_TO_SEMANTIC
+    assert build_spatial_partition_objects.COLORS["car"] == CONTRACT_SEMANTIC_COLORS[8]
+    assert build_spatial_partition_objects.COLORS["railing"] == CONTRACT_SEMANTIC_COLORS[9]
+    assert build_spatial_partition_objects.COLORS["ground"] == CONTRACT_SEMANTIC_COLORS[3]
+    assert analyze_residual_absorbability.SEMANTIC_NAMES is SEMANTIC_TO_LABEL
+    assert analyze_residual_absorbability.SEMANTIC_IDS is CONTRACT_LABEL_TO_SEMANTIC
+    assert analyze_residual_absorbability.LABEL_COLORS is CONTRACT_SEMANTIC_COLORS
 
 
 def test_viewer_semantic_ids_match_python_contract() -> None:

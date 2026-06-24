@@ -17,60 +17,23 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 from collections import Counter, defaultdict, deque
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-LABELS = {
-    0: "unknown",
-    1: "other",
-    2: "wall",
-    3: "floor",
-    4: "ceiling",
-    5: "grass",
-    6: "tree",
-    7: "person",
-    8: "car",
-    9: "railing",
-    10: "building",
-    12: "road",
-    14: "furniture",
-    15: "pipe",
-    16: "equipment",
-    17: "fine_candidate",
-    18: "stair",
-    19: "indoor_floor",
-    20: "roof",
-    255: "ignore",
-}
+from scripts.semantic_label_contract import LABEL_TO_SEMANTIC, SEMANTIC_COLORS, SEMANTIC_TO_LABEL
 
-LABEL_TO_SEMANTIC = {v: k for k, v in LABELS.items()}
-LABEL_TO_SEMANTIC["ground"] = 3
 
-COLORS = {
-    "unknown": (128, 128, 128),
-    "other": (120, 120, 120),
-    "wall": (185, 185, 185),
-    "floor": (192, 166, 120),
-    "ground": (192, 166, 120),
-    "ceiling": (170, 170, 210),
-    "grass": (70, 170, 80),
-    "tree": (35, 125, 55),
-    "person": (255, 80, 80),
-    "car": (245, 200, 35),
-    "railing": (230, 55, 220),
-    "building": (160, 160, 170),
-    "pipe": (80, 200, 220),
-    "equipment": (255, 120, 40),
-    "fine_candidate": (90, 140, 255),
-    "stair": (255, 150, 80),
-    "indoor_floor": (205, 180, 135),
-    "roof": (145, 145, 165),
-    "ignore": (20, 20, 20),
-}
+LABELS = SEMANTIC_TO_LABEL
+COLORS = {label: SEMANTIC_COLORS[semantic] for semantic, label in LABELS.items()}
+COLORS["ground"] = SEMANTIC_COLORS[LABEL_TO_SEMANTIC["ground"]]
 
 
 def parse_header(path: Path) -> tuple[list[str], list[str], int, int]:
