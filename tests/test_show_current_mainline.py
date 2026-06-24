@@ -37,5 +37,7 @@ def test_show_current_mainline_text_output() -> None:
     assert result.returncode == 0, result.stdout + result.stderr
     assert "current dense patch baseline:" in result.stdout
     assert "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624" in result.stdout
+    assert "runner: scripts/run_dense_patch_object_refinement_v7.py" in result.stdout
+    assert "blocker:" in result.stdout
     assert "forbidden inputs:" in result.stdout
     assert "frame_object_points_stride10.ply" in result.stdout

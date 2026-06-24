@@ -116,11 +116,14 @@
   "next_action": {
     "id": "dense_patch_object_refinement_v7",
     "description": "Continue from v6 fine-gated patch labels and improve object building using dense local evidence, not semantic hard labels.",
+    "runner": "scripts/run_dense_patch_object_refinement_v7.py",
     "required_inputs": [
+      "dense_las_voxel003_region_model_full_cpp_20260624/_cpp_region_grower_input.bin",
       "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap_labels.bin",
       "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap.jsonl",
       "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/object_merge_candidates_v2_high_recall/geo_patch_object_merge_candidates.jsonl"
     ],
+    "current_blocker": "The local checkout has v6 labels and reports but not dense_las_voxel003_region_model_full_cpp_20260624/_cpp_region_grower_input.bin. The current 4090D host also does not have the dense v6 run under /root/epfs/SCAN/work_MT20260616-175807/server_parking_priority_s10. Rebuild or sync this region input before running v7 full-scale.",
     "success_criteria": [
       "Patch/object ownership remains exclusive.",
       "Fine occupied-cell overlap does not regress while object fragmentation decreases.",

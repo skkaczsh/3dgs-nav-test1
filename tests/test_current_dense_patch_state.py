@@ -39,6 +39,8 @@ def test_dense_patch_state_stage_contract_is_geometry_first() -> None:
     assert stages[:3] == ["dense_source", "patch_generation", "patch_boundary_optimization"]
     semantic_stage = next(item for item in data["stage_contract"] if item["stage"] == "semantic_evidence")
     assert "evidence only" in semantic_stage["rule"]
+    assert data["next_action"]["runner"] == "scripts/run_dense_patch_object_refinement_v7.py"
+    assert "_cpp_region_grower_input.bin" in data["next_action"]["current_blocker"]
 
 
 def test_dense_patch_validator_passes() -> None:

@@ -84,6 +84,10 @@ def format_text(summary: dict[str, Any]) -> str:
     next_action = summary.get("next_action", {})
     lines.append("next action:")
     lines.append(f"- {next_action.get('id')}: {next_action.get('description')}")
+    if next_action.get("runner"):
+        lines.append(f"  runner: {next_action.get('runner')}")
+    if next_action.get("current_blocker"):
+        lines.append(f"  blocker: {next_action.get('current_blocker')}")
     for item in next_action.get("success_criteria", []):
         lines.append(f"  gate: {item}")
     lines.append("")
