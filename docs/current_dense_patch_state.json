@@ -1,0 +1,131 @@
+{
+  "schema": "current-dense-patch-state/v1",
+  "updated_at": "2026-06-24T16:55:00+08:00",
+  "dataset": "MT20260616-175807",
+  "purpose": "Track the dense raw-data Patch/Object mainline separately from semantic experiments and viewer artifacts.",
+  "authoritative_source": {
+    "id": "raw_opt_las_2920mb",
+    "type": "las",
+    "role": "only authoritative dense geometry/color source for production patch conclusions",
+    "local_paths": [
+      "/Users/skkac/Work/SCAN/MT20260616-175807/3dgs_20260616_3dgs_0095fd8ebe7845f2b24820cb98de4abb_task_c967d04831bf45f0b9d7c3fac31b4103_output_pointcloud_CommandProcessLXOutput_MANIFOLD_MT20260616-175807-Opt.las"
+    ],
+    "known_point_count": 97194579,
+    "required": true
+  },
+  "derived_dense_input": {
+    "id": "dense_las_voxel003_binary",
+    "type": "binary_little_endian_ply",
+    "voxel_size_m": 0.03,
+    "role": "canonical dense patch input derived from raw Opt LAS",
+    "remote_paths": [
+      "/home/zsh/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_20260624/dense_las_voxel003_binary.ply"
+    ],
+    "known_voxel_count": 14482557,
+    "required": false
+  },
+  "current_patch_baseline": {
+    "id": "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624",
+    "status": "current_dense_patch_decision_baseline",
+    "reason": "Fine-cell gated overlap keeps AABB as recall prefilter but rejects pure overlap merges without occupied-cell support. This better preserves spatial-partition invariants than v4/v5.",
+    "local_paths": [
+      "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap_report.json",
+      "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap_labels.bin",
+      "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap.jsonl"
+    ],
+    "metrics": {
+      "input_patch_count": 50000,
+      "output_patch_count": 48863,
+      "preview_points_stride10": 1440583,
+      "boundary_points_moved": 411277,
+      "merge_accepts": 911,
+      "pure_overlap_without_fine_overlap_rejects": 813,
+      "fine_cell_overlap_ratio_ge_0_5_top1000": 51
+    }
+  },
+  "current_object_baseline": {
+    "id": "dense_las_voxel003_objects_v3_high_recall_clean_20260624",
+    "status": "conservative_object_stage_baseline",
+    "reason": "High-recall candidates with conservative acceptance preserve ownership, but fragmentation remains. Use as diagnostic object stage, not final semantic object output.",
+    "local_paths": [
+      "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_objects_v3_high_recall_clean_20260624/geo_patch_objects_v3_high_recall_clean_report.json",
+      "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_objects_v3_high_recall_clean_20260624/geo_patch_objects_v3_high_recall_clean_labels.bin",
+      "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_objects_v3_high_recall_clean_20260624/geo_patch_objects_v3_high_recall_clean.jsonl"
+    ],
+    "metrics": {
+      "input_patch_count": 48863,
+      "output_object_count": 48727,
+      "accepted_candidate_rows": 136,
+      "preview_points_stride10": 1440583
+    }
+  },
+  "stage_contract": [
+    {
+      "stage": "dense_source",
+      "input": "raw_opt_las_2920mb",
+      "output": "dense_las_voxel003_binary",
+      "rule": "Do not use stride10 viewer PLY as production geometry input."
+    },
+    {
+      "stage": "patch_generation",
+      "input": "dense_las_voxel003_binary",
+      "output": "exclusive voxel patch labels",
+      "rule": "One voxel has exactly one patch owner; semantic labels cannot create or merge patch boundaries."
+    },
+    {
+      "stage": "patch_boundary_optimization",
+      "input": "exclusive voxel patch labels",
+      "output": "optimized exclusive patch labels",
+      "rule": "Overlap is an energy/candidate term with fine occupied-cell support, not an after-the-fact AABB merge."
+    },
+    {
+      "stage": "object_building",
+      "input": "optimized patch labels",
+      "output": "object candidates",
+      "rule": "Object merging may be high-recall, but acceptance must preserve spatial ownership and avoid semantic overmerge."
+    },
+    {
+      "stage": "semantic_evidence",
+      "input": "object candidates plus first-touch/skymask/MASK/VLM evidence",
+      "output": "semantic posterior",
+      "rule": "VLM/MASK output is evidence only; it cannot override geometric ownership."
+    }
+  ],
+  "forbidden_inputs": [
+    {
+      "pattern": "frame_object_points_stride10.ply",
+      "reason": "Viewer/review artifact; too sparse and may encode previous semantic/object assumptions."
+    },
+    {
+      "pattern": "objects_v12_teacher_v20_grid6_unknown_absorb",
+      "reason": "Rejected semantic/coarsening diagnostic."
+    },
+    {
+      "pattern": "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
+      "reason": "Rejected wall-to-floor geometry guard."
+    },
+    {
+      "pattern": "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
+      "reason": "Rejected over-demotion to unknown."
+    },
+    {
+      "pattern": "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
+      "reason": "Diagnostic only; high point-level unknown."
+    }
+  ],
+  "next_action": {
+    "id": "dense_patch_object_refinement_v7",
+    "description": "Continue from v6 fine-gated patch labels and improve object building using dense local evidence, not semantic hard labels.",
+    "required_inputs": [
+      "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap_labels.bin",
+      "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap.jsonl",
+      "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/object_merge_candidates_v2_high_recall/geo_patch_object_merge_candidates.jsonl"
+    ],
+    "success_criteria": [
+      "Patch/object ownership remains exclusive.",
+      "Fine occupied-cell overlap does not regress while object fragmentation decreases.",
+      "No semantic label can merge ground, wall, car, railing, or vegetation by itself.",
+      "Viewer output is generated only for QA after dense labels are produced."
+    ]
+  }
+}
