@@ -746,6 +746,35 @@ Dense colorized source note:
     edges.  Use this as the current review candidate, but visual QA is still
     required because the accept count is much higher than v1 and could expose
     local over-attachment in cluttered areas.
+- Object-stage structural multimaterial merge:
+  - scripts:
+    - `propose_geo_patch_object_merges.py`
+    - `build_geo_patch_objects_from_candidates.py`
+  - code change: object merge candidates can now be generated from complete
+    `grid6` voxel adjacency instead of only the region-grower edge graph.
+    Candidate rows also carry contact-local color/normal evidence and a
+    `structural_multimaterial` class for same-object joins where material or
+    color legitimately changes across a boundary.
+  - reason: examples such as car body parts or window/facade boundaries are not
+    same-material merges.  Treating color similarity as mandatory makes the
+    object layer over-fragment even when the geometry is spatially continuous.
+  - region-edge baseline:
+    `object_merge_candidates_v4_structural_multimaterial` found only `7793`
+    edge pairs and `194` candidates; object output
+    `objects_v7_structural_multimaterial_from_attach_v4` accepted `123` rows
+    and produced `197507` objects.
+  - grid6 result:
+    `object_merge_candidates_v5_grid6_structural_multimaterial` found `48786`
+    edge pairs and `4363` candidates; object output
+    `objects_v8_grid6_structural_multimaterial_from_attach_v4` accepted `3547`
+    effective union rows and produced `194083` objects from `197630` patch
+    labels.
+  - diagnostic: only `240 / 194083` objects contain more than one source patch
+    and p99 `patch_count` is still `1`.  The candidate graph fix is real, but
+    the dominant remaining issue is still the huge singleton/small-patch
+    population.  The next stage should handle small singleton absorption or
+    coarsened supernodes explicitly; simply lowering color/score thresholds is
+    not the right lever.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color

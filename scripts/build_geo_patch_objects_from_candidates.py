@@ -86,7 +86,38 @@ def candidate_is_attachment(row: dict[str, Any], args: argparse.Namespace) -> tu
     return True, "accepted_attachment"
 
 
+def candidate_is_structural_multimaterial(row: dict[str, Any], args: argparse.Namespace) -> tuple[bool, str]:
+    """Accept same-object joins where material/color changes across a real boundary.
+
+    This is for cases such as car panels with different normals, or windows and
+    facade patches on the same building face.  It deliberately ignores global
+    color distance, but requires strong local contact, compatible geometry, and
+    a tight bbox gap so it cannot act as a general over-merge switch.
+    """
+    if not args.enable_structural_multimaterial:
+        return False, "structural_multimaterial_disabled"
+    if str(row.get("merge_class", "")) != "structural_multimaterial":
+        return False, "structural_multimaterial_missing"
+    if float(row.get("structural_score", 0.0)) < args.min_structural_score:
+        return False, "structural_score"
+    if float(row.get("contact_ratio_min", 0.0)) < args.structural_min_contact_ratio:
+        return False, "structural_contact_ratio"
+    if float(row.get("shared_edges", 0.0)) < args.structural_min_shared_edges:
+        return False, "structural_shared_edges"
+    if float(row.get("bbox_gap", 1e9)) > args.structural_max_bbox_gap:
+        return False, "structural_bbox_gap"
+    geom = {str(row.get("geometry_a", "")), str(row.get("geometry_b", ""))}
+    if geom == {"horizontal", "vertical"}:
+        return False, "structural_horizontal_vertical"
+    stable_like = geom <= {"horizontal", "vertical", "unknown", "mixed"}
+    if stable_like and float(row.get("normal_score", 0.0)) < args.structural_min_normal_score:
+        return False, "structural_normal"
+    return True, "accepted_structural_multimaterial"
+
+
 def candidate_is_clean(row: dict[str, Any], args: argparse.Namespace) -> tuple[bool, str]:
+    if str(row.get("merge_class", "")) == "structural_multimaterial":
+        return candidate_is_structural_multimaterial(row, args)
     if float(row.get("big_mixed_attachment", 0.0)) > 0:
         if args.enable_attachment_model:
             return candidate_is_attachment(row, args)
@@ -219,6 +250,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--attachment-max-fragment-voxels", type=int, default=1200)
     parser.add_argument("--attachment-min-anchor-voxels", type=int, default=100000)
     parser.add_argument("--attachment-min-size-ratio", type=float, default=500.0)
+    parser.add_argument("--enable-structural-multimaterial", action="store_true")
+    parser.add_argument("--min-structural-score", type=float, default=0.74)
+    parser.add_argument("--structural-min-contact-ratio", type=float, default=0.035)
+    parser.add_argument("--structural-min-shared-edges", type=int, default=24)
+    parser.add_argument("--structural-min-normal-score", type=float, default=0.62)
+    parser.add_argument("--structural-max-bbox-gap", type=float, default=0.08)
     return parser.parse_args()
 
 
