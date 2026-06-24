@@ -379,6 +379,7 @@ def attachment_merge_decision(
     fragment: PatchStats,
     shared_edges: int,
     candidate_support: float,
+    candidate: dict[str, Any],
     args: argparse.Namespace,
 ) -> tuple[bool, str, dict[str, float]]:
     """Decide whether a tiny fragment should become part of a large patch.
@@ -401,9 +402,19 @@ def attachment_merge_decision(
         return False, "attachment_bucket", {"size_ratio": size_ratio}
 
     contact_ratio = float(shared_edges) / max(float(fragment.count), 1.0)
-    color_dist = float(np.linalg.norm(anchor.mean_rgb - fragment.mean_rgb))
+    patch_color_dist = float(np.linalg.norm(anchor.mean_rgb - fragment.mean_rgb))
+    contact_color_dist = float(candidate.get("contact_color_distance", -1.0))
+    if args.attachment_use_contact_evidence and contact_color_dist >= 0:
+        color_dist = contact_color_dist
+    else:
+        color_dist = patch_color_dist
     color = max(0.0, min(1.0, 1.0 - color_dist / max(args.attachment_max_color_distance, 1e-6)))
-    normal = normal_score(anchor.mean_normal, fragment.mean_normal)
+    patch_normal = normal_score(anchor.mean_normal, fragment.mean_normal)
+    contact_normal = float(candidate.get("contact_normal_score", -1.0))
+    if args.attachment_use_contact_evidence and contact_normal >= 0:
+        normal = contact_normal
+    else:
+        normal = patch_normal
     bucket = compatible_bucket_score(anchor.geometry_type, fragment.geometry_type)
     gap = bbox_gap(anchor, fragment)
     gap_score = max(0.0, min(1.0, 1.0 - gap / max(args.attachment_max_bbox_gap, 1e-6)))
@@ -431,6 +442,10 @@ def attachment_merge_decision(
         "attachment_contact": float(contact),
         "attachment_gap": float(gap_score),
         "attachment_color_distance": float(color_dist),
+        "attachment_patch_color_distance": float(patch_color_dist),
+        "attachment_contact_color_distance": float(contact_color_dist),
+        "attachment_patch_normal": float(patch_normal),
+        "attachment_contact_normal": float(contact_normal),
         "attachment_bbox_gap": float(gap),
         "attachment_contact_ratio": float(contact_ratio),
         "attachment_size_ratio": float(size_ratio),
@@ -473,6 +488,66 @@ def build_edge_counts(labels: np.ndarray, src: np.ndarray, dst: np.ndarray) -> d
         (int(k // (max_label + 1)), int(k % (max_label + 1))): int(c)
         for k, c in zip(uk.tolist(), uc.tolist())
     }
+
+
+def build_edge_features(
+    labels: np.ndarray,
+    src: np.ndarray,
+    dst: np.ndarray,
+    arrays: dict[str, np.ndarray],
+) -> dict[tuple[int, int], dict[str, float]]:
+    if len(src) == 0:
+        return {}
+    la = labels[src]
+    lb = labels[dst]
+    mask = la != lb
+    if not np.any(mask):
+        return {}
+
+    src_m = src[mask]
+    dst_m = dst[mask]
+    la = la[mask].astype(np.int64, copy=False)
+    lb = lb[mask].astype(np.int64, copy=False)
+    swap = la > lb
+    a = np.where(swap, lb, la)
+    b = np.where(swap, la, lb)
+    idx_a = np.where(swap, dst_m, src_m)
+    idx_b = np.where(swap, src_m, dst_m)
+
+    max_label = int(labels.max())
+    keys = a * (max_label + 1) + b
+    uk, inv, counts = np.unique(keys, return_inverse=True, return_counts=True)
+
+    rgb = arrays["rgb"].astype(np.float64, copy=False)
+    normal = normalize_rows(arrays["normal"].astype(np.float64, copy=False))
+    rgb_a_sum = np.zeros((len(uk), 3), dtype=np.float64)
+    rgb_b_sum = np.zeros((len(uk), 3), dtype=np.float64)
+    normal_a_sum = np.zeros((len(uk), 3), dtype=np.float64)
+    normal_b_sum = np.zeros((len(uk), 3), dtype=np.float64)
+    np.add.at(rgb_a_sum, inv, rgb[idx_a])
+    np.add.at(rgb_b_sum, inv, rgb[idx_b])
+    np.add.at(normal_a_sum, inv, normal[idx_a])
+    np.add.at(normal_b_sum, inv, normal[idx_b])
+
+    rgb_a_mean = rgb_a_sum / counts[:, None]
+    rgb_b_mean = rgb_b_sum / counts[:, None]
+    color_distance = np.linalg.norm(rgb_a_mean - rgb_b_mean, axis=1)
+    nrm_a = np.linalg.norm(normal_a_sum, axis=1)
+    nrm_b = np.linalg.norm(normal_b_sum, axis=1)
+    dot = np.sum(normal_a_sum * normal_b_sum, axis=1)
+    normal_sim = np.full(len(uk), 0.5, dtype=np.float64)
+    ok = (nrm_a > 1e-9) & (nrm_b > 1e-9)
+    normal_sim[ok] = np.clip(dot[ok] / (nrm_a[ok] * nrm_b[ok]), 0.0, 1.0)
+
+    out: dict[tuple[int, int], dict[str, float]] = {}
+    for i, key in enumerate(uk.tolist()):
+        pair = (int(key // (max_label + 1)), int(key % (max_label + 1)))
+        out[pair] = {
+            "shared_edges": int(counts[i]),
+            "contact_color_distance": float(color_distance[i]),
+            "contact_normal_score": float(normal_sim[i]),
+        }
+    return out
 
 
 def build_overlap_candidate_scores(stats: dict[int, PatchStats], args: argparse.Namespace) -> dict[tuple[int, int], float]:
@@ -556,12 +631,14 @@ def build_merge_candidates(
     stats: dict[int, PatchStats],
     args: argparse.Namespace,
     fine_scores: dict[tuple[int, int], float] | None = None,
+    edge_features: dict[tuple[int, int], dict[str, float]] | None = None,
 ) -> list[dict[str, Any]]:
     candidates: dict[tuple[int, int], dict[str, Any]] = {}
     for pair, shared in edge_counts.items():
         a, b = pair
         if a not in stats or b not in stats:
             continue
+        features = (edge_features or {}).get(pair, {})
         support = float(shared) / max(float(min(stats[a].count, stats[b].count)), 1.0)
         candidates[pair] = {
             "pair": pair,
@@ -570,6 +647,8 @@ def build_merge_candidates(
             "source": "adjacency",
             "overlap_support": 0.0,
             "fine_overlap_support": 0.0,
+            "contact_color_distance": float(features.get("contact_color_distance", -1.0)),
+            "contact_normal_score": float(features.get("contact_normal_score", -1.0)),
         }
 
     overlap_scores = build_overlap_candidate_scores(stats, args)
@@ -586,6 +665,8 @@ def build_merge_candidates(
             "source": "overlap",
             "overlap_support": float(score),
             "fine_overlap_support": 0.0,
+            "contact_color_distance": -1.0,
+            "contact_normal_score": -1.0,
         }
 
     for pair, score in (fine_scores or {}).items():
@@ -603,6 +684,8 @@ def build_merge_candidates(
             "source": "fine_overlap",
             "overlap_support": 0.0,
             "fine_overlap_support": float(score),
+            "contact_color_distance": -1.0,
+            "contact_normal_score": -1.0,
         }
 
     out = list(candidates.values())
@@ -895,8 +978,14 @@ def merge_step(
     temp: float,
 ) -> tuple[np.ndarray, int, list[dict[str, Any]], int]:
     edge_counts = build_edge_counts(labels, arrays["src"] if "src" in arrays else np.array([], dtype=np.int32), arrays["dst"] if "dst" in arrays else np.array([], dtype=np.int32))
+    edge_features = build_edge_features(
+        labels,
+        arrays["src"] if "src" in arrays else np.array([], dtype=np.int32),
+        arrays["dst"] if "dst" in arrays else np.array([], dtype=np.int32),
+        arrays,
+    )
     fine_scores = build_fine_overlap_candidate_scores(arrays["xyz"], labels, stats, args)
-    candidates = build_merge_candidates(edge_counts, stats, args, fine_scores=fine_scores)
+    candidates = build_merge_candidates(edge_counts, stats, args, fine_scores=fine_scores, edge_features=edge_features)
     if not candidates:
         return labels, 0, [], 0
 
@@ -936,6 +1025,7 @@ def merge_step(
                 src_stats,
                 shared,
                 candidate_support,
+                candidate,
                 args,
             )
             if attachment_ok:
@@ -1297,6 +1387,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--attachment-bucket-weight", type=float, default=0.14)
     parser.add_argument("--attachment-contact-weight", type=float, default=0.28)
     parser.add_argument("--attachment-gap-weight", type=float, default=0.10)
+    parser.add_argument("--attachment-use-contact-evidence", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--enable-overlap-merge-candidates", action="store_true")
     parser.add_argument("--overlap-candidate-top-n", type=int, default=2000)
     parser.add_argument("--overlap-candidate-min-ratio", type=float, default=0.65)

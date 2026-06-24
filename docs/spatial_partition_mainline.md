@@ -722,6 +722,30 @@ Dense colorized source note:
     color. This is now the correct place to iterate: improve attachment seed
     eligibility and local color/normal evidence, instead of doing object-stage
     post-hoc union.
+- Patch-stage attachment merge with contact-local evidence:
+  - output:
+    `geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence`.
+  - code change: adjacency candidates now carry contact-local color and normal
+    evidence computed from the actual shared edge endpoints.  Attachment gating
+    uses this local contact evidence instead of only comparing the fragment with
+    the large anchor's global mean color/normal.
+  - reason: a large patch can legitimately contain several local color/normal
+    modes.  Rejecting a tiny fragment because it differs from the whole-anchor
+    mean is mathematically wrong; the decision should ask whether the fragment
+    matches the local boundary it touches.
+  - settings: same v1 patch-stage command plus the default
+    `--attachment-use-contact-evidence`.
+  - result: `200535 -> 197630` patches, `2905` merge accepts, `7787` merge
+    rejects, preview points `1448243`.
+  - merge log: `2899` accepts were `accepted_attachment`; `6` were ordinary
+    adjacency merges. Main rejects were anchor too small (`4238`), contact
+    color distance (`2013`), score (`717`), contact normal (`622`), bucket
+    (`156`), contact ratio (`31`), and size ratio (`6`).
+  - Interpretation: contact-local evidence is the first patch-stage change that
+    materially reduces tiny-fragment count without globally relaxing all graph
+    edges.  Use this as the current review candidate, but visual QA is still
+    required because the accept count is much higher than v1 and could expose
+    local over-attachment in cluttered areas.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color
