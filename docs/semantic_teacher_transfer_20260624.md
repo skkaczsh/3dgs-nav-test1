@@ -154,12 +154,34 @@ Runs:
   - output objects: `195168`
   - accepted by label: wall `1557`, floor `281`, grass `539`, railing `37`,
     car `1`
-  - conclusion: this is the first useful teacher-guided coarsening baseline.
+  - conclusion: this is the first useful teacher-guided coarsening diagnostic,
+    but it is rejected as a semantic display baseline after visual QA. It still
+    shows obvious errors such as ground being labeled as wall and horizontal car
+    surfaces being shown as floor.
+
+- `objects_v14_teacher_v20_grid6_geometry_guard_wall_recall`
+  - input: v12
+  - stage: hard semantic geometry guard
+  - changed objects: `67749`
+  - output labels: unknown `165892`, railing `27262`, floor `282`,
+    wall `1470`, grass `186`, car `76`
+  - point labels: floor `929024`, unknown `239132`, grass `206076`,
+    wall `52386`, railing `13518`, car `8107`
+  - conclusion: useful as a safety diagnostic because it suppresses the most
+    implausible labels, but too conservative for final semantics. The safer
+    active rollback baseline remains the v9 teacher-transfer result plus the
+    original v20 teacher artifact.
 
 Viewer:
 
 ```text
 http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v12_teacher_v20_grid6_unknown_absorb/objects_v12_teacher_v20_grid6_unknown_absorb_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v12_teacher_v20_grid6_unknown_absorb/objects_v12_teacher_v20_grid6_unknown_absorb.jsonl&mode=semantic&stride=1&pointSize=1.2
+```
+
+Guarded diagnostic viewer:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v14_teacher_v20_grid6_geometry_guard_wall_recall/objects_v14_teacher_v20_grid6_geometry_guard_wall_recall.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v14_teacher_v20_grid6_geometry_guard_wall_recall/objects_v14_teacher_v20_grid6_geometry_guard_wall_recall.jsonl&mode=semantic&stride=1&pointSize=1.2
 ```
 
 Remaining bottleneck:
@@ -169,3 +191,7 @@ Remaining bottleneck:
   current `0.03m` graph adjacency.
 - `label_mismatch` is also still high, so semantic teacher disagreement should
   be handled as review evidence, not forced into object merging.
+- The teacher semantic label is not a hard truth. Future object coarsening must
+  use teacher semantics only after a geometry guard has already accepted the
+  candidate; otherwise local teacher errors are amplified into larger object
+  errors.
