@@ -23,6 +23,8 @@ def test_show_current_mainline_json_output() -> None:
     assert data["dataset"] == "MT20260616-175807"
     assert data["dense_patch_baseline"]["id"] == "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624"
     assert data["dense_object_baseline"]["id"] == "dense_las_voxel003_objects_v3_high_recall_clean_20260624"
+    assert data["current_qa_report"]["promotion_gate_status"] == "awaiting_required_visual_checks"
+    assert data["current_qa_report"]["review_index_url"] == "/docs/current_dense_review_index.html"
     assert any(item["pattern"] == "frame_object_points_stride10.ply" for item in data["forbidden_inputs"])
 
 
@@ -43,6 +45,10 @@ def test_show_current_mainline_text_output() -> None:
     assert "runner: scripts/run_dense_patch_object_refinement_v7.py" in result.stdout
     assert "remote_runner: scripts/run_scan_train_dense_patch_object_refinement_v7.sh" in result.stdout
     assert "blocker:" in result.stdout
+    assert "current QA / promotion gate:" in result.stdout
+    assert "promotion_gate_status: awaiting_required_visual_checks" in result.stdout
+    assert "update_command: python3 scripts/update_current_dense_visual_acceptance.py" in result.stdout
+    assert "gate_command: python3 scripts/gate_current_dense_mainline_promotion.py" in result.stdout
     assert "forbidden inputs:" in result.stdout
     assert "frame_object_points_stride10.ply" in result.stdout
 

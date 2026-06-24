@@ -261,13 +261,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--surface-label-policy",
         choices=["veto_contradiction", "preserve"],
-        default="veto_contradiction",
         help=(
-            "How floor/wall labels are treated. 'veto_contradiction' applies "
-            "the geometry safety checks. 'preserve' keeps transferred floor/wall "
-            "labels and only lets the guard handle fine-object risks such as car "
-            "or railing on surface-like patches."
+            "How floor/wall labels are treated. 'preserve' keeps transferred "
+            "floor/wall labels and only lets the guard handle fine-object risks "
+            "such as car or railing on surface-like patches. "
+            "'veto_contradiction' is a diagnostic mode that applies hard "
+            "geometry checks to floor/wall labels."
         ),
+        default="preserve",
     )
     parser.add_argument(
         "--demote-small-surfaces",

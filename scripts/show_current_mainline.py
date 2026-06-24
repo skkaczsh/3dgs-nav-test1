@@ -62,6 +62,7 @@ def summarize(architecture: dict[str, Any], dense_patch: dict[str, Any]) -> dict
         "dense_object_baseline": dense_patch.get("current_object_baseline", {}),
         "remote_executable_baseline": dense_patch.get("remote_executable_baseline", {}),
         "latest_remote_run": dense_patch.get("latest_remote_run", {}),
+        "current_qa_report": dense_patch.get("current_qa_report", {}),
         "next_action": dense_patch.get("next_action", {}),
         "forbidden_inputs": dense_patch.get("forbidden_inputs", []),
         "rejected_semantic_artifacts": rejected,
@@ -112,6 +113,20 @@ def format_text(summary: dict[str, Any]) -> str:
     lines.append(f"  accepted_candidate_rows: {latest_obj.get('accepted_candidate_rows')}")
     lines.append(f"  output_object_count: {latest_obj.get('output_object_count')}")
     lines.append("")
+    qa = summary.get("current_qa_report", {})
+    if qa:
+        lines.append("current QA / promotion gate:")
+        lines.append(f"- qa_report: {qa.get('markdown_path')}")
+        lines.append(f"  review_index: {qa.get('review_index_url') or qa.get('review_index_html')}")
+        lines.append(f"  promotion_gate_status: {qa.get('promotion_gate_status')}")
+        lines.append(f"  visual_acceptance: {qa.get('visual_acceptance_expected_path')}")
+        if qa.get("visual_acceptance_update_command"):
+            lines.append(f"  update_command: {qa.get('visual_acceptance_update_command')}")
+        if qa.get("visual_acceptance_gate_command"):
+            lines.append(f"  gate_command: {qa.get('visual_acceptance_gate_command')}")
+        for reason in qa.get("promotion_gate_current_reasons", []):
+            lines.append(f"  blocked_by: {reason}")
+        lines.append("")
     next_action = summary.get("next_action", {})
     lines.append("next action:")
     lines.append(f"- {next_action.get('id')}: {next_action.get('description')}")
