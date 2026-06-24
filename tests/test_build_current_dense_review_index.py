@@ -62,6 +62,29 @@ def test_build_html_links_only_current_review_artifacts() -> None:
     assert "semantic_ply_viewer.html" in html
 
 
+def test_artifact_allowlist_accepts_current_review_set() -> None:
+    result = module.validate_artifact_allowlist()
+
+    assert result["passed"] is True
+    assert result["errors"] == []
+    assert result["artifact_ids"] == [
+        "v7_object_refinement",
+        "v8_object_refinement",
+        "v9_teacher_semantic",
+        "v17_surface_preserve_guard",
+    ]
+
+
+def test_artifact_allowlist_rejects_forbidden_diagnostic_path() -> None:
+    bad = [dict(module.ARTIFACTS[0])]
+    bad[0]["ply"] = "/server_parking_priority_s10/objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor/bad.ply"
+
+    result = module.validate_artifact_allowlist(bad)
+
+    assert result["passed"] is False
+    assert any("forbidden_artifact_reference" in error for error in result["errors"])
+
+
 def test_cli_writes_review_index(tmp_path: Path) -> None:
     qa = tmp_path / "qa.json"
     out = tmp_path / "index.html"

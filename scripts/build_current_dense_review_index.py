@@ -58,6 +58,14 @@ ARTIFACTS = [
     },
 ]
 
+FORBIDDEN_ARTIFACT_SUBSTRINGS = (
+    "frame_object_points_stride10.ply",
+    "objects_v12_teacher_v20_grid6_unknown_absorb",
+    "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
+    "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
+    "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
+)
+
 
 def read_json(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as fh:
@@ -78,6 +86,40 @@ def viewer_url(artifact: dict[str, Any], mode: str | None = None) -> str:
         f"&pointSize={artifact['point_size']}"
     )
     return url
+
+
+def validate_artifact_allowlist(artifacts: list[dict[str, Any]] = ARTIFACTS) -> dict[str, Any]:
+    errors: list[str] = []
+    artifact_ids = [str(item.get("id", "")) for item in artifacts]
+    if len(artifact_ids) != len(set(artifact_ids)):
+        errors.append("duplicate_artifact_ids")
+    expected_ids = {
+        "v7_object_refinement",
+        "v8_object_refinement",
+        "v9_teacher_semantic",
+        "v17_surface_preserve_guard",
+    }
+    extra_ids = sorted(set(artifact_ids) - expected_ids)
+    missing_ids = sorted(expected_ids - set(artifact_ids))
+    if extra_ids:
+        errors.append(f"unexpected_artifact_ids={extra_ids}")
+    if missing_ids:
+        errors.append(f"missing_artifact_ids={missing_ids}")
+    for item in artifacts:
+        haystack = "\n".join(
+            str(item.get(key, ""))
+            for key in ("id", "title", "role", "ply", "objects", "note")
+        )
+        for forbidden in FORBIDDEN_ARTIFACT_SUBSTRINGS:
+            if forbidden in haystack:
+                errors.append(f"forbidden_artifact_reference={item.get('id')}:{forbidden}")
+    return {
+        "schema": "current-dense-review-artifact-allowlist/v1",
+        "passed": not errors,
+        "artifact_ids": artifact_ids,
+        "forbidden_substrings": list(FORBIDDEN_ARTIFACT_SUBSTRINGS),
+        "errors": errors,
+    }
 
 
 def metric_rows(qa: dict[str, Any]) -> str:
@@ -208,9 +250,18 @@ def main() -> int:
     args = parser.parse_args()
 
     qa = read_json(args.qa_json)
+    allowlist = validate_artifact_allowlist()
+    if not allowlist["passed"]:
+        raise SystemExit(json.dumps(allowlist, ensure_ascii=False, indent=2))
     args.output_html.parent.mkdir(parents=True, exist_ok=True)
     args.output_html.write_text(build_html(qa), encoding="utf-8")
-    print(json.dumps({"output_html": str(args.output_html), "artifact_count": len(ARTIFACTS)}, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {"output_html": str(args.output_html), "artifact_count": len(ARTIFACTS), "allowlist": allowlist},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0
 
 
