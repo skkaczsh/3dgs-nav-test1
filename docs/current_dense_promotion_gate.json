@@ -1,0 +1,30 @@
+{
+  "schema": "current-dense-promotion-gate/v1",
+  "status": "fail",
+  "candidate": "v8_object_refinement",
+  "qa_json": "docs/current_dense_mainline_qa.json",
+  "visual_acceptance": "docs/current_dense_visual_acceptance.json",
+  "thresholds": {
+    "min_accepted_delta": 1.0,
+    "max_output_object_delta": 0.0,
+    "max_overlap_delta": 0.0,
+    "require_visual_acceptance": true
+  },
+  "metrics": {
+    "accepted_delta": 1139.0,
+    "output_object_delta": -1139.0,
+    "overlap_delta": -0.0004186838888514677,
+    "nonzero_surface_delta": {}
+  },
+  "visual": {
+    "required": true,
+    "accepted": false,
+    "status": "missing",
+    "errors": [
+      "missing_visual_acceptance=docs/current_dense_visual_acceptance.json"
+    ]
+  },
+  "reasons": [
+    "missing_visual_acceptance=docs/current_dense_visual_acceptance.json"
+  ]
+}
