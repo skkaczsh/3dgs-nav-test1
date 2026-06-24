@@ -204,7 +204,9 @@
       "No semantic label can merge ground, wall, car, railing, or vegetation by itself.",
       "Viewer output is generated only for QA after dense labels are produced.",
       "Semantic guard outputs must keep floor/wall surface labels unless there is direct contradictory geometry evidence; missing teacher evidence alone is not enough to demote to unknown."
-    ]
+    ],
+    "preflight_command": "python3 scripts/validate_current_mainline.py",
+    "remote_runner_preflight": "RUN_PREFLIGHT=1 is default; RUN=1 will stop before rsync/ssh/tmux if the current mainline healthcheck fails."
   },
   "current_qa_report": {
     "id": "current_dense_mainline_qa",

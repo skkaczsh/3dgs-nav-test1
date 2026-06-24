@@ -9,10 +9,13 @@ set -euo pipefail
 # conservative object labels.  It does not use semantic labels as merge input.
 
 REMOTE_HOST="${REMOTE_HOST:-scan-train}"
+LOCAL_REPO="${LOCAL_REPO:-/Users/skkac/Work/SCAN/new_route}"
 REMOTE_REPO="${REMOTE_REPO:-/root/epfs/SCAN/new_route}"
 REMOTE_WORK="${REMOTE_WORK:-/root/epfs/SCAN/work_MT20260616-175807}"
 TMUX_SESSION="${TMUX_SESSION:-scan_dense_object_v7}"
 RUN="${RUN:-0}"
+RUN_PREFLIGHT="${RUN_PREFLIGHT:-1}"
+PREFLIGHT="${PREFLIGHT:-${LOCAL_REPO}/scripts/validate_current_mainline.py}"
 
 BASE="${BASE:-${REMOTE_WORK}/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623}"
 REGION_INPUT="${REGION_INPUT:-${BASE}/_cpp_region_grower_input.bin}"
@@ -72,6 +75,13 @@ if [[ "${RUN}" != "1" ]]; then
   echo "dry_run=1"
   echo "set RUN=1 to launch tmux session ${TMUX_SESSION}"
   exit 0
+fi
+
+if [[ "${RUN_PREFLIGHT}" == "1" ]]; then
+  echo "preflight=${PREFLIGHT}"
+  "${PYTHON}" "${PREFLIGHT}"
+else
+  echo "preflight=skipped"
 fi
 
 rsync -az \
