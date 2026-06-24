@@ -18,7 +18,7 @@ TMUX_SESSION="${TMUX_SESSION:-scan_patch_energy_v3_003}"
 RUN="${RUN:-0}"
 KILL_LLAMA="${KILL_LLAMA:-1}"
 OUT_NAME="${OUT_NAME:-geo_patch_5070_full_0000_6180_energy_v3_voxel003_20260624_0018}"
-INPUT_PLY="${INPUT_PLY:-${REMOTE_WORK}/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_object_points_stride10.ply}"
+INPUT_PLY="${INPUT_PLY:-${REMOTE_WORK}/dense_sources/dense_las_voxel003_20260624/dense_las_voxel003_binary.ply}"
 OUTPUT_DIR="${OUTPUT_DIR:-${REMOTE_WORK}/${OUT_NAME}}"
 
 VOXEL_SIZE="${VOXEL_SIZE:-0.03}"
@@ -35,6 +35,17 @@ MAX_MERGE_CANDIDATES="${MAX_MERGE_CANDIDATES:-240000}"
 
 SSH=(ssh -i "${REMOTE_KEY}" -p "${REMOTE_PORT}" "${REMOTE_HOST}")
 RSYNC_SSH="ssh -i ${REMOTE_KEY} -p ${REMOTE_PORT}"
+
+reject_forbidden_input() {
+  case "$1" in
+    *frame_object_points_stride10.ply*|*objects_v12_teacher_v20_grid6_unknown_absorb*|*objects_v14_teacher_v20_grid6_geometry_guard_wall_recall*|*objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor*|*objects_v16_teacher_v20_grid6_geometry_guard_surface_recall*)
+      echo "forbidden production input: $1" >&2
+      exit 2
+      ;;
+  esac
+}
+
+reject_forbidden_input "${INPUT_PLY}"
 
 echo "remote=${REMOTE_HOST}:${REMOTE_PORT}"
 echo "input_ply=${INPUT_PLY}"
@@ -118,4 +129,3 @@ tmux kill-session -t "${TMUX_SESSION}" 2>/dev/null || true
 tmux new-session -d -s "${TMUX_SESSION}" "${REMOTE_WORK}/run_scripts/${OUT_NAME}.sh"
 tmux ls
 REMOTE
-
