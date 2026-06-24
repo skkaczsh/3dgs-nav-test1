@@ -23,6 +23,8 @@ Base: `/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_la
 | unknown | 73085 | 73085 | 0 |
 | wall | 650971 | 650971 | 0 |
 
+Unknown point delta v17-v9: `0`
+
 ## Gates
 
 - Object ownership must remain exclusive.

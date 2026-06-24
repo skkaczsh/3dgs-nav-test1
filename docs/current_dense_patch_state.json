@@ -233,6 +233,8 @@
       "visual_required_checks_not_accepted=['v8_fragmentation_improves', 'v8_no_obvious_overmerge', 'surface_guard_no_unknown_regression', 'semantic_not_promoted_from_object_view']"
     ],
     "visual_acceptance_update_command": "python3 scripts/update_current_dense_visual_acceptance.py --check-id <check_id> --status accepted --reviewer <name> --notes <brief_evidence>",
-    "visual_acceptance_gate_command": "python3 scripts/gate_current_dense_mainline_promotion.py --qa-json docs/current_dense_mainline_qa.json --visual-acceptance docs/current_dense_visual_acceptance.json --output docs/current_dense_promotion_gate.json"
+    "visual_acceptance_gate_command": "python3 scripts/gate_current_dense_mainline_promotion.py --qa-json docs/current_dense_mainline_qa.json --visual-acceptance docs/current_dense_visual_acceptance.json --output docs/current_dense_promotion_gate.json",
+    "unknown_point_delta_v17_minus_v9": 0,
+    "promotion_gate_unknown_spike_policy": "max_unknown_point_delta=0; any floor/wall guard run that increases unknown points above v9 is blocked."
   }
 }

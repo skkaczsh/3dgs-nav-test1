@@ -96,6 +96,7 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
     )
     surface_delta = qa.get("surface_guard", {}).get("label_point_counts", {}).get("delta_v17_minus_v9", {})
     nonzero_surface_delta = {str(k): v for k, v in surface_delta.items() if int(v) != 0}
+    unknown_delta = numeric(qa, ("surface_guard", "unknown_point_delta_v17_minus_v9"))
 
     if accepted_delta < args.min_accepted_delta:
         fail(reasons, f"accepted_delta {accepted_delta:g} < {args.min_accepted_delta:g}")
@@ -105,6 +106,8 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
         fail(reasons, f"overlap_delta {overlap_delta:.6f} > {args.max_overlap_delta:.6f}")
     if nonzero_surface_delta:
         fail(reasons, f"surface_guard_changed_labels={nonzero_surface_delta}")
+    if unknown_delta > args.max_unknown_point_delta:
+        fail(reasons, f"unknown_point_delta {unknown_delta:g} > {args.max_unknown_point_delta:g}")
 
     visual = validate_visual_acceptance(args.visual_acceptance, not args.no_require_visual_acceptance)
     if not visual["accepted"]:
@@ -120,12 +123,14 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
             "min_accepted_delta": args.min_accepted_delta,
             "max_output_object_delta": args.max_output_object_delta,
             "max_overlap_delta": args.max_overlap_delta,
+            "max_unknown_point_delta": args.max_unknown_point_delta,
             "require_visual_acceptance": not args.no_require_visual_acceptance,
         },
         "metrics": {
             "accepted_delta": accepted_delta,
             "output_object_delta": output_delta,
             "overlap_delta": overlap_delta,
+            "unknown_point_delta": unknown_delta,
             "nonzero_surface_delta": nonzero_surface_delta,
         },
         "visual": visual,
@@ -141,6 +146,7 @@ def main() -> int:
     parser.add_argument("--min-accepted-delta", type=float, default=1.0)
     parser.add_argument("--max-output-object-delta", type=float, default=0.0)
     parser.add_argument("--max-overlap-delta", type=float, default=0.0)
+    parser.add_argument("--max-unknown-point-delta", type=float, default=0.0)
     parser.add_argument("--no-require-visual-acceptance", action="store_true")
     args = parser.parse_args()
 

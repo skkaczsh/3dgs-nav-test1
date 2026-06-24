@@ -68,6 +68,7 @@ def test_build_report_compares_dense_object_and_surface_guard(tmp_path: Path) ->
     assert obj["delta_v8_minus_v7"]["mixed_object_voxel_ratio_020"] < 0
     assert report["surface_guard"]["changed_object_count"] == 0
     assert report["surface_guard"]["label_point_counts"]["delta_v17_minus_v9"] == {"unknown": 0, "wall": 0}
+    assert report["surface_guard"]["unknown_point_delta_v17_minus_v9"] == 0
 
 
 def test_format_md_includes_key_sections(tmp_path: Path) -> None:
@@ -78,6 +79,7 @@ def test_format_md_includes_key_sections(tmp_path: Path) -> None:
     assert "# Current Dense Mainline QA" in text
     assert "| candidate_count | 10 | 30 | 20 |" in text
     assert "| wall | 50 | 50 | 0 |" in text
+    assert "Unknown point delta v17-v9: `0`" in text
 
 
 def test_cli_writes_json_and_markdown(tmp_path: Path) -> None:

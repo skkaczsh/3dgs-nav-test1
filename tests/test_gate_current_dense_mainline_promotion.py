@@ -19,7 +19,7 @@ def write_json(path: Path, data: dict) -> Path:
     return path
 
 
-def qa(nonzero_surface: bool = False) -> dict:
+def qa(nonzero_surface: bool = False, unknown_delta: int = 0) -> dict:
     return {
         "schema": "current-dense-mainline-qa/v1",
         "object_refinement": {
@@ -34,7 +34,8 @@ def qa(nonzero_surface: bool = False) -> dict:
         "surface_guard": {
             "label_point_counts": {
                 "delta_v17_minus_v9": {"floor": 1 if nonzero_surface else 0, "wall": 0}
-            }
+            },
+            "unknown_point_delta_v17_minus_v9": unknown_delta,
         },
     }
 
@@ -62,6 +63,7 @@ def args(tmp_path: Path, qa_path: Path, visual_path: Path | None, require_visual
         min_accepted_delta=1.0,
         max_output_object_delta=0.0,
         max_overlap_delta=0.0,
+        max_unknown_point_delta=0.0,
         no_require_visual_acceptance=not require_visual,
     )
 
@@ -93,6 +95,16 @@ def test_gate_rejects_surface_guard_label_changes(tmp_path: Path) -> None:
 
     assert result["status"] == "fail"
     assert any("surface_guard_changed_labels" in reason for reason in result["reasons"])
+
+
+def test_gate_rejects_unknown_point_spike(tmp_path: Path) -> None:
+    qa_path = write_json(tmp_path / "qa.json", qa(unknown_delta=100))
+    visual_path = write_json(tmp_path / "visual.json", visual())
+
+    result = evaluate(args(tmp_path, qa_path, visual_path))
+
+    assert result["status"] == "fail"
+    assert any("unknown_point_delta" in reason for reason in result["reasons"])
 
 
 def test_cli_writes_failure_report_when_visual_acceptance_missing(tmp_path: Path) -> None:

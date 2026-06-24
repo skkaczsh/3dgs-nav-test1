@@ -137,6 +137,7 @@ def compare_surface_guard(base: Path) -> dict[str, Any]:
     v9_points = {str(k): as_int(v) for k, v in (v9.get("label_point_counts") or {}).items()}
     v17_points = {str(k): as_int(v) for k, v in (v17.get("label_point_counts") or {}).items()}
     keys = sorted(set(v9_points) | set(v17_points))
+    delta_points = {key: v17_points.get(key, 0) - v9_points.get(key, 0) for key in keys}
     return {
         "schema": "surface-guard-compare/v1",
         "baseline": "objects_v9_teacher_v20_semantic",
@@ -144,8 +145,9 @@ def compare_surface_guard(base: Path) -> dict[str, Any]:
         "label_point_counts": {
             "v9": v9_points,
             "v17": v17_points,
-            "delta_v17_minus_v9": {key: v17_points.get(key, 0) - v9_points.get(key, 0) for key in keys},
+            "delta_v17_minus_v9": delta_points,
         },
+        "unknown_point_delta_v17_minus_v9": int(delta_points.get("unknown", 0)),
         "object_count": {
             "v9": as_int(v9.get("object_count")),
             "v17": as_int(v17.get("object_count")),
@@ -210,6 +212,8 @@ def format_md(report: dict[str, Any]) -> str:
             f"| {key} | {surf['v9'].get(key, 0)} | {surf['v17'].get(key, 0)} | "
             f"{surf['delta_v17_minus_v9'].get(key, 0)} |"
         )
+    lines.append("")
+    lines.append(f"Unknown point delta v17-v9: `{report['surface_guard']['unknown_point_delta_v17_minus_v9']}`")
 
     lines.extend(["", "## Gates", ""])
     lines.extend(f"- {item}" for item in report["promotion_gates"])
