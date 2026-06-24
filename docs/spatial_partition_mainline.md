@@ -775,6 +775,33 @@ Dense colorized source note:
     population.  The next stage should handle small singleton absorption or
     coarsened supernodes explicitly; simply lowering color/score thresholds is
     not the right lever.
+- Geometry-first SAM semantic vote smoke:
+  - script: `accumulate_semantic_png_votes_to_objects.py`.
+  - purpose: push SKYMASK/SAM semantic PNGs back onto the geometry-first object
+    layer without changing object ownership.  SAM evidence updates only
+    `semantic_label`; patch/object boundaries remain fixed by the spatial
+    segmentation route.
+  - input object baseline:
+    `objects_v9_grid6_samegeom_structural_guard`.
+  - semantic source smoke:
+    `/root/epfs/sam2_tensorrt/semantic_eval_rle50_default_downstream50_cam0`,
+    combo `sam2_prompt_v3_sky_label_merge_completion`, cam0 only, 50 frames.
+  - output:
+    `geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_sam_vote_cam0_50_smoke_v2`.
+  - result: `197583` objects, `9060` changed by SAM votes, `50` frames used,
+    `8269039` projected visible samples, `4991864` accepted geometry-guarded
+    semantic votes.
+  - point label counts on stride10 preview: floor `676046`, wall `399934`,
+    unknown `219850`, equipment `141857`, railing `8553`, other `1894`, building
+    `69`, pipe `40`.
+  - guardrail: horizontal/vertical/thin/rough geometry each has an allowed label
+    set, so SAM cannot directly relabel a horizontal surface as car/railing or a
+    stable vertical surface as floor.  Vetoed labels are kept in
+    `semantic_veto_votes` for QA instead of being silently applied.
+  - Interpretation: this is the correct way to reintroduce SKYMASK/SAM: as
+    object-level evidence after geometry ownership is fixed.  It is still only a
+    cam0/50-frame smoke; full production needs all cameras and a cached/binary
+    vote path to avoid repeated ASCII PLY projection cost.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color
