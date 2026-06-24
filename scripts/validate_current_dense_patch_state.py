@@ -172,6 +172,10 @@ def validate(path: Path) -> dict[str, Any]:
             "rejected",
         }:
             errors.append(f"unexpected_promotion_gate_status={gate_status}")
+        if "update_current_dense_visual_acceptance.py" not in str(qa.get("visual_acceptance_update_command", "")):
+            errors.append("missing_visual_acceptance_update_command")
+        if "gate_current_dense_mainline_promotion.py" not in str(qa.get("visual_acceptance_gate_command", "")):
+            errors.append("missing_visual_acceptance_gate_command")
 
     return {
         "passed": not errors,

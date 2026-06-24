@@ -1,6 +1,6 @@
 {
   "schema": "current-dense-patch-state/v1",
-  "updated_at": "2026-06-24T18:45:00+08:00",
+  "updated_at": "2026-06-24T19:05:00+08:00",
   "dataset": "MT20260616-175807",
   "purpose": "Track the dense raw-data Patch/Object mainline separately from semantic experiments and viewer artifacts.",
   "authoritative_source": {
@@ -231,6 +231,8 @@
     "promotion_gate_current_reasons": [
       "visual_status_not_accepted=pending",
       "visual_required_checks_not_accepted=['v8_fragmentation_improves', 'v8_no_obvious_overmerge', 'surface_guard_no_unknown_regression', 'semantic_not_promoted_from_object_view']"
-    ]
+    ],
+    "visual_acceptance_update_command": "python3 scripts/update_current_dense_visual_acceptance.py --check-id <check_id> --status accepted --reviewer <name> --notes <brief_evidence>",
+    "visual_acceptance_gate_command": "python3 scripts/gate_current_dense_mainline_promotion.py --qa-json docs/current_dense_mainline_qa.json --visual-acceptance docs/current_dense_visual_acceptance.json --output docs/current_dense_promotion_gate.json"
   }
 }

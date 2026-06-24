@@ -77,6 +77,8 @@ def test_dense_patch_state_records_current_qa_report() -> None:
     assert qa["visual_acceptance_markdown"] == "docs/current_dense_visual_acceptance.md"
     assert qa["promotion_gate_status"] == "awaiting_required_visual_checks"
     assert qa["visual_acceptance_expected_path"] == "docs/current_dense_visual_acceptance.json"
+    assert "update_current_dense_visual_acceptance.py" in qa["visual_acceptance_update_command"]
+    assert "gate_current_dense_mainline_promotion.py" in qa["visual_acceptance_gate_command"]
     assert qa["key_findings"]["v17_label_point_delta_vs_v9_all_zero"] is True
     assert qa["key_findings"]["v8_mixed_object_voxel_ratio_delta_vs_v7"] < 0
 

@@ -21,3 +21,24 @@ Review index: http://127.0.0.1:8765/docs/current_dense_review_index.html
 ## Promotion
 
 Promotion remains blocked until every required check is set to `accepted` in `docs/current_dense_visual_acceptance.json` and `gate_current_dense_mainline_promotion.py` passes.
+
+## Update Commands
+
+After visual inspection, update each required check with:
+
+```bash
+python3 scripts/update_current_dense_visual_acceptance.py \
+  --check-id v8_fragmentation_improves \
+  --status accepted \
+  --reviewer "<name>" \
+  --notes "<brief evidence>"
+```
+
+Valid statuses are `pending`, `accepted`, `rejected`, and `blocked`. Promotion only passes after all required checks are `accepted` and:
+
+```bash
+python3 scripts/gate_current_dense_mainline_promotion.py \
+  --qa-json docs/current_dense_mainline_qa.json \
+  --visual-acceptance docs/current_dense_visual_acceptance.json \
+  --output docs/current_dense_promotion_gate.json
+```
