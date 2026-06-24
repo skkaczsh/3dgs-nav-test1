@@ -28,32 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.export_frame_target_objects_for_viewer import LABEL_TO_SEMANTIC, SEMANTIC_COLORS
-
-SEMANTIC_TO_LABEL = {
-    0: "unknown",
-    1: "other",
-    2: "wall",
-    3: "floor",
-    4: "ceiling",
-    5: "grass",
-    6: "tree",
-    7: "person",
-    8: "car",
-    9: "railing",
-    10: "building",
-    11: "sky",
-    12: "road",
-    13: "water",
-    14: "furniture",
-    15: "pipe",
-    16: "equipment",
-    17: "fine_candidate",
-    18: "stair",
-    19: "indoor_floor",
-    20: "roof",
-    255: "ignore",
-}
+from scripts.semantic_label_contract import LABEL_TO_SEMANTIC, SEMANTIC_COLORS, SEMANTIC_TO_LABEL
 
 GEOMETRY_LABELS = {"horizontal", "vertical", "thin_linear", "rough_mixed", "mixed", "unknown"}
 SKIP_LABELS = {"unknown", "sky", "ignore", "water"}

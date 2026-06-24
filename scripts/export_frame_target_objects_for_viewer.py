@@ -18,58 +18,16 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-LABEL_TO_SEMANTIC = {
-    "unknown": 0,
-    "other": 1,
-    "wall": 2,
-    "floor": 3,
-    "ground": 3,
-    "ceiling": 4,
-    "grass": 5,
-    "tree": 6,
-    "person": 7,
-    "car": 8,
-    "railing": 9,
-    "building": 10,
-    "sky": 11,
-    "road": 12,
-    "water": 13,
-    "furniture": 14,
-    "pipe": 15,
-    "equipment": 16,
-    "fine_candidate": 17,
-    "stair": 18,
-    "indoor_floor": 19,
-    "roof": 20,
-    "ambiguous": 0,
-    "ignore": 255,
-}
-
-SEMANTIC_COLORS = {
-    0: (150, 150, 150),
-    1: (180, 180, 180),
-    2: (120, 150, 180),
-    3: (196, 168, 112),
-    4: (170, 170, 210),
-    5: (80, 160, 80),
-    6: (50, 130, 70),
-    8: (235, 90, 80),
-    9: (240, 210, 60),
-    10: (145, 145, 160),
-    12: (120, 120, 120),
-    15: (220, 160, 60),
-    16: (210, 90, 210),
-    17: (245, 150, 40),
-    18: (245, 125, 60),
-    19: (105, 180, 210),
-    20: (165, 145, 210),
-    255: (40, 40, 40),
-}
+from scripts.semantic_label_contract import LABEL_TO_SEMANTIC, SEMANTIC_COLORS
 
 
 def object_number(object_id: str) -> int:
