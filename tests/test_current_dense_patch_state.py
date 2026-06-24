@@ -71,6 +71,8 @@ def test_dense_patch_state_records_current_qa_report() -> None:
     assert qa["schema"] == "current-dense-mainline-qa/v1"
     assert qa["json_path"] == "docs/current_dense_mainline_qa.json"
     assert qa["markdown_path"] == "docs/current_dense_mainline_qa.md"
+    assert qa["review_index_html"] == "docs/current_dense_review_index.html"
+    assert qa["review_index_url"] == "/docs/current_dense_review_index.html"
     assert qa["key_findings"]["v17_label_point_delta_vs_v9_all_zero"] is True
     assert qa["key_findings"]["v8_mixed_object_voxel_ratio_delta_vs_v7"] < 0
 

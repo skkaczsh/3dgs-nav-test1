@@ -142,7 +142,7 @@ def validate(path: Path) -> dict[str, Any]:
 
     qa = data.get("current_qa_report", {})
     if isinstance(qa, dict):
-        for key in ("json_path", "markdown_path"):
+        for key in ("json_path", "markdown_path", "review_index_html"):
             value = qa.get(key)
             if not value:
                 errors.append(f"current_qa_report_missing_{key}")

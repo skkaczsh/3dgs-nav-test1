@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Current Dense Mainline Review</title>
+  <style>
+    :root { color-scheme: dark; --bg:#111318; --panel:#181c23; --line:#303641; --text:#eef1f5; --muted:#a3abb7; --accent:#63c5dd; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    header { padding: 18px 22px; border-bottom: 1px solid var(--line); }
+    h1 { margin: 0 0 6px; font-size: 20px; }
+    main { display: grid; gap: 16px; padding: 16px; }
+    section, .card { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+    h2 { margin: 0 0 8px; font-size: 15px; }
+    .role, .muted { color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+    th { color: var(--muted); }
+    a { color: var(--accent); text-decoration: none; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+    .actions a { border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; background: #202631; }
+    code { display: block; color: var(--muted); word-break: break-all; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Current Dense Mainline Review</h1>
+    <div class="muted">Only current approved comparison artifacts are linked here. Rejected diagnostic runs are intentionally excluded.</div>
+  </header>
+  <main>
+    <section>
+      <h2>Object Refinement QA</h2>
+      <table>
+        <thead><tr><th>metric</th><th>v7</th><th>v8</th><th>delta</th></tr></thead>
+        <tbody>
+<tr><td>candidate_count</td><td>239</td><td>6656</td><td>6417</td></tr>
+<tr><td>accepted_candidate_rows</td><td>96</td><td>1235</td><td>1139</td></tr>
+<tr><td>output_object_count</td><td>197534</td><td>196395</td><td>-1139</td></tr>
+<tr><td>mixed_object_voxel_ratio_020</td><td>0.18651164133709347</td><td>0.186092957448242</td><td>-0.0004186838888514677</td></tr>
+<tr><td>object_count_in_overlap_preview</td><td>51269</td><td>50831</td><td>-438</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section>
+      <h2>Surface Guard QA</h2>
+      <table>
+        <thead><tr><th>label</th><th>v9 points</th><th>v17 points</th><th>delta</th></tr></thead>
+        <tbody>
+<tr><td>car</td><td>8486</td><td>8486</td><td>0</td></tr>
+<tr><td>floor</td><td>496641</td><td>496641</td><td>0</td></tr>
+<tr><td>grass</td><td>205461</td><td>205461</td><td>0</td></tr>
+<tr><td>railing</td><td>13599</td><td>13599</td><td>0</td></tr>
+<tr><td>unknown</td><td>73085</td><td>73085</td><td>0</td></tr>
+<tr><td>wall</td><td>650971</td><td>650971</td><td>0</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section>
+      <h2>Viewer Links</h2>
+      <div class="grid">
+
+      <article class="card">
+        <h2>v7 Object Refinement</h2>
+        <p class="role">conservative object baseline</p>
+        <p>Lower recall; useful as over-merge guard.</p>
+        <div class="actions">
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.2" target="_blank">Open default</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.2" target="_blank">Object mode</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.2" target="_blank">Semantic mode</a>
+        </div>
+        <code>/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply</code>
+      </article>
+
+
+      <article class="card">
+        <h2>v8 Object Refinement</h2>
+        <p class="role">high-recall object candidate</p>
+        <p>More merges; requires visual QA before promotion.</p>
+        <div class="actions">
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.2" target="_blank">Open default</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.2" target="_blank">Object mode</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.2" target="_blank">Semantic mode</a>
+        </div>
+        <code>/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply</code>
+      </article>
+
+
+      <article class="card">
+        <h2>v9 Teacher Semantic</h2>
+        <p class="role">safe semantic diagnostic</p>
+        <p>Teacher transfer without the surface-preserve guard wrapper.</p>
+        <div class="actions">
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.2" target="_blank">Open default</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.2" target="_blank">Object mode</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.2" target="_blank">Semantic mode</a>
+        </div>
+        <code>/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.ply</code>
+      </article>
+
+
+      <article class="card">
+        <h2>v17 Surface Preserve Guard</h2>
+        <p class="role">unknown-regression guard reference</p>
+        <p>Same point labels as v9; proves guard does not create unknown spike.</p>
+        <div class="actions">
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.2" target="_blank">Open default</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.2" target="_blank">Object mode</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.2" target="_blank">Semantic mode</a>
+        </div>
+        <code>/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.ply</code>
+      </article>
+
+      </div>
+    </section>
+  </main>
+</body>
+</html>
