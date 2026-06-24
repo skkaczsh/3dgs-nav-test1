@@ -641,6 +641,32 @@ Dense colorized source note:
     fragmentation. The next meaningful object stage should handle big-mixed
     attachments with local structural evidence and visual/depth evidence, not
     by globally lowering thresholds.
+- High-recall object candidates on v6:
+  - output:
+    `dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/object_merge_candidates_v2_high_recall`.
+  - settings: `min_patch_voxels=80`, `min_shared_edges=4`,
+    `min_contact_ratio=0.008`, `max_color_distance=110`,
+    `min_bucket_score=0.45`, `min_score=0.55`.
+  - result: same `48863` patches and `22921` adjacent patch pairs, but candidate
+    count increased from `273` to `1905`.
+  - reject reasons: `16645` small patch, `2646` bucket mismatch, `882` color
+    distance, `642` low shared edges, `92` score, `67` stable normal mismatch,
+    `42` low contact ratio.
+  - `1046 / 1905` candidates are big-mixed attachments.
+  - Interpretation: the original candidate stage had low recall. Loosening
+    candidate generation is useful as long as acceptance remains conservative.
+- Object v3 from high-recall candidates:
+  - output: `dense_las_voxel003_objects_v3_high_recall_clean_20260624`.
+  - input: v6 labels plus high-recall candidate set.
+  - acceptance: same conservative Object v1 gates; `big_mixed_attachment` is
+    still blocked.
+  - result: `1905` candidate rows, `136` effective accepted unions, `48863 ->
+    48727` objects, `1440583` preview points at stride `10`.
+  - reject reasons: `1046` big mixed attachments, `644` score, `57` shared
+    edges, `14` contact ratio, `4` color distance, `3` stable normal.
+  - Interpretation: candidate recall matters, but the dominant unresolved class
+    is now big mixed attachment. The next stage should model attachments to
+    large mixed surfaces explicitly instead of globally relaxing object gates.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color
