@@ -5,9 +5,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.current_mainline_contract import REQUIRED_ACTIVE_BASELINE_IDS, REQUIRED_REJECTED_ARTIFACT_IDS
 
 REQUIRED_TOP_LEVEL = {
     "schema",
@@ -22,23 +28,8 @@ REQUIRED_TOP_LEVEL = {
     "next_mainline",
 }
 
-REQUIRED_REJECTED_IDS = {
-    "objects_v12_teacher_v20_grid6_unknown_absorb",
-    "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
-    "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
-    "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
-    "v23_mimo_rich_highctx_global_relabel",
-    "old_transforms_json_project_world_points_route",
-    "single_frame_keyframe_pairing_route",
-    "raw_sam_png_vote_on_patches",
-}
-
-REQUIRED_ACTIVE_IDS = {
-    "pure_surface_visibility_full_0000_6180",
-    "full_scene_objects_refined_v20",
-    "objects_v9_teacher_v20_semantic",
-    "objects_v17_teacher_v20_surface_preserve_guard",
-}
+REQUIRED_REJECTED_IDS = set(REQUIRED_REJECTED_ARTIFACT_IDS)
+REQUIRED_ACTIVE_IDS = set(REQUIRED_ACTIVE_BASELINE_IDS)
 
 
 def _load_json(path: Path) -> dict[str, Any]:

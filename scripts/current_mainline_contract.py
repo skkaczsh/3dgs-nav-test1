@@ -17,6 +17,24 @@ FORBIDDEN_ARTIFACT_SUBSTRINGS: tuple[str, ...] = (
     "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
 )
 
+REQUIRED_ACTIVE_BASELINE_IDS: tuple[str, ...] = (
+    "pure_surface_visibility_full_0000_6180",
+    "full_scene_objects_refined_v20",
+    "objects_v9_teacher_v20_semantic",
+    "objects_v17_teacher_v20_surface_preserve_guard",
+)
+
+REQUIRED_REJECTED_ARTIFACT_IDS: tuple[str, ...] = (
+    "objects_v12_teacher_v20_grid6_unknown_absorb",
+    "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
+    "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
+    "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
+    "v23_mimo_rich_highctx_global_relabel",
+    "old_transforms_json_project_world_points_route",
+    "single_frame_keyframe_pairing_route",
+    "raw_sam_png_vote_on_patches",
+)
+
 
 def forbidden_artifact_match(value: str | Path) -> str | None:
     text = str(value)
@@ -24,4 +42,3 @@ def forbidden_artifact_match(value: str | Path) -> str | None:
         if forbidden in text:
             return forbidden
     return None
-

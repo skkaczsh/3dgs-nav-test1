@@ -224,6 +224,13 @@
       18: "stair", 19: "indoor_floor", 20: "roof", 255: "ignore"
     };
     const LABEL_IDS = Object.fromEntries(Object.entries(LABELS).map(([k, v]) => [v, Number(k)]));
+    const REJECTED_ARTIFACT_SUBSTRINGS = [
+      "frame_object_points_stride10.ply",
+      "objects_v12_teacher_v20_grid6_unknown_absorb",
+      "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
+      "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
+      "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall"
+    ];
     const LABEL_ZH = {
       unknown: "未知", other: "其他", wall: "墙面", floor: "地面", ceiling: "天花板",
       grass: "草地", tree: "树木", person: "人", car: "汽车", railing: "栏杆/护栏",
@@ -738,6 +745,27 @@
       return value.replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
     }
 
+    function rejectedArtifactMatch(urls) {
+      for (const raw of urls) {
+        const text = decodeURIComponent(String(raw || ""));
+        const match = REJECTED_ARTIFACT_SUBSTRINGS.find(item => text.includes(item));
+        if (match) return match;
+      }
+      return "";
+    }
+
+    function assertUrlArtifactsAllowed(urls) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("allowRejected") === "1") return;
+      const match = rejectedArtifactMatch(urls);
+      if (!match) return;
+      throw new Error(
+        `Rejected diagnostic artifact blocked: ${match}. ` +
+        "Open /docs/current_dense_review_index.html for approved review links, " +
+        "or add allowRejected=1 only when intentionally inspecting a rejected run."
+      );
+    }
+
     function updateLabelOptions() {
       const labels = [...new Set(rawRows.map(r => r.label))].sort();
       els.labelFilter.innerHTML = '<option value="">全部标签</option>' + labels.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(displayLabel(l))}</option>`).join("");
@@ -795,6 +823,7 @@
     }
 
     async function loadUrl(url) {
+      assertUrlArtifactsAllowed([url]);
       els.stats.textContent = `正在加载 ${decodeURIComponent(url.split("/").pop() || "remote.ply")} ...`;
       const loaded = await fetchUrlRows(url);
       rawRows = loaded.rows;
@@ -810,6 +839,7 @@
     }
 
     async function loadUrls(urls) {
+      assertUrlArtifactsAllowed(urls);
       els.stats.textContent = `正在加载 ${urls.length} 个文件 ...`;
       const parsed = [];
       for (const url of urls) parsed.push(await fetchUrlRows(url));
