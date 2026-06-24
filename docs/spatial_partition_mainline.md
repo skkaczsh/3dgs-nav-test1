@@ -622,6 +622,25 @@ Dense colorized source note:
     The clean automatic object-building set should start with same-scale,
     same/stable-bucket, high-contact candidates and keep big mixed attachments
     separate until visual or structural evidence supports absorption.
+- Object v1 from clean candidates:
+  - script: `build_geo_patch_objects_from_candidates.py`.
+  - output: `dense_las_voxel003_objects_v1_clean_candidates_20260624`.
+  - input: v6 labels plus `object_merge_candidates_v1`.
+  - invariant: voxel ownership remains exclusive; the stage only remaps patch
+    ids to object ids through accepted candidate unions.
+  - default gates: score `>=0.78`, contact ratio `>=0.08`, shared edges
+    `>=32`, color distance `<=55`, bbox gap `<=0.08m`, and no automatic
+    `big_mixed_attachment` merge.
+  - result: `48863` input patches, `273` candidate rows, `16` accepted
+    candidate rows, `48847` output objects, `1440583` preview points at
+    stride `10`.
+  - reject reasons: `181` big mixed attachments, `71` score, `2` stable normal,
+    `2` contact ratio, `1` color distance.
+  - Interpretation: the clean automatic object-building space is intentionally
+    small. This protects the spatial-partition invariant but does not solve
+    fragmentation. The next meaningful object stage should handle big-mixed
+    attachments with local structural evidence and visual/depth evidence, not
+    by globally lowering thresholds.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color
