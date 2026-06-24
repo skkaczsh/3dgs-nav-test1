@@ -18,33 +18,17 @@ import argparse
 import hashlib
 import json
 import subprocess
+import sys
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-SEMANTIC_NAMES = {
-    0: "unknown",
-    1: "other",
-    2: "wall",
-    3: "floor",
-    4: "ceiling",
-    5: "grass",
-    6: "tree",
-    7: "person",
-    8: "car",
-    9: "railing",
-    10: "building",
-    11: "sky",
-    12: "road",
-    13: "water",
-    14: "furniture",
-    15: "pipe",
-    16: "equipment",
-    17: "fine_candidate",
-    255: "ignore",
-}
+from scripts.semantic_label_contract import SEMANTIC_TO_LABEL as SEMANTIC_NAMES
 
 TRUSTED_SURFACE_LABELS = {"floor", "wall", "ceiling", "grass"}
 FINE_REVIEW_LABELS = {"unknown", "fine_candidate", "car", "railing"}

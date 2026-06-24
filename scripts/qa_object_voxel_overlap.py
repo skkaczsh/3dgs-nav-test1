@@ -11,33 +11,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import Counter, defaultdict
 from itertools import combinations
 from pathlib import Path
 from typing import Any
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-LABELS = {
-    0: "unknown",
-    1: "other",
-    2: "wall",
-    3: "floor",
-    4: "ceiling",
-    5: "grass",
-    6: "tree",
-    7: "person",
-    8: "car",
-    9: "railing",
-    10: "building",
-    12: "road",
-    14: "furniture",
-    15: "pipe",
-    16: "equipment",
-    17: "fine_candidate",
-    18: "stair",
-    19: "indoor_floor",
-    20: "roof",
-}
+from scripts.semantic_label_contract import SEMANTIC_TO_LABEL as LABELS
 
 
 def parse_ascii_ply(path: Path) -> tuple[list[str], list[list[str]]]:

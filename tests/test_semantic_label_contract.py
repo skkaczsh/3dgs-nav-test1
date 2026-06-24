@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 
 from scripts.export_frame_target_objects_for_viewer import LABEL_TO_SEMANTIC, SEMANTIC_COLORS
+from scripts import build_parking_dataset_manifest, qa_object_voxel_overlap, qa_viewer_candidate
 from scripts.semantic_label_contract import (
     LABEL_TO_SEMANTIC as CONTRACT_LABEL_TO_SEMANTIC,
     SEMANTIC_COLORS as CONTRACT_SEMANTIC_COLORS,
@@ -42,6 +43,15 @@ def test_export_viewer_label_contract_is_reexported() -> None:
     assert SEMANTIC_COLORS is CONTRACT_SEMANTIC_COLORS
 
 
+def test_qa_scripts_share_semantic_label_contract() -> None:
+    assert qa_viewer_candidate.LABELS is SEMANTIC_TO_LABEL
+    assert qa_viewer_candidate.LABEL_IDS is CONTRACT_LABEL_TO_SEMANTIC
+    assert qa_object_voxel_overlap.LABELS is SEMANTIC_TO_LABEL
+    assert build_parking_dataset_manifest.SEMANTIC_NAMES is SEMANTIC_TO_LABEL
+    assert SEMANTIC_TO_LABEL[8] == "car"
+    assert SEMANTIC_TO_LABEL[9] == "railing"
+
+
 def test_viewer_semantic_ids_match_python_contract() -> None:
     html = VIEWER.read_text(encoding="utf-8")
     viewer_labels = _parse_viewer_labels(html)
@@ -58,4 +68,3 @@ def test_viewer_semantic_colors_match_python_contract() -> None:
     for semantic_id, label in SEMANTIC_TO_LABEL.items():
         assert viewer_colors[label] == SEMANTIC_COLORS[semantic_id]
     assert viewer_colors["ambiguous"] == SEMANTIC_COLORS[0]
-
