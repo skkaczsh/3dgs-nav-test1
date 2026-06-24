@@ -1,0 +1,144 @@
+{
+  "schema": "current-project-architecture/v1",
+  "updated_at": "2026-06-24T16:30:00+08:00",
+  "dataset": "MT20260616-175807",
+  "objective": "Build dense point-level semantic assets from scanner data by keeping geometry ownership clean first, then accumulating visual and VLM evidence as semantic posterior signals.",
+  "current_diagnosis": {
+    "summary": "The recent v15/v16 branches made large parts of ground and wall unknown because geometry guards were applied as hard semantic demotion rules on top of an already weak v12 semantic/coarsening base.",
+    "decision": "Do not continue tuning v12/v14/v15/v16 as the main semantic baseline. Treat them as diagnostics proving that semantic repair rules cannot compensate for impure patch/object ownership.",
+    "safe_rollback": [
+      "full_scene_objects_refined_v20",
+      "objects_v9_teacher_v20_semantic",
+      "pure_surface_visibility_full_0000_6180"
+    ]
+  },
+  "dense_sources": [
+    {
+      "id": "raw_opt_las_local",
+      "role": "authoritative_dense_geometry_source",
+      "local_paths": [
+        "/Users/skkac/Work/SCAN/MT20260616-175807/3dgs_20260616_3dgs_0095fd8ebe7845f2b24820cb98de4abb_task_c967d04831bf45f0b9d7c3fac31b4103_output_pointcloud_CommandProcessLXOutput_MANIFOLD_MT20260616-175807-Opt.las"
+      ],
+      "required": true
+    },
+    {
+      "id": "dense_colorized_voxel010_cache",
+      "role": "dense_colorized_visibility_cache_for_qa",
+      "local_paths": [
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_dense_colorized_cached_voxel010_viewer/colorized_visible_0000_6180_voxel010_ascii.ply"
+      ],
+      "required": true
+    },
+    {
+      "id": "scan_train_remote_workspace",
+      "role": "active_4090d_execution_workspace",
+      "remote_paths": [
+        "/root/epfs/SCAN/work_MT20260616-175807",
+        "/root/epfs/SCAN/new_route"
+      ],
+      "required": false
+    }
+  ],
+  "active_baselines": [
+    {
+      "id": "pure_surface_visibility_full_0000_6180",
+      "status": "best_remote_pre_patch_baseline",
+      "description": "Validated first-touch/full-scene visibility route with pure surface visibility; useful as semantic and projection sanity reference.",
+      "doc_paths": [
+        "docs/current_pure_surface_visibility_best.json",
+        "docs/pure_surface_visibility_route.md"
+      ],
+      "remote_paths": [
+        "/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_object_points_stride10.ply",
+        "/home/zsh/Work/SCAN/work_MT20260616-175807/frame_object_viewer_attachment_localgeom_pure_surface_visibility_full_0000_6180/frame_objects_viewer.jsonl"
+      ]
+    },
+    {
+      "id": "full_scene_objects_refined_v20",
+      "status": "best_local_semantic_teacher_from_structure_prior_vlm_mask_route",
+      "description": "Earlier structure-prior plus VLM/MASK semantic teacher. It is not a geometry ownership solution, but remains the strongest local semantic teacher.",
+      "local_paths": [
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_refined_v20/full_scene_objects_refined_v20_stride10.ply",
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_refined_v20/full_scene_objects.jsonl"
+      ]
+    },
+    {
+      "id": "objects_v9_teacher_v20_semantic",
+      "status": "safe_patch_diagnostic",
+      "description": "Teacher transfer from v20 onto geometry patch objects without changing point ownership. Useful diagnostic; not yet final due patch fragmentation and partial teacher coverage.",
+      "local_paths": [
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.ply",
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.jsonl"
+      ]
+    }
+  ],
+  "rejected_artifacts": [
+    {
+      "id": "objects_v12_teacher_v20_grid6_unknown_absorb",
+      "reason": "Grid6 coarsening merged more fragments, but semantic teacher errors were amplified; visual QA showed ground labeled as wall and car hood labeled as floor.",
+      "status": "diagnostic_only"
+    },
+    {
+      "id": "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
+      "reason": "Geometry guard allowed wall-to-floor promotion for horizontal/up-normal conflicts and made many wall-like regions appear as floor.",
+      "status": "rejected"
+    },
+    {
+      "id": "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
+      "reason": "Disabled wall-to-floor promotion, but over-demoted large surface content to unknown.",
+      "status": "rejected"
+    },
+    {
+      "id": "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
+      "reason": "Reduced small-surface demotion, but still left high point-level unknown and did not solve weak v12 ownership/semantic base.",
+      "status": "diagnostic_only"
+    },
+    {
+      "id": "v23_mimo_rich_highctx_global_relabel",
+      "reason": "Global object back-projection VLM relabel produced wrong evidence and points on sky/far buildings; not a mainline semantic source.",
+      "status": "rejected"
+    },
+    {
+      "id": "old_transforms_json_project_world_points_route",
+      "reason": "Uses an unverified coordinate/projection chain; superseded by img_pos + cam_in_ex + undistort + first-touch visibility.",
+      "status": "rejected"
+    },
+    {
+      "id": "single_frame_keyframe_pairing_route",
+      "reason": "Video frames and lidar keyframes are not strict one-to-one pairs; production route must project full world cloud through camera poses.",
+      "status": "rejected"
+    },
+    {
+      "id": "raw_sam_png_vote_on_patches",
+      "reason": "Direct SAM semantic PNG voting on tiny patch objects gave poor labels and should only be evidence, not ownership or final classification.",
+      "status": "rejected"
+    }
+  ],
+  "architecture_principles": [
+    "Geometry ownership first: each voxel belongs to exactly one patch/object before semantic labeling.",
+    "Semantic evidence cannot define object boundaries by itself.",
+    "VLM, SAM, DINO, scene prior, and structural region fields are evidence sources, not truth sources.",
+    "drivability_cpp output is a structural compatibility prior only; it cannot prove floor, wall, or ceiling semantics.",
+    "Use dense raw LAS or dense voxel stores for production logic; stride10 viewer exports are QA artifacts only.",
+    "Rejected diagnostic artifacts must not become implicit defaults in scripts or viewer links.",
+    "If a rule repeatedly fixes one class while breaking another, stop adding patch rules and return to the ownership/evidence model."
+  ],
+  "next_mainline": [
+    {
+      "step": "Build dense 0.03m feature store from raw Opt LAS",
+      "purpose": "Create production geometry/appearance source with xyz, color, normals, roughness, local spectral features, and frame/visibility metadata."
+    },
+    {
+      "step": "Generate clean geometry patches with exclusive voxel ownership",
+      "purpose": "Patch formation should use spatial reachability plus local model compatibility, not semantic labels."
+    },
+    {
+      "step": "Accumulate first-touch visual evidence onto patches",
+      "purpose": "Collect skymask, RGB, depth consistency, 2D mask overlap, and VLM descriptions as patch evidence."
+    },
+    {
+      "step": "Classify objects from evidence posterior",
+      "purpose": "Assign canonical labels only when geometry, structure prior, visual evidence, and VLM description converge; otherwise keep ambiguous/unknown."
+    }
+  ]
+}
