@@ -116,7 +116,11 @@ def choose_label(row: dict[str, Any], args: argparse.Namespace) -> tuple[str, st
 
     if label == "wall":
         if geom == "horizontal" or nz >= args.wall_max_normal_abs_z:
-            if count >= args.floor_min_voxels and h_extent >= args.floor_min_extent:
+            if (
+                args.allow_wall_to_floor
+                and count >= args.floor_min_voxels
+                and h_extent >= args.floor_min_extent
+            ):
                 return "floor", "wall_horizontal_large_surface_to_floor"
             return "unknown", "wall_horizontal_or_up_normal"
         if geom not in {"vertical", "mixed", "rough_mixed", "unknown"}:
@@ -251,6 +255,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--floor-max-z-extent", type=float, default=0.9)
     parser.add_argument("--wall-min-voxels", type=int, default=400)
     parser.add_argument("--wall-max-normal-abs-z", type=float, default=0.62)
+    parser.add_argument(
+        "--allow-wall-to-floor",
+        action="store_true",
+        help="Allow horizontal wall conflicts to become floor. Disabled by default because mixed Patch normals can be unreliable.",
+    )
     parser.add_argument("--car-min-voxels", type=int, default=120)
     parser.add_argument("--car-surface-normal-abs-z", type=float, default=0.88)
     parser.add_argument("--car-surface-max-z-extent", type=float, default=0.35)

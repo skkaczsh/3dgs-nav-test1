@@ -167,10 +167,18 @@ Runs:
     wall `1470`, grass `186`, car `76`
   - point labels: floor `929024`, unknown `239132`, grass `206076`,
     wall `52386`, railing `13518`, car `8107`
-  - conclusion: useful as a safety diagnostic because it suppresses the most
-    implausible labels, but too conservative for final semantics. The safer
-    active rollback baseline remains the v9 teacher-transfer result plus the
-    original v20 teacher artifact.
+  - conclusion: rejected after visual QA. It allowed `wall -> floor` promotion
+    for horizontal/up-normal wall conflicts, which made many wall-like regions
+    appear as floor.
+
+- `objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor`
+  - input: v12
+  - stage: hard semantic geometry guard with wall-to-floor promotion disabled
+  - point labels: unknown `1079157`, grass `206076`, floor `88999`,
+    wall `52386`, railing `13518`, car `8107`
+  - conclusion: fixes the direct wall-as-floor failure, but remains too
+    conservative for final semantics. It should be used as a diagnostic safety
+    bound, not as the active semantic baseline.
 
 Viewer:
 
@@ -184,6 +192,12 @@ Guarded diagnostic viewer:
 http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v14_teacher_v20_grid6_geometry_guard_wall_recall/objects_v14_teacher_v20_grid6_geometry_guard_wall_recall.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v14_teacher_v20_grid6_geometry_guard_wall_recall/objects_v14_teacher_v20_grid6_geometry_guard_wall_recall.jsonl&mode=semantic&stride=1&pointSize=1.2
 ```
 
+No wall-to-floor diagnostic viewer:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor/objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor/objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor.jsonl&mode=semantic&stride=1&pointSize=1.2
+```
+
 Remaining bottleneck:
 
 - `shared_edges` is still the largest rejection reason, meaning many fragments
@@ -195,3 +209,5 @@ Remaining bottleneck:
   use teacher semantics only after a geometry guard has already accepted the
   candidate; otherwise local teacher errors are amplified into larger object
   errors.
+- A geometry guard must demote unsafe labels; it must not promote a conflicting
+  wall label into floor unless there is independent ground/drivability evidence.
