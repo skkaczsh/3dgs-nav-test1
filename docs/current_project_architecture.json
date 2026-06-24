@@ -1,14 +1,15 @@
 {
   "schema": "current-project-architecture/v1",
-  "updated_at": "2026-06-24T16:30:00+08:00",
+  "updated_at": "2026-06-24T17:20:00+08:00",
   "dataset": "MT20260616-175807",
   "objective": "Build dense point-level semantic assets from scanner data by keeping geometry ownership clean first, then accumulating visual and VLM evidence as semantic posterior signals.",
   "current_diagnosis": {
-    "summary": "The recent v15/v16 branches made large parts of ground and wall unknown because geometry guards were applied as hard semantic demotion rules on top of an already weak v12 semantic/coarsening base.",
-    "decision": "Do not continue tuning v12/v14/v15/v16 as the main semantic baseline. Treat them as diagnostics proving that semantic repair rules cannot compensate for impure patch/object ownership.",
+    "summary": "The v15/v16 branches made large parts of ground and wall unknown because geometry guards were used as hard semantic demotion rules. The v17 surface-preserve guard proves the unknown spike is a guard-policy artifact: floor/wall return to v9 teacher-transfer counts when surface labels are preserved.",
+    "decision": "Do not continue tuning v12/v14/v15/v16 as the main semantic baseline. Use v17 only as a guard-policy regression reference, and keep geometry/object ownership work separate from semantic repair rules.",
     "safe_rollback": [
       "full_scene_objects_refined_v20",
       "objects_v9_teacher_v20_semantic",
+      "objects_v17_teacher_v20_surface_preserve_guard",
       "pure_surface_visibility_full_0000_6180"
     ]
   },
@@ -70,6 +71,27 @@
         "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.ply",
         "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.jsonl"
       ]
+    },
+    {
+      "id": "objects_v17_teacher_v20_surface_preserve_guard",
+      "status": "surface_guard_regression_reference",
+      "description": "Same v9 teacher-transfer ownership, with surface labels preserved through geometry guard. Use to detect over-demotion-to-unknown regressions; not a final semantic solution.",
+      "local_paths": [
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.ply",
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.jsonl",
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard_report.json"
+      ],
+      "metrics": {
+        "object_count": 197583,
+        "label_point_counts": {
+          "unknown": 73085,
+          "wall": 650971,
+          "railing": 13599,
+          "floor": 496641,
+          "grass": 205461,
+          "car": 8486
+        }
+      }
     }
   ],
   "rejected_artifacts": [
@@ -121,7 +143,8 @@
     "drivability_cpp output is a structural compatibility prior only; it cannot prove floor, wall, or ceiling semantics.",
     "Use dense raw LAS or dense voxel stores for production logic; stride10 viewer exports are QA artifacts only.",
     "Rejected diagnostic artifacts must not become implicit defaults in scripts or viewer links.",
-    "If a rule repeatedly fixes one class while breaking another, stop adding patch rules and return to the ownership/evidence model."
+    "If a rule repeatedly fixes one class while breaking another, stop adding patch rules and return to the ownership/evidence model.",
+    "Surface guard rules may veto high-risk fine-object labels, but must not erase floor/wall labels solely because teacher evidence is missing or fragments are small."
   ],
   "next_mainline": [
     {

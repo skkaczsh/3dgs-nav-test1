@@ -24,6 +24,46 @@ PYTHON="${PYTHON:-python3}"
 EDGE_SOURCE="${EDGE_SOURCE:-region}"
 PREVIEW_STRIDE="${PREVIEW_STRIDE:-10}"
 
+# Candidate recall knobs.  Keep these high-recall and let the object builder
+# decide with stricter gates.
+MIN_PATCH_VOXELS="${MIN_PATCH_VOXELS:-40}"
+MIN_SHARED_EDGES="${MIN_SHARED_EDGES:-3}"
+MIN_CONTACT_RATIO="${MIN_CONTACT_RATIO:-0.006}"
+MAX_BBOX_GAP="${MAX_BBOX_GAP:-0.20}"
+MAX_COLOR_DISTANCE="${MAX_COLOR_DISTANCE:-105}"
+MIN_NORMAL_SCORE="${MIN_NORMAL_SCORE:-0.42}"
+MIN_BUCKET_SCORE="${MIN_BUCKET_SCORE:-0.42}"
+MIN_SCORE="${MIN_SCORE:-0.54}"
+CONTACT_RATIO_NORM="${CONTACT_RATIO_NORM:-0.18}"
+MAX_CANDIDATES="${MAX_CANDIDATES:-50000}"
+MIN_STRUCTURAL_SCORE="${MIN_STRUCTURAL_SCORE:-0.70}"
+STRUCTURAL_MIN_CONTACT_RATIO="${STRUCTURAL_MIN_CONTACT_RATIO:-0.025}"
+STRUCTURAL_MIN_SHARED_EDGES="${STRUCTURAL_MIN_SHARED_EDGES:-12}"
+STRUCTURAL_MIN_NORMAL_SCORE="${STRUCTURAL_MIN_NORMAL_SCORE:-0.56}"
+STRUCTURAL_MAX_BBOX_GAP="${STRUCTURAL_MAX_BBOX_GAP:-0.10}"
+
+# Acceptance knobs.  These should stay conservative to avoid over-merge.
+ACCEPT_MIN_SCORE="${ACCEPT_MIN_SCORE:-0.80}"
+ACCEPT_MIN_CONTACT_RATIO="${ACCEPT_MIN_CONTACT_RATIO:-0.08}"
+ACCEPT_MIN_SHARED_EDGES="${ACCEPT_MIN_SHARED_EDGES:-32}"
+ACCEPT_MAX_COLOR_DISTANCE="${ACCEPT_MAX_COLOR_DISTANCE:-55}"
+ACCEPT_MAX_BBOX_GAP="${ACCEPT_MAX_BBOX_GAP:-0.08}"
+ACCEPT_MIN_NORMAL_SCORE="${ACCEPT_MIN_NORMAL_SCORE:-0.65}"
+ACCEPT_MIN_STRUCTURAL_SCORE="${ACCEPT_MIN_STRUCTURAL_SCORE:-0.74}"
+ACCEPT_STRUCTURAL_MIN_CONTACT_RATIO="${ACCEPT_STRUCTURAL_MIN_CONTACT_RATIO:-0.035}"
+ACCEPT_STRUCTURAL_MIN_SHARED_EDGES="${ACCEPT_STRUCTURAL_MIN_SHARED_EDGES:-24}"
+ACCEPT_STRUCTURAL_MIN_NORMAL_SCORE="${ACCEPT_STRUCTURAL_MIN_NORMAL_SCORE:-0.58}"
+ACCEPT_STRUCTURAL_MAX_BBOX_GAP="${ACCEPT_STRUCTURAL_MAX_BBOX_GAP:-0.08}"
+ATTACHMENT_MIN_SCORE="${ATTACHMENT_MIN_SCORE:-0.82}"
+ATTACHMENT_MIN_CONTACT_RATIO="${ATTACHMENT_MIN_CONTACT_RATIO:-0.16}"
+ATTACHMENT_MIN_SHARED_EDGES="${ATTACHMENT_MIN_SHARED_EDGES:-48}"
+ATTACHMENT_MAX_COLOR_DISTANCE="${ATTACHMENT_MAX_COLOR_DISTANCE:-38}"
+ATTACHMENT_MIN_NORMAL_SCORE="${ATTACHMENT_MIN_NORMAL_SCORE:-0.65}"
+ATTACHMENT_MAX_BBOX_GAP="${ATTACHMENT_MAX_BBOX_GAP:-0.06}"
+ATTACHMENT_MAX_FRAGMENT_VOXELS="${ATTACHMENT_MAX_FRAGMENT_VOXELS:-1200}"
+ATTACHMENT_MIN_ANCHOR_VOXELS="${ATTACHMENT_MIN_ANCHOR_VOXELS:-100000}"
+ATTACHMENT_MIN_SIZE_RATIO="${ATTACHMENT_MIN_SIZE_RATIO:-500}"
+
 echo "remote=${REMOTE_HOST}"
 echo "region_input=${REGION_INPUT}"
 echo "patch_labels=${PATCH_LABELS}"
@@ -57,6 +97,41 @@ ${PYTHON} scripts/run_dense_patch_object_refinement_v7.py \
   --python "${PYTHON}" \
   --edge-source "${EDGE_SOURCE}" \
   --preview-stride "${PREVIEW_STRIDE}" \
+  --min-patch-voxels "${MIN_PATCH_VOXELS}" \
+  --min-shared-edges "${MIN_SHARED_EDGES}" \
+  --min-contact-ratio "${MIN_CONTACT_RATIO}" \
+  --max-bbox-gap "${MAX_BBOX_GAP}" \
+  --max-color-distance "${MAX_COLOR_DISTANCE}" \
+  --min-normal-score "${MIN_NORMAL_SCORE}" \
+  --min-bucket-score "${MIN_BUCKET_SCORE}" \
+  --min-score "${MIN_SCORE}" \
+  --contact-ratio-norm "${CONTACT_RATIO_NORM}" \
+  --max-candidates "${MAX_CANDIDATES}" \
+  --min-structural-score "${MIN_STRUCTURAL_SCORE}" \
+  --structural-min-contact-ratio "${STRUCTURAL_MIN_CONTACT_RATIO}" \
+  --structural-min-shared-edges "${STRUCTURAL_MIN_SHARED_EDGES}" \
+  --structural-min-normal-score "${STRUCTURAL_MIN_NORMAL_SCORE}" \
+  --structural-max-bbox-gap "${STRUCTURAL_MAX_BBOX_GAP}" \
+  --accept-min-score "${ACCEPT_MIN_SCORE}" \
+  --accept-min-contact-ratio "${ACCEPT_MIN_CONTACT_RATIO}" \
+  --accept-min-shared-edges "${ACCEPT_MIN_SHARED_EDGES}" \
+  --accept-max-color-distance "${ACCEPT_MAX_COLOR_DISTANCE}" \
+  --accept-max-bbox-gap "${ACCEPT_MAX_BBOX_GAP}" \
+  --accept-min-normal-score "${ACCEPT_MIN_NORMAL_SCORE}" \
+  --accept-min-structural-score "${ACCEPT_MIN_STRUCTURAL_SCORE}" \
+  --accept-structural-min-contact-ratio "${ACCEPT_STRUCTURAL_MIN_CONTACT_RATIO}" \
+  --accept-structural-min-shared-edges "${ACCEPT_STRUCTURAL_MIN_SHARED_EDGES}" \
+  --accept-structural-min-normal-score "${ACCEPT_STRUCTURAL_MIN_NORMAL_SCORE}" \
+  --accept-structural-max-bbox-gap "${ACCEPT_STRUCTURAL_MAX_BBOX_GAP}" \
+  --attachment-min-score "${ATTACHMENT_MIN_SCORE}" \
+  --attachment-min-contact-ratio "${ATTACHMENT_MIN_CONTACT_RATIO}" \
+  --attachment-min-shared-edges "${ATTACHMENT_MIN_SHARED_EDGES}" \
+  --attachment-max-color-distance "${ATTACHMENT_MAX_COLOR_DISTANCE}" \
+  --attachment-min-normal-score "${ATTACHMENT_MIN_NORMAL_SCORE}" \
+  --attachment-max-bbox-gap "${ATTACHMENT_MAX_BBOX_GAP}" \
+  --attachment-max-fragment-voxels "${ATTACHMENT_MAX_FRAGMENT_VOXELS}" \
+  --attachment-min-anchor-voxels "${ATTACHMENT_MIN_ANCHOR_VOXELS}" \
+  --attachment-min-size-ratio "${ATTACHMENT_MIN_SIZE_RATIO}" \
   --run \
   > "${OUTPUT_DIR}/run_dense_patch_object_refinement_v7.log" 2>&1
 date -Is > "${OUTPUT_DIR}/DONE"

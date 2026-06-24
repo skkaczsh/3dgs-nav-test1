@@ -14,7 +14,20 @@ from pathlib import Path
 from typing import Any
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def resolve_path(path: Path) -> Path:
+    if path.is_absolute():
+        return path
+    cwd_path = Path.cwd() / path
+    if cwd_path.exists():
+        return cwd_path
+    return REPO_ROOT / path
+
+
 def load(path: Path) -> dict[str, Any]:
+    path = resolve_path(path)
     with path.open("r", encoding="utf-8") as fh:
         data = json.load(fh)
     if not isinstance(data, dict):

@@ -1,6 +1,6 @@
 {
   "schema": "current-dense-patch-state/v1",
-  "updated_at": "2026-06-24T16:55:00+08:00",
+  "updated_at": "2026-06-24T17:25:00+08:00",
   "dataset": "MT20260616-175807",
   "purpose": "Track the dense raw-data Patch/Object mainline separately from semantic experiments and viewer artifacts.",
   "authoritative_source": {
@@ -79,12 +79,12 @@
     }
   },
   "latest_remote_run": {
-    "id": "dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126",
+    "id": "dense_patch_object_refinement_v8_tiny_attach_20260624_170619",
     "status": "completed",
     "host": "scan-train",
     "runner": "scripts/run_scan_train_dense_patch_object_refinement_v7.sh",
-    "remote_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126",
-    "local_report_dir": "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126",
+    "remote_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619",
+    "local_report_dir": "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619",
     "inputs": {
       "region_input": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/_cpp_region_grower_input.bin",
       "patch_labels": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_labels.bin"
@@ -92,20 +92,45 @@
     "candidate_metrics": {
       "patch_count": 197630,
       "edge_pair_count": 7793,
-      "candidate_count": 239,
-      "same_material_candidates": 159,
-      "structural_multimaterial_candidates": 80,
-      "big_mixed_attachment_count": 25
+      "candidate_count": 6656,
+      "same_material_candidates": 5457,
+      "structural_multimaterial_candidates": 1199,
+      "big_mixed_attachment_count": 163,
+      "reject_counts": {
+        "color_distance": 969,
+        "stable_normal_mismatch": 70,
+        "score": 97,
+        "low_contact_ratio": 1
+      }
     },
     "object_metrics": {
       "input_patch_count": 197630,
-      "input_candidate_count": 239,
-      "accepted_candidate_rows": 96,
-      "accepted_structural_multimaterial": 78,
-      "output_object_count": 197534,
-      "preview_points_stride10": 1448243
+      "input_candidate_count": 6656,
+      "accepted_candidate_rows": 1235,
+      "accepted_same_material": 328,
+      "accepted_structural_multimaterial": 907,
+      "output_object_count": 196395,
+      "preview_points_stride10": 1448243,
+      "rejection_counts": {
+        "shared_edges": 1079,
+        "contact_ratio": 1,
+        "color_distance": 21,
+        "score": 3884,
+        "attachment_score": 143,
+        "structural_shared_edges": 267,
+        "attachment_size_ratio": 1,
+        "structural_score": 25
+      }
     },
-    "interpretation": "This run proves the remote v7 runner works on the available dense r4 chain. It is intentionally conservative; fragmentation remains, but ownership is preserved and semantic labels are not used as merge evidence."
+    "qa_metrics": {
+      "overlap_voxel_size_m": 0.2,
+      "point_count": 1448243,
+      "object_count_in_preview": 50831,
+      "mixed_object_voxel_ratio": 0.186092957448242,
+      "v7_mixed_object_voxel_ratio": 0.18651164133709347,
+      "mixed_object_voxel_ratio_delta_vs_v7": -0.00041868388885147
+    },
+    "interpretation": "High-recall tiny-attach settings remove the small-patch candidate bottleneck and accept more same-material and structural-multimaterial merges. Coarse 0.20m overlap QA does not regress versus v7, but visual QA is still required before using it as a semantic baseline."
   },
   "stage_contract": [
     {
@@ -163,7 +188,7 @@
   ],
   "next_action": {
     "id": "dense_patch_object_refinement_v7",
-    "description": "Continue from v6 fine-gated patch labels and improve object building using dense local evidence, not semantic hard labels.",
+    "description": "Compare v8 high-recall object refinement visually against v7 and the local v6/v3 dense baselines, then continue object building only where ownership and overlap metrics remain stable.",
     "runner": "scripts/run_dense_patch_object_refinement_v7.py",
     "remote_runner": "scripts/run_scan_train_dense_patch_object_refinement_v7.sh",
     "required_inputs": [
@@ -172,12 +197,13 @@
       "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap.jsonl",
       "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/object_merge_candidates_v2_high_recall/geo_patch_object_merge_candidates.jsonl"
     ],
-    "current_blocker": "The local checkout has v6 labels and reports but not dense_las_voxel003_region_model_full_cpp_20260624/_cpp_region_grower_input.bin. For immediate execution on 4090D, use remote_runner with the available r4 contact-evidence baseline instead of the missing local v6 chain.",
+    "current_blocker": "The local checkout still lacks dense_las_voxel003_region_model_full_cpp_20260624/_cpp_region_grower_input.bin for the local v6 chain. Immediate execution should use remote_runner with the available scan-train r4 contact-evidence baseline, while semantic QA should use v17 surface-preserve guard only as a regression reference.",
     "success_criteria": [
       "Patch/object ownership remains exclusive.",
       "Fine occupied-cell overlap does not regress while object fragmentation decreases.",
       "No semantic label can merge ground, wall, car, railing, or vegetation by itself.",
-      "Viewer output is generated only for QA after dense labels are produced."
+      "Viewer output is generated only for QA after dense labels are produced.",
+      "Semantic guard outputs must keep floor/wall surface labels unless there is direct contradictory geometry evidence; missing teacher evidence alone is not enough to demote to unknown."
     ]
   }
 }

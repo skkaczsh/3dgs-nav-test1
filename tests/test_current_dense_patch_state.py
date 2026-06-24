@@ -56,11 +56,13 @@ def test_dense_patch_state_records_remote_executable_baseline() -> None:
 def test_dense_patch_state_records_latest_remote_run() -> None:
     data = load_state()
     latest = data["latest_remote_run"]
+    assert latest["id"] == "dense_patch_object_refinement_v8_tiny_attach_20260624_170619"
     assert latest["status"] == "completed"
     assert latest["runner"] == "scripts/run_scan_train_dense_patch_object_refinement_v7.sh"
-    assert latest["object_metrics"]["accepted_candidate_rows"] > 0
+    assert latest["object_metrics"]["accepted_candidate_rows"] > 1000
     assert latest["object_metrics"]["output_object_count"] > 0
-    assert latest["candidate_metrics"]["structural_multimaterial_candidates"] > 0
+    assert latest["candidate_metrics"]["structural_multimaterial_candidates"] > 1000
+    assert latest["qa_metrics"]["mixed_object_voxel_ratio"] < latest["qa_metrics"]["v7_mixed_object_voxel_ratio"]
 
 
 def test_dense_patch_validator_passes() -> None:

@@ -37,6 +37,7 @@ REQUIRED_ACTIVE_IDS = {
     "pure_surface_visibility_full_0000_6180",
     "full_scene_objects_refined_v20",
     "objects_v9_teacher_v20_semantic",
+    "objects_v17_teacher_v20_surface_preserve_guard",
 }
 
 

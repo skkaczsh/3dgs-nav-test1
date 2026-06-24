@@ -39,9 +39,22 @@ def test_show_current_mainline_text_output() -> None:
     assert "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624" in result.stdout
     assert "remote executable baseline:" in result.stdout
     assert "latest remote run:" in result.stdout
-    assert "dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126" in result.stdout
+    assert "dense_patch_object_refinement_v8_tiny_attach_20260624_170619" in result.stdout
     assert "runner: scripts/run_dense_patch_object_refinement_v7.py" in result.stdout
     assert "remote_runner: scripts/run_scan_train_dense_patch_object_refinement_v7.sh" in result.stdout
     assert "blocker:" in result.stdout
     assert "forbidden inputs:" in result.stdout
     assert "frame_object_points_stride10.ply" in result.stdout
+
+
+def test_show_current_mainline_resolves_default_paths_outside_repo_root() -> None:
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--format", "json"],
+        cwd=ROOT.parent,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    data = json.loads(result.stdout)
+    assert data["dataset"] == "MT20260616-175807"
