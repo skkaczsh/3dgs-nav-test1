@@ -85,6 +85,7 @@ else
 fi
 
 rsync -az \
+  scripts/current_mainline_contract.py \
   scripts/propose_geo_patch_object_merges.py \
   scripts/build_geo_patch_objects_from_candidates.py \
   scripts/run_dense_patch_object_refinement_v7.py \

@@ -31,3 +31,13 @@ def test_scan_train_dense_patch_runner_runs_mainline_preflight_before_remote_lau
     assert "preflight=skipped" in text
     assert "--skip-mainline-healthcheck" in text
     assert preflight_pos < rsync_pos < ssh_pos < tmux_pos
+
+
+def test_scan_train_dense_patch_runner_syncs_contract_dependency() -> None:
+    text = RUNNER.read_text(encoding="utf-8")
+    rsync_start = text.index("rsync -az")
+    rsync_end = text.index('"${REMOTE_HOST}:${REMOTE_REPO}/scripts/"', rsync_start)
+    rsync_block = text[rsync_start:rsync_end]
+
+    assert "scripts/current_mainline_contract.py" in rsync_block
+    assert "scripts/run_dense_patch_object_refinement_v7.py" in rsync_block
