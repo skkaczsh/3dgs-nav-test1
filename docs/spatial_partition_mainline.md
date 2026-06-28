@@ -287,6 +287,21 @@ C++ backend status:
 - CLI smoke on a real parking-scene PLY also succeeds with
   `--region-grow-backend cpp`; output remains compatible with the existing
   `geo_patches_region_model_random_color.ply` / JSONL viewer format.
+- 5070Ti run on 2026-06-28:
+  - input:
+    `/home/zsh/Work/SCAN/work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_voxel010_ascii.ply`.
+  - 1M C++ smoke:
+    `geo_patch_5070_region_model_cpp_smoke_1m_20260628`.
+    Result: `999998` voxels, `42186` patches, `38726` small patches.  This is
+    within single-digit patch-count difference from the Python frontier-chart
+    smoke (`42180` / `38719`).
+  - full C++ run:
+    `geo_patch_5070_region_model_cpp_full_20260628`.
+    Result: `3729976` voxels, `136954` patches, `125715` small patches.
+  - Local viewer artifact:
+    `server_parking_priority_s10/geo_patch_5070_region_model_cpp_full_20260628/geo_patches_region_model_random_color_stride5.ply`.
+  - Direct `192.168.0.2` SSH was not reachable from the Mac at the time of
+    transfer; artifact sync used `skkac.top:6010`.
 
 5070Ti 1M-voxel backend comparison:
 
