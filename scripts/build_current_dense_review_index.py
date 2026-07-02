@@ -18,6 +18,7 @@ if str(REPO_ROOT) not in sys.path:
 from scripts.current_mainline_contract import FORBIDDEN_ARTIFACT_SUBSTRINGS, forbidden_artifact_match
 
 DEFAULT_QA = REPO_ROOT / "docs" / "current_dense_mainline_qa.json"
+DEFAULT_VISUAL_ACCEPTANCE = REPO_ROOT / "docs" / "current_dense_visual_acceptance.json"
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "current_dense_review_index.html"
 
 
@@ -156,6 +157,25 @@ def label_rows(qa: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def visual_check_rows(visual: dict[str, Any] | None) -> str:
+    if not visual:
+        return '<tr><td colspan="4">No visual acceptance record provided.</td></tr>'
+    lines = []
+    for row in visual.get("checks", []):
+        if not isinstance(row, dict):
+            continue
+        required = "yes" if row.get("required") else "no"
+        lines.append(
+            "<tr>"
+            f"<td><code>{html.escape(str(row.get('id', '')))}</code></td>"
+            f"<td>{html.escape(required)}</td>"
+            f"<td>{html.escape(str(row.get('status', '')))}</td>"
+            f"<td>{html.escape(str(row.get('question', '')))}</td>"
+            "</tr>"
+        )
+    return "\n".join(lines)
+
+
 def artifact_cards() -> str:
     cards = []
     for item in ARTIFACTS:
@@ -177,7 +197,20 @@ def artifact_cards() -> str:
     return "\n".join(cards)
 
 
-def build_html(qa: dict[str, Any]) -> str:
+def build_html(qa: dict[str, Any], visual: dict[str, Any] | None = None) -> str:
+    visual_status = visual.get("status", "missing") if visual else "missing"
+    accepted_candidate = visual.get("accepted_candidate", "unknown") if visual else "unknown"
+    update_command = (
+        "python3 scripts/update_current_dense_visual_acceptance.py "
+        "--check-id <check_id> --status accepted --reviewer <name> "
+        "--notes <brief_evidence> --run-gate"
+    )
+    gate_command = (
+        "python3 scripts/gate_current_dense_mainline_promotion.py "
+        "--qa-json docs/current_dense_mainline_qa.json "
+        "--visual-acceptance docs/current_dense_visual_acceptance.json "
+        "--output docs/current_dense_promotion_gate.json"
+    )
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -202,6 +235,7 @@ def build_html(qa: dict[str, Any]) -> str:
     .actions {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }}
     .actions a {{ border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; background: #202631; }}
     code {{ display: block; color: var(--muted); word-break: break-all; font-size: 12px; }}
+    .status {{ display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; color: var(--muted); }}
   </style>
 </head>
 <body>
@@ -210,6 +244,20 @@ def build_html(qa: dict[str, Any]) -> str:
     <div class="muted">Only current approved comparison artifacts are linked here. Rejected diagnostic runs are intentionally excluded.</div>
   </header>
   <main>
+    <section>
+      <h2>Promotion Review Checklist</h2>
+      <p class="muted">Candidate <code>{html.escape(str(accepted_candidate))}</code> is not promoted until all required visual checks are accepted. Current status: <span class="status">{html.escape(str(visual_status))}</span></p>
+      <table>
+        <thead><tr><th>check id</th><th>required</th><th>status</th><th>question</th></tr></thead>
+        <tbody>
+{visual_check_rows(visual)}
+        </tbody>
+      </table>
+      <p class="muted">Update one accepted check after reviewing the fixed viewer links:</p>
+      <code>{html.escape(update_command)}</code>
+      <p class="muted">Re-run gate explicitly if needed:</p>
+      <code>{html.escape(gate_command)}</code>
+    </section>
     <section>
       <h2>Object Refinement QA</h2>
       <table>
@@ -243,15 +291,17 @@ def build_html(qa: dict[str, Any]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--qa-json", type=Path, default=DEFAULT_QA)
+    parser.add_argument("--visual-acceptance", type=Path, default=DEFAULT_VISUAL_ACCEPTANCE)
     parser.add_argument("--output-html", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args()
 
     qa = read_json(args.qa_json)
+    visual = read_json(args.visual_acceptance) if args.visual_acceptance.exists() else None
     allowlist = validate_artifact_allowlist()
     if not allowlist["passed"]:
         raise SystemExit(json.dumps(allowlist, ensure_ascii=False, indent=2))
     args.output_html.parent.mkdir(parents=True, exist_ok=True)
-    args.output_html.write_text(build_html(qa), encoding="utf-8")
+    args.output_html.write_text(build_html(qa, visual), encoding="utf-8")
     print(
         json.dumps(
             {"output_html": str(args.output_html), "artifact_count": len(ARTIFACTS), "allowlist": allowlist},

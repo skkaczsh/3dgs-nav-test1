@@ -50,13 +50,39 @@ def qa_fixture() -> dict:
     }
 
 
+def visual_fixture() -> dict:
+    return {
+        "schema": "current-dense-visual-acceptance/v1",
+        "status": "pending",
+        "accepted_candidate": "v8_object_refinement",
+        "checks": [
+            {
+                "id": "v8_fragmentation_improves",
+                "required": True,
+                "status": "pending",
+                "question": "v8 visibly reduces object fragmentation compared with v7.",
+            },
+            {
+                "id": "semantic_not_promoted_from_object_view",
+                "required": True,
+                "status": "pending",
+                "question": "Object refinement is only promoted as geometry ownership.",
+            },
+        ],
+    }
+
+
 def test_build_html_links_only_current_review_artifacts() -> None:
-    html = module.build_html(qa_fixture())
+    html = module.build_html(qa_fixture(), visual_fixture())
 
     assert "v7 Object Refinement" in html
     assert "v8 Object Refinement" in html
     assert "v9 Teacher Semantic" in html
     assert "v17 Surface Preserve Guard" in html
+    assert "Promotion Review Checklist" in html
+    assert "v8_fragmentation_improves" in html
+    assert "update_current_dense_visual_acceptance.py" in html
+    assert "--run-gate" in html
     assert "objects_v12" not in html
     assert "objects_v15" not in html
     assert "semantic_ply_viewer.html" in html
@@ -87,11 +113,22 @@ def test_artifact_allowlist_rejects_forbidden_diagnostic_path() -> None:
 
 def test_cli_writes_review_index(tmp_path: Path) -> None:
     qa = tmp_path / "qa.json"
+    visual = tmp_path / "visual.json"
     out = tmp_path / "index.html"
     qa.write_text(json.dumps(qa_fixture()), encoding="utf-8")
+    visual.write_text(json.dumps(visual_fixture()), encoding="utf-8")
 
     result = subprocess.run(
-        [sys.executable, str(SCRIPT), "--qa-json", str(qa), "--output-html", str(out)],
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--qa-json",
+            str(qa),
+            "--visual-acceptance",
+            str(visual),
+            "--output-html",
+            str(out),
+        ],
         cwd=ROOT,
         check=False,
         text=True,
@@ -102,3 +139,4 @@ def test_cli_writes_review_index(tmp_path: Path) -> None:
     text = out.read_text(encoding="utf-8")
     assert "Current Dense Mainline Review" in text
     assert "v8 Object Refinement" in text
+    assert "Promotion Review Checklist" in text

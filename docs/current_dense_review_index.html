@@ -22,6 +22,7 @@
     .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
     .actions a { border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; background: #202631; }
     code { display: block; color: var(--muted); word-break: break-all; font-size: 12px; }
+    .status { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -30,6 +31,23 @@
     <div class="muted">Only current approved comparison artifacts are linked here. Rejected diagnostic runs are intentionally excluded.</div>
   </header>
   <main>
+    <section>
+      <h2>Promotion Review Checklist</h2>
+      <p class="muted">Candidate <code>v8_object_refinement</code> is not promoted until all required visual checks are accepted. Current status: <span class="status">pending</span></p>
+      <table>
+        <thead><tr><th>check id</th><th>required</th><th>status</th><th>question</th></tr></thead>
+        <tbody>
+<tr><td><code>v8_fragmentation_improves</code></td><td>yes</td><td>pending</td><td>v8 visibly reduces object fragmentation compared with v7 in the same areas.</td></tr>
+<tr><td><code>v8_no_obvious_overmerge</code></td><td>yes</td><td>pending</td><td>v8 does not visibly merge unrelated large structures such as ground/building/tree into one object.</td></tr>
+<tr><td><code>surface_guard_no_unknown_regression</code></td><td>yes</td><td>pending</td><td>v17 keeps floor/wall visible and does not reproduce the v15/v16 unknown spike.</td></tr>
+<tr><td><code>semantic_not_promoted_from_object_view</code></td><td>yes</td><td>pending</td><td>Object refinement is only promoted as geometry ownership; semantic labels remain evidence/QA references.</td></tr>
+        </tbody>
+      </table>
+      <p class="muted">Update one accepted check after reviewing the fixed viewer links:</p>
+      <code>python3 scripts/update_current_dense_visual_acceptance.py --check-id &lt;check_id&gt; --status accepted --reviewer &lt;name&gt; --notes &lt;brief_evidence&gt; --run-gate</code>
+      <p class="muted">Re-run gate explicitly if needed:</p>
+      <code>python3 scripts/gate_current_dense_mainline_promotion.py --qa-json docs/current_dense_mainline_qa.json --visual-acceptance docs/current_dense_visual_acceptance.json --output docs/current_dense_promotion_gate.json</code>
+    </section>
     <section>
       <h2>Object Refinement QA</h2>
       <table>
