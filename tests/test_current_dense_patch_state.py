@@ -73,6 +73,24 @@ def test_dense_patch_state_records_latest_remote_run() -> None:
     assert "Keep v8 as the current visual-promotion candidate" in latest["interpretation"]
 
 
+def test_dense_patch_state_records_current_promotion_candidate() -> None:
+    data = load_state()
+    candidate = data["current_promotion_candidate"]
+    assert candidate["id"] == "v8_object_refinement"
+    assert candidate["qa_candidate_id"] == "v8_tiny_attach"
+    assert candidate["status"] == "awaiting_required_visual_checks"
+    assert candidate["gate_json"] == "docs/current_dense_promotion_gate.json"
+    assert candidate["visual_acceptance_json"] == "docs/current_dense_visual_acceptance.json"
+    assert candidate["qa_json"] == "docs/current_dense_mainline_qa.json"
+
+    gate = json.loads((ROOT / candidate["gate_json"]).read_text(encoding="utf-8"))
+    visual = json.loads((ROOT / candidate["visual_acceptance_json"]).read_text(encoding="utf-8"))
+    qa = json.loads((ROOT / candidate["qa_json"]).read_text(encoding="utf-8"))
+    assert gate["candidate"] == candidate["id"]
+    assert visual["accepted_candidate"] == candidate["id"]
+    assert qa["object_refinement"]["candidate"] == candidate["qa_candidate_id"]
+
+
 def test_dense_patch_state_records_current_qa_report() -> None:
     data = load_state()
     qa = data["current_qa_report"]
@@ -143,3 +161,29 @@ def test_dense_patch_validator_rejects_weak_latest_run_without_diagnostic_status
 
     assert report["passed"] is False
     assert "latest_weaker_than_v8_but_not_diagnostic" in report["errors"]
+
+
+def test_dense_patch_validator_rejects_promotion_candidate_mismatch(tmp_path: Path) -> None:
+    state = load_state()
+    qa = tmp_path / "qa.json"
+    gate = tmp_path / "gate.json"
+    visual = tmp_path / "visual.json"
+    qa.write_text(
+        json.dumps({"object_refinement": {"candidate": "v8_tiny_attach", "metrics": {"v8": {}}}}),
+        encoding="utf-8",
+    )
+    gate.write_text(json.dumps({"candidate": "wrong_candidate", "status": "fail"}), encoding="utf-8")
+    visual.write_text(
+        json.dumps({"accepted_candidate": "v8_object_refinement", "status": "pending"}),
+        encoding="utf-8",
+    )
+    state["current_promotion_candidate"]["qa_json"] = str(qa)
+    state["current_promotion_candidate"]["gate_json"] = str(gate)
+    state["current_promotion_candidate"]["visual_acceptance_json"] = str(visual)
+    path = tmp_path / "state.json"
+    path.write_text(json.dumps(state), encoding="utf-8")
+
+    report = validate(path)
+
+    assert report["passed"] is False
+    assert "promotion_candidate_gate_mismatch=wrong_candidate!=v8_object_refinement" in report["errors"]

@@ -27,6 +27,7 @@ REQUIRED_TOP_LEVEL = {
     "current_object_baseline",
     "remote_executable_baseline",
     "latest_remote_run",
+    "current_promotion_candidate",
     "current_qa_report",
     "stage_contract",
     "approved_runners",
@@ -166,6 +167,60 @@ def validate(path: Path) -> dict[str, Any]:
                 errors.append("latest_diagnostic_missing_verification_command")
             if "Keep v8 as the current visual-promotion candidate" not in str(latest.get("interpretation", "")):
                 errors.append("latest_diagnostic_missing_v8_candidate_interpretation")
+
+    promotion_candidate = data.get("current_promotion_candidate", {})
+    if isinstance(promotion_candidate, dict):
+        candidate_id = str(promotion_candidate.get("id", ""))
+        qa_candidate_id = str(promotion_candidate.get("qa_candidate_id", candidate_id))
+        if not candidate_id:
+            errors.append("current_promotion_candidate_missing_id")
+        if not qa_candidate_id:
+            errors.append("current_promotion_candidate_missing_qa_candidate_id")
+        if candidate_id != "v8_object_refinement":
+            errors.append(f"unexpected_current_promotion_candidate={candidate_id}")
+        if promotion_candidate.get("status") != "awaiting_required_visual_checks":
+            errors.append(f"unexpected_current_promotion_candidate_status={promotion_candidate.get('status')}")
+        if "visual checks" not in str(promotion_candidate.get("reason", "")):
+            errors.append("current_promotion_candidate_reason_missing_visual_gate")
+        if isinstance(latest, dict) and latest.get("id") != promotion_candidate.get("source_run_id"):
+            if latest.get("promotion_status") != "diagnostic_not_promoted":
+                errors.append("latest_differs_from_candidate_but_not_diagnostic")
+        for key in ("gate_json", "visual_acceptance_json", "qa_json"):
+            value = promotion_candidate.get(key)
+            if not value:
+                errors.append(f"current_promotion_candidate_missing_{key}")
+                continue
+            candidate_path = Path(str(value))
+            if not candidate_path.is_absolute():
+                candidate_path = path.parent / ".." / candidate_path
+            candidate_path = candidate_path.resolve()
+            if not candidate_path.exists():
+                errors.append(f"current_promotion_candidate_path_missing={value}")
+                continue
+            linked_json = read_optional_json(candidate_path)
+            if not isinstance(linked_json, dict):
+                continue
+            if key == "gate_json":
+                if linked_json.get("candidate") != candidate_id:
+                    errors.append(
+                        f"promotion_candidate_gate_mismatch={linked_json.get('candidate')}!={candidate_id}"
+                    )
+                if linked_json.get("status") != "fail":
+                    warnings.append(f"promotion_candidate_gate_status={linked_json.get('status')}")
+            elif key == "visual_acceptance_json":
+                if linked_json.get("accepted_candidate") != candidate_id:
+                    errors.append(
+                        "promotion_candidate_visual_acceptance_mismatch="
+                        f"{linked_json.get('accepted_candidate')}!={candidate_id}"
+                    )
+                if linked_json.get("status") != "pending":
+                    warnings.append(f"promotion_candidate_visual_status={linked_json.get('status')}")
+            elif key == "qa_json":
+                object_refinement = linked_json.get("object_refinement", {})
+                if isinstance(object_refinement, dict) and object_refinement.get("candidate") != qa_candidate_id:
+                    errors.append(
+                        f"promotion_candidate_qa_mismatch={object_refinement.get('candidate')}!={qa_candidate_id}"
+                    )
 
     next_action = data.get("next_action", {})
     if isinstance(next_action, dict):

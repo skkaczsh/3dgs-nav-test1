@@ -62,6 +62,7 @@ def summarize(architecture: dict[str, Any], dense_patch: dict[str, Any]) -> dict
         "dense_object_baseline": dense_patch.get("current_object_baseline", {}),
         "remote_executable_baseline": dense_patch.get("remote_executable_baseline", {}),
         "latest_remote_run": dense_patch.get("latest_remote_run", {}),
+        "current_promotion_candidate": dense_patch.get("current_promotion_candidate", {}),
         "current_qa_report": dense_patch.get("current_qa_report", {}),
         "approved_runners": dense_patch.get("approved_runners", []),
         "next_action": dense_patch.get("next_action", {}),
@@ -118,6 +119,20 @@ def format_text(summary: dict[str, Any]) -> str:
     if latest.get("interpretation"):
         lines.append(f"  interpretation: {latest.get('interpretation')}")
     lines.append("")
+    promotion_candidate = summary.get("current_promotion_candidate", {})
+    if promotion_candidate:
+        lines.append("current promotion candidate:")
+        lines.append(f"- {promotion_candidate.get('id')} [{promotion_candidate.get('status')}]")
+        if promotion_candidate.get("qa_candidate_id"):
+            lines.append(f"  qa_candidate_id: {promotion_candidate.get('qa_candidate_id')}")
+        if promotion_candidate.get("source_run_id"):
+            lines.append(f"  source_run_id: {promotion_candidate.get('source_run_id')}")
+        lines.append(f"  gate_json: {promotion_candidate.get('gate_json')}")
+        lines.append(f"  visual_acceptance_json: {promotion_candidate.get('visual_acceptance_json')}")
+        lines.append(f"  qa_json: {promotion_candidate.get('qa_json')}")
+        if promotion_candidate.get("reason"):
+            lines.append(f"  reason: {promotion_candidate.get('reason')}")
+        lines.append("")
     qa = summary.get("current_qa_report", {})
     if qa:
         lines.append("current QA / promotion gate:")
