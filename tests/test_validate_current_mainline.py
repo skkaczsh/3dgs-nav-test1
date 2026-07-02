@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from scripts.gate_current_dense_mainline_promotion import evaluate as evaluate_dense_gate
-from scripts.validate_current_mainline import validate_promotion_gate, validate_promotion_plan
+from scripts.validate_current_mainline import validate_promotion_gate, validate_promotion_plan, validate_state_consistency
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +29,7 @@ def test_current_mainline_healthcheck_passes_with_visual_pending() -> None:
     assert report["checks"]["review_artifact_allowlist"]["passed"] is True
     assert report["checks"]["production_input_allowlist"]["passed"] is True
     assert report["checks"]["production_input_allowlist"]["allowed_count"] == 6
+    assert report["checks"]["state_consistency"]["passed"] is True
     assert report["checks"]["promotion_plan_health"]["passed"] is True
     assert "promotion_gate_health:promotion_candidate_waiting_for_visual_acceptance" in report["warnings"]
     assert "promotion_plan_health:promotion_plan_waiting_for_gate_pass" in report["warnings"]
@@ -160,3 +161,43 @@ def test_promotion_plan_health_rejects_candidate_mismatch(tmp_path: Path) -> Non
 
     assert report["passed"] is False
     assert "promotion_plan_error=qa_candidate_mismatch=wrong!=v8_tiny_attach" in report["errors"]
+
+
+def test_state_consistency_passes_for_current_files() -> None:
+    report = validate_state_consistency(
+        ROOT / "docs" / "current_project_architecture.json",
+        ROOT / "docs" / "current_dense_patch_state.json",
+    )
+
+    assert report["passed"] is True
+    assert report["errors"] == []
+
+
+def test_state_consistency_rejects_dataset_mismatch(tmp_path: Path) -> None:
+    architecture = json.loads((ROOT / "docs" / "current_project_architecture.json").read_text(encoding="utf-8"))
+    dense_state = json.loads((ROOT / "docs" / "current_dense_patch_state.json").read_text(encoding="utf-8"))
+    dense_state["dataset"] = "wrong_dataset"
+    architecture_path = tmp_path / "architecture.json"
+    dense_state_path = tmp_path / "dense_state.json"
+    architecture_path.write_text(json.dumps(architecture), encoding="utf-8")
+    dense_state_path.write_text(json.dumps(dense_state), encoding="utf-8")
+
+    report = validate_state_consistency(architecture_path, dense_state_path)
+
+    assert report["passed"] is False
+    assert "dataset_mismatch=MT20260616-175807!=wrong_dataset" in report["errors"]
+
+
+def test_state_consistency_rejects_disjoint_dense_paths(tmp_path: Path) -> None:
+    architecture = json.loads((ROOT / "docs" / "current_project_architecture.json").read_text(encoding="utf-8"))
+    dense_state = json.loads((ROOT / "docs" / "current_dense_patch_state.json").read_text(encoding="utf-8"))
+    dense_state["derived_dense_input"]["remote_paths"] = ["/tmp/other_dense_voxel003.ply"]
+    architecture_path = tmp_path / "architecture.json"
+    dense_state_path = tmp_path / "dense_state.json"
+    architecture_path.write_text(json.dumps(architecture), encoding="utf-8")
+    dense_state_path.write_text(json.dumps(dense_state), encoding="utf-8")
+
+    report = validate_state_consistency(architecture_path, dense_state_path)
+
+    assert report["passed"] is False
+    assert "derived_dense_input_path_disjoint" in report["errors"]

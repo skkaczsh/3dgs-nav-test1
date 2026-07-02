@@ -28,6 +28,7 @@ from scripts import validate_geometry_input_contract_usage
 from scripts import validate_production_input_guard_usage
 from scripts import validate_production_inputs
 from scripts import validate_semantic_contract_usage
+from scripts.current_mainline_contract import REQUIRED_AUTHORITATIVE_SOURCE_ID, REQUIRED_DERIVED_DENSE_INPUT_ID
 
 
 DEFAULT_ARCHITECTURE = REPO_ROOT / "docs" / "current_project_architecture.json"
@@ -161,6 +162,55 @@ def validate_promotion_plan(state_path: Path, qa_path: Path, gate_path: Path) ->
     }
 
 
+def validate_state_consistency(architecture_path: Path, dense_state_path: Path) -> dict[str, Any]:
+    architecture = read_json(architecture_path)
+    dense_state = read_json(dense_state_path)
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    arch_dataset = architecture.get("dataset")
+    state_dataset = dense_state.get("dataset")
+    if arch_dataset != state_dataset:
+        errors.append(f"dataset_mismatch={arch_dataset}!={state_dataset}")
+
+    arch_dense_sources = {
+        str(item.get("id")): item
+        for item in architecture.get("dense_sources", [])
+        if isinstance(item, dict)
+    }
+    if REQUIRED_AUTHORITATIVE_SOURCE_ID not in arch_dense_sources:
+        errors.append(f"architecture_missing_authoritative_source={REQUIRED_AUTHORITATIVE_SOURCE_ID}")
+    if REQUIRED_DERIVED_DENSE_INPUT_ID not in arch_dense_sources:
+        errors.append(f"architecture_missing_derived_dense_input={REQUIRED_DERIVED_DENSE_INPUT_ID}")
+
+    state_source_id = dense_state.get("authoritative_source", {}).get("id")
+    state_derived_id = dense_state.get("derived_dense_input", {}).get("id")
+    if state_source_id != REQUIRED_AUTHORITATIVE_SOURCE_ID:
+        errors.append(f"dense_state_authoritative_source_mismatch={state_source_id}")
+    if state_derived_id != REQUIRED_DERIVED_DENSE_INPUT_ID:
+        errors.append(f"dense_state_derived_input_mismatch={state_derived_id}")
+
+    arch_raw_paths = set(str(item) for item in arch_dense_sources.get(REQUIRED_AUTHORITATIVE_SOURCE_ID, {}).get("local_paths", []))
+    state_raw_paths = set(str(item) for item in dense_state.get("authoritative_source", {}).get("local_paths", []))
+    if not arch_raw_paths & state_raw_paths:
+        errors.append("authoritative_source_path_disjoint")
+
+    arch_dense_paths = set(str(item) for item in arch_dense_sources.get(REQUIRED_DERIVED_DENSE_INPUT_ID, {}).get("remote_paths", []))
+    state_dense_paths = set(str(item) for item in dense_state.get("derived_dense_input", {}).get("remote_paths", []))
+    if not arch_dense_paths & state_dense_paths:
+        errors.append("derived_dense_input_path_disjoint")
+
+    return {
+        "schema": "current-mainline-state-consistency/v1",
+        "passed": not errors,
+        "architecture": str(architecture_path),
+        "dense_patch_state": str(dense_state_path),
+        "dataset": arch_dataset,
+        "errors": errors,
+        "warnings": warnings,
+    }
+
+
 def validate(args: argparse.Namespace) -> dict[str, Any]:
     architecture = validate_current_project_architecture.validate(args.architecture)
     dense_state = validate_current_dense_patch_state.validate(args.dense_patch_state)
@@ -170,6 +220,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
     geometry_input_contract_usage = validate_geometry_input_contract_usage.validate()
     production_input_guard_usage = validate_production_input_guard_usage.validate()
     production_input_allowlist = validate_production_inputs.validate_dense_allowlist(args.dense_patch_state)
+    state_consistency = validate_state_consistency(args.architecture, args.dense_patch_state)
     promotion_gate = validate_promotion_gate(args.promotion_gate)
     promotion_plan = validate_promotion_plan(args.dense_patch_state, args.qa_json, args.promotion_gate)
 
@@ -182,6 +233,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
         "geometry_input_contract_usage": geometry_input_contract_usage,
         "production_input_guard_usage": production_input_guard_usage,
         "production_input_allowlist": production_input_allowlist,
+        "state_consistency": state_consistency,
         "promotion_gate_health": promotion_gate,
         "promotion_plan_health": promotion_plan,
     }
