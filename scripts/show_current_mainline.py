@@ -110,9 +110,13 @@ def format_text(summary: dict[str, Any]) -> str:
     latest_cand = latest.get("candidate_metrics", {})
     lines.append("latest remote run:")
     lines.append(f"- {latest.get('id')} [{latest.get('status')}]")
+    if latest.get("promotion_status"):
+        lines.append(f"  promotion_status: {latest.get('promotion_status')}")
     lines.append(f"  candidates: {latest_cand.get('candidate_count')}")
     lines.append(f"  accepted_candidate_rows: {latest_obj.get('accepted_candidate_rows')}")
     lines.append(f"  output_object_count: {latest_obj.get('output_object_count')}")
+    if latest.get("interpretation"):
+        lines.append(f"  interpretation: {latest.get('interpretation')}")
     lines.append("")
     qa = summary.get("current_qa_report", {})
     if qa:

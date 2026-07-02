@@ -89,6 +89,7 @@ echo run
     assert "missing_run_preflight_switch" in report["errors"]
     assert "missing_mainline_preflight" in report["errors"]
     assert "missing_production_input_preflight" in report["errors"]
+    assert "missing_geometry_contract_rsync" in report["errors"]
     assert "missing_tmux_launch" in report["errors"]
 
 

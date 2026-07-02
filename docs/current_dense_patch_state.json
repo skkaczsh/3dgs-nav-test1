@@ -79,12 +79,12 @@
     }
   },
   "latest_remote_run": {
-    "id": "dense_patch_object_refinement_v8_tiny_attach_20260624_170619",
+    "id": "dense_patch_object_refinement_v9_mainline_fixdeps_20260702_2108",
     "status": "completed",
+    "promotion_status": "diagnostic_not_promoted",
     "host": "scan-train",
     "runner": "scripts/run_scan_train_dense_patch_object_refinement_v7.sh",
-    "remote_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619",
-    "local_report_dir": "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619",
+    "remote_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v9_mainline_fixdeps_20260702_2108",
     "inputs": {
       "region_input": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/_cpp_region_grower_input.bin",
       "patch_labels": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_labels.bin"
@@ -92,45 +92,36 @@
     "candidate_metrics": {
       "patch_count": 197630,
       "edge_pair_count": 7793,
-      "candidate_count": 6656,
-      "same_material_candidates": 5457,
-      "structural_multimaterial_candidates": 1199,
-      "big_mixed_attachment_count": 163,
+      "candidate_count": 239,
+      "same_material_candidates": 159,
+      "structural_multimaterial_candidates": 80,
+      "big_mixed_attachment_count": 25,
       "reject_counts": {
-        "color_distance": 969,
-        "stable_normal_mismatch": 70,
-        "score": 97,
+        "small_patch": 7522,
+        "color_distance": 4,
+        "low_shared_edges": 22,
+        "score": 5,
         "low_contact_ratio": 1
       }
     },
     "object_metrics": {
       "input_patch_count": 197630,
-      "input_candidate_count": 6656,
-      "accepted_candidate_rows": 1235,
-      "accepted_same_material": 328,
-      "accepted_structural_multimaterial": 907,
-      "output_object_count": 196395,
+      "input_candidate_count": 239,
+      "accepted_candidate_rows": 96,
+      "accepted_same_material": 18,
+      "accepted_structural_multimaterial": 78,
+      "output_object_count": 197534,
       "preview_points_stride10": 1448243,
       "rejection_counts": {
-        "shared_edges": 1079,
         "contact_ratio": 1,
-        "color_distance": 21,
-        "score": 3884,
-        "attachment_score": 143,
-        "structural_shared_edges": 267,
-        "attachment_size_ratio": 1,
-        "structural_score": 25
+        "color_distance": 3,
+        "score": 117,
+        "attachment_score": 20,
+        "structural_shared_edges": 2
       }
     },
-    "qa_metrics": {
-      "overlap_voxel_size_m": 0.2,
-      "point_count": 1448243,
-      "object_count_in_preview": 50831,
-      "mixed_object_voxel_ratio": 0.186092957448242,
-      "v7_mixed_object_voxel_ratio": 0.18651164133709347,
-      "mixed_object_voxel_ratio_delta_vs_v7": -0.00041868388885147
-    },
-    "interpretation": "High-recall tiny-attach settings remove the small-patch candidate bottleneck and accept more same-material and structural-multimaterial merges. Coarse 0.20m overlap QA does not regress versus v7, but visual QA is still required before using it as a semantic baseline."
+    "failure_repaired": "The first 20260702 run failed because the remote shell runner did not rsync scripts/geometry_input_contract.py. The runner and validator now require that dependency.",
+    "interpretation": "This dependency-fixed run proves the approved remote runner executes end-to-end on dense Opt-LAS inputs, but it is more conservative than v8: accepted_candidate_rows dropped from 1235 to 96 and output_object_count increased from 196395 to 197534. Keep v8 as the current visual-promotion candidate; use this run only as a diagnostic execution proof."
   },
   "stage_contract": [
     {

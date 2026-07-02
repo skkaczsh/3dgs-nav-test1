@@ -45,7 +45,9 @@ def test_show_current_mainline_text_output() -> None:
     assert "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624" in result.stdout
     assert "remote executable baseline:" in result.stdout
     assert "latest remote run:" in result.stdout
-    assert "dense_patch_object_refinement_v8_tiny_attach_20260624_170619" in result.stdout
+    assert "dense_patch_object_refinement_v9_mainline_fixdeps_20260702_2108" in result.stdout
+    assert "promotion_status: diagnostic_not_promoted" in result.stdout
+    assert "Keep v8 as the current visual-promotion candidate" in result.stdout
     assert "runner: scripts/run_dense_patch_object_refinement_v7.py" in result.stdout
     assert "remote_runner: scripts/run_scan_train_dense_patch_object_refinement_v7.sh" in result.stdout
     assert "approved runners:" in result.stdout

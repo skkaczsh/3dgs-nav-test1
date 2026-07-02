@@ -99,6 +99,7 @@ def validate_shell_runner(path: Path, stage: str) -> list[str]:
         "RUN_PREFLIGHT": "missing_run_preflight_switch",
         "validate_current_mainline.py": "missing_mainline_preflight",
         "validate_production_inputs.py": "missing_production_input_preflight",
+        "scripts/geometry_input_contract.py": "missing_geometry_contract_rsync",
         "--require-current-dense": "missing_current_dense_allowlist_preflight",
         "rsync -az docs/current_dense_patch_state.json": "missing_dense_state_rsync",
         "tmux new-session": "missing_tmux_launch",

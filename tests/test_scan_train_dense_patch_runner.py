@@ -42,6 +42,7 @@ def test_scan_train_dense_patch_runner_syncs_contract_dependency() -> None:
     rsync_block = text[rsync_start:rsync_end]
 
     assert "scripts/current_mainline_contract.py" in rsync_block
+    assert "scripts/geometry_input_contract.py" in rsync_block
     assert "scripts/validate_production_inputs.py" in rsync_block
     assert "scripts/run_dense_patch_object_refinement_v7.py" in rsync_block
     assert 'docs/current_dense_patch_state.json "${REMOTE_HOST}:${REMOTE_REPO}/docs/"' in text

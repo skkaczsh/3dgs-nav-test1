@@ -92,6 +92,7 @@ fi
 
 rsync -az \
   scripts/current_mainline_contract.py \
+  scripts/geometry_input_contract.py \
   scripts/validate_production_inputs.py \
   scripts/propose_geo_patch_object_merges.py \
   scripts/build_geo_patch_objects_from_candidates.py \
