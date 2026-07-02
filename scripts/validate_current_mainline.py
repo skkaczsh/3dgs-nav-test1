@@ -18,6 +18,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts import build_current_dense_review_index
+from scripts import gate_current_dense_mainline_promotion
 from scripts import validate_current_dense_patch_state
 from scripts import validate_current_project_architecture
 from scripts import validate_geometry_input_contract_usage
@@ -49,6 +50,32 @@ def number(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def resolve_repo_path(value: Any) -> Path | None:
+    if not value:
+        return None
+    path = Path(str(value))
+    return path if path.is_absolute() else REPO_ROOT / path
+
+
+def recompute_promotion_gate(data: dict[str, Any]) -> dict[str, Any] | None:
+    qa_json = resolve_repo_path(data.get("qa_json"))
+    if qa_json is None:
+        return None
+    visual_acceptance = resolve_repo_path(data.get("visual_acceptance"))
+    thresholds = data.get("thresholds") or {}
+    args = argparse.Namespace(
+        qa_json=qa_json,
+        visual_acceptance=visual_acceptance,
+        output=Path("/dev/null"),
+        min_accepted_delta=number(thresholds.get("min_accepted_delta"), default=1.0),
+        max_output_object_delta=number(thresholds.get("max_output_object_delta"), default=0.0),
+        max_overlap_delta=number(thresholds.get("max_overlap_delta"), default=0.0),
+        max_unknown_point_delta=number(thresholds.get("max_unknown_point_delta"), default=0.0),
+        no_require_visual_acceptance=not bool(thresholds.get("require_visual_acceptance", True)),
+    )
+    return gate_current_dense_mainline_promotion.evaluate(args)
+
+
 def validate_promotion_gate(path: Path) -> dict[str, Any]:
     data = read_json(path)
     errors: list[str] = []
@@ -68,6 +95,13 @@ def validate_promotion_gate(path: Path) -> dict[str, Any]:
         errors.append("promotion_gate_unknown_spike")
     if metrics.get("nonzero_surface_delta"):
         errors.append(f"promotion_gate_surface_delta={metrics.get('nonzero_surface_delta')}")
+
+    recomputed = recompute_promotion_gate(data)
+    if recomputed is not None:
+        comparable_keys = ("status", "candidate", "metrics", "reasons")
+        for key in comparable_keys:
+            if data.get(key) != recomputed.get(key):
+                errors.append(f"promotion_gate_stale_{key}")
 
     reasons = [str(item) for item in data.get("reasons", [])]
     non_visual_reasons = [

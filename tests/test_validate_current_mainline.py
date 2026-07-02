@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from scripts.gate_current_dense_mainline_promotion import evaluate as evaluate_dense_gate
 from scripts.validate_current_mainline import validate_promotion_gate
 
 
@@ -54,3 +55,60 @@ def test_promotion_gate_health_rejects_unknown_spike(tmp_path: Path) -> None:
 
     assert report["passed"] is False
     assert "promotion_gate_unknown_spike" in report["errors"]
+
+
+def test_promotion_gate_health_rejects_stale_cached_metrics(tmp_path: Path) -> None:
+    qa = tmp_path / "qa.json"
+    visual = tmp_path / "visual.json"
+    gate = tmp_path / "gate.json"
+    qa.write_text(
+        json.dumps(
+            {
+                "schema": "current-dense-mainline-qa/v1",
+                "object_refinement": {
+                    "metrics": {
+                        "delta_v8_minus_v7": {
+                            "accepted_candidate_rows": 10,
+                            "output_object_count": -10,
+                            "mixed_object_voxel_ratio_020": -0.01,
+                        }
+                    }
+                },
+                "surface_guard": {
+                    "label_point_counts": {"delta_v17_minus_v9": {"floor": 0}},
+                    "unknown_point_delta_v17_minus_v9": 0,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    visual.write_text(
+        json.dumps(
+            {
+                "schema": "current-dense-visual-acceptance/v1",
+                "status": "accepted",
+                "accepted_candidate": "v8_object_refinement",
+                "review_index_url": "http://127.0.0.1:8765/docs/current_dense_review_index.html",
+                "checks": [{"id": "reviewed", "required": True, "status": "accepted"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    args = argparse.Namespace(
+        qa_json=qa,
+        visual_acceptance=visual,
+        output=gate,
+        min_accepted_delta=1.0,
+        max_output_object_delta=0.0,
+        max_overlap_delta=0.0,
+        max_unknown_point_delta=0.0,
+        no_require_visual_acceptance=False,
+    )
+    cached = evaluate_dense_gate(args)
+    cached["metrics"]["accepted_delta"] = 9.0
+    gate.write_text(json.dumps(cached), encoding="utf-8")
+
+    report = validate_promotion_gate(gate)
+
+    assert report["passed"] is False
+    assert "promotion_gate_stale_metrics" in report["errors"]
