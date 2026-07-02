@@ -83,6 +83,7 @@ PROTECTED_PRODUCTION_GUARD_SCRIPT_PATHS: tuple[str, ...] = (
     "scripts/rewrite_viewer_ply_semantics.py",
     "scripts/transfer_teacher_semantics_to_objects.py",
     "scripts/accumulate_semantic_png_votes_to_objects.py",
+    "scripts/apply_geometry_conflict_relabels.py",
 )
 
 PROTECTED_SEMANTIC_CONTRACT_SCRIPT_PATHS: tuple[str, ...] = (
