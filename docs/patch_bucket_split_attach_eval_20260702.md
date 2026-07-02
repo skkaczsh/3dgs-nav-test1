@@ -39,11 +39,33 @@ without creating excessive residual fragments.
   attachments, and recovers most of v2's benefit while keeping global
   attachment gates strict.  It is architecturally cleaner than v2 but still
   slightly worse on aggregate high-entropy count.
+- The v2/v5 comparison QA shows that large-patch risk is nearly unchanged:
+  v2 has 20 large high-entropy patches and v5 has 22.  The remaining difference
+  is mostly small-fragment behavior, not major over-merge behavior.
 - The result is still not a promoted baseline because high-entropy patches remain
   above the input count.  The next improvement should make attachment aware of
   local contact and fragmentation evidence with better bucket compatibility
   handling, rather than relying only on literal child-label provenance or
   globally relaxing merge rules.
+
+## Comparison QA
+
+```bash
+BASE=/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623
+OUT=${BASE}/geo_patch_run_comparison_v2_v5_20260702
+PYTHONPATH=. python scripts/compare_geo_patch_runs.py \
+  --run v2=${BASE}/energy_bucket_split_attach_v2_20260702/geo_patches_bucket_split_attach_v2.jsonl,${BASE}/energy_bucket_split_attach_v2_20260702/geo_patches_bucket_split_attach_v2_report.json,${BASE}/energy_bucket_split_attach_v2_20260702/merge_log.jsonl \
+  --run v5=${BASE}/energy_bucket_split_frag_attach_v5_20260702/geo_patches_bucket_split_frag_attach_v5.jsonl,${BASE}/energy_bucket_split_frag_attach_v5_20260702/geo_patches_bucket_split_frag_attach_v5_report.json,${BASE}/energy_bucket_split_frag_attach_v5_20260702/merge_log.jsonl \
+  --output-json "${OUT}/comparison.json" \
+  --output-md "${OUT}/comparison.md"
+```
+
+Summary:
+
+| run | patches | high entropy | large high entropy | large low purity | merge accepts |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| v2 | 188,536 | 8,410 | 20 | 20 | 8,118 |
+| v5 | 189,898 | 8,615 | 22 | 20 | 6,759 |
 
 ## Reproduce
 
