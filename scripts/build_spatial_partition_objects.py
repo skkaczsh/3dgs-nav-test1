@@ -29,6 +29,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.semantic_label_contract import LABEL_TO_SEMANTIC, SEMANTIC_COLORS, SEMANTIC_TO_LABEL
+from scripts.current_mainline_contract import reject_forbidden_production_input
 
 
 LABELS = SEMANTIC_TO_LABEL
@@ -323,6 +324,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    reject_forbidden_production_input(args.base_ply)
+    for raw in args.teacher:
+        _name, path, _weight = parse_teacher(raw)
+        reject_forbidden_production_input(path)
+    reject_forbidden_production_input(args.output_dir)
+
     accepted = {x.strip() for x in args.accepted_labels.split(",") if x.strip()} or None
     min_voxels = parse_min_voxels(args.min_voxels_by_label)
     voxel_points, base_report = build_voxel_points_from_base(args.base_ply, args.voxel_size)

@@ -87,6 +87,7 @@ PROTECTED_PRODUCTION_GUARD_SCRIPT_PATHS: tuple[str, ...] = (
     "scripts/apply_priority_guard_to_full_scene.py",
     "scripts/apply_visual_promotion_geometry_guard.py",
     "scripts/apply_surface_trust_guard_to_ply.py",
+    "scripts/build_spatial_partition_objects.py",
 )
 
 PROTECTED_SEMANTIC_CONTRACT_SCRIPT_PATHS: tuple[str, ...] = (

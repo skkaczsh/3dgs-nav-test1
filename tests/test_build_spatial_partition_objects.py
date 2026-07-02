@@ -2,8 +2,10 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from build_spatial_partition_objects import connected_components_by_label, select_voxel_labels  # noqa: E402
+from build_spatial_partition_objects import connected_components_by_label, main, select_voxel_labels  # noqa: E402
 
 
 def test_each_voxel_gets_one_winning_label():
@@ -65,3 +67,21 @@ def test_small_components_can_be_dropped_for_filtered_previews():
     assert len(objects) == 1
     assert (0, 0, 0) not in object_for_voxel
     assert report["dropped_small_voxels_by_label"] == {"railing": 1}
+
+
+def test_spatial_partition_rejects_stride_preview_inputs(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "build_spatial_partition_objects.py",
+            "--base-ply",
+            str(tmp_path / "dense_source.ply"),
+            "--teacher",
+            f"qa:{tmp_path / 'frame_object_points_stride10.ply'}:1.0",
+            "--output-dir",
+            str(tmp_path / "out"),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="forbidden input path"):
+        main()
