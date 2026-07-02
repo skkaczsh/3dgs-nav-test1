@@ -19,6 +19,7 @@ without creating excessive residual fragments.
 | bucket split v1 | 195,743 | 9,581 | 953 | 0 |
 | bucket split + attachment v2 | 188,536 | 8,410 | 8,118 | 7,120 |
 | stricter mid-anchor v3 | 190,778 | 8,763 | 5,883 | 4,899 |
+| split-provenance attachment v4 | 192,518 | 9,018 | 4,144 | 2,967 + 209 split-provenance |
 
 ## Interpretation
 
@@ -29,10 +30,15 @@ without creating excessive residual fragments.
   and high-entropy count relative to v1.
 - v3 is more conservative, but the stricter attachment gates leave too many
   fragments unabsorbed.
+- v4 proves that relaxing only newly created `bucket_connectivity_split`
+  children is too narrow.  It accepted only 209 split-provenance attachments,
+  because many bad fragments are created by ordinary split branches or later
+  boundary movement, not only by the new child label.
 - The result is still not a promoted baseline because high-entropy patches remain
   above the input count.  The next improvement should make attachment aware of
-  split provenance and local contact features, rather than globally relaxing
-  merge rules.
+  local contact and fragmentation evidence across all split-adjacent patches,
+  rather than relying only on literal child-label provenance or globally
+  relaxing merge rules.
 
 ## Reproduce
 
