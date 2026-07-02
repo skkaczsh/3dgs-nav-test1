@@ -34,6 +34,7 @@ def base_args(tmp_path: Path) -> argparse.Namespace:
         run=False,
         plan_json=None,
         mainline_healthcheck=ROOT / "scripts" / "validate_current_mainline.py",
+        no_require_current_dense_inputs=False,
         skip_mainline_healthcheck=False,
         edge_source="region",
         grid_voxel_size=0.03,
@@ -169,6 +170,7 @@ def test_v7_runner_run_mode_checks_mainline_health_before_commands(
         "--output-dir",
         str(args.output_dir),
         "--run",
+        "--no-require-current-dense-inputs",
     ]
     monkeypatch.setattr("sys.argv", argv)
 
@@ -198,9 +200,34 @@ def test_v7_runner_can_skip_mainline_healthcheck_when_outer_launcher_checked(
         "--mainline-healthcheck",
         str(tmp_path / "missing_healthcheck.py"),
         "--skip-mainline-healthcheck",
+        "--no-require-current-dense-inputs",
         "--run",
     ]
     monkeypatch.setattr("sys.argv", argv)
 
     assert module.main() == 0
     assert calls == ["command", "command"]
+
+
+def test_v7_runner_run_mode_rejects_unregistered_dense_inputs_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = load_module()
+    args = base_args(tmp_path)
+    argv = [
+        "run_dense_patch_object_refinement_v7.py",
+        "--state",
+        str(args.state),
+        "--region-input",
+        str(args.region_input),
+        "--patch-labels",
+        str(args.patch_labels),
+        "--output-dir",
+        str(args.output_dir),
+        "--skip-mainline-healthcheck",
+        "--run",
+    ]
+    monkeypatch.setattr("sys.argv", argv)
+
+    with pytest.raises(ValueError, match="not_current_dense_input"):
+        module.main()

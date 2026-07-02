@@ -22,6 +22,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.current_mainline_contract import forbidden_production_input_match
+from scripts import validate_production_inputs
 
 DEFAULT_MAINLINE_HEALTHCHECK = REPO_ROOT / "scripts" / "validate_current_mainline.py"
 
@@ -195,6 +196,18 @@ def run_mainline_healthcheck(args: argparse.Namespace) -> None:
     subprocess.run([sys.executable, str(script)], cwd=REPO_ROOT, check=True)
 
 
+def validate_current_dense_inputs(args: argparse.Namespace) -> None:
+    if args.no_require_current_dense_inputs:
+        return
+    allowed = validate_production_inputs.load_dense_allowlist(args.state)
+    report = validate_production_inputs.validate_paths(
+        [str(args.region_input), str(args.patch_labels)],
+        allowed_paths=allowed,
+    )
+    if not report["passed"]:
+        raise ValueError("; ".join(report["errors"]))
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state", type=Path, default=Path("docs/current_dense_patch_state.json"))
@@ -205,6 +218,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run", action="store_true", help="Execute commands; default only writes command plan")
     parser.add_argument("--plan-json", type=Path, help="Optional path for the generated command plan")
     parser.add_argument("--mainline-healthcheck", type=Path, default=DEFAULT_MAINLINE_HEALTHCHECK)
+    parser.add_argument(
+        "--no-require-current-dense-inputs",
+        action="store_true",
+        help="Allow --run with inputs not declared in current_dense_patch_state.json. Use only for explicit side experiments.",
+    )
     parser.add_argument(
         "--skip-mainline-healthcheck",
         action="store_true",
@@ -271,6 +289,7 @@ def main() -> int:
 
     if args.run:
         run_mainline_healthcheck(args)
+        validate_current_dense_inputs(args)
         cwd = Path.cwd()
         for item in plan["commands"]:
             run_command([str(part) for part in item["argv"]], cwd)

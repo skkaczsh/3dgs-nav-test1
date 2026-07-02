@@ -98,6 +98,7 @@ rsync -az \
   scripts/run_dense_patch_object_refinement_v7.py \
   scripts/optimize_patch_graph_energy.py \
   "${REMOTE_HOST}:${REMOTE_REPO}/scripts/"
+rsync -az docs/current_dense_patch_state.json "${REMOTE_HOST}:${REMOTE_REPO}/docs/"
 
 ssh "${REMOTE_HOST}" bash -s <<REMOTE
 set -euo pipefail
