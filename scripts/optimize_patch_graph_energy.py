@@ -937,16 +937,41 @@ def split_component(
         s = s[keep]
         t = t[keep]
 
-    for a, b in zip(s.tolist(), t.tolist(), strict=True):
-        la = loc.get(int(a))
-        lb = loc.get(int(b))
-        if la is None or lb is None:
-            continue
-        if a == b:
-            continue
-        uni(int(la), int(lb))
+    try:
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.csgraph import connected_components
 
-    roots = np.fromiter((fnd(i) for i in range(len(sub_ids))), dtype=np.int32, count=len(sub_ids))
+        if len(s) == 0:
+            roots = np.arange(len(sub_ids), dtype=np.int32)
+        else:
+            left = np.searchsorted(sub_ids, s).astype(np.int32, copy=False)
+            right = np.searchsorted(sub_ids, t).astype(np.int32, copy=False)
+            valid = (left < len(sub_ids)) & (right < len(sub_ids)) & (left != right)
+            if np.any(valid):
+                checked = np.zeros(len(valid), dtype=bool)
+                checked[valid] = (sub_ids[left[valid]] == s[valid]) & (sub_ids[right[valid]] == t[valid])
+                valid = checked
+            left = left[valid]
+            right = right[valid]
+            if len(left) == 0:
+                roots = np.arange(len(sub_ids), dtype=np.int32)
+            else:
+                row = np.concatenate([left, right])
+                col = np.concatenate([right, left])
+                data = np.ones(len(row), dtype=np.uint8)
+                graph = coo_matrix((data, (row, col)), shape=(len(sub_ids), len(sub_ids))).tocsr()
+                _component_count, roots = connected_components(graph, directed=False, return_labels=True)
+                roots = roots.astype(np.int32, copy=False)
+    except Exception:
+        for a, b in zip(s.tolist(), t.tolist(), strict=True):
+            la = loc.get(int(a))
+            lb = loc.get(int(b))
+            if la is None or lb is None:
+                continue
+            if a == b:
+                continue
+            uni(int(la), int(lb))
+        roots = np.fromiter((fnd(i) for i in range(len(sub_ids))), dtype=np.int32, count=len(sub_ids))
     comps, counts = np.unique(roots, return_counts=True)
     if len(comps) <= 1:
         return labels, next_id, []
