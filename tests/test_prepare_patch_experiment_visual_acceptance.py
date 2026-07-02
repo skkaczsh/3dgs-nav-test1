@@ -49,6 +49,8 @@ def test_build_record_defaults_to_pending(tmp_path: Path) -> None:
     assert record["selected_candidate"] == "v2_bucket_attach"
     assert record["candidate_policy"] == "geometry_input_only"
     assert all(row["status"] == "pending" for row in record["checks"])
+    assert record["comparison_summary"]["v2"]["patch_count"] == 188536
+    assert record["comparison_summary"]["v2"]["high_entropy_count"] == 8410
 
 
 def test_existing_accepted_checks_make_record_accepted(tmp_path: Path) -> None:

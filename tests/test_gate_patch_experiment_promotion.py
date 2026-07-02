@@ -32,6 +32,20 @@ def visual(status: str = "accepted", candidate: str = "v2_bucket_attach") -> dic
             {"id": "metric_comparison_reviewed", "required": True, "status": "accepted"},
             {"id": "no_major_structure_overmerge", "required": True, "status": "accepted"},
         ],
+        "comparison_summary": {
+            "v2": {
+                "patch_count": 188536,
+                "high_entropy_count": 8410,
+                "large_high_entropy_count": 20,
+                "large_low_purity_count": 20,
+            },
+            "v5": {
+                "patch_count": 189898,
+                "high_entropy_count": 8615,
+                "large_high_entropy_count": 22,
+                "large_low_purity_count": 20,
+            },
+        },
     }
 
 
@@ -77,6 +91,27 @@ def test_gate_rejects_unknown_candidate(tmp_path: Path) -> None:
 
     assert result["status"] == "fail"
     assert any("candidate_not_allowed" in reason for reason in result["reasons"])
+
+
+def test_gate_rejects_metric_dominated_candidate(tmp_path: Path) -> None:
+    visual_path = write_json(tmp_path / "visual.json", visual(candidate="v5_fragment_evidence"))
+
+    result = evaluate(args(tmp_path, visual_path))
+
+    assert result["status"] == "fail"
+    assert result["metrics"]["dominated_by"] == ["v2"]
+    assert any("metric_selected_run_dominated_by" in reason for reason in result["reasons"])
+
+
+def test_gate_rejects_missing_metric_summary(tmp_path: Path) -> None:
+    record = visual()
+    record.pop("comparison_summary")
+    visual_path = write_json(tmp_path / "visual.json", record)
+
+    result = evaluate(args(tmp_path, visual_path))
+
+    assert result["status"] == "fail"
+    assert any("metric_comparison_summary_missing" in reason for reason in result["reasons"])
 
 
 def test_cli_writes_failure_report_when_visual_acceptance_missing(tmp_path: Path) -> None:

@@ -14,6 +14,34 @@
     "reviewer": "",
     "reviewed_at": ""
   },
+  "metrics": {
+    "accepted": true,
+    "selected_run": "v2",
+    "metric_keys": [
+      "patch_count",
+      "high_entropy_count",
+      "large_high_entropy_count",
+      "large_low_purity_count"
+    ],
+    "selected_metrics": {
+      "patch_count": 188536,
+      "bucket_entropy_p50": 0.0,
+      "large_high_entropy_count": 20,
+      "high_entropy_count": 8410,
+      "voxel_count_p99": 145.0,
+      "bucket_entropy_p99": 1.5324916539139348,
+      "large_extreme_aspect_count": 0,
+      "voxel_count_max": 5056127.0,
+      "voxel_count_p50": 1.0,
+      "voxel_count_p90": 9.0,
+      "total_voxels": 14482421,
+      "large_patch_count": 33,
+      "large_low_purity_count": 20,
+      "bucket_entropy_p90": 0.9544340029249649
+    },
+    "dominated_by": [],
+    "errors": []
+  },
   "reasons": [
     "visual_status_not_accepted=pending",
     "visual_required_checks_not_accepted=['metric_comparison_reviewed', 'no_major_structure_overmerge', 'small_fragment_tradeoff_accepted', 'semantic_layer_input_decision']"

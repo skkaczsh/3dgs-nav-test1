@@ -69,6 +69,12 @@ def default_checks() -> list[dict[str, Any]]:
 
 
 def compact_run_summary(row: dict[str, Any]) -> dict[str, Any]:
+    aliases = {
+        "patch_count": ("patch_count", "patches"),
+        "high_entropy_count": ("high_entropy_count", "high_entropy"),
+        "large_high_entropy_count": ("large_high_entropy_count",),
+        "large_low_purity_count": ("large_low_purity_count",),
+    }
     keep_keys = {
         "patch_count",
         "total_voxels",
@@ -87,7 +93,15 @@ def compact_run_summary(row: dict[str, Any]) -> dict[str, Any]:
         "bucket_entropy_p90",
         "bucket_entropy_p99",
     }
-    return {key: row[key] for key in keep_keys if key in row}
+    compact = {key: row[key] for key in keep_keys if key in row}
+    for canonical, names in aliases.items():
+        if canonical in compact:
+            continue
+        for name in names:
+            if name in row:
+                compact[canonical] = row[name]
+                break
+    return compact
 
 
 def extract_run_summary(comparison: dict[str, Any]) -> dict[str, Any]:

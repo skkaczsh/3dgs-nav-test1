@@ -13,6 +13,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_VISUAL = REPO_ROOT / "docs" / "patch_experiment_visual_acceptance.json"
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "patch_experiment_promotion_gate.json"
 ALLOWED_CANDIDATES = {"v2_bucket_attach", "v5_fragment_evidence"}
+CANDIDATE_RUN_NAMES = {
+    "v2_bucket_attach": "v2",
+    "v5_fragment_evidence": "v5",
+}
+METRIC_KEYS = (
+    "patch_count",
+    "high_entropy_count",
+    "large_high_entropy_count",
+    "large_low_purity_count",
+)
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -62,18 +72,99 @@ def validate_visual_acceptance(path: Path) -> dict[str, Any]:
         "errors": errors,
         "reviewer": data.get("reviewer", ""),
         "reviewed_at": data.get("reviewed_at", ""),
+        "raw": data,
+    }
+
+
+def _metric_value(row: dict[str, Any], key: str) -> float | None:
+    value = row.get(key)
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _dominates(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    """Return whether run a is no worse than b on all gate metrics and better on one."""
+
+    better = False
+    for key in METRIC_KEYS:
+        av = _metric_value(a, key)
+        bv = _metric_value(b, key)
+        if av is None or bv is None:
+            return False
+        if av > bv:
+            return False
+        if av < bv:
+            better = True
+    return better
+
+
+def validate_metric_acceptance(visual_data: dict[str, Any]) -> dict[str, Any]:
+    """Validate selected patch candidate against quantitative geometry metrics.
+
+    Visual review is necessary but not sufficient.  A candidate that is
+    dominated by another reviewed run on patch count and mixed-bucket indicators
+    should not be promoted into semantic evidence stages, because it carries a
+    strictly worse fragmentation/mixing tradeoff before any human label enters
+    the system.
+    """
+
+    selected_candidate = visual_data.get("selected_candidate")
+    selected_run = CANDIDATE_RUN_NAMES.get(str(selected_candidate))
+    summary = visual_data.get("comparison_summary") or {}
+    errors: list[str] = []
+    if not isinstance(summary, dict) or not summary:
+        errors.append("metric_comparison_summary_missing")
+        return {"accepted": False, "selected_run": selected_run, "errors": errors, "dominated_by": []}
+    if selected_run is None:
+        errors.append(f"metric_candidate_run_unknown={selected_candidate}")
+        return {"accepted": False, "selected_run": selected_run, "errors": errors, "dominated_by": []}
+    selected_metrics = summary.get(selected_run)
+    if not isinstance(selected_metrics, dict):
+        errors.append(f"metric_selected_run_missing={selected_run}")
+        return {"accepted": False, "selected_run": selected_run, "errors": errors, "dominated_by": []}
+    missing = [key for key in METRIC_KEYS if _metric_value(selected_metrics, key) is None]
+    if missing:
+        errors.append(f"metric_selected_run_missing_keys={missing}")
+
+    dominated_by: list[str] = []
+    for name, row in summary.items():
+        if name == selected_run or not isinstance(row, dict):
+            continue
+        row_missing = [key for key in METRIC_KEYS if _metric_value(row, key) is None]
+        if row_missing:
+            continue
+        if _dominates(row, selected_metrics):
+            dominated_by.append(str(name))
+    if dominated_by:
+        errors.append(f"metric_selected_run_dominated_by={dominated_by}")
+
+    return {
+        "accepted": not errors,
+        "selected_run": selected_run,
+        "metric_keys": list(METRIC_KEYS),
+        "selected_metrics": selected_metrics,
+        "dominated_by": dominated_by,
+        "errors": errors,
     }
 
 
 def evaluate(args: argparse.Namespace) -> dict[str, Any]:
     visual = validate_visual_acceptance(args.visual_acceptance)
+    raw_visual = visual.pop("raw", {}) if isinstance(visual.get("raw"), dict) else {}
+    metrics = validate_metric_acceptance(raw_visual)
     reasons = list(visual["errors"])
+    reasons.extend(metrics["errors"])
     return {
         "schema": "patch-experiment-promotion-gate/v1",
         "status": "pass" if not reasons else "fail",
         "candidate": visual.get("selected_candidate"),
         "visual_acceptance": str(args.visual_acceptance),
         "visual": visual,
+        "metrics": metrics,
         "reasons": reasons,
     }
 

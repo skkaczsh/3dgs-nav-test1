@@ -48,7 +48,8 @@ The pipeline writes a plan and, when ready, runs:
 3. `scripts/run_validated_semantic_viewer_export.py --run`
 
 It inherits the patch promotion gate and refuses `--run` while the patch
-experiment is still unreviewed.
+experiment is still unreviewed or metric-dominated by another reviewed patch
+candidate.
 
 Object JSONL fusion-only launcher:
 
@@ -60,10 +61,13 @@ PYTHONPATH=. python scripts/run_object_semantic_evidence_fusion.py \
 ```
 
 The fusion-only launcher reads `docs/patch_experiment_promotion_gate.json`.  If
-the patch experiment has not passed visual promotion, the plan is written as
-`blocked` and `--run` exits without executing fusion.  For explicitly marked
-experiments, use `--allow-unpromoted-patch-experiment` and keep the output out
-of promoted mainline artifacts.
+the patch experiment has not passed visual promotion and quantitative patch
+metrics, the plan is written as `blocked` and `--run` exits without executing
+fusion.  The metric gate rejects a selected candidate that is dominated by
+another reviewed run on patch count, high-entropy patches, large high-entropy
+patches, and large low-purity patches.  For explicitly marked experiments, use
+`--allow-unpromoted-patch-experiment` and keep the output out of promoted
+mainline artifacts.
 
 When the plan is ready, the launcher executes two commands in order:
 
