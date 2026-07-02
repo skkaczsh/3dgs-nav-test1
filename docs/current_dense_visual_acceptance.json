@@ -31,7 +31,11 @@
         "v7 Object Refinement",
         "v8 Object Refinement"
       ],
-      "notes": ""
+      "notes": "",
+      "artifact_ids": [
+        "v7_object_refinement",
+        "v8_object_refinement"
+      ]
     },
     {
       "id": "v8_no_obvious_overmerge",
@@ -42,7 +46,10 @@
         "v8 Object Refinement object mode",
         "v8 Object Refinement semantic mode"
       ],
-      "notes": ""
+      "notes": "",
+      "artifact_ids": [
+        "v8_object_refinement"
+      ]
     },
     {
       "id": "surface_guard_no_unknown_regression",
@@ -53,7 +60,11 @@
         "v9 Teacher Semantic",
         "v17 Surface Preserve Guard"
       ],
-      "notes": ""
+      "notes": "",
+      "artifact_ids": [
+        "v9_teacher_semantic",
+        "v17_surface_preserve_guard"
+      ]
     },
     {
       "id": "semantic_not_promoted_from_object_view",
@@ -64,7 +75,12 @@
         "current_dense_mainline_qa",
         "current_dense_review_index"
       ],
-      "notes": ""
+      "notes": "",
+      "artifact_ids": [
+        "v8_object_refinement",
+        "v9_teacher_semantic",
+        "v17_surface_preserve_guard"
+      ]
     }
   ]
 }

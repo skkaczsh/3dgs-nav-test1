@@ -13,11 +13,14 @@ import json
 from pathlib import Path
 from typing import Any
 
+from scripts.build_current_dense_review_index import ARTIFACTS
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_QA = REPO_ROOT / "docs" / "current_dense_mainline_qa.json"
 DEFAULT_VISUAL = REPO_ROOT / "docs" / "current_dense_visual_acceptance.json"
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "current_dense_promotion_gate.json"
+CURRENT_REVIEW_ARTIFACT_IDS = {str(item["id"]) for item in ARTIFACTS}
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -72,6 +75,15 @@ def validate_visual_acceptance(path: Path | None, require_visual_acceptance: boo
         bad = [row.get("id", "<unknown>") for row in required if row.get("status") != "accepted"]
         if bad:
             errors.append(f"visual_required_checks_not_accepted={bad}")
+        for row in required:
+            check_id = str(row.get("id", "<unknown>"))
+            artifact_ids = row.get("artifact_ids")
+            if not isinstance(artifact_ids, list) or not artifact_ids:
+                errors.append(f"visual_check_missing_artifact_ids={check_id}")
+                continue
+            unknown_artifacts = sorted(str(item) for item in artifact_ids if str(item) not in CURRENT_REVIEW_ARTIFACT_IDS)
+            if unknown_artifacts:
+                errors.append(f"visual_check_unknown_artifact_ids={check_id}:{unknown_artifacts}")
     review_url = str(data.get("review_index_url") or "")
     if not review_url.endswith("/docs/current_dense_review_index.html"):
         errors.append("visual_review_index_url_not_current")

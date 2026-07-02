@@ -82,7 +82,9 @@ def format_md(record: dict[str, Any]) -> str:
     for row in record["checks"]:
         required = "required" if row.get("required") else "optional"
         notes = f" Notes: {row.get('notes', '')}" if row.get("notes") else ""
-        lines.append(f"- `{row['id']}` [{required}] `{row['status']}`: {row['question']}{notes}")
+        artifact_ids = ", ".join(f"`{item}`" for item in row.get("artifact_ids", []))
+        suffix = f" Artifacts: {artifact_ids}" if artifact_ids else ""
+        lines.append(f"- `{row['id']}` [{required}] `{row['status']}`: {row['question']}{suffix}{notes}")
     lines.extend(
         [
             "",

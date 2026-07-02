@@ -33,6 +33,7 @@ def default_checks() -> list[dict[str, Any]]:
             "status": "pending",
             "question": "v8 visibly reduces object fragmentation compared with v7 in the same areas.",
             "evidence": ["v7 Object Refinement", "v8 Object Refinement"],
+            "artifact_ids": ["v7_object_refinement", "v8_object_refinement"],
             "notes": "",
         },
         {
@@ -41,6 +42,7 @@ def default_checks() -> list[dict[str, Any]]:
             "status": "pending",
             "question": "v8 does not visibly merge unrelated large structures such as ground/building/tree into one object.",
             "evidence": ["v8 Object Refinement object mode", "v8 Object Refinement semantic mode"],
+            "artifact_ids": ["v8_object_refinement"],
             "notes": "",
         },
         {
@@ -49,6 +51,7 @@ def default_checks() -> list[dict[str, Any]]:
             "status": "pending",
             "question": "v17 keeps floor/wall visible and does not reproduce the v15/v16 unknown spike.",
             "evidence": ["v9 Teacher Semantic", "v17 Surface Preserve Guard"],
+            "artifact_ids": ["v9_teacher_semantic", "v17_surface_preserve_guard"],
             "notes": "",
         },
         {
@@ -57,6 +60,7 @@ def default_checks() -> list[dict[str, Any]]:
             "status": "pending",
             "question": "Object refinement is only promoted as geometry ownership; semantic labels remain evidence/QA references.",
             "evidence": ["current_dense_mainline_qa", "current_dense_review_index"],
+            "artifact_ids": ["v8_object_refinement", "v9_teacher_semantic", "v17_surface_preserve_guard"],
             "notes": "",
         },
     ]
@@ -105,13 +109,36 @@ def format_md(record: dict[str, Any]) -> str:
     lines.extend(["", "## Required Checks", ""])
     for row in record["checks"]:
         required = "required" if row.get("required") else "optional"
-        lines.append(f"- `{row['id']}` [{required}] `{row['status']}`: {row['question']}")
+        artifact_ids = ", ".join(f"`{item}`" for item in row.get("artifact_ids", []))
+        suffix = f" Artifacts: {artifact_ids}" if artifact_ids else ""
+        lines.append(f"- `{row['id']}` [{required}] `{row['status']}`: {row['question']}{suffix}")
     lines.extend(
         [
             "",
             "## Promotion",
             "",
             "Promotion remains blocked until every required check is set to `accepted` in `docs/current_dense_visual_acceptance.json` and `gate_current_dense_mainline_promotion.py` passes.",
+            "",
+            "## Update Commands",
+            "",
+            "After visual inspection, update each required check with:",
+            "",
+            "```bash",
+            "python3 scripts/update_current_dense_visual_acceptance.py \\",
+            "  --check-id v8_fragmentation_improves \\",
+            "  --status accepted \\",
+            "  --reviewer \"<name>\" \\",
+            "  --notes \"<brief evidence>\"",
+            "```",
+            "",
+            "Valid statuses are `pending`, `accepted`, `rejected`, and `blocked`. Promotion only passes after all required checks are `accepted` and:",
+            "",
+            "```bash",
+            "python3 scripts/gate_current_dense_mainline_promotion.py \\",
+            "  --qa-json docs/current_dense_mainline_qa.json \\",
+            "  --visual-acceptance docs/current_dense_visual_acceptance.json \\",
+            "  --output docs/current_dense_promotion_gate.json",
+            "```",
             "",
         ]
     )

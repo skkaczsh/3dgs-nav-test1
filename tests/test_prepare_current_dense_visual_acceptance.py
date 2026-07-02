@@ -55,6 +55,7 @@ def test_build_record_defaults_to_pending(tmp_path: Path) -> None:
     assert record["status"] == "pending"
     assert record["accepted_candidate"] == "v8_object_refinement"
     assert all(row["status"] == "pending" for row in record["checks"])
+    assert all(row.get("artifact_ids") for row in record["checks"])
 
 
 def test_existing_accepted_checks_make_record_accepted(tmp_path: Path) -> None:
@@ -76,7 +77,10 @@ def test_format_md_mentions_promotion_block(tmp_path: Path) -> None:
 
     assert "Current Dense Visual Acceptance" in text
     assert "current_dense_review_index.html" in text
+    assert "v8_object_refinement" in text
     assert "Promotion remains blocked" in text
+    assert "update_current_dense_visual_acceptance.py" in text
+    assert "gate_current_dense_mainline_promotion.py" in text
 
 
 def test_cli_writes_pending_record(tmp_path: Path) -> None:

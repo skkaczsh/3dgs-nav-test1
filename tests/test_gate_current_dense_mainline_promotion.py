@@ -49,8 +49,18 @@ def visual(status: str = "accepted") -> dict:
         "reviewer": "tester",
         "reviewed_at": "2026-06-24T18:20:00+08:00",
         "checks": [
-            {"id": "object_fragmentation", "required": True, "status": "accepted"},
-            {"id": "no_obvious_overmerge", "required": True, "status": "accepted"},
+            {
+                "id": "object_fragmentation",
+                "required": True,
+                "status": "accepted",
+                "artifact_ids": ["v7_object_refinement", "v8_object_refinement"],
+            },
+            {
+                "id": "no_obvious_overmerge",
+                "required": True,
+                "status": "accepted",
+                "artifact_ids": ["v8_object_refinement"],
+            },
         ],
     }
 
@@ -105,6 +115,30 @@ def test_gate_rejects_unknown_point_spike(tmp_path: Path) -> None:
 
     assert result["status"] == "fail"
     assert any("unknown_point_delta" in reason for reason in result["reasons"])
+
+
+def test_gate_rejects_visual_check_without_artifact_ids(tmp_path: Path) -> None:
+    qa_path = write_json(tmp_path / "qa.json", qa())
+    data = visual()
+    data["checks"][0].pop("artifact_ids")
+    visual_path = write_json(tmp_path / "visual.json", data)
+
+    result = evaluate(args(tmp_path, qa_path, visual_path))
+
+    assert result["status"] == "fail"
+    assert any("visual_check_missing_artifact_ids=object_fragmentation" in reason for reason in result["reasons"])
+
+
+def test_gate_rejects_visual_check_with_unknown_artifact_id(tmp_path: Path) -> None:
+    qa_path = write_json(tmp_path / "qa.json", qa())
+    data = visual()
+    data["checks"][0]["artifact_ids"] = ["objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor"]
+    visual_path = write_json(tmp_path / "visual.json", data)
+
+    result = evaluate(args(tmp_path, qa_path, visual_path))
+
+    assert result["status"] == "fail"
+    assert any("visual_check_unknown_artifact_ids=object_fragmentation" in reason for reason in result["reasons"])
 
 
 def test_cli_writes_failure_report_when_visual_acceptance_missing(tmp_path: Path) -> None:

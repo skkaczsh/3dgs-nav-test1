@@ -13,10 +13,10 @@ Review index: http://127.0.0.1:8765/docs/current_dense_review_index.html
 
 ## Required Checks
 
-- `v8_fragmentation_improves` [required] `pending`: v8 visibly reduces object fragmentation compared with v7 in the same areas.
-- `v8_no_obvious_overmerge` [required] `pending`: v8 does not visibly merge unrelated large structures such as ground/building/tree into one object.
-- `surface_guard_no_unknown_regression` [required] `pending`: v17 keeps floor/wall visible and does not reproduce the v15/v16 unknown spike.
-- `semantic_not_promoted_from_object_view` [required] `pending`: Object refinement is only promoted as geometry ownership; semantic labels remain evidence/QA references.
+- `v8_fragmentation_improves` [required] `pending`: v8 visibly reduces object fragmentation compared with v7 in the same areas. Artifacts: `v7_object_refinement`, `v8_object_refinement`
+- `v8_no_obvious_overmerge` [required] `pending`: v8 does not visibly merge unrelated large structures such as ground/building/tree into one object. Artifacts: `v8_object_refinement`
+- `surface_guard_no_unknown_regression` [required] `pending`: v17 keeps floor/wall visible and does not reproduce the v15/v16 unknown spike. Artifacts: `v9_teacher_semantic`, `v17_surface_preserve_guard`
+- `semantic_not_promoted_from_object_view` [required] `pending`: Object refinement is only promoted as geometry ownership; semantic labels remain evidence/QA references. Artifacts: `v8_object_refinement`, `v9_teacher_semantic`, `v17_surface_preserve_guard`
 
 ## Promotion
 
