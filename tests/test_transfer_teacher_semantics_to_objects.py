@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from pathlib import Path
+
+import pytest
 
 from scripts import transfer_teacher_semantics_to_objects as module
 from scripts.geometry_input_contract import geometry_only_semantic_fields
@@ -60,3 +63,8 @@ def test_legacy_geometry_label_fallback_is_preserved_for_old_artifacts() -> None
     row = {"object_id": 1, "geometry_type": "vertical", "semantic_label": "vertical"}
 
     assert module.normalized_original_label(row) == "wall"
+
+
+def test_teacher_transfer_rejects_forbidden_source_path(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="forbidden input path"):
+        module.reject_forbidden_path(tmp_path / "frame_object_points_stride10.ply")

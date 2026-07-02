@@ -29,8 +29,10 @@ import config
 
 try:
     from scripts.geometry_input_contract import is_geometry_only_row
+    from scripts.current_mainline_contract import forbidden_production_input_match
 except ModuleNotFoundError:  # pragma: no cover - supports direct script execution.
     from geometry_input_contract import is_geometry_only_row
+    from current_mainline_contract import forbidden_production_input_match
 
 LABEL_NAMES = {
     0: "unknown",
@@ -95,6 +97,12 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
             if line.strip():
                 rows.append(json.loads(line))
     return rows
+
+
+def reject_forbidden_path(path: Path) -> None:
+    forbidden = forbidden_production_input_match(path)
+    if forbidden:
+        raise ValueError(f"forbidden input path contains {forbidden}: {path}")
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -388,6 +396,9 @@ def main() -> int:
     parser.add_argument("--min-vote-ratio", type=float, default=0.55)
     args = parser.parse_args()
 
+    reject_forbidden_path(args.source_ply)
+    reject_forbidden_path(args.objects_jsonl)
+    reject_forbidden_path(args.output_dir)
     _header, props, data = read_ply(args.source_ply)
     idx = {name: i for i, name in enumerate(props)}
     for field in ("x", "y", "z", "object"):

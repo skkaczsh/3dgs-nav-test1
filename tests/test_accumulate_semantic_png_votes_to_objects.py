@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter, defaultdict
+from pathlib import Path
+
+import pytest
 
 from scripts import accumulate_semantic_png_votes_to_objects as module
 from scripts.geometry_input_contract import geometry_only_semantic_fields
@@ -58,3 +61,8 @@ def test_legacy_geometry_label_fallback_is_preserved_for_old_artifacts() -> None
     row = {"object_id": 1, "geometry_type": "vertical", "semantic_label": "vertical"}
 
     assert module.normalized_original_label(row) == "wall"
+
+
+def test_png_vote_rejects_forbidden_source_path(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="forbidden input path"):
+        module.reject_forbidden_path(tmp_path / "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor/source.ply")
