@@ -27,6 +27,11 @@ except ModuleNotFoundError as exc:
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
 
+try:
+    from scripts.geometry_input_contract import is_geometry_only_row
+except ModuleNotFoundError:  # pragma: no cover - supports direct script execution.
+    from geometry_input_contract import is_geometry_only_row
+
 LABEL_NAMES = {
     0: "unknown",
     1: "other",
@@ -178,6 +183,8 @@ def fallback_label(geometry_type: str) -> str:
 def normalized_original_label(row: dict[str, Any]) -> str:
     geometry_type = object_geometry(row)
     original = str(row.get("semantic_label") or "").strip()
+    if is_geometry_only_row(row):
+        return "unknown"
     if not original or original in GEOMETRY_LABELS:
         return fallback_label(geometry_type)
     return original

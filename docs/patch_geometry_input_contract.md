@@ -35,3 +35,11 @@ flow is:
 
 This keeps drivability-style structure priors useful without allowing them to
 override semantic evidence.
+
+## Guardrail
+
+`scripts/validate_geometry_input_contract_usage.py` is part of the current
+mainline health check.  It protects the semantic PNG voting and teacher-transfer
+entry points that normalize original object labels, because those are the places
+where geometry-only rows can otherwise be silently promoted into surface
+semantics before any visual evidence is applied.
