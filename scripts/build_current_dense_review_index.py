@@ -86,7 +86,36 @@ def viewer_url(artifact: dict[str, Any], mode: str | None = None) -> str:
     return url
 
 
-def validate_artifact_allowlist(artifacts: list[dict[str, Any]] = ARTIFACTS) -> dict[str, Any]:
+def local_artifact_path(path: str) -> Path:
+    if path.startswith("/"):
+        return REPO_ROOT / path.lstrip("/")
+    return REPO_ROOT / path
+
+
+def validate_artifact_files(artifacts: list[dict[str, Any]] = ARTIFACTS) -> list[str]:
+    errors: list[str] = []
+    for item in artifacts:
+        artifact_id = str(item.get("id", "<unknown>"))
+        ply_path = local_artifact_path(str(item.get("ply", "")))
+        objects_path = local_artifact_path(str(item.get("objects", "")))
+        if not ply_path.is_file():
+            errors.append(f"artifact_ply_missing={artifact_id}:{ply_path}")
+        else:
+            with ply_path.open("rb") as fh:
+                if fh.readline().strip() != b"ply":
+                    errors.append(f"artifact_ply_bad_header={artifact_id}:{ply_path}")
+        if not objects_path.is_file():
+            errors.append(f"artifact_objects_missing={artifact_id}:{objects_path}")
+        elif objects_path.stat().st_size <= 0:
+            errors.append(f"artifact_objects_empty={artifact_id}:{objects_path}")
+    return errors
+
+
+def validate_artifact_allowlist(
+    artifacts: list[dict[str, Any]] = ARTIFACTS,
+    *,
+    check_files: bool = True,
+) -> dict[str, Any]:
     errors: list[str] = []
     artifact_ids = [str(item.get("id", "")) for item in artifacts]
     if len(artifact_ids) != len(set(artifact_ids)):
@@ -111,6 +140,8 @@ def validate_artifact_allowlist(artifacts: list[dict[str, Any]] = ARTIFACTS) -> 
         forbidden = forbidden_artifact_match(haystack)
         if forbidden:
             errors.append(f"forbidden_artifact_reference={item.get('id')}:{forbidden}")
+    if check_files:
+        errors.extend(validate_artifact_files(artifacts))
     return {
         "schema": "current-dense-review-artifact-allowlist/v1",
         "passed": not errors,

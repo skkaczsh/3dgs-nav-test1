@@ -106,10 +106,20 @@ def test_artifact_allowlist_rejects_forbidden_diagnostic_path() -> None:
     bad = [dict(module.ARTIFACTS[0])]
     bad[0]["ply"] = "/server_parking_priority_s10/objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor/bad.ply"
 
-    result = module.validate_artifact_allowlist(bad)
+    result = module.validate_artifact_allowlist(bad, check_files=False)
 
     assert result["passed"] is False
     assert any("forbidden_artifact_reference" in error for error in result["errors"])
+
+
+def test_artifact_allowlist_rejects_missing_review_files() -> None:
+    bad = [dict(module.ARTIFACTS[0])]
+    bad[0]["ply"] = "/server_parking_priority_s10/missing_review_file.ply"
+
+    result = module.validate_artifact_allowlist(bad, check_files=True)
+
+    assert result["passed"] is False
+    assert any("artifact_ply_missing" in error for error in result["errors"])
 
 
 def test_cli_writes_review_index(tmp_path: Path) -> None:
