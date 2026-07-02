@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Patch Experiment Review</title>
+  <style>
+    :root { color-scheme: dark; --bg:#101318; --panel:#181d24; --line:#303844; --text:#eef2f6; --muted:#9ea8b5; --accent:#6fd0e8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    header { padding: 18px 22px; border-bottom: 1px solid var(--line); }
+    h1 { margin: 0 0 6px; font-size: 20px; }
+    main { display: grid; gap: 14px; padding: 16px; }
+    section, article { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+    h2 { margin: 0 0 8px; font-size: 15px; }
+    .muted { color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+    th { color: var(--muted); }
+    a { color: var(--accent); text-decoration: none; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+    .actions a { border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; background: #202733; }
+    code { display: block; color: var(--muted); word-break: break-all; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Patch Experiment Review</h1>
+    <div class="muted">Dense 0.03m Opt-LAS patch experiments. This page is for visual comparison only and is not the current mainline promotion index.</div>
+  </header>
+  <main>
+    <section>
+      <h2>Metric Summary</h2>
+      <table>
+        <thead>
+          <tr><th>run</th><th>patches</th><th>high entropy</th><th>large high entropy</th><th>large low purity</th><th>merge accepts</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>v2 bucket+attach</td><td>188,536</td><td>8,410</td><td>20</td><td>20</td><td>8,118</td></tr>
+          <tr><td>v5 fragment-evidence</td><td>189,898</td><td>8,615</td><td>22</td><td>20</td><td>6,759</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section class="grid">
+      <article>
+        <h2>v2 bucket+attach</h2>
+        <p class="muted">Current metric winner. Uses globally wider attachment gates after bucket split.</p>
+        <div class="actions">
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_bucket_split_attach_v2_20260702/geo_patches_bucket_split_attach_v2_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_bucket_split_attach_v2_20260702/geo_patches_bucket_split_attach_v2.jsonl&mode=object&stride=1&pointSize=1.2" target="_blank">Open object view</a>
+        </div>
+        <code>/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_bucket_split_attach_v2_20260702</code>
+      </article>
+      <article>
+        <h2>v5 fragment-evidence</h2>
+        <p class="muted">Cleaner mechanism. Uses strict global gates plus fragment/split evidence profiles.</p>
+        <div class="actions">
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_bucket_split_frag_attach_v5_20260702/geo_patches_bucket_split_frag_attach_v5_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_bucket_split_frag_attach_v5_20260702/geo_patches_bucket_split_frag_attach_v5.jsonl&mode=object&stride=1&pointSize=1.2" target="_blank">Open object view</a>
+        </div>
+        <code>/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_bucket_split_frag_attach_v5_20260702</code>
+      </article>
+    </section>
+    <section>
+      <h2>Decision</h2>
+      <p>Use v2 as the current metric baseline for visual review. Keep v5 as the cleaner engineering direction unless visual comparison shows no advantage.</p>
+      <p class="muted">Detailed comparison: server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/geo_patch_run_comparison_v2_v5_20260702/comparison.md</p>
+    </section>
+  </main>
+</body>
+</html>
