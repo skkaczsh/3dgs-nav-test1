@@ -78,6 +78,31 @@ def test_cli_requires_current_dense_path_from_state() -> None:
     assert json.loads(result.stdout)["passed"] is True
 
 
+def test_dense_allowlist_excludes_current_patch_and_object_outputs() -> None:
+    allowed = module.load_dense_allowlist(ROOT / "docs" / "current_dense_patch_state.json")
+
+    assert (
+        "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/_cpp_region_grower_input.bin"
+        in allowed
+    )
+    assert not any("dense_las_voxel003_energy_v6_fine_gated_overlap_report.json" in path for path in allowed)
+    assert not any("dense_las_voxel003_objects_v3_high_recall_clean" in path for path in allowed)
+
+
+def test_require_current_dense_rejects_documented_output_artifacts() -> None:
+    allowed = module.load_dense_allowlist(ROOT / "docs" / "current_dense_patch_state.json")
+    output_artifact = (
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/"
+        "dense_las_voxel003_objects_v3_high_recall_clean_20260624/"
+        "geo_patch_objects_v3_high_recall_clean_labels.bin"
+    )
+
+    report = module.validate_paths([output_artifact], allowed_paths=allowed)
+
+    assert report["passed"] is False
+    assert report["errors"] == [f"not_current_dense_input:{output_artifact}"]
+
+
 def test_cli_rejects_forbidden_path() -> None:
     result = subprocess.run(
         [sys.executable, str(SCRIPT), "/tmp/objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor/out.ply"],

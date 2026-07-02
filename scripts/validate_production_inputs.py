@@ -27,17 +27,34 @@ def read_json(path: Path) -> dict[str, Any]:
     return data
 
 
-def iter_declared_dense_paths(data: Any) -> set[str]:
+def iter_list_paths(row: dict[str, Any], key: str) -> set[str]:
+    value = row.get(key)
+    if not isinstance(value, list):
+        return set()
+    return {str(item) for item in value}
+
+
+def iter_current_dense_input_paths(data: dict[str, Any]) -> set[str]:
+    """Return only canonical dense inputs, not baseline outputs.
+
+    current_dense_patch_state.json also records local_paths for current patch and
+    object baselines. Those are review/output artifacts and must not become
+    production inputs merely because they are documented in the state file.
+    """
+
     found: set[str] = set()
-    if isinstance(data, dict):
-        for key, value in data.items():
-            if key in {"local_paths", "remote_paths"} and isinstance(value, list):
-                found.update(str(item) for item in value)
-            else:
-                found.update(iter_declared_dense_paths(value))
-    elif isinstance(data, list):
-        for item in data:
-            found.update(iter_declared_dense_paths(item))
+    for key in ("authoritative_source", "derived_dense_input", "remote_executable_baseline"):
+        row = data.get(key)
+        if not isinstance(row, dict):
+            continue
+        found.update(iter_list_paths(row, "local_paths"))
+        found.update(iter_list_paths(row, "remote_paths"))
+
+    latest = data.get("latest_remote_run")
+    if isinstance(latest, dict):
+        inputs = latest.get("inputs")
+        if isinstance(inputs, dict):
+            found.update(str(item) for item in inputs.values())
     return found
 
 
@@ -49,7 +66,7 @@ def load_dense_allowlist(state_path: Path) -> set[str]:
     state = read_json(state_path)
     if state.get("schema") != "current-dense-patch-state/v1":
         raise ValueError(f"unexpected dense patch state schema: {state.get('schema')!r}")
-    return {normalize_path_text(path) for path in iter_declared_dense_paths(state)}
+    return {normalize_path_text(path) for path in iter_current_dense_input_paths(state)}
 
 
 def validate_paths(paths: list[str], *, allowed_paths: set[str] | None = None) -> dict:
