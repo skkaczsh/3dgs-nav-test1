@@ -82,6 +82,7 @@ def test_build_html_links_only_current_review_artifacts() -> None:
     assert "Promotion Review Checklist" in html
     assert "v8_fragmentation_improves" in html
     assert "update_current_dense_visual_acceptance.py" in html
+    assert "plan_current_dense_promotion.py" in html
     assert "--run-gate" in html
     assert "objects_v12" not in html
     assert "objects_v15" not in html

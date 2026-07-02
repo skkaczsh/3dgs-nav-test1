@@ -47,6 +47,8 @@
       <code>python3 scripts/update_current_dense_visual_acceptance.py --check-id &lt;check_id&gt; --status accepted --reviewer &lt;name&gt; --notes &lt;brief_evidence&gt; --run-gate</code>
       <p class="muted">Re-run gate explicitly if needed:</p>
       <code>python3 scripts/gate_current_dense_mainline_promotion.py --qa-json docs/current_dense_mainline_qa.json --visual-acceptance docs/current_dense_visual_acceptance.json --output docs/current_dense_promotion_gate.json</code>
+      <p class="muted">After the gate passes, generate the exact state-change plan:</p>
+      <code>python3 scripts/plan_current_dense_promotion.py</code>
     </section>
     <section>
       <h2>Object Refinement QA</h2>

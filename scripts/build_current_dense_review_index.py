@@ -211,6 +211,7 @@ def build_html(qa: dict[str, Any], visual: dict[str, Any] | None = None) -> str:
         "--visual-acceptance docs/current_dense_visual_acceptance.json "
         "--output docs/current_dense_promotion_gate.json"
     )
+    plan_command = "python3 scripts/plan_current_dense_promotion.py"
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -257,6 +258,8 @@ def build_html(qa: dict[str, Any], visual: dict[str, Any] | None = None) -> str:
       <code>{html.escape(update_command)}</code>
       <p class="muted">Re-run gate explicitly if needed:</p>
       <code>{html.escape(gate_command)}</code>
+      <p class="muted">After the gate passes, generate the exact state-change plan:</p>
+      <code>{html.escape(plan_command)}</code>
     </section>
     <section>
       <h2>Object Refinement QA</h2>
