@@ -51,6 +51,7 @@ except ModuleNotFoundError:
         vote_points,
     )
 from scripts.semantic_label_contract import LABEL_TO_SEMANTIC, SEMANTIC_COLORS, SEMANTIC_TO_LABEL
+from scripts.current_mainline_contract import reject_forbidden_production_input
 
 
 LABEL_COLORS = {label: SEMANTIC_COLORS[semantic] for semantic, label in SEMANTIC_TO_LABEL.items()}
@@ -232,8 +233,17 @@ def main() -> None:
     )
     parser.add_argument("--object-relabel-majority", type=float, default=0.80)
     parser.add_argument("--no-recolor", action="store_true")
+    parser.add_argument(
+        "--allow-qa-preview-source",
+        action="store_true",
+        help="Allow a stride-sampled viewer PLY as QA source. Outputs remain QA-only.",
+    )
     args = parser.parse_args()
 
+    reject_forbidden_production_input(args.drivability_pcd)
+    reject_forbidden_production_input(args.input_ply, allow_qa_preview=args.allow_qa_preview_source)
+    reject_forbidden_production_input(args.input_objects_jsonl)
+    reject_forbidden_production_input(args.output_dir)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     guard_labels = {item.strip() for item in args.guard_labels.split(",") if item.strip()}
     trusted_prior_labels = {item.strip() for item in args.trusted_prior_labels.split(",") if item.strip()}
