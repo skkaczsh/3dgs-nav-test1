@@ -21,6 +21,10 @@ from scripts.current_mainline_contract import (
 
 
 REQUIRED_SCHEMA = "current-dense-patch-state/v1"
+REQUIRED_AUTHORITATIVE_SOURCE_ID = "raw_opt_las_2920mb"
+REQUIRED_AUTHORITATIVE_POINT_COUNT = 97_194_579
+REQUIRED_DERIVED_DENSE_INPUT_ID = "dense_las_voxel003_binary"
+REQUIRED_DERIVED_VOXEL_COUNT = 14_482_557
 REQUIRED_TOP_LEVEL = {
     "schema",
     "updated_at",
@@ -128,17 +132,31 @@ def validate(path: Path) -> dict[str, Any]:
 
     source = data.get("authoritative_source", {})
     if isinstance(source, dict):
+        if source.get("id") != REQUIRED_AUTHORITATIVE_SOURCE_ID:
+            errors.append(f"unexpected_authoritative_source_id={source.get('id')}")
         if source.get("type") != "las":
             errors.append("authoritative_source_not_las")
+        source_paths = [str(item) for item in source.get("local_paths", [])]
+        if not any(item.endswith("MANIFOLD_MT20260616-175807-Opt.las") for item in source_paths):
+            errors.append("authoritative_source_missing_opt_las_path")
         if int(source.get("known_point_count", 0)) < 90_000_000:
             errors.append("authoritative_source_point_count_too_low")
+        if int(source.get("known_point_count", 0)) != REQUIRED_AUTHORITATIVE_POINT_COUNT:
+            errors.append(f"authoritative_source_point_count_mismatch={source.get('known_point_count')}")
 
     derived = data.get("derived_dense_input", {})
     if isinstance(derived, dict):
+        if derived.get("id") != REQUIRED_DERIVED_DENSE_INPUT_ID:
+            errors.append(f"unexpected_derived_dense_input_id={derived.get('id')}")
         if abs(float(derived.get("voxel_size_m", 0.0)) - 0.03) > 1e-9:
             errors.append("derived_dense_input_not_voxel003")
+        remote_paths = [str(item) for item in derived.get("remote_paths", [])]
+        if not any("voxel003" in item and item.endswith(".ply") for item in remote_paths):
+            errors.append("derived_dense_input_missing_voxel003_ply_path")
         if int(derived.get("known_voxel_count", 0)) < 10_000_000:
             errors.append("derived_dense_input_voxel_count_too_low")
+        if int(derived.get("known_voxel_count", 0)) != REQUIRED_DERIVED_VOXEL_COUNT:
+            errors.append(f"derived_dense_input_voxel_count_mismatch={derived.get('known_voxel_count')}")
 
     patch = data.get("current_patch_baseline", {})
     if isinstance(patch, dict):
@@ -157,6 +175,10 @@ def validate(path: Path) -> dict[str, Any]:
             errors.append("remote_baseline_missing_patch_labels")
         metrics = remote.get("metrics", {})
         if isinstance(metrics, dict):
+            if int(metrics.get("raw_las_point_count", 0)) != REQUIRED_AUTHORITATIVE_POINT_COUNT:
+                errors.append(f"remote_baseline_raw_point_count_mismatch={metrics.get('raw_las_point_count')}")
+            if int(metrics.get("voxel003_count", 0)) != REQUIRED_DERIVED_VOXEL_COUNT:
+                errors.append(f"remote_baseline_voxel003_count_mismatch={metrics.get('voxel003_count')}")
             if int(metrics.get("r4_region_voxel_count", 0)) < 10_000_000:
                 errors.append("remote_baseline_voxel_count_too_low")
             if int(metrics.get("attach_v4_output_patch_count", 0)) <= 0:

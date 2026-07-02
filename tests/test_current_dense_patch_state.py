@@ -198,3 +198,35 @@ def test_dense_patch_validator_rejects_promotion_candidate_mismatch(tmp_path: Pa
 
     assert report["passed"] is False
     assert "promotion_candidate_gate_mismatch=wrong_candidate!=v8_object_refinement" in report["errors"]
+
+
+def test_dense_patch_validator_rejects_wrong_authoritative_source_identity(tmp_path: Path) -> None:
+    state = load_state()
+    state["authoritative_source"]["id"] = "raw_lx_sections"
+    state["authoritative_source"]["local_paths"] = ["/tmp/MANIFOLD_MT20260616-175807.lx"]
+    path = tmp_path / "state.json"
+    path.write_text(json.dumps(state), encoding="utf-8")
+
+    report = validate(path)
+
+    assert report["passed"] is False
+    assert "unexpected_authoritative_source_id=raw_lx_sections" in report["errors"]
+    assert "authoritative_source_missing_opt_las_path" in report["errors"]
+
+
+def test_dense_patch_validator_rejects_wrong_dense_voxel_identity(tmp_path: Path) -> None:
+    state = load_state()
+    state["derived_dense_input"]["id"] = "dense_las_voxel010_binary"
+    state["derived_dense_input"]["voxel_size_m"] = 0.1
+    state["derived_dense_input"]["known_voxel_count"] = 1_440_000
+    state["remote_executable_baseline"]["metrics"]["voxel003_count"] = 1_440_000
+    path = tmp_path / "state.json"
+    path.write_text(json.dumps(state), encoding="utf-8")
+
+    report = validate(path)
+
+    assert report["passed"] is False
+    assert "unexpected_derived_dense_input_id=dense_las_voxel010_binary" in report["errors"]
+    assert "derived_dense_input_not_voxel003" in report["errors"]
+    assert "derived_dense_input_voxel_count_mismatch=1440000" in report["errors"]
+    assert "remote_baseline_voxel003_count_mismatch=1440000" in report["errors"]
