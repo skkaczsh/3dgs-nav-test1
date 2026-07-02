@@ -10,11 +10,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts import validate_production_inputs
 
 
 def resolve_path(path: Path) -> Path:
@@ -35,7 +40,12 @@ def load(path: Path) -> dict[str, Any]:
     return data
 
 
-def summarize(architecture: dict[str, Any], dense_patch: dict[str, Any]) -> dict[str, Any]:
+def summarize(
+    architecture: dict[str, Any],
+    dense_patch: dict[str, Any],
+    *,
+    dense_patch_state_path: Path | None = None,
+) -> dict[str, Any]:
     active = [
         {
             "id": item.get("id"),
@@ -53,6 +63,10 @@ def summarize(architecture: dict[str, Any], dense_patch: dict[str, Any]) -> dict
         for item in architecture.get("rejected_artifacts", [])
         if isinstance(item, dict)
     ]
+    production_input_allowlist = {}
+    if dense_patch_state_path is not None:
+        production_input_allowlist = validate_production_inputs.validate_dense_allowlist(resolve_path(dense_patch_state_path))
+
     return {
         "dataset": architecture.get("dataset"),
         "decision": architecture.get("current_diagnosis", {}).get("decision"),
@@ -68,6 +82,7 @@ def summarize(architecture: dict[str, Any], dense_patch: dict[str, Any]) -> dict
         "next_action": dense_patch.get("next_action", {}),
         "forbidden_inputs": dense_patch.get("forbidden_inputs", []),
         "rejected_semantic_artifacts": rejected,
+        "production_input_allowlist": production_input_allowlist,
     }
 
 
@@ -170,6 +185,19 @@ def format_text(summary: dict[str, Any]) -> str:
                     f"top={top_reasons}"
                 )
         lines.append("")
+    allowlist = summary.get("production_input_allowlist", {})
+    if allowlist:
+        lines.append("production input allowlist:")
+        lines.append(
+            f"- passed={allowlist.get('passed')} "
+            f"allowed_count={allowlist.get('allowed_count')} "
+            f"output_artifact_count={allowlist.get('output_artifact_count')}"
+        )
+        for error in allowlist.get("errors", []):
+            lines.append(f"  error: {error}")
+        for warning in allowlist.get("warnings", []):
+            lines.append(f"  warning: {warning}")
+        lines.append("")
     next_action = summary.get("next_action", {})
     lines.append("next action:")
     lines.append(f"- {next_action.get('id')}: {next_action.get('description')}")
@@ -199,10 +227,16 @@ def main() -> int:
     parser.add_argument("--architecture", type=Path, default=Path("docs/current_project_architecture.json"))
     parser.add_argument("--dense-patch-state", type=Path, default=Path("docs/current_dense_patch_state.json"))
     parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument("--json", action="store_true", help="Alias for --format json")
     args = parser.parse_args()
 
-    summary = summarize(load(args.architecture), load(args.dense_patch_state))
-    if args.format == "json":
+    output_format = "json" if args.json else args.format
+    summary = summarize(
+        load(args.architecture),
+        load(args.dense_patch_state),
+        dense_patch_state_path=args.dense_patch_state,
+    )
+    if output_format == "json":
         print(json.dumps(summary, ensure_ascii=False, indent=2))
     else:
         print(format_text(summary))
