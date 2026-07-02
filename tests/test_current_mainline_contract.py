@@ -24,6 +24,7 @@ from scripts.current_mainline_contract import (
     REJECTED_ARTIFACT_SUBSTRINGS,
     forbidden_artifact_match,
     forbidden_production_input_match,
+    qa_preview_input_match,
     reject_forbidden_production_input,
 )
 
@@ -82,3 +83,10 @@ def test_forbidden_production_input_match_blocks_sparse_viewer_ply() -> None:
 def test_reject_forbidden_production_input_raises_stable_error() -> None:
     with pytest.raises(ValueError, match="forbidden input path contains frame_object_points_stride10.ply"):
         reject_forbidden_production_input("/tmp/frame_object_points_stride10.ply")
+
+
+def test_reject_forbidden_production_input_can_explicitly_allow_qa_preview_source() -> None:
+    path = "/tmp/geo_patch_objects_v7_structural_multimaterial_stride10.ply"
+
+    assert qa_preview_input_match(path) == "_stride"
+    reject_forbidden_production_input(path, allow_qa_preview=True)

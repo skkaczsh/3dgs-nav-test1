@@ -96,7 +96,11 @@ def build_commands(args: argparse.Namespace) -> list[dict[str, Any]]:
         "--plan-json",
         str(args.viewer_export_plan),
         "--run",
-    ] + (["--allow-unvalidated-export"] if args.allow_unvalidated_export else [])
+    ]
+    if args.allow_qa_preview_source:
+        export.append("--allow-qa-preview-source")
+    if args.allow_unvalidated_export:
+        export.append("--allow-unvalidated-export")
 
     rows = [
         ("fuse_object_semantic_evidence", fuse),
@@ -149,6 +153,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--patch-gate", type=Path, default=DEFAULT_PATCH_GATE)
     parser.add_argument("--allow-unpromoted-patch-experiment", action="store_true")
     parser.add_argument("--allow-unvalidated-export", action="store_true")
+    parser.add_argument(
+        "--allow-qa-preview-source",
+        action="store_true",
+        help="Allow stride-sampled viewer PLY as QA source for the final validated viewer export.",
+    )
     parser.add_argument("--mainline-healthcheck", type=Path, default=DEFAULT_MAINLINE_HEALTHCHECK)
     parser.add_argument("--skip-mainline-healthcheck", action="store_true")
     parser.add_argument("--sam-weight", type=float, default=1.0)
@@ -171,7 +180,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    existing_file(args.source_ply, "source ply")
+    reject_forbidden_production_input(args.source_ply, allow_qa_preview=args.allow_qa_preview_source)
+    if not args.source_ply.exists():
+        raise FileNotFoundError(f"source ply missing: {args.source_ply}")
+    if not args.source_ply.is_file():
+        raise ValueError(f"source ply is not a file: {args.source_ply}")
     existing_file(args.objects_jsonl, "objects jsonl")
     reject_forbidden_production_input(args.output_dir)
     for path in (

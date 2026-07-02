@@ -21,6 +21,11 @@ FORBIDDEN_PRODUCTION_INPUT_SUBSTRINGS: tuple[str, ...] = (
     "_stride",
     *REJECTED_ARTIFACT_SUBSTRINGS,
 )
+QA_PREVIEW_INPUT_SUBSTRINGS: tuple[str, ...] = (
+    "frame_object_points_stride",
+    "_stride",
+    "potree_stride",
+)
 
 # Backward-compatible name for review tools.  Use
 # FORBIDDEN_PRODUCTION_INPUT_SUBSTRINGS when validating dense production inputs.
@@ -117,7 +122,17 @@ def forbidden_production_input_match(value: str | Path) -> str | None:
     return None
 
 
-def reject_forbidden_production_input(value: str | Path) -> None:
+def qa_preview_input_match(value: str | Path) -> str | None:
+    text = str(value)
+    for marker in QA_PREVIEW_INPUT_SUBSTRINGS:
+        if marker in text:
+            return marker
+    return None
+
+
+def reject_forbidden_production_input(value: str | Path, *, allow_qa_preview: bool = False) -> None:
     forbidden = forbidden_production_input_match(value)
+    if forbidden and allow_qa_preview and qa_preview_input_match(value):
+        return
     if forbidden:
         raise ValueError(f"forbidden input path contains {forbidden}: {value}")

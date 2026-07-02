@@ -68,8 +68,14 @@ def read_header(path: Path) -> tuple[list[str], list[str], int]:
     return header, props, header_lines
 
 
-def rewrite_ply(source_ply: Path, objects_jsonl: Path, output_ply: Path) -> dict[str, Any]:
-    reject_forbidden_production_input(source_ply)
+def rewrite_ply(
+    source_ply: Path,
+    objects_jsonl: Path,
+    output_ply: Path,
+    *,
+    allow_qa_preview_source: bool = False,
+) -> dict[str, Any]:
+    reject_forbidden_production_input(source_ply, allow_qa_preview=allow_qa_preview_source)
     reject_forbidden_production_input(objects_jsonl)
     reject_forbidden_production_input(output_ply)
     labels = load_object_label_map(objects_jsonl)
@@ -126,12 +132,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--objects-jsonl", type=Path, required=True)
     parser.add_argument("--output-ply", type=Path, required=True)
     parser.add_argument("--report-json", type=Path)
+    parser.add_argument(
+        "--allow-qa-preview-source",
+        action="store_true",
+        help="Allow a stride-sampled viewer PLY as QA source. Output remains QA-only and cannot be a production input.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    report = rewrite_ply(args.source_ply, args.objects_jsonl, args.output_ply)
+    report = rewrite_ply(
+        args.source_ply,
+        args.objects_jsonl,
+        args.output_ply,
+        allow_qa_preview_source=args.allow_qa_preview_source,
+    )
     if args.report_json:
         args.report_json.parent.mkdir(parents=True, exist_ok=True)
         args.report_json.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

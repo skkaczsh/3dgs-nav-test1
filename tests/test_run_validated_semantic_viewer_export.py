@@ -47,6 +47,7 @@ def base_args(tmp_path: Path) -> argparse.Namespace:
         python="python",
         run=False,
         allow_unvalidated_export=False,
+        allow_qa_preview_source=False,
     )
 
 
@@ -131,3 +132,13 @@ def test_runner_run_mode_executes_rewrite_after_validation_passes(tmp_path: Path
 
     assert module.main() == 0
     assert calls == ["command"]
+
+
+def test_runner_passes_explicit_qa_preview_source_flag(tmp_path: Path) -> None:
+    module = load_module()
+    args = base_args(tmp_path)
+    args.allow_qa_preview_source = True
+
+    plan = module.build_plan(args, module.validation_status(args.fusion_validation))
+
+    assert "--allow-qa-preview-source" in plan["commands"][0]["argv"]

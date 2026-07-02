@@ -67,6 +67,8 @@ def build_command(args: argparse.Namespace) -> list[str]:
         "--output-ply",
         str(args.output_ply),
     ]
+    if args.allow_qa_preview_source:
+        command.append("--allow-qa-preview-source")
     if args.report_json:
         command.extend(["--report-json", str(args.report_json)])
     return command
@@ -109,12 +111,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--python", default="python")
     parser.add_argument("--run", action="store_true")
     parser.add_argument("--allow-unvalidated-export", action="store_true")
+    parser.add_argument(
+        "--allow-qa-preview-source",
+        action="store_true",
+        help="Allow stride-sampled viewer PLY as QA source after fusion validation passes.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    existing_file(args.source_ply, "source ply")
+    reject_forbidden_production_input(args.source_ply, allow_qa_preview=args.allow_qa_preview_source)
+    if not args.source_ply.exists():
+        raise FileNotFoundError(f"source ply missing: {args.source_ply}")
+    if not args.source_ply.is_file():
+        raise ValueError(f"source ply is not a file: {args.source_ply}")
     existing_file(args.objects_jsonl, "objects jsonl")
     existing_file(args.fusion_validation, "fusion validation")
     reject_forbidden_production_input(args.output_ply)

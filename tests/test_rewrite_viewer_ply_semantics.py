@@ -52,6 +52,17 @@ def test_rewrite_ply_rejects_forbidden_source_path(tmp_path: Path) -> None:
         module.rewrite_ply(source, objects, tmp_path / "out.ply")
 
 
+def test_rewrite_ply_allows_explicit_qa_preview_source(tmp_path: Path) -> None:
+    source = write_minimal_ply(tmp_path / "frame_object_points_stride10.ply")
+    objects = write_objects(tmp_path / "objects.jsonl")
+    output = tmp_path / "semantic_viewer.ply"
+
+    report = module.rewrite_ply(source, objects, output, allow_qa_preview_source=True)
+
+    assert report["rows"] == 1
+    assert output.exists()
+
+
 def test_rewrite_ply_rejects_forbidden_output_path(tmp_path: Path) -> None:
     source = write_minimal_ply(tmp_path / "source.ply")
     objects = write_objects(tmp_path / "objects.jsonl")

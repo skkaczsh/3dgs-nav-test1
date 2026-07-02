@@ -83,6 +83,8 @@ def validate_python_runner(path: Path, stage: str) -> list[str]:
             errors.append("missing_fusion_validation_gate")
         if not has_argparse_flag(text, "--allow-unvalidated-export"):
             errors.append("missing_explicit_unvalidated_export_flag")
+        if not has_argparse_flag(text, "--allow-qa-preview-source"):
+            errors.append("missing_explicit_qa_preview_source_flag")
         if "rewrite_viewer_ply_semantics.py" not in text:
             errors.append("missing_validated_rewrite_command")
     else:

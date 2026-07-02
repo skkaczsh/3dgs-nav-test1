@@ -97,6 +97,7 @@ def base_args(tmp_path: Path) -> argparse.Namespace:
         patch_gate=write_gate(tmp_path / "gate.json"),
         allow_unpromoted_patch_experiment=False,
         allow_unvalidated_export=False,
+        allow_qa_preview_source=False,
         mainline_healthcheck=ROOT / "scripts" / "validate_current_mainline.py",
         skip_mainline_healthcheck=False,
         sam_weight=1.0,
@@ -155,6 +156,17 @@ def test_pipeline_allows_explicit_unpromoted_experiment(tmp_path: Path) -> None:
     plan = module.build_plan(args, module.patch_gate_status(args.patch_gate))
 
     assert plan["status"] == "ready"
+
+
+def test_pipeline_passes_explicit_qa_preview_source_to_export(tmp_path: Path) -> None:
+    module = load_module()
+    args = base_args(tmp_path)
+    args.allow_qa_preview_source = True
+
+    plan = module.build_plan(args, module.patch_gate_status(args.patch_gate))
+
+    export_argv = plan["commands"][2]["argv"]
+    assert "--allow-qa-preview-source" in export_argv
 
 
 def test_pipeline_run_mode_refuses_blocked_plan(tmp_path: Path, monkeypatch) -> None:

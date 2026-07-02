@@ -69,6 +69,32 @@ def main(args):
     assert "missing_validate_production_inputs_reference" in report["errors"]
 
 
+def test_qa_viewer_export_runner_requires_explicit_qa_preview_source_flag(tmp_path: Path) -> None:
+    runner = tmp_path / "bad_qa.py"
+    runner.write_text(
+        """
+from scripts.current_mainline_contract import reject_forbidden_production_input
+
+def validation_status(path):
+    return {"passed": True}
+
+def main(args):
+    reject_forbidden_production_input(args.source_ply)
+    command = ["scripts/rewrite_viewer_ply_semantics.py", "--allow-unvalidated-export"]
+    return command
+""",
+        encoding="utf-8",
+    )
+
+    report = module.validate_runner(
+        {"path": runner.name, "stage": "qa_viewer_export"},
+        repo_root=tmp_path,
+    )
+
+    assert report["passed"] is False
+    assert "missing_explicit_qa_preview_source_flag" in report["errors"]
+
+
 def test_shell_runner_requires_preflight_and_tmux(tmp_path: Path) -> None:
     runner = tmp_path / "bad_remote.sh"
     runner.write_text(
