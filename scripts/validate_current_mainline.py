@@ -26,6 +26,7 @@ from scripts import validate_current_dense_patch_state
 from scripts import validate_current_project_architecture
 from scripts import validate_geometry_input_contract_usage
 from scripts import validate_production_input_guard_usage
+from scripts import validate_production_inputs
 from scripts import validate_semantic_contract_usage
 
 
@@ -168,6 +169,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
     semantic_contract_usage = validate_semantic_contract_usage.validate()
     geometry_input_contract_usage = validate_geometry_input_contract_usage.validate()
     production_input_guard_usage = validate_production_input_guard_usage.validate()
+    production_input_allowlist = validate_production_inputs.validate_dense_allowlist(args.dense_patch_state)
     promotion_gate = validate_promotion_gate(args.promotion_gate)
     promotion_plan = validate_promotion_plan(args.dense_patch_state, args.qa_json, args.promotion_gate)
 
@@ -179,6 +181,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
         "semantic_contract_usage": semantic_contract_usage,
         "geometry_input_contract_usage": geometry_input_contract_usage,
         "production_input_guard_usage": production_input_guard_usage,
+        "production_input_allowlist": production_input_allowlist,
         "promotion_gate_health": promotion_gate,
         "promotion_plan_health": promotion_plan,
     }

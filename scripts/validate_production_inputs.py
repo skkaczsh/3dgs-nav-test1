@@ -69,6 +69,50 @@ def load_dense_allowlist(state_path: Path) -> set[str]:
     return {normalize_path_text(path) for path in iter_current_dense_input_paths(state)}
 
 
+def iter_output_artifact_paths(data: dict[str, Any]) -> set[str]:
+    found: set[str] = set()
+    for key in ("current_patch_baseline", "current_object_baseline"):
+        row = data.get(key)
+        if not isinstance(row, dict):
+            continue
+        found.update(iter_list_paths(row, "local_paths"))
+        found.update(iter_list_paths(row, "remote_paths"))
+    return found
+
+
+def validate_dense_allowlist(state_path: Path = DEFAULT_STATE) -> dict[str, Any]:
+    state = read_json(state_path)
+    if state.get("schema") != "current-dense-patch-state/v1":
+        raise ValueError(f"unexpected dense patch state schema: {state.get('schema')!r}")
+    allowed = {normalize_path_text(path) for path in iter_current_dense_input_paths(state)}
+    output_artifacts = {normalize_path_text(path) for path in iter_output_artifact_paths(state)}
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    if not allowed:
+        errors.append("dense_allowlist_empty")
+    for path in sorted(allowed):
+        forbidden = forbidden_production_input_match(path)
+        if forbidden:
+            errors.append(f"dense_allowlist_contains_forbidden={forbidden}:{path}")
+        if "stride10" in path:
+            errors.append(f"dense_allowlist_contains_stride_preview={path}")
+    for path in sorted(allowed & output_artifacts):
+        errors.append(f"dense_allowlist_contains_output_artifact={path}")
+    if len(allowed) < 4:
+        warnings.append(f"dense_allowlist_small={len(allowed)}")
+
+    return {
+        "schema": "dense-production-input-allowlist/v1",
+        "passed": not errors,
+        "state": str(state_path),
+        "allowed_count": len(allowed),
+        "output_artifact_count": len(output_artifacts),
+        "errors": errors,
+        "warnings": warnings,
+    }
+
+
 def validate_paths(paths: list[str], *, allowed_paths: set[str] | None = None) -> dict:
     errors = []
     checked = []

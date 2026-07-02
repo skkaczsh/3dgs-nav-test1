@@ -89,6 +89,27 @@ def test_dense_allowlist_excludes_current_patch_and_object_outputs() -> None:
     assert not any("dense_las_voxel003_objects_v3_high_recall_clean" in path for path in allowed)
 
 
+def test_dense_allowlist_report_passes_for_current_state() -> None:
+    report = module.validate_dense_allowlist(ROOT / "docs" / "current_dense_patch_state.json")
+
+    assert report["passed"] is True
+    assert report["allowed_count"] == 6
+    assert report["errors"] == []
+
+
+def test_dense_allowlist_report_rejects_output_artifact_as_input(tmp_path: Path) -> None:
+    state = json.loads((ROOT / "docs" / "current_dense_patch_state.json").read_text(encoding="utf-8"))
+    output_artifact = state["current_object_baseline"]["local_paths"][1]
+    state["latest_remote_run"]["inputs"]["bad_output_reentry"] = output_artifact
+    path = tmp_path / "state.json"
+    path.write_text(json.dumps(state), encoding="utf-8")
+
+    report = module.validate_dense_allowlist(path)
+
+    assert report["passed"] is False
+    assert f"dense_allowlist_contains_output_artifact={output_artifact}" in report["errors"]
+
+
 def test_require_current_dense_rejects_documented_output_artifacts() -> None:
     allowed = module.load_dense_allowlist(ROOT / "docs" / "current_dense_patch_state.json")
     output_artifact = (

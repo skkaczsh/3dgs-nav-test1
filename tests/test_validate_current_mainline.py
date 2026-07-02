@@ -27,6 +27,8 @@ def test_current_mainline_healthcheck_passes_with_visual_pending() -> None:
     report = json.loads(result.stdout)
     assert report["passed"] is True
     assert report["checks"]["review_artifact_allowlist"]["passed"] is True
+    assert report["checks"]["production_input_allowlist"]["passed"] is True
+    assert report["checks"]["production_input_allowlist"]["allowed_count"] == 6
     assert report["checks"]["promotion_plan_health"]["passed"] is True
     assert "promotion_gate_health:promotion_candidate_waiting_for_visual_acceptance" in report["warnings"]
     assert "promotion_plan_health:promotion_plan_waiting_for_gate_pass" in report["warnings"]
