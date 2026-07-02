@@ -20,6 +20,7 @@ if str(REPO_ROOT) not in sys.path:
 from scripts import build_current_dense_review_index
 from scripts import gate_current_dense_mainline_promotion
 from scripts.gate_cache_contract import resolve_relative_path, stale_gate_reasons
+from scripts import validate_approved_mainline_runners
 from scripts import validate_current_dense_patch_state
 from scripts import validate_current_project_architecture
 from scripts import validate_geometry_input_contract_usage
@@ -120,6 +121,7 @@ def validate_promotion_gate(path: Path) -> dict[str, Any]:
 def validate(args: argparse.Namespace) -> dict[str, Any]:
     architecture = validate_current_project_architecture.validate(args.architecture)
     dense_state = validate_current_dense_patch_state.validate(args.dense_patch_state)
+    approved_runner_usage = validate_approved_mainline_runners.validate(args.dense_patch_state)
     review_allowlist = build_current_dense_review_index.validate_artifact_allowlist()
     semantic_contract_usage = validate_semantic_contract_usage.validate()
     geometry_input_contract_usage = validate_geometry_input_contract_usage.validate()
@@ -129,6 +131,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
     checks = {
         "architecture": architecture,
         "dense_patch_state": dense_state,
+        "approved_runner_usage": approved_runner_usage,
         "review_artifact_allowlist": review_allowlist,
         "semantic_contract_usage": semantic_contract_usage,
         "geometry_input_contract_usage": geometry_input_contract_usage,
