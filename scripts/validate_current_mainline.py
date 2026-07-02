@@ -23,6 +23,7 @@ from scripts.gate_cache_contract import resolve_relative_path, stale_gate_reason
 from scripts import validate_current_dense_patch_state
 from scripts import validate_current_project_architecture
 from scripts import validate_geometry_input_contract_usage
+from scripts import validate_production_input_guard_usage
 from scripts import validate_semantic_contract_usage
 
 
@@ -122,6 +123,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
     review_allowlist = build_current_dense_review_index.validate_artifact_allowlist()
     semantic_contract_usage = validate_semantic_contract_usage.validate()
     geometry_input_contract_usage = validate_geometry_input_contract_usage.validate()
+    production_input_guard_usage = validate_production_input_guard_usage.validate()
     promotion_gate = validate_promotion_gate(args.promotion_gate)
 
     checks = {
@@ -130,6 +132,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
         "review_artifact_allowlist": review_allowlist,
         "semantic_contract_usage": semantic_contract_usage,
         "geometry_input_contract_usage": geometry_input_contract_usage,
+        "production_input_guard_usage": production_input_guard_usage,
         "promotion_gate_health": promotion_gate,
     }
     errors: list[str] = []
