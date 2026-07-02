@@ -32,6 +32,23 @@ Each object row may contain:
 
 ## CLI
 
+Safe launcher, default dry-run:
+
+```bash
+PYTHONPATH=. python scripts/run_object_semantic_evidence_fusion.py \
+  --objects-jsonl input_objects.jsonl \
+  --output-jsonl fused_objects.jsonl \
+  --report fused_objects_report.json
+```
+
+The launcher reads `docs/patch_experiment_promotion_gate.json`.  If the patch
+experiment has not passed visual promotion, the plan is written as `blocked` and
+`--run` exits without executing fusion.  For explicitly marked experiments, use
+`--allow-unpromoted-patch-experiment` and keep the output out of promoted
+mainline artifacts.
+
+Direct fusion entry point:
+
 ```bash
 PYTHONPATH=. python scripts/fuse_object_semantic_evidence.py \
   --objects-jsonl input_objects.jsonl \
