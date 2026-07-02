@@ -415,6 +415,7 @@ def attachment_merge_decision(
     candidate: dict[str, Any],
     args: argparse.Namespace,
     provenance_relaxed: bool = False,
+    fragment_relaxed: bool = False,
 ) -> tuple[bool, str, dict[str, float]]:
     """Decide whether a tiny fragment should become part of a large patch.
 
@@ -446,9 +447,24 @@ def attachment_merge_decision(
         max_color_distance = args.split_attachment_max_color_distance
         min_normal_score = args.split_attachment_min_normal_score
         max_bbox_gap = args.split_attachment_max_bbox_gap
+    elif fragment_relaxed:
+        reason_prefix = "fragment_attachment"
+        min_anchor_voxels = args.fragment_attachment_min_anchor_voxels
+        max_fragment_voxels = args.fragment_attachment_max_fragment_voxels
+        min_size_ratio = args.fragment_attachment_min_size_ratio
+        min_score = args.fragment_attachment_min_score
+        min_contact_ratio = args.fragment_attachment_min_contact_ratio
+        min_shared_edges = args.fragment_attachment_min_shared_edges
+        max_color_distance = args.fragment_attachment_max_color_distance
+        min_normal_score = args.fragment_attachment_min_normal_score
+        max_bbox_gap = args.fragment_attachment_max_bbox_gap
 
     def reason(name: str) -> str:
-        return f"split_{name}" if provenance_relaxed else name
+        if provenance_relaxed:
+            return f"split_{name}"
+        if fragment_relaxed:
+            return f"fragment_{name}"
+        return name
 
     if anchor.count < min_anchor_voxels:
         return False, reason("attachment_anchor_too_small"), {}
@@ -510,6 +526,7 @@ def attachment_merge_decision(
         "attachment_size_ratio": float(size_ratio),
         "attachment_support": float(support),
         "attachment_provenance_relaxed": float(1.0 if provenance_relaxed else 0.0),
+        "attachment_fragment_relaxed": float(1.0 if fragment_relaxed else 0.0),
     }
     if shared_edges < min_shared_edges:
         return False, reason("attachment_shared_edges"), detail
@@ -1177,6 +1194,19 @@ def merge_step(
         attachment_detail: dict[str, float] = {}
         if min(anchor.count, src_stats.count) < args.min_anchor_voxels:
             provenance_relaxed = bool(args.enable_split_provenance_attachment and src_id in split_child_ids)
+            contact_ratio_pre = float(shared) / max(float(src_stats.count), 1.0)
+            contact_color_pre = float(candidate.get("contact_color_distance", -1.0))
+            contact_normal_pre = float(candidate.get("contact_normal_score", -1.0))
+            fragment_relaxed = bool(
+                args.enable_fragment_evidence_attachment
+                and not provenance_relaxed
+                and src_stats.count <= args.fragment_attachment_max_fragment_voxels
+                and anchor.count >= args.fragment_attachment_min_anchor_voxels
+                and shared >= args.fragment_attachment_min_shared_edges
+                and contact_ratio_pre >= args.fragment_attachment_min_contact_ratio
+                and (contact_color_pre < 0 or contact_color_pre <= args.fragment_attachment_max_color_distance)
+                and (contact_normal_pre < 0 or contact_normal_pre >= args.fragment_attachment_min_normal_score)
+            )
             attachment_ok, attachment_reason, attachment_detail = attachment_merge_decision(
                 anchor,
                 src_stats,
@@ -1185,6 +1215,7 @@ def merge_step(
                 candidate,
                 args,
                 provenance_relaxed=provenance_relaxed,
+                fragment_relaxed=fragment_relaxed,
             )
             if attachment_ok:
                 labels[labels == src_id] = anchor_id
@@ -1208,6 +1239,7 @@ def merge_step(
                             "fine_overlap_support": float(fine_overlap_support),
                             "candidate_source": f"{candidate_source}+attachment",
                             "split_provenance_relaxed": bool(provenance_relaxed),
+                            "fragment_evidence_relaxed": bool(fragment_relaxed),
                             **attachment_detail,
                         }
                     )
@@ -1227,6 +1259,7 @@ def merge_step(
                         "candidate_source": f"{candidate_source}+attachment",
                         "reason": attachment_reason or "small_patch_no_attachment",
                         "split_provenance_relaxed": bool(provenance_relaxed),
+                        "fragment_evidence_relaxed": bool(fragment_relaxed),
                         **attachment_detail,
                     }
                 )
@@ -1575,6 +1608,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--split-attachment-max-fragment-voxels", type=int, default=5000)
     parser.add_argument("--split-attachment-min-anchor-voxels", type=int, default=5000)
     parser.add_argument("--split-attachment-min-size-ratio", type=float, default=2.5)
+    parser.add_argument("--enable-fragment-evidence-attachment", action="store_true")
+    parser.add_argument("--fragment-attachment-min-score", type=float, default=0.80)
+    parser.add_argument("--fragment-attachment-min-contact-ratio", type=float, default=0.10)
+    parser.add_argument("--fragment-attachment-min-shared-edges", type=int, default=12)
+    parser.add_argument("--fragment-attachment-max-color-distance", type=float, default=62.0)
+    parser.add_argument("--fragment-attachment-min-normal-score", type=float, default=0.44)
+    parser.add_argument("--fragment-attachment-max-bbox-gap", type=float, default=0.07)
+    parser.add_argument("--fragment-attachment-max-fragment-voxels", type=int, default=4000)
+    parser.add_argument("--fragment-attachment-min-anchor-voxels", type=int, default=5000)
+    parser.add_argument("--fragment-attachment-min-size-ratio", type=float, default=2.5)
     parser.add_argument("--enable-overlap-merge-candidates", action="store_true")
     parser.add_argument("--overlap-candidate-top-n", type=int, default=2000)
     parser.add_argument("--overlap-candidate-min-ratio", type=float, default=0.65)

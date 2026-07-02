@@ -61,6 +61,15 @@ def make_attachment_args() -> argparse.Namespace:
         split_attachment_max_color_distance=70.0,
         split_attachment_min_normal_score=0.42,
         split_attachment_max_bbox_gap=0.08,
+        fragment_attachment_min_anchor_voxels=5000,
+        fragment_attachment_max_fragment_voxels=4000,
+        fragment_attachment_min_size_ratio=2.5,
+        fragment_attachment_min_score=0.80,
+        fragment_attachment_min_contact_ratio=0.10,
+        fragment_attachment_min_shared_edges=12,
+        fragment_attachment_max_color_distance=62.0,
+        fragment_attachment_min_normal_score=0.44,
+        fragment_attachment_max_bbox_gap=0.07,
     )
 
 
@@ -167,3 +176,25 @@ def test_split_provenance_attachment_uses_dedicated_anchor_threshold() -> None:
     assert ok
     assert reason == "accepted_split_attachment"
     assert detail["attachment_provenance_relaxed"] == 1.0
+
+
+def test_fragment_evidence_attachment_uses_dedicated_profile() -> None:
+    args = make_attachment_args()
+    anchor = make_patch(1, 8000, [10.0, 10.0, 10.0])
+    fragment = make_patch(2, 1000, [12.0, 10.0, 10.0])
+    candidate = {"contact_color_distance": 2.0, "contact_normal_score": 0.95}
+
+    ok, reason, detail = module.attachment_merge_decision(
+        anchor,
+        fragment,
+        shared_edges=200,
+        candidate_support=0.2,
+        candidate=candidate,
+        args=args,
+        fragment_relaxed=True,
+    )
+
+    assert ok
+    assert reason == "accepted_fragment_attachment"
+    assert detail["attachment_fragment_relaxed"] == 1.0
+    assert detail["attachment_provenance_relaxed"] == 0.0
