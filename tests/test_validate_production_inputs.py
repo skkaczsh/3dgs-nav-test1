@@ -19,6 +19,13 @@ def test_validate_paths_rejects_viewer_stride_ply() -> None:
     ]
 
 
+def test_validate_paths_rejects_generic_stride_preview_artifact() -> None:
+    report = module.validate_paths(["/tmp/geo_patches_random_color_stride3.ply"])
+
+    assert report["passed"] is False
+    assert report["errors"] == ["forbidden_production_input=_stride:/tmp/geo_patches_random_color_stride3.ply"]
+
+
 def test_validate_paths_allows_dense_voxel_ply() -> None:
     report = module.validate_paths(["/tmp/dense_las_voxel003_binary.ply"])
 

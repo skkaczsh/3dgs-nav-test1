@@ -30,6 +30,7 @@ def test_dense_patch_state_forbids_sparse_and_rejected_inputs() -> None:
     data = load_state()
     forbidden = {item["pattern"] for item in data["forbidden_inputs"]}
     assert "frame_object_points_stride10.ply" in forbidden
+    assert "_stride" in forbidden
     assert "objects_v12_teacher_v20_grid6_unknown_absorb" in forbidden
     assert "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall" in forbidden
     assert "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor" in forbidden

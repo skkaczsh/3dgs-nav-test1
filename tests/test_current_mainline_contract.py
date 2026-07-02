@@ -74,6 +74,8 @@ def test_forbidden_artifact_match_reports_first_matching_substring() -> None:
 
 def test_forbidden_production_input_match_blocks_sparse_viewer_ply() -> None:
     assert forbidden_production_input_match("/tmp/frame_object_points_stride10.ply") == "frame_object_points_stride10.ply"
+    assert forbidden_production_input_match("/tmp/geo_patches_random_color_stride3.ply") == "_stride"
+    assert forbidden_production_input_match("/tmp/potree_stride10/data/metadata.json") == "_stride"
     assert forbidden_production_input_match("/tmp/current_dense_ok.ply") is None
 
 

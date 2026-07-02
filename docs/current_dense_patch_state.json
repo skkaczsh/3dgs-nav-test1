@@ -172,6 +172,10 @@
       "reason": "Viewer/review artifact; too sparse and may encode previous semantic/object assumptions."
     },
     {
+      "pattern": "_stride",
+      "reason": "Any stride-sampled preview/viewer artifact is QA-only and must not become dense production input."
+    },
+    {
       "pattern": "objects_v12_teacher_v20_grid6_unknown_absorb",
       "reason": "Rejected semantic/coarsening diagnostic."
     },

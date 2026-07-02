@@ -18,6 +18,7 @@ REJECTED_ARTIFACT_SUBSTRINGS: tuple[str, ...] = (
 
 FORBIDDEN_PRODUCTION_INPUT_SUBSTRINGS: tuple[str, ...] = (
     "frame_object_points_stride10.ply",
+    "_stride",
     *REJECTED_ARTIFACT_SUBSTRINGS,
 )
 
