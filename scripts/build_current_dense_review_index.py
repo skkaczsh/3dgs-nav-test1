@@ -65,6 +65,17 @@ ARTIFACTS = [
     },
 ]
 
+OBJECT_SCHEMA_REQUIRED_KEYS = {
+    "object_id",
+    "voxel_count",
+    "geometry_type",
+    "semantic_label",
+    "bbox_3d",
+    "centroid",
+}
+OBJECT_SCHEMA_SAMPLE_LIMIT = 20
+
+
 def read_json(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as fh:
         data = json.load(fh)
@@ -92,6 +103,43 @@ def local_artifact_path(path: str) -> Path:
     return REPO_ROOT / path
 
 
+def validate_object_jsonl_schema(
+    artifact_id: str,
+    objects_path: Path,
+    *,
+    sample_limit: int = OBJECT_SCHEMA_SAMPLE_LIMIT,
+) -> list[str]:
+    errors: list[str] = []
+    row_count = 0
+    with objects_path.open("r", encoding="utf-8") as fh:
+        for line_number, line in enumerate(fh, start=1):
+            text = line.strip()
+            if not text:
+                continue
+            try:
+                row = json.loads(text)
+            except json.JSONDecodeError as exc:
+                errors.append(
+                    f"artifact_objects_bad_json={artifact_id}:line={line_number}:{exc.msg}:{objects_path}"
+                )
+                break
+            if not isinstance(row, dict):
+                errors.append(f"artifact_objects_row_not_object={artifact_id}:line={line_number}:{objects_path}")
+                break
+            missing = sorted(OBJECT_SCHEMA_REQUIRED_KEYS - set(row))
+            if missing:
+                errors.append(
+                    f"artifact_objects_missing_schema_keys={artifact_id}:line={line_number}:{missing}:{objects_path}"
+                )
+                break
+            row_count += 1
+            if row_count >= sample_limit:
+                break
+    if row_count <= 0:
+        errors.append(f"artifact_objects_no_json_rows={artifact_id}:{objects_path}")
+    return errors
+
+
 def validate_artifact_files(artifacts: list[dict[str, Any]] = ARTIFACTS) -> list[str]:
     errors: list[str] = []
     for item in artifacts:
@@ -108,6 +156,8 @@ def validate_artifact_files(artifacts: list[dict[str, Any]] = ARTIFACTS) -> list
             errors.append(f"artifact_objects_missing={artifact_id}:{objects_path}")
         elif objects_path.stat().st_size <= 0:
             errors.append(f"artifact_objects_empty={artifact_id}:{objects_path}")
+        else:
+            errors.extend(validate_object_jsonl_schema(artifact_id, objects_path))
     return errors
 
 

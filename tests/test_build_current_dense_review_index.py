@@ -122,6 +122,15 @@ def test_artifact_allowlist_rejects_missing_review_files() -> None:
     assert any("artifact_ply_missing" in error for error in result["errors"])
 
 
+def test_object_jsonl_schema_validation_rejects_missing_schema(tmp_path: Path) -> None:
+    objects = tmp_path / "objects.jsonl"
+    objects.write_text(json.dumps({"object_id": 1, "semantic_label": "wall"}) + "\n", encoding="utf-8")
+
+    errors = module.validate_object_jsonl_schema("v7_object_refinement", objects)
+
+    assert any("artifact_objects_missing_schema_keys" in error for error in errors)
+
+
 def test_cli_writes_review_index(tmp_path: Path) -> None:
     qa = tmp_path / "qa.json"
     visual = tmp_path / "visual.json"
