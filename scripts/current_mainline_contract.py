@@ -58,3 +58,9 @@ def forbidden_production_input_match(value: str | Path) -> str | None:
         if forbidden in text:
             return forbidden
     return None
+
+
+def reject_forbidden_production_input(value: str | Path) -> None:
+    forbidden = forbidden_production_input_match(value)
+    if forbidden:
+        raise ValueError(f"forbidden input path contains {forbidden}: {value}")

@@ -19,7 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.current_mainline_contract import forbidden_production_input_match
+from scripts.current_mainline_contract import reject_forbidden_production_input
 
 
 def shell_join(parts: list[str]) -> str:
@@ -34,14 +34,8 @@ def read_json(path: Path) -> dict[str, Any]:
     return data
 
 
-def reject_forbidden_path(path: Path) -> None:
-    forbidden = forbidden_production_input_match(path)
-    if forbidden:
-        raise ValueError(f"forbidden input path contains {forbidden}: {path}")
-
-
 def existing_file(path: Path, name: str) -> None:
-    reject_forbidden_path(path)
+    reject_forbidden_production_input(path)
     if not path.exists():
         raise FileNotFoundError(f"{name} missing: {path}")
     if not path.is_file():
@@ -123,9 +117,9 @@ def main() -> int:
     existing_file(args.source_ply, "source ply")
     existing_file(args.objects_jsonl, "objects jsonl")
     existing_file(args.fusion_validation, "fusion validation")
-    reject_forbidden_path(args.output_ply)
+    reject_forbidden_production_input(args.output_ply)
     if args.report_json:
-        reject_forbidden_path(args.report_json)
+        reject_forbidden_production_input(args.report_json)
     validation = validation_status(args.fusion_validation)
     plan = build_plan(args, validation)
     plan_path = args.plan_json or (args.output_ply.parent / "validated_semantic_viewer_export_plan.json")

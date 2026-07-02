@@ -21,7 +21,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.current_mainline_contract import forbidden_production_input_match
+from scripts.current_mainline_contract import reject_forbidden_production_input
 from scripts import validate_production_inputs
 
 DEFAULT_MAINLINE_HEALTHCHECK = REPO_ROOT / "scripts" / "validate_current_mainline.py"
@@ -31,14 +31,8 @@ def shell_join(parts: list[str]) -> str:
     return " ".join(shlex.quote(str(part)) for part in parts)
 
 
-def reject_forbidden_path(path: Path) -> None:
-    forbidden = forbidden_production_input_match(path)
-    if forbidden:
-        raise ValueError(f"forbidden input path contains {forbidden}: {path}")
-
-
 def existing_file(path: Path, name: str) -> None:
-    reject_forbidden_path(path)
+    reject_forbidden_production_input(path)
     if not path.exists():
         raise FileNotFoundError(f"{name} missing: {path}")
     if not path.is_file():
@@ -279,7 +273,7 @@ def main() -> int:
 
     existing_file(args.region_input, "region input")
     existing_file(args.patch_labels, "patch labels")
-    reject_forbidden_path(args.output_dir)
+    reject_forbidden_production_input(args.output_dir)
 
     plan = build_commands(args)
     args.output_dir.mkdir(parents=True, exist_ok=True)

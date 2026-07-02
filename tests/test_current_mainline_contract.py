@@ -1,3 +1,5 @@
+import pytest
+
 from scripts import build_current_dense_review_index
 from scripts import validate_current_project_architecture
 from scripts import validate_current_dense_patch_state
@@ -9,6 +11,7 @@ from scripts.current_mainline_contract import (
     REJECTED_ARTIFACT_SUBSTRINGS,
     forbidden_artifact_match,
     forbidden_production_input_match,
+    reject_forbidden_production_input,
 )
 
 
@@ -34,3 +37,8 @@ def test_forbidden_artifact_match_reports_first_matching_substring() -> None:
 def test_forbidden_production_input_match_blocks_sparse_viewer_ply() -> None:
     assert forbidden_production_input_match("/tmp/frame_object_points_stride10.ply") == "frame_object_points_stride10.ply"
     assert forbidden_production_input_match("/tmp/current_dense_ok.ply") is None
+
+
+def test_reject_forbidden_production_input_raises_stable_error() -> None:
+    with pytest.raises(ValueError, match="forbidden input path contains frame_object_points_stride10.ply"):
+        reject_forbidden_production_input("/tmp/frame_object_points_stride10.ply")

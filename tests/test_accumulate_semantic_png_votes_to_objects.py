@@ -65,4 +65,4 @@ def test_legacy_geometry_label_fallback_is_preserved_for_old_artifacts() -> None
 
 def test_png_vote_rejects_forbidden_source_path(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="forbidden input path"):
-        module.reject_forbidden_path(tmp_path / "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor/source.ply")
+        module.reject_forbidden_production_input(tmp_path / "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor/source.ply")

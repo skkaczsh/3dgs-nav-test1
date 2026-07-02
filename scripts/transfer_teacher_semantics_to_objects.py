@@ -29,7 +29,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.geometry_input_contract import is_geometry_only_row
-from scripts.current_mainline_contract import forbidden_production_input_match
+from scripts.current_mainline_contract import reject_forbidden_production_input
 from scripts.semantic_label_contract import LABEL_TO_SEMANTIC, SEMANTIC_COLORS, SEMANTIC_TO_LABEL
 
 GEOMETRY_LABELS = {"horizontal", "vertical", "thin_linear", "rough_mixed", "mixed", "unknown"}
@@ -62,12 +62,6 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
             if line.strip():
                 rows.append(json.loads(line))
     return rows
-
-
-def reject_forbidden_path(path: Path) -> None:
-    forbidden = forbidden_production_input_match(path)
-    if forbidden:
-        raise ValueError(f"forbidden input path contains {forbidden}: {path}")
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -269,10 +263,10 @@ def rewrite_ply(
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
-    reject_forbidden_path(args.source_ply)
-    reject_forbidden_path(args.source_objects_jsonl)
-    reject_forbidden_path(args.teacher_ply)
-    reject_forbidden_path(args.output_dir)
+    reject_forbidden_production_input(args.source_ply)
+    reject_forbidden_production_input(args.source_objects_jsonl)
+    reject_forbidden_production_input(args.teacher_ply)
+    reject_forbidden_production_input(args.output_dir)
     source_header, source_props, source = read_ply(args.source_ply)
     teacher_header, teacher_props, teacher = read_ply(args.teacher_ply)
     del teacher_header

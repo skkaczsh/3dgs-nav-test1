@@ -21,7 +21,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.current_mainline_contract import forbidden_production_input_match
+from scripts.current_mainline_contract import reject_forbidden_production_input
 from scripts.gate_cache_contract import resolve_relative_path, stale_gate_reasons
 from scripts import gate_patch_experiment_promotion
 
@@ -42,14 +42,8 @@ def read_json(path: Path) -> dict[str, Any]:
     return data
 
 
-def reject_forbidden_path(path: Path) -> None:
-    forbidden = forbidden_production_input_match(path)
-    if forbidden:
-        raise ValueError(f"forbidden input path contains {forbidden}: {path}")
-
-
 def existing_file(path: Path, name: str) -> None:
-    reject_forbidden_path(path)
+    reject_forbidden_production_input(path)
     if not path.exists():
         raise FileNotFoundError(f"{name} missing: {path}")
     if not path.is_file():
@@ -199,11 +193,11 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     existing_file(args.objects_jsonl, "objects jsonl")
-    reject_forbidden_path(args.output_jsonl)
-    reject_forbidden_path(args.report)
+    reject_forbidden_production_input(args.output_jsonl)
+    reject_forbidden_production_input(args.report)
     if args.validation_report is None:
         args.validation_report = args.report.with_name(args.report.stem + "_validation.json")
-    reject_forbidden_path(args.validation_report)
+    reject_forbidden_production_input(args.validation_report)
     gate = patch_gate_status(args.patch_gate)
     plan = build_plan(args, gate)
     plan_path = args.plan_json or (args.report.parent / "object_semantic_evidence_fusion_plan.json")
