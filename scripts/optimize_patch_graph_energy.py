@@ -858,16 +858,20 @@ def split_component(
     dst: np.ndarray,
     next_id: int,
     args: argparse.Namespace,
+    internal_edges: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> tuple[np.ndarray, int, list[dict[str, Any]]]:
     if len(point_ids) < args.split_min_component_voxels:
         return labels, next_id, []
 
     # Build internal edges for this patch.
-    patch_mask = (labels[src] == patch_id) & (labels[dst] == patch_id)
-    if not np.any(patch_mask):
-        return labels, next_id, []
-    s = src[patch_mask]
-    t = dst[patch_mask]
+    if internal_edges is None:
+        patch_mask = (labels[src] == patch_id) & (labels[dst] == patch_id)
+        if not np.any(patch_mask):
+            return labels, next_id, []
+        s = src[patch_mask]
+        t = dst[patch_mask]
+    else:
+        s, t = internal_edges
     if len(s) == 0:
         return labels, next_id, []
 
@@ -1016,11 +1020,41 @@ def propose_splits(
         )
     ]
     log(f"split candidates: {len(candidates)}")
+    candidate_ids = {int(pid) for pid, _st in candidates}
+    internal_edges_by_label: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+    if candidate_ids:
+        same_label = labels[src] == labels[dst]
+        edge_labels = labels[src[same_label]]
+        candidate_edge_mask = np.isin(edge_labels, np.fromiter(candidate_ids, dtype=np.int32, count=len(candidate_ids)))
+        if np.any(candidate_edge_mask):
+            edge_s = src[same_label][candidate_edge_mask]
+            edge_t = dst[same_label][candidate_edge_mask]
+            edge_labels = edge_labels[candidate_edge_mask]
+            order = np.argsort(edge_labels, kind="stable")
+            edge_labels = edge_labels[order]
+            edge_s = edge_s[order]
+            edge_t = edge_t[order]
+            starts = np.r_[0, np.flatnonzero(np.diff(edge_labels)) + 1]
+            ends = np.r_[starts[1:], len(edge_labels)]
+            for start, end in zip(starts.tolist(), ends.tolist(), strict=True):
+                label = int(edge_labels[start])
+                internal_edges_by_label[label] = (edge_s[start:end], edge_t[start:end])
+    log(f"split candidate internal-edge groups: {len(internal_edges_by_label)}")
     for pid, _st in sorted(candidates, key=lambda x: x[1].count, reverse=True):
         mask = np.nonzero(labels == pid)[0]
         if len(mask) < args.split_min_component_voxels:
             continue
-        labels, next_id, rows = split_component(pid, mask, arrays, labels, src, dst, next_id, args)
+        labels, next_id, rows = split_component(
+            pid,
+            mask,
+            arrays,
+            labels,
+            src,
+            dst,
+            next_id,
+            args,
+            internal_edges=internal_edges_by_label.get(int(pid)),
+        )
         split_logs.extend(rows)
         split_count += len(rows)
     return labels, next_id, split_logs, split_count
