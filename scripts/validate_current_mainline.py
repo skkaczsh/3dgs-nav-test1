@@ -19,6 +19,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts import build_current_dense_review_index
 from scripts import gate_current_dense_mainline_promotion
+from scripts.gate_cache_contract import resolve_relative_path, stale_gate_reasons
 from scripts import validate_current_dense_patch_state
 from scripts import validate_current_project_architecture
 from scripts import validate_geometry_input_contract_usage
@@ -50,18 +51,11 @@ def number(value: Any, default: float = 0.0) -> float:
         return default
 
 
-def resolve_repo_path(value: Any) -> Path | None:
-    if not value:
-        return None
-    path = Path(str(value))
-    return path if path.is_absolute() else REPO_ROOT / path
-
-
 def recompute_promotion_gate(data: dict[str, Any]) -> dict[str, Any] | None:
-    qa_json = resolve_repo_path(data.get("qa_json"))
+    qa_json = resolve_relative_path(data.get("qa_json"), REPO_ROOT)
     if qa_json is None:
         return None
-    visual_acceptance = resolve_repo_path(data.get("visual_acceptance"))
+    visual_acceptance = resolve_relative_path(data.get("visual_acceptance"), REPO_ROOT)
     thresholds = data.get("thresholds") or {}
     args = argparse.Namespace(
         qa_json=qa_json,
@@ -97,11 +91,7 @@ def validate_promotion_gate(path: Path) -> dict[str, Any]:
         errors.append(f"promotion_gate_surface_delta={metrics.get('nonzero_surface_delta')}")
 
     recomputed = recompute_promotion_gate(data)
-    if recomputed is not None:
-        comparable_keys = ("status", "candidate", "metrics", "reasons")
-        for key in comparable_keys:
-            if data.get(key) != recomputed.get(key):
-                errors.append(f"promotion_gate_stale_{key}")
+    errors.extend(stale_gate_reasons(data, recomputed, prefix="promotion_gate"))
 
     reasons = [str(item) for item in data.get("reasons", [])]
     non_visual_reasons = [
