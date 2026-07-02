@@ -908,30 +908,41 @@ def split_component(
         significant_buckets(bucket_counts, args.bucket_split_min_bucket_ratio, bucket_split_targets)
     ) >= 2
     split_bucket_ids = significant_buckets(bucket_counts, args.bucket_split_min_bucket_ratio, bucket_split_targets)
+    if len(s) > 0:
+        keep = np.ones(len(s), dtype=bool)
+        if bucket_split_active:
+            bucket_s = arrays["buckets"][s]
+            bucket_t = arrays["buckets"][t]
+            significant_s = np.isin(bucket_s, np.fromiter(split_bucket_ids, dtype=np.int16, count=len(split_bucket_ids)))
+            significant_t = np.isin(bucket_t, np.fromiter(split_bucket_ids, dtype=np.int16, count=len(split_bucket_ids)))
+            keep &= ~((bucket_s != bucket_t) & significant_s & significant_t)
+
+        rgb_distance = np.linalg.norm(arrays["rgb"][s] - arrays["rgb"][t], axis=1)
+        keep &= rgb_distance <= args.internal_color_distance
+
+        raw_normal_s = arrays["normal"][s].astype(np.float64, copy=False)
+        raw_normal_t = arrays["normal"][t].astype(np.float64, copy=False)
+        normal_norm_s = np.linalg.norm(raw_normal_s, axis=1)
+        normal_norm_t = np.linalg.norm(raw_normal_t, axis=1)
+        normal_ok = (normal_norm_s > 1e-9) & (normal_norm_t > 1e-9)
+        keep &= normal_ok
+        dot = np.zeros(len(s), dtype=np.float64)
+        valid = normal_ok
+        dot[valid] = np.sum(raw_normal_s[valid] * raw_normal_t[valid], axis=1) / (
+            normal_norm_s[valid] * normal_norm_t[valid]
+        )
+        if geom in {"horizontal", "vertical", "rough_mixed", "unknown"}:
+            keep &= dot >= args.internal_normal_dot
+
+        s = s[keep]
+        t = t[keep]
+
     for a, b in zip(s.tolist(), t.tolist(), strict=True):
         la = loc.get(int(a))
         lb = loc.get(int(b))
         if la is None or lb is None:
             continue
         if a == b:
-            continue
-        bucket_a = int(arrays["buckets"][a])
-        bucket_b = int(arrays["buckets"][b])
-        if (
-            bucket_split_active
-            and bucket_a != bucket_b
-            and bucket_a in split_bucket_ids
-            and bucket_b in split_bucket_ids
-        ):
-            continue
-        if np.linalg.norm(arrays["rgb"][a] - arrays["rgb"][b]) > args.internal_color_distance:
-            continue
-        normal_a = normalize_rows(arrays["normal"][[a]])[0]
-        normal_b = normalize_rows(arrays["normal"][[b]])[0]
-        if np.linalg.norm(normal_a) < 1e-9 or np.linalg.norm(normal_b) < 1e-9:
-            continue
-        dot = float(np.dot(normal_a, normal_b))
-        if dot < args.internal_normal_dot and geom in {"horizontal", "vertical", "rough_mixed", "unknown"}:
             continue
         uni(int(la), int(lb))
 
