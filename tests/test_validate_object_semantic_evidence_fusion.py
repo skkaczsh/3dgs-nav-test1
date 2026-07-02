@@ -22,6 +22,7 @@ def input_row() -> dict:
         "object_id": 1,
         "geometry_type": "horizontal",
         "bbox_3d": {"min": [0, 0, 0], "max": [1, 1, 0.1]},
+        "patch_ids": [10, 11],
         "voxel_count": 100,
         "semantic_votes": {"floor": 10},
     }
@@ -61,6 +62,16 @@ def test_validator_rejects_object_ownership_change(tmp_path: Path) -> None:
 
     assert result["passed"] is False
     assert any("ownership_field_changed=geometry_type" in err for err in result["errors"])
+
+
+def test_validator_rejects_object_membership_change(tmp_path: Path) -> None:
+    before = write_jsonl(tmp_path / "before.jsonl", [input_row()])
+    after = write_jsonl(tmp_path / "after.jsonl", [output_row(patch_ids=[10, 12])])
+
+    result = validate(before, after)
+
+    assert result["passed"] is False
+    assert "object=1:membership_field_changed=patch_ids" in result["errors"]
 
 
 def test_validator_rejects_scene_only_promotion(tmp_path: Path) -> None:

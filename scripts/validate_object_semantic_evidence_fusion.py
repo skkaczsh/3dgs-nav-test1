@@ -18,7 +18,25 @@ REQUIRED_OUTPUT_FIELDS = {
     "semantic_evidence_scores",
     "semantic_vetoed_scores",
 }
-OWNERSHIP_FIELDS = ("geometry_type", "bbox_3d", "voxel_count", "patch_count")
+OWNERSHIP_FIELDS = (
+    "geometry_type",
+    "bbox_3d",
+    "centroid",
+    "mean_normal",
+    "mean_rgb",
+    "bucket_counts",
+    "voxel_count",
+    "patch_count",
+)
+MEMBERSHIP_FIELDS = (
+    "patch_ids",
+    "patch_ids_truncated",
+    "target_ids",
+    "target_indices",
+    "voxel_indices",
+    "point_indices",
+    "merged_point_indices",
+)
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -109,6 +127,9 @@ def validate(
         for field in OWNERSHIP_FIELDS:
             if field in src and out.get(field) != src.get(field):
                 errors.append(f"object={oid}:ownership_field_changed={field}")
+        for field in MEMBERSHIP_FIELDS:
+            if field in src and out.get(field) != src.get(field):
+                errors.append(f"object={oid}:membership_field_changed={field}")
         if not isinstance(out.get("semantic_evidence_scores"), dict):
             errors.append(f"object={oid}:semantic_evidence_scores_not_object")
         if not isinstance(out.get("semantic_vetoed_scores"), dict):
