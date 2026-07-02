@@ -121,7 +121,8 @@
       }
     },
     "failure_repaired": "The first 20260702 run failed because the remote shell runner did not rsync scripts/geometry_input_contract.py. The runner and validator now require that dependency.",
-    "interpretation": "This dependency-fixed run proves the approved remote runner executes end-to-end on dense Opt-LAS inputs, but it is more conservative than v8: accepted_candidate_rows dropped from 1235 to 96 and output_object_count increased from 196395 to 197534. Keep v8 as the current visual-promotion candidate; use this run only as a diagnostic execution proof."
+    "interpretation": "This dependency-fixed run proves the approved remote runner executes end-to-end on dense Opt-LAS inputs, but it is more conservative than v8: accepted_candidate_rows dropped from 1235 to 96 and output_object_count increased from 196395 to 197534. Keep v8 as the current visual-promotion candidate; use this run only as a diagnostic execution proof.",
+    "verification_command": "python3 scripts/verify_latest_remote_dense_run.py --ssh-host scan-train"
   },
   "stage_contract": [
     {
