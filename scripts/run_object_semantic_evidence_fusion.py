@@ -22,6 +22,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.current_mainline_contract import forbidden_production_input_match
+from scripts import gate_patch_experiment_promotion
 
 
 DEFAULT_MAINLINE_HEALTHCHECK = REPO_ROOT / "scripts" / "validate_current_mainline.py"
@@ -54,17 +55,47 @@ def existing_file(path: Path, name: str) -> None:
         raise ValueError(f"{name} is not a file: {path}")
 
 
+def resolve_repo_path(value: Any) -> Path | None:
+    if not value:
+        return None
+    path = Path(str(value))
+    return path if path.is_absolute() else REPO_ROOT / path
+
+
+def recompute_patch_gate(data: dict[str, Any]) -> dict[str, Any] | None:
+    visual_acceptance = resolve_repo_path(data.get("visual_acceptance"))
+    if visual_acceptance is None:
+        return None
+    args = argparse.Namespace(
+        visual_acceptance=visual_acceptance,
+        output=Path("/dev/null"),
+    )
+    return gate_patch_experiment_promotion.evaluate(args)
+
+
 def patch_gate_status(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {"status": "missing", "passed": False, "reasons": [f"missing_patch_gate={path}"]}
     data = read_json(path)
     reasons = [str(item) for item in data.get("reasons", [])]
+    stale_reasons: list[str] = []
+    recomputed = recompute_patch_gate(data)
+    if recomputed is not None:
+        for key in ("status", "candidate", "metrics", "reasons"):
+            if data.get(key) != recomputed.get(key):
+                stale_reasons.append(f"patch_gate_stale_{key}")
+    reasons.extend(stale_reasons)
     return {
         "status": data.get("status"),
-        "passed": data.get("schema") == "patch-experiment-promotion-gate/v1" and data.get("status") == "pass",
+        "passed": (
+            data.get("schema") == "patch-experiment-promotion-gate/v1"
+            and data.get("status") == "pass"
+            and not stale_reasons
+        ),
         "candidate": data.get("candidate"),
         "reasons": reasons,
         "path": str(path),
+        "stale": bool(stale_reasons),
     }
 
 

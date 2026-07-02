@@ -35,6 +35,44 @@ def write_gate(path: Path, status: str = "pass") -> Path:
     return path
 
 
+def write_stale_gate(path: Path, visual_path: Path) -> Path:
+    visual_path.write_text(
+        json.dumps(
+            {
+                "schema": "patch-experiment-visual-acceptance/v1",
+                "status": "accepted",
+                "selected_candidate": "v2_bucket_attach",
+                "candidate_policy": "geometry_input_only",
+                "review_index_url": "http://127.0.0.1:8765/docs/patch_experiment_review_index.html",
+                "comparison_summary": {
+                    "v2": {
+                        "patch_count": 10,
+                        "high_entropy_count": 2,
+                        "large_high_entropy_count": 1,
+                        "large_low_purity_count": 1,
+                    }
+                },
+                "checks": [{"id": "reviewed", "required": True, "status": "accepted"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    path.write_text(
+        json.dumps(
+            {
+                "schema": "patch-experiment-promotion-gate/v1",
+                "status": "pass",
+                "candidate": "v2_bucket_attach",
+                "visual_acceptance": str(visual_path),
+                "metrics": {"accepted": True, "selected_run": "v2", "selected_metrics": {"patch_count": 999}},
+                "reasons": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 def base_args(tmp_path: Path) -> argparse.Namespace:
     source_ply = tmp_path / "source.ply"
     objects = tmp_path / "objects.jsonl"
@@ -95,6 +133,17 @@ def test_pipeline_blocks_failed_patch_gate(tmp_path: Path) -> None:
 
     assert plan["status"] == "blocked"
     assert plan["patch_gate"]["passed"] is False
+
+
+def test_pipeline_blocks_stale_patch_gate_cache(tmp_path: Path) -> None:
+    module = load_module()
+    args = base_args(tmp_path)
+    args.patch_gate = write_stale_gate(tmp_path / "gate.json", tmp_path / "visual.json")
+
+    plan = module.build_plan(args, module.patch_gate_status(args.patch_gate))
+
+    assert plan["status"] == "blocked"
+    assert plan["patch_gate"]["stale"] is True
 
 
 def test_pipeline_allows_explicit_unpromoted_experiment(tmp_path: Path) -> None:

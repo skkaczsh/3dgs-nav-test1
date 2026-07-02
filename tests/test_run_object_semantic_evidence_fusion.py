@@ -33,6 +33,39 @@ def write_gate(path: Path, status: str = "pass") -> Path:
     return path
 
 
+def write_visual(path: Path) -> Path:
+    path.write_text(
+        json.dumps(
+            {
+                "schema": "patch-experiment-visual-acceptance/v1",
+                "status": "accepted",
+                "selected_candidate": "v2_bucket_attach",
+                "candidate_policy": "geometry_input_only",
+                "review_index_url": "http://127.0.0.1:8765/docs/patch_experiment_review_index.html",
+                "reviewer": "tester",
+                "reviewed_at": "2026-07-02T20:00:00+08:00",
+                "comparison_summary": {
+                    "v2": {
+                        "patch_count": 10,
+                        "high_entropy_count": 2,
+                        "large_high_entropy_count": 1,
+                        "large_low_purity_count": 1,
+                    },
+                    "v5": {
+                        "patch_count": 12,
+                        "high_entropy_count": 3,
+                        "large_high_entropy_count": 2,
+                        "large_low_purity_count": 1,
+                    },
+                },
+                "checks": [{"id": "reviewed", "required": True, "status": "accepted"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 def base_args(tmp_path: Path) -> argparse.Namespace:
     objects = tmp_path / "objects.jsonl"
     objects.write_text("{}\n", encoding="utf-8")
@@ -84,6 +117,44 @@ def test_runner_blocks_unpromoted_patch_gate(tmp_path: Path) -> None:
 
     assert plan["status"] == "blocked"
     assert plan["patch_gate"]["passed"] is False
+
+
+def test_runner_blocks_stale_patch_gate_cache(tmp_path: Path) -> None:
+    module = load_module()
+    visual_path = write_visual(tmp_path / "visual.json")
+    gate_path = tmp_path / "gate.json"
+    gate = {
+        "schema": "patch-experiment-promotion-gate/v1",
+        "status": "pass",
+        "candidate": "v2_bucket_attach",
+        "visual_acceptance": str(visual_path),
+        "metrics": {
+            "accepted": True,
+            "selected_run": "v2",
+            "metric_keys": [
+                "patch_count",
+                "high_entropy_count",
+                "large_high_entropy_count",
+                "large_low_purity_count",
+            ],
+            "selected_metrics": {
+                "patch_count": 999,
+                "high_entropy_count": 2,
+                "large_high_entropy_count": 1,
+                "large_low_purity_count": 1,
+            },
+            "dominated_by": [],
+            "errors": [],
+        },
+        "reasons": [],
+    }
+    gate_path.write_text(json.dumps(gate), encoding="utf-8")
+
+    status = module.patch_gate_status(gate_path)
+
+    assert status["passed"] is False
+    assert status["stale"] is True
+    assert "patch_gate_stale_metrics" in status["reasons"]
 
 
 def test_runner_allows_explicit_experimental_plan(tmp_path: Path) -> None:
