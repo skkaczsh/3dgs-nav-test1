@@ -78,6 +78,8 @@ def test_dense_patch_state_records_latest_remote_run() -> None:
     assert latest["object_metrics"]["accepted_candidate_rows"] == 96
     assert latest["object_metrics"]["output_object_count"] > 0
     assert latest["candidate_metrics"]["structural_multimaterial_candidates"] == 80
+    assert latest["candidate_metrics"]["reject_counts"]["small_patch"] == 7522
+    assert latest["object_metrics"]["rejection_counts"]["score"] == 117
     assert "geometry_input_contract.py" in latest["failure_repaired"]
     assert "Keep v8 as the current visual-promotion candidate" in latest["interpretation"]
 

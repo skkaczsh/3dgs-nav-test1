@@ -84,12 +84,41 @@ def expected_object_metrics(report: dict[str, Any]) -> dict[str, int]:
     }
 
 
+def int_counts(data: Any) -> dict[str, int]:
+    if not isinstance(data, dict):
+        return {}
+    out: dict[str, int] = {}
+    for key, value in data.items():
+        try:
+            out[str(key)] = int(value)
+        except (TypeError, ValueError):
+            out[str(key)] = 0
+    return out
+
+
+def object_rejection_counts(report: dict[str, Any]) -> dict[str, int]:
+    reason_counts = int_counts(report.get("candidate_reason_counts"))
+    return {
+        key: value
+        for key, value in reason_counts.items()
+        if not key.startswith("accepted")
+    }
+
+
 def compare_metrics(prefix: str, expected: dict[str, int], actual: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     for key, value in expected.items():
         actual_value = nested_int(actual, key)
         if actual_value != value:
             errors.append(f"{prefix}_{key}_mismatch:state={actual_value}:report={value}")
+    return errors
+
+
+def compare_count_dict(prefix: str, expected: dict[str, int], actual: Any) -> list[str]:
+    actual_counts = int_counts(actual)
+    errors: list[str] = []
+    if actual_counts != expected:
+        errors.append(f"{prefix}_counts_mismatch:state={actual_counts}:report={expected}")
     return errors
 
 
@@ -134,6 +163,22 @@ def validate(state_path: Path, *, report_root: Path | None = None, ssh_host: str
             latest.get("object_metrics") or {},
         )
     )
+    candidate_metrics = latest.get("candidate_metrics") or {}
+    object_metrics = latest.get("object_metrics") or {}
+    errors.extend(
+        compare_count_dict(
+            "candidate_reject",
+            int_counts(candidate_report.get("reject_counts")),
+            candidate_metrics.get("reject_counts"),
+        )
+    )
+    errors.extend(
+        compare_count_dict(
+            "object_rejection",
+            object_rejection_counts(object_report),
+            object_metrics.get("rejection_counts"),
+        )
+    )
     return {
         "schema": "latest-remote-dense-run-verification/v1",
         "passed": not errors,
@@ -145,6 +190,8 @@ def validate(state_path: Path, *, report_root: Path | None = None, ssh_host: str
         "done_exists": done_exists,
         "candidate_report_metrics": expected_candidate_metrics(candidate_report),
         "object_report_metrics": expected_object_metrics(object_report),
+        "candidate_report_reject_counts": int_counts(candidate_report.get("reject_counts")),
+        "object_report_rejection_counts": object_rejection_counts(object_report),
         "errors": errors,
     }
 

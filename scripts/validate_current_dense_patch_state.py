@@ -172,10 +172,16 @@ def validate(path: Path) -> dict[str, Any]:
                 errors.append("latest_remote_run_missing_output_objects")
             if int(object_metrics.get("accepted_candidate_rows", 0)) <= 0:
                 errors.append("latest_remote_run_no_accepted_candidates")
+            rejection_counts = object_metrics.get("rejection_counts")
+            if not isinstance(rejection_counts, dict) or not rejection_counts:
+                errors.append("latest_remote_run_missing_object_rejection_counts")
         candidate_metrics = latest.get("candidate_metrics", {})
         if isinstance(candidate_metrics, dict):
             if int(candidate_metrics.get("structural_multimaterial_candidates", 0)) <= 0:
                 errors.append("latest_remote_run_no_structural_candidates")
+            reject_counts = candidate_metrics.get("reject_counts")
+            if not isinstance(reject_counts, dict) or not reject_counts:
+                errors.append("latest_remote_run_missing_candidate_reject_counts")
         if latest.get("promotion_status") == "diagnostic_not_promoted":
             if "verify_latest_remote_dense_run.py" not in str(latest.get("verification_command", "")):
                 errors.append("latest_diagnostic_missing_verification_command")
