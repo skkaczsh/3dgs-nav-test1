@@ -80,6 +80,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ceiling-max-z-extent", type=float, default=0.35)
     parser.add_argument("--ceiling-min-minor-extent", type=float, default=0.30)
     parser.add_argument("--ceiling-max-aspect-ratio", type=float, default=4.0)
+    parser.add_argument("--enable-ceiling-support-heuristic", action="store_true")
+    parser.add_argument("--ceiling-candidate-labels", nargs="+", default=["floor"])
+    parser.add_argument("--ceiling-support-source-labels", nargs="+", default=["floor", "building"])
+    parser.add_argument("--ceiling-support-labels", nargs="+", default=["wall", "building"])
+    parser.add_argument("--ceiling-top-gap-max", type=float, default=0.15)
+    parser.add_argument("--ceiling-support-z-gap-max", type=float, default=0.6)
+    parser.add_argument("--ceiling-support-xy-gap-max", type=float, default=0.5)
     parser.add_argument("--seed", type=int, default=1337)
     parser.add_argument("--surface-labels", nargs="+", default=["floor", "wall", "building"])
     parser.add_argument("--surface-min-points", type=int, default=100)
@@ -183,6 +190,24 @@ def main() -> None:
                 str(args.ceiling_min_minor_extent),
                 "--ceiling-max-aspect-ratio",
                 str(args.ceiling_max_aspect_ratio),
+            ]
+        )
+    if args.enable_ceiling_support_heuristic:
+        split_cmd.extend(
+            [
+                "--enable-ceiling-support-heuristic",
+                "--ceiling-candidate-labels",
+                *args.ceiling_candidate_labels,
+                "--ceiling-support-source-labels",
+                *args.ceiling_support_source_labels,
+                "--ceiling-support-labels",
+                *args.ceiling_support_labels,
+                "--ceiling-top-gap-max",
+                str(args.ceiling_top_gap_max),
+                "--ceiling-support-z-gap-max",
+                str(args.ceiling_support_z_gap_max),
+                "--ceiling-support-xy-gap-max",
+                str(args.ceiling_support_xy_gap_max),
             ]
         )
     run_cmd(split_cmd)

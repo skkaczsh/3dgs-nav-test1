@@ -12,35 +12,24 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import Counter
 from pathlib import Path
 
 import numpy as np
 
-from build_targets_from_masks import connected_components, read_colored_ply, summarize_points
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from scripts.build_targets_from_masks import connected_components, read_colored_ply, summarize_points
+from scripts.semantic_label_contract import LABEL_TO_SEMANTIC
 
 
 SURFACE_LABELS = {"floor", "wall", "building", "ceiling", "road"}
-SEMANTIC_IDS = {
-    "unknown": 0,
-    "other": 1,
-    "wall": 2,
-    "floor": 3,
-    "ceiling": 4,
-    "grass": 5,
-    "tree": 6,
-    "person": 7,
-    "car": 8,
-    "railing": 9,
-    "building": 10,
-    "sky": 11,
-    "road": 12,
-    "water": 13,
-    "furniture": 14,
-    "pipe": 15,
-    "equipment": 16,
-    "ignore": 255,
-}
 
 
 def iter_target_files(path: Path) -> list[Path]:
@@ -76,6 +65,51 @@ def bbox_extents(points: np.ndarray) -> tuple[float, float, float]:
         float(max(hi[1] - lo[1], 0.0)),
         float(max(hi[2] - lo[2], 0.0)),
     )
+
+
+def row_bbox(row: dict) -> tuple[np.ndarray, np.ndarray]:
+    bbox = row.get("bbox_3d") or {}
+    lo = np.array(bbox.get("min") or [0.0, 0.0, 0.0], dtype=np.float64)
+    hi = np.array(bbox.get("max") or [0.0, 0.0, 0.0], dtype=np.float64)
+    return lo, hi
+
+
+def row_source_label(row: dict) -> str:
+    return str(row.get("pre_surface_split_label") or row.get("label") or "unknown")
+
+
+def row_horizontal_metrics(row: dict) -> dict[str, float]:
+    lo, hi = row_bbox(row)
+    x_extent = float(max(hi[0] - lo[0], 0.0))
+    y_extent = float(max(hi[1] - lo[1], 0.0))
+    z_extent = float(max(hi[2] - lo[2], 0.0))
+    minor_extent = min(x_extent, y_extent)
+    major_extent = max(x_extent, y_extent, 1e-6)
+    aspect_ratio = major_extent / max(minor_extent, 1e-6)
+    centroid_z = float((lo[2] + hi[2]) * 0.5)
+    return {
+        "x_extent": x_extent,
+        "y_extent": y_extent,
+        "z_extent": z_extent,
+        "xy_area": x_extent * y_extent,
+        "minor_extent": minor_extent,
+        "aspect_ratio": aspect_ratio,
+        "centroid_z": centroid_z,
+        "top_z": float(hi[2]),
+        "bottom_z": float(lo[2]),
+    }
+
+
+def bbox_xy_gap(a_lo: np.ndarray, a_hi: np.ndarray, b_lo: np.ndarray, b_hi: np.ndarray) -> float:
+    dx = max(float(a_lo[0] - b_hi[0]), float(b_lo[0] - a_hi[0]), 0.0)
+    dy = max(float(a_lo[1] - b_hi[1]), float(b_lo[1] - a_hi[1]), 0.0)
+    return float(np.hypot(dx, dy))
+
+
+def bbox_xy_overlap(a_lo: np.ndarray, a_hi: np.ndarray, b_lo: np.ndarray, b_hi: np.ndarray) -> bool:
+    return min(float(a_hi[0]), float(b_hi[0])) >= max(float(a_lo[0]), float(b_lo[0])) and min(
+        float(a_hi[1]), float(b_hi[1])
+    ) >= max(float(a_lo[1]), float(b_lo[1]))
 
 
 def label_from_geometry(old_label: str, points: np.ndarray, args: argparse.Namespace) -> str:
@@ -184,7 +218,7 @@ def update_child(row: dict, suffix: str, point_indices: np.ndarray, frame_points
     if new_label != old_label:
         child["pre_surface_split_label"] = old_label
         child["label"] = new_label
-        child["semantic_id"] = SEMANTIC_IDS.get(new_label, 0)
+        child["semantic_id"] = LABEL_TO_SEMANTIC.get(new_label, 0)
         if new_label in {"floor", "wall", "ceiling", "road"}:
             child["parent_class"] = "surface"
         elif new_label == "building":
@@ -193,11 +227,87 @@ def update_child(row: dict, suffix: str, point_indices: np.ndarray, frame_points
     return child
 
 
+def apply_structural_ceiling_relabel(rows: list[dict], counts: Counter, args: argparse.Namespace) -> None:
+    if not rows:
+        return
+    frame_max_z = max(float(row_bbox(row)[1][2]) for row in rows)
+    support_rows = []
+    for row in rows:
+        label = str(row.get("label") or "unknown")
+        source_label = row_source_label(row)
+        if label not in set(args.ceiling_support_labels) and source_label not in set(args.ceiling_support_labels):
+            continue
+        if label == "ceiling":
+            continue
+        if normal_abs_z_from_row(row) > args.wall_normal_z:
+            continue
+        lo, hi = row_bbox(row)
+        support_rows.append((row, lo, hi))
+
+    for row in rows:
+        current_label = str(row.get("label") or "unknown")
+        source_label = row_source_label(row)
+        if current_label == "ceiling":
+            continue
+        if source_label not in set(args.ceiling_support_source_labels):
+            continue
+        if current_label not in set(args.ceiling_candidate_labels):
+            continue
+        if normal_abs_z_from_row(row) < args.floor_normal_z:
+            continue
+        metrics = row_horizontal_metrics(row)
+        if metrics["centroid_z"] < args.ceiling_min_z:
+            continue
+        if metrics["xy_area"] > args.ceiling_max_xy_area:
+            continue
+        if metrics["z_extent"] > args.ceiling_max_z_extent:
+            continue
+        if metrics["minor_extent"] < args.ceiling_min_minor_extent:
+            continue
+        if metrics["aspect_ratio"] > args.ceiling_max_aspect_ratio:
+            continue
+        if frame_max_z - metrics["top_z"] > args.ceiling_top_gap_max:
+            continue
+        lo, hi = row_bbox(row)
+        supported = False
+        for _, sup_lo, sup_hi in support_rows:
+            xy_overlap = bbox_xy_overlap(lo, hi, sup_lo, sup_hi)
+            xy_gap = bbox_xy_gap(lo, hi, sup_lo, sup_hi)
+            if not xy_overlap and xy_gap > args.ceiling_support_xy_gap_max:
+                continue
+            z_gap = abs(metrics["bottom_z"] - float(sup_hi[2]))
+            if z_gap > args.ceiling_support_z_gap_max:
+                continue
+            supported = True
+            break
+        if not supported:
+            continue
+        counts[f"child_label:{current_label}"] -= 1
+        counts["child_label:ceiling"] += 1
+        counts[f"child_change:{source_label}->ceiling"] += 1
+        counts["ceiling_structural_relabels"] += 1
+        row["pre_surface_split_label"] = source_label
+        row["label"] = "ceiling"
+        row["semantic_id"] = LABEL_TO_SEMANTIC["ceiling"]
+        row["parent_class"] = "surface"
+        row["surface_split_reason"] = "plane_component_structural_ceiling"
+
+
+def normal_abs_z_from_row(row: dict) -> float:
+    pca = row.get("pca") or {}
+    normal = pca.get("normal") or [0.0, 0.0, 1.0]
+    try:
+        return abs(float(normal[2]))
+    except (TypeError, ValueError, IndexError):
+        return 1.0
+
+
 def process_file(src: Path, dst: Path, frame_cache: dict[str, tuple[np.ndarray, np.ndarray]],
                  args: argparse.Namespace) -> dict:
     dst.parent.mkdir(parents=True, exist_ok=True)
     counts = Counter()
-    with src.open("r", encoding="utf-8") as fin, dst.open("w", encoding="utf-8") as fout:
+    output_rows: list[dict] = []
+    with src.open("r", encoding="utf-8") as fin:
         for line in fin:
             if not line.strip():
                 continue
@@ -207,14 +317,14 @@ def process_file(src: Path, dst: Path, frame_cache: dict[str, tuple[np.ndarray, 
             cluster_size = int(row.get("cluster_size") or len(row.get("point_indices") or []))
             if label not in SURFACE_LABELS or cluster_size < args.min_split_points:
                 row["surface_split_reason"] = "passthrough"
-                fout.write(json.dumps(row, ensure_ascii=False) + "\n")
+                output_rows.append(row)
                 counts["passthrough"] += 1
                 continue
             frame_ply = str(row.get("colored_frame_ply") or "")
             indices = np.array(row.get("point_indices") or [], dtype=np.int64)
             if not frame_ply or indices.size < args.min_split_points:
                 row["surface_split_reason"] = "missing_frame_or_points"
-                fout.write(json.dumps(row, ensure_ascii=False) + "\n")
+                output_rows.append(row)
                 counts["passthrough"] += 1
                 continue
             if frame_ply not in frame_cache:
@@ -223,14 +333,14 @@ def process_file(src: Path, dst: Path, frame_cache: dict[str, tuple[np.ndarray, 
             valid = indices[(indices >= 0) & (indices < len(frame_points))]
             if len(valid) < args.min_split_points:
                 row["surface_split_reason"] = "invalid_indices"
-                fout.write(json.dumps(row, ensure_ascii=False) + "\n")
+                output_rows.append(row)
                 counts["passthrough"] += 1
                 continue
             components = split_points_by_planes(frame_points[valid], args)
             components = [valid[comp] for comp in components if len(comp) >= args.min_component_points]
             if len(components) < 2:
                 row["surface_split_reason"] = "single_plane"
-                fout.write(json.dumps(row, ensure_ascii=False) + "\n")
+                output_rows.append(row)
                 counts["single_plane"] += 1
                 continue
             counts["split_targets"] += 1
@@ -240,7 +350,12 @@ def process_file(src: Path, dst: Path, frame_cache: dict[str, tuple[np.ndarray, 
                 counts[f"child_label:{child.get('label')}"] += 1
                 if child.get("label") != label:
                     counts[f"child_change:{label}->{child.get('label')}"] += 1
-                fout.write(json.dumps(child, ensure_ascii=False) + "\n")
+                output_rows.append(child)
+    if args.enable_ceiling_support_heuristic:
+        apply_structural_ceiling_relabel(output_rows, counts, args)
+    with dst.open("w", encoding="utf-8") as fout:
+        for row in output_rows:
+            fout.write(json.dumps(row, ensure_ascii=False) + "\n")
     return {"source": str(src), "output": str(dst), "counts": dict(counts)}
 
 
@@ -267,6 +382,13 @@ def main() -> None:
     parser.add_argument("--ceiling-max-z-extent", type=float, default=0.35)
     parser.add_argument("--ceiling-min-minor-extent", type=float, default=0.30)
     parser.add_argument("--ceiling-max-aspect-ratio", type=float, default=4.0)
+    parser.add_argument("--enable-ceiling-support-heuristic", action="store_true")
+    parser.add_argument("--ceiling-candidate-labels", nargs="+", default=["floor"])
+    parser.add_argument("--ceiling-support-source-labels", nargs="+", default=["floor", "building"])
+    parser.add_argument("--ceiling-support-labels", nargs="+", default=["wall", "building"])
+    parser.add_argument("--ceiling-top-gap-max", type=float, default=0.15)
+    parser.add_argument("--ceiling-support-z-gap-max", type=float, default=0.6)
+    parser.add_argument("--ceiling-support-xy-gap-max", type=float, default=0.5)
     parser.add_argument("--seed", type=int, default=1337)
     args = parser.parse_args()
 

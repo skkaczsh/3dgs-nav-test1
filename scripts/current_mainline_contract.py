@@ -108,6 +108,7 @@ PROTECTED_SEMANTIC_CONTRACT_SCRIPT_PATHS: tuple[str, ...] = (
     "scripts/qa_viewer_candidate.py",
     "scripts/mask_unconfirmed_fine_candidates.py",
     "scripts/split_priority_objects_by_local_geometry.py",
+    "scripts/split_surface_targets_by_plane.py",
     "scripts/transfer_teacher_semantics_to_objects.py",
 )
 
