@@ -14,7 +14,9 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.current_mainline_contract import (
+    REQUIRED_AUTHORITATIVE_SOURCE_ID,
     REQUIRED_ACTIVE_BASELINE_IDS,
+    REQUIRED_DERIVED_DENSE_INPUT_ID,
     REQUIRED_DENSE_SOURCE_IDS,
     REQUIRED_REJECTED_ARTIFACT_IDS,
 )
@@ -94,19 +96,19 @@ def validate(path: Path) -> dict[str, Any]:
     for item in dense_sources:
         dense_id = str(item.get("id", ""))
         role = str(item.get("role", ""))
-        if dense_id == "raw_opt_las_2920mb":
+        if dense_id == REQUIRED_AUTHORITATIVE_SOURCE_ID:
             if role != "authoritative_dense_geometry_source":
-                errors.append(f"raw_opt_las_2920mb_unexpected_role={role}")
+                errors.append(f"{REQUIRED_AUTHORITATIVE_SOURCE_ID}_unexpected_role={role}")
             if item.get("required") is not True:
-                errors.append("raw_opt_las_2920mb_must_be_required")
-        if dense_id == "dense_las_voxel003_binary":
+                errors.append(f"{REQUIRED_AUTHORITATIVE_SOURCE_ID}_must_be_required")
+        if dense_id == REQUIRED_DERIVED_DENSE_INPUT_ID:
             if "voxel003" not in role and "0.03" not in role:
-                errors.append(f"dense_las_voxel003_binary_unexpected_role={role}")
+                errors.append(f"{REQUIRED_DERIVED_DENSE_INPUT_ID}_unexpected_role={role}")
             if item.get("required") is not True:
-                errors.append("dense_las_voxel003_binary_must_be_required")
+                errors.append(f"{REQUIRED_DERIVED_DENSE_INPUT_ID}_must_be_required")
             remote_paths = [str(path) for path in item.get("remote_paths", [])]
             if not any("voxel003" in path for path in remote_paths):
-                errors.append("dense_las_voxel003_binary_missing_voxel003_remote_path")
+                errors.append(f"{REQUIRED_DERIVED_DENSE_INPUT_ID}_missing_voxel003_remote_path")
         if dense_id == "dense_colorized_voxel010_cache":
             if item.get("required") is True:
                 errors.append("dense_colorized_voxel010_cache_must_not_be_required")

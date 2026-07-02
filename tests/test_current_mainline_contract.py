@@ -14,6 +14,10 @@ from scripts.current_mainline_contract import (
     PROTECTED_PRODUCTION_GUARD_SCRIPT_PATHS,
     PROTECTED_SEMANTIC_CONTRACT_SCRIPT_PATHS,
     REQUIRED_ACTIVE_BASELINE_IDS,
+    REQUIRED_AUTHORITATIVE_POINT_COUNT,
+    REQUIRED_AUTHORITATIVE_SOURCE_ID,
+    REQUIRED_DERIVED_DENSE_INPUT_ID,
+    REQUIRED_DERIVED_VOXEL_COUNT,
     REQUIRED_DENSE_SOURCE_IDS,
     REQUIRED_OPERATOR_TOOL_PATHS,
     REQUIRED_REJECTED_ARTIFACT_IDS,
@@ -34,10 +38,16 @@ def test_architecture_contract_is_shared_by_current_mainline_tools() -> None:
     assert validate_current_project_architecture.REQUIRED_ACTIVE_IDS == set(REQUIRED_ACTIVE_BASELINE_IDS)
     assert validate_current_project_architecture.REQUIRED_DENSE_SOURCE_IDS_SET == set(REQUIRED_DENSE_SOURCE_IDS)
     assert validate_current_project_architecture.REQUIRED_REJECTED_IDS == set(REQUIRED_REJECTED_ARTIFACT_IDS)
+    assert validate_current_project_architecture.REQUIRED_AUTHORITATIVE_SOURCE_ID == REQUIRED_AUTHORITATIVE_SOURCE_ID
+    assert validate_current_project_architecture.REQUIRED_DERIVED_DENSE_INPUT_ID == REQUIRED_DERIVED_DENSE_INPUT_ID
 
 
 def test_dense_state_operator_tool_contract_is_shared() -> None:
     assert validate_current_dense_patch_state.REQUIRED_OPERATOR_TOOLS == set(REQUIRED_OPERATOR_TOOL_PATHS)
+    assert validate_current_dense_patch_state.REQUIRED_AUTHORITATIVE_SOURCE_ID == REQUIRED_AUTHORITATIVE_SOURCE_ID
+    assert validate_current_dense_patch_state.REQUIRED_AUTHORITATIVE_POINT_COUNT == REQUIRED_AUTHORITATIVE_POINT_COUNT
+    assert validate_current_dense_patch_state.REQUIRED_DERIVED_DENSE_INPUT_ID == REQUIRED_DERIVED_DENSE_INPUT_ID
+    assert validate_current_dense_patch_state.REQUIRED_DERIVED_VOXEL_COUNT == REQUIRED_DERIVED_VOXEL_COUNT
 
 
 def test_protected_script_contracts_are_shared_by_usage_validators() -> None:

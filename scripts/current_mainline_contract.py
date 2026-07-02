@@ -36,6 +36,10 @@ REQUIRED_DENSE_SOURCE_IDS: tuple[str, ...] = (
     "raw_opt_las_2920mb",
     "dense_las_voxel003_binary",
 )
+REQUIRED_AUTHORITATIVE_SOURCE_ID = "raw_opt_las_2920mb"
+REQUIRED_AUTHORITATIVE_POINT_COUNT = 97_194_579
+REQUIRED_DERIVED_DENSE_INPUT_ID = "dense_las_voxel003_binary"
+REQUIRED_DERIVED_VOXEL_COUNT = 14_482_557
 
 REQUIRED_REJECTED_ARTIFACT_IDS: tuple[str, ...] = (
     "objects_v12_teacher_v20_grid6_unknown_absorb",
