@@ -1,0 +1,90 @@
+{
+  "schema": "patch-experiment-visual-acceptance/v1",
+  "generated_at": "2026-07-02T10:53:13.334399+00:00",
+  "status": "pending",
+  "selected_candidate": "v2_bucket_attach",
+  "candidate_policy": "geometry_input_only",
+  "review_index_url": "http://127.0.0.1:8765/docs/patch_experiment_review_index.html",
+  "comparison_json": "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/geo_patch_run_comparison_v2_v5_20260702/comparison.json",
+  "comparison_summary": {
+    "v2": {
+      "patch_count": 188536,
+      "bucket_entropy_p50": 0.0,
+      "large_high_entropy_count": 20,
+      "high_entropy_count": 8410,
+      "voxel_count_p99": 145.0,
+      "bucket_entropy_p99": 1.5324916539139348,
+      "large_extreme_aspect_count": 0,
+      "voxel_count_max": 5056127.0,
+      "voxel_count_p50": 1.0,
+      "voxel_count_p90": 9.0,
+      "total_voxels": 14482421,
+      "large_patch_count": 33,
+      "large_low_purity_count": 20,
+      "bucket_entropy_p90": 0.9544340029249649
+    },
+    "v5": {
+      "patch_count": 189898,
+      "bucket_entropy_p50": 0.0,
+      "large_high_entropy_count": 22,
+      "high_entropy_count": 8615,
+      "voxel_count_p99": 153.0,
+      "bucket_entropy_p99": 1.5394847569315018,
+      "large_extreme_aspect_count": 0,
+      "voxel_count_max": 5006202.0,
+      "voxel_count_p50": 1.0,
+      "voxel_count_p90": 9.0,
+      "total_voxels": 14482421,
+      "large_patch_count": 36,
+      "large_low_purity_count": 20,
+      "bucket_entropy_p90": 0.9709505944546686
+    }
+  },
+  "reviewer": "",
+  "reviewed_at": "",
+  "summary": "",
+  "checks": [
+    {
+      "id": "metric_comparison_reviewed",
+      "required": true,
+      "status": "pending",
+      "question": "The v2/v5 metric comparison has been reviewed and the selected candidate is intentional.",
+      "evidence": [
+        "geo_patch_run_comparison_v2_v5_20260702",
+        "patch_experiment_review_index"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "no_major_structure_overmerge",
+      "required": true,
+      "status": "pending",
+      "question": "The selected candidate does not visibly merge unrelated large structures such as ground/building/tree.",
+      "evidence": [
+        "selected candidate object-color viewer"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "small_fragment_tradeoff_accepted",
+      "required": true,
+      "status": "pending",
+      "question": "Residual small-fragment behavior is acceptable for the next object/semantic layer.",
+      "evidence": [
+        "selected candidate object-color viewer",
+        "comparison QA"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "semantic_layer_input_decision",
+      "required": true,
+      "status": "pending",
+      "question": "The selected patch run is explicitly approved as geometry input only, not as semantic truth.",
+      "evidence": [
+        "patch_bucket_split_attach_eval_20260702.md"
+      ],
+      "notes": ""
+    }
+  ]
+}

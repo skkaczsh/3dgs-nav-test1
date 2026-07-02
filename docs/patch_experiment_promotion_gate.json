@@ -1,0 +1,21 @@
+{
+  "schema": "patch-experiment-promotion-gate/v1",
+  "status": "fail",
+  "candidate": "v2_bucket_attach",
+  "visual_acceptance": "/Users/skkac/Work/SCAN/new_route/docs/patch_experiment_visual_acceptance.json",
+  "visual": {
+    "accepted": false,
+    "status": "pending",
+    "selected_candidate": "v2_bucket_attach",
+    "errors": [
+      "visual_status_not_accepted=pending",
+      "visual_required_checks_not_accepted=['metric_comparison_reviewed', 'no_major_structure_overmerge', 'small_fragment_tradeoff_accepted', 'semantic_layer_input_decision']"
+    ],
+    "reviewer": "",
+    "reviewed_at": ""
+  },
+  "reasons": [
+    "visual_status_not_accepted=pending",
+    "visual_required_checks_not_accepted=['metric_comparison_reviewed', 'no_major_structure_overmerge', 'small_fragment_tradeoff_accepted', 'semantic_layer_input_decision']"
+  ]
+}
