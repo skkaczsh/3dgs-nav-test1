@@ -27,6 +27,8 @@ def test_pure_surface_visibility_route_reuses_safe_target_builder_then_attachmen
     assert "export BUILD_OBJECTS=0" in text
     assert "--strict-surface-labels" in text
     assert "--fallback-zone-scan" in text
+    assert "scripts/current_mainline_contract.py" in text
+    assert "scripts/semantic_label_contract.py" in text
 
 
 def test_pure_surface_visibility_route_splits_large_fine_objects_after_viewer_export():
@@ -41,6 +43,7 @@ def test_pure_surface_visibility_route_splits_large_fine_objects_after_viewer_ex
     assert 'SPLIT_LARGE_FINE_OBJECTS="${SPLIT_LARGE_FINE_OBJECTS:-1}"' in text
     assert viewer_pos < qa_pos < candidate_pos < split_pos < final_qa_pos
     assert "--labels railing,car" in text
+    assert "--allow-qa-preview-source" in text
     assert "--railing-max-minor-extent 0.45" in text
     assert "viewer_localgeom" in text
 

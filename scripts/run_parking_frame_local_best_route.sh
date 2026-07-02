@@ -201,6 +201,7 @@ main() {
       --conflicts-jsonl "${LOCAL_GEOM_VIEWER_DIR}/local_geometry_split_candidates.jsonl" \
       --output-dir "${LOCAL_GEOM_VIEWER_DIR}" \
       --output-prefix frame_object_points_local_geometry \
+      --allow-qa-preview-source \
       --local-voxel-size 0.28 \
       --min-cell-points 10 \
       --min-child-points 80 \

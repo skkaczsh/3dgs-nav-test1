@@ -59,6 +59,8 @@ rsync -az \
   scripts/build_local_geometry_split_candidates.py \
   scripts/split_priority_objects_by_local_geometry.py \
   scripts/qa_viewer_candidate.py \
+  scripts/current_mainline_contract.py \
+  scripts/semantic_label_contract.py \
   "${REMOTE_HOST}:${REMOTE_REPO}/scripts/"
 
 echo "[sync] drivability prior -> ${REMOTE_HOST}:${REMOTE_DRIVABILITY_PCD}"
@@ -133,6 +135,7 @@ if [[ '${RUN}' == '1' ]]; then
       --conflicts-jsonl '${LOCAL_GEOM_VIEWER_DIR}/local_geometry_split_candidates.jsonl' \
       --output-dir '${LOCAL_GEOM_VIEWER_DIR}' \
       --output-prefix frame_object_points_local_geometry \
+      --allow-qa-preview-source \
       --local-voxel-size 0.28 \
       --min-cell-points 10 \
       --min-child-points 80 \
