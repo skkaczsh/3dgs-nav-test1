@@ -119,6 +119,31 @@ echo run
     assert "missing_tmux_launch" in report["errors"]
 
 
+def test_shell_runner_must_not_disable_remote_dense_allowlist(tmp_path: Path) -> None:
+    runner = tmp_path / "bad_remote.sh"
+    runner.write_text(
+        """
+#!/usr/bin/env bash
+RUN_PREFLIGHT=1
+validate_current_mainline.py
+validate_production_inputs.py --require-current-dense "$REGION_INPUT" "$PATCH_LABELS"
+rsync -az scripts/geometry_input_contract.py "$REMOTE:scripts/"
+rsync -az docs/current_dense_patch_state.json "$REMOTE:docs/"
+python scripts/run_dense_patch_object_refinement_v7.py --no-require-current-dense-inputs --run
+tmux new-session -d -s run
+""",
+        encoding="utf-8",
+    )
+
+    report = module.validate_runner(
+        {"path": runner.name, "stage": "object_building"},
+        repo_root=tmp_path,
+    )
+
+    assert report["passed"] is False
+    assert "remote_runner_disables_current_dense_allowlist" in report["errors"]
+
+
 def test_cli_json_report_passes() -> None:
     result = subprocess.run(
         [sys.executable, str(SCRIPT), "--json"],

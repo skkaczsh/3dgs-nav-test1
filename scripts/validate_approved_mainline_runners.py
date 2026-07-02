@@ -109,6 +109,8 @@ def validate_shell_runner(path: Path, stage: str) -> list[str]:
     for fragment, error in required_fragments.items():
         if fragment not in text:
             errors.append(error)
+    if "--no-require-current-dense-inputs" in text:
+        errors.append("remote_runner_disables_current_dense_allowlist")
     return errors
 
 
