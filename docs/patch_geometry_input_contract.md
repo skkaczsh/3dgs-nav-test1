@@ -43,3 +43,9 @@ mainline health check.  It protects the semantic PNG voting and teacher-transfer
 entry points that normalize original object labels, because those are the places
 where geometry-only rows can otherwise be silently promoted into surface
 semantics before any visual evidence is applied.
+
+Object-level semantic assignment should go through
+`scripts/semantic_evidence_fusion.py` / `scripts/fuse_object_semantic_evidence.py`
+once evidence has been accumulated.  This keeps promotion decisions centralized
+and auditable instead of spreading fallback relabel logic across projection,
+teacher, and scene-prior stages.
