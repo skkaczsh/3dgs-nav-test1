@@ -263,9 +263,9 @@ def rewrite_ply(
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
-    reject_forbidden_production_input(args.source_ply)
+    reject_forbidden_production_input(args.source_ply, allow_qa_preview=args.allow_qa_preview_source)
     reject_forbidden_production_input(args.source_objects_jsonl)
-    reject_forbidden_production_input(args.teacher_ply)
+    reject_forbidden_production_input(args.teacher_ply, allow_qa_preview=args.allow_qa_preview_teacher)
     reject_forbidden_production_input(args.output_dir)
     source_header, source_props, source = read_ply(args.source_ply)
     teacher_header, teacher_props, teacher = read_ply(args.teacher_ply)
@@ -339,6 +339,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-global-winner-ratio", type=float, default=0.35)
     parser.add_argument("--min-allowed-ratio", type=float, default=0.35)
     parser.add_argument("--allow-surface-teacher-on-unknown", action="store_true")
+    parser.add_argument(
+        "--allow-qa-preview-source",
+        action="store_true",
+        help="Allow stride-sampled viewer PLY as QA source. This stage still cannot change object ownership.",
+    )
+    parser.add_argument(
+        "--allow-qa-preview-teacher",
+        action="store_true",
+        help="Allow stride-sampled semantic viewer PLY as teacher evidence.",
+    )
     parser.add_argument("--workers", type=int, default=-1)
     return parser.parse_args()
 

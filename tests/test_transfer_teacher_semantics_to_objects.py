@@ -4,6 +4,7 @@ import argparse
 from collections import Counter
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from scripts import transfer_teacher_semantics_to_objects as module
@@ -69,3 +70,44 @@ def test_legacy_geometry_label_fallback_is_preserved_for_old_artifacts() -> None
 def test_teacher_transfer_rejects_forbidden_source_path(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="forbidden input path"):
         reject_forbidden_production_input(tmp_path / "frame_object_points_stride10.ply")
+
+
+def test_teacher_transfer_allows_explicit_qa_preview_source_and_teacher(tmp_path: Path, monkeypatch) -> None:
+    source_ply = tmp_path / "source_stride10.ply"
+    teacher_ply = tmp_path / "teacher_stride10.ply"
+    objects = tmp_path / "objects.jsonl"
+    output_dir = tmp_path / "out"
+    args_ns = argparse.Namespace(
+        source_ply=source_ply,
+        source_objects_jsonl=objects,
+        teacher_ply=teacher_ply,
+        output_dir=output_dir,
+        output_prefix="teacher",
+        allow_qa_preview_source=True,
+        allow_qa_preview_teacher=True,
+        allow_surface_teacher_on_unknown=False,
+        min_teacher_votes=3,
+        min_winner_ratio=0.55,
+        min_global_winner_ratio=0.35,
+        min_allowed_ratio=0.35,
+        max_distance=0.12,
+        distance_bin=0.03,
+        workers=1,
+    )
+    monkeypatch.setattr(
+        module,
+        "read_ply",
+        lambda path: (
+            ["ply\n", "end_header\n"],
+            ["x", "y", "z", "red", "green", "blue", "object", "semantic"],
+            np.array([[0, 0, 0, 0, 0, 0, 1, 0]], dtype=float),
+        ),
+    )
+    monkeypatch.setattr(module, "read_jsonl", lambda path: [{"object_id": 1, "geometry_type": "horizontal"}])
+    monkeypatch.setattr(module, "aggregate_teacher_votes", lambda *a, **k: ({}, {"matched_points": 0}))
+    monkeypatch.setattr(module, "rewrite_ply", lambda *a, **k: {"rows": 1})
+
+    report = module.run(args_ns)
+
+    assert report["object_count"] == 1
+    assert report["rows"] == 1

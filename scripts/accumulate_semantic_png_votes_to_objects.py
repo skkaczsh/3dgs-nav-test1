@@ -388,9 +388,14 @@ def main() -> int:
     parser.add_argument("--zbuffer", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--min-votes", type=int, default=12)
     parser.add_argument("--min-vote-ratio", type=float, default=0.55)
+    parser.add_argument(
+        "--allow-qa-preview-source",
+        action="store_true",
+        help="Allow stride-sampled viewer PLY as QA source. This stage still cannot change object ownership.",
+    )
     args = parser.parse_args()
 
-    reject_forbidden_production_input(args.source_ply)
+    reject_forbidden_production_input(args.source_ply, allow_qa_preview=args.allow_qa_preview_source)
     reject_forbidden_production_input(args.objects_jsonl)
     reject_forbidden_production_input(args.output_dir)
     _header, props, data = read_ply(args.source_ply)
