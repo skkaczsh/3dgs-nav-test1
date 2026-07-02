@@ -15,6 +15,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.export_frame_target_objects_for_viewer import LABEL_TO_SEMANTIC, SEMANTIC_COLORS
+from scripts.current_mainline_contract import forbidden_production_input_match
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -24,6 +25,12 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
             if line.strip():
                 rows.append(json.loads(line))
     return rows
+
+
+def reject_forbidden_path(path: Path) -> None:
+    forbidden = forbidden_production_input_match(path)
+    if forbidden:
+        raise ValueError(f"forbidden input path contains {forbidden}: {path}")
 
 
 def object_key(row: dict[str, Any]) -> int | None:
@@ -68,6 +75,9 @@ def read_header(path: Path) -> tuple[list[str], list[str], int]:
 
 
 def rewrite_ply(source_ply: Path, objects_jsonl: Path, output_ply: Path) -> dict[str, Any]:
+    reject_forbidden_path(source_ply)
+    reject_forbidden_path(objects_jsonl)
+    reject_forbidden_path(output_ply)
     labels = load_object_label_map(objects_jsonl)
     header, props, header_lines = read_header(source_ply)
     idx = {name: i for i, name in enumerate(props)}
