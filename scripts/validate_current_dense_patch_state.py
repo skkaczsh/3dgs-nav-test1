@@ -13,7 +13,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.current_mainline_contract import APPROVED_MAINLINE_RUNNER_PATHS, FORBIDDEN_PRODUCTION_INPUT_SUBSTRINGS
+from scripts.current_mainline_contract import (
+    APPROVED_MAINLINE_RUNNER_PATHS,
+    FORBIDDEN_PRODUCTION_INPUT_SUBSTRINGS,
+    REQUIRED_OPERATOR_TOOL_PATHS,
+)
 
 
 REQUIRED_SCHEMA = "current-dense-patch-state/v1"
@@ -31,6 +35,7 @@ REQUIRED_TOP_LEVEL = {
     "current_qa_report",
     "stage_contract",
     "approved_runners",
+    "operator_tools",
     "forbidden_inputs",
     "next_action",
 }
@@ -46,6 +51,7 @@ REQUIRED_STAGE_RULES = {
 }
 
 REQUIRED_APPROVED_RUNNERS = set(APPROVED_MAINLINE_RUNNER_PATHS)
+REQUIRED_OPERATOR_TOOLS = set(REQUIRED_OPERATOR_TOOL_PATHS)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -106,6 +112,14 @@ def validate(path: Path) -> dict[str, Any]:
         runner_path = REPO_ROOT / runner
         if not runner_path.exists():
             errors.append(f"approved_runner_missing_file={runner}")
+
+    operator_tools = {str(item.get("path")) for item in data.get("operator_tools", []) if isinstance(item, dict)}
+    for tool in sorted(REQUIRED_OPERATOR_TOOLS - operator_tools):
+        errors.append(f"missing_operator_tool={tool}")
+    for tool in sorted(operator_tools):
+        tool_path = REPO_ROOT / tool
+        if not tool_path.exists():
+            errors.append(f"operator_tool_missing_file={tool}")
 
     all_paths = iter_local_paths(data)
     for item in all_paths:
@@ -292,6 +306,7 @@ def validate(path: Path) -> dict[str, Any]:
         "checked_local_path_count": len(all_paths),
         "stage_contract_count": len(stages),
         "approved_runner_count": len(approved_runners),
+        "operator_tool_count": len(operator_tools),
         "forbidden_input_count": len(forbidden),
         "errors": errors,
         "warnings": warnings,

@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from scripts.validate_current_dense_patch_state import validate
+from scripts.current_mainline_contract import REQUIRED_OPERATOR_TOOL_PATHS
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,6 +49,14 @@ def test_dense_patch_state_stage_contract_is_geometry_first() -> None:
     assert data["next_action"]["remote_runner"] in approved
     assert "scripts/run_semantic_evidence_pipeline.py" in approved
     assert "_cpp_region_grower_input.bin" in data["next_action"]["current_blocker"]
+
+
+def test_dense_patch_state_records_operator_tools() -> None:
+    data = load_state()
+    tools = {item["path"] for item in data["operator_tools"]}
+    assert set(REQUIRED_OPERATOR_TOOL_PATHS).issubset(tools)
+    assert "scripts/plan_current_dense_promotion.py" in tools
+    assert "scripts/validate_current_mainline.py" in tools
 
 
 def test_dense_patch_state_records_remote_executable_baseline() -> None:

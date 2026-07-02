@@ -215,6 +215,32 @@
       "scope": "QA-only viewer export after semantic validation; viewer PLY must not become production geometry input."
     }
   ],
+  "operator_tools": [
+    {
+      "path": "scripts/show_current_mainline.py",
+      "purpose": "Read-only status summary for the current dense semantic mainline."
+    },
+    {
+      "path": "scripts/update_current_dense_visual_acceptance.py",
+      "purpose": "Record manual visual acceptance checks for the current promotion candidate."
+    },
+    {
+      "path": "scripts/gate_current_dense_mainline_promotion.py",
+      "purpose": "Recompute the quantitative and visual gate for the current dense promotion candidate."
+    },
+    {
+      "path": "scripts/plan_current_dense_promotion.py",
+      "purpose": "Generate the explicit state-change plan after the promotion gate passes; does not edit state by itself."
+    },
+    {
+      "path": "scripts/verify_latest_remote_dense_run.py",
+      "purpose": "Verify the latest recorded remote dense run reports against current_dense_patch_state.json."
+    },
+    {
+      "path": "scripts/validate_current_mainline.py",
+      "purpose": "Run the full current dense mainline healthcheck."
+    }
+  ],
   "next_action": {
     "id": "dense_patch_object_refinement_v7",
     "description": "Compare v8 high-recall object refinement visually against v7 and the local v6/v3 dense baselines, then continue object building only where ownership and overlap metrics remain stable.",

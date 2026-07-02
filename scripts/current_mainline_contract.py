@@ -56,6 +56,15 @@ APPROVED_MAINLINE_RUNNER_PATHS: tuple[str, ...] = (
     "scripts/run_validated_semantic_viewer_export.py",
 )
 
+REQUIRED_OPERATOR_TOOL_PATHS: tuple[str, ...] = (
+    "scripts/show_current_mainline.py",
+    "scripts/update_current_dense_visual_acceptance.py",
+    "scripts/gate_current_dense_mainline_promotion.py",
+    "scripts/plan_current_dense_promotion.py",
+    "scripts/verify_latest_remote_dense_run.py",
+    "scripts/validate_current_mainline.py",
+)
+
 PROTECTED_PRODUCTION_GUARD_SCRIPT_PATHS: tuple[str, ...] = (
     "scripts/run_object_semantic_evidence_fusion.py",
     "scripts/run_validated_semantic_viewer_export.py",
