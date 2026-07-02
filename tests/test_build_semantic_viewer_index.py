@@ -81,6 +81,27 @@ def test_build_index_sorts_by_artifact_update_time_and_builds_viewer_urls(tmp_pa
         "kept_original_scene_only_evidence": 1,
     }
     assert older["counts"]["conflict_flag_counts"] == {"geometry_vetoed_some_evidence": 2}
+    assert older["evidence_warnings"] == [
+        "scene-only support covers 20.0% of visible points",
+        "scene-only support covers 50.0% of visible objects",
+        "geometry veto evidence is dense: 2 flags over 2 visible objects",
+    ]
+    assert older["warnings"] == older["evidence_warnings"]
+
+
+def test_evidence_risk_warnings_flags_missing_source_scores() -> None:
+    warnings = build_semantic_viewer_index.evidence_risk_warnings(
+        {
+            "point_source_support_counts": {"sam+teacher": 90, "missing_source_scores": 10},
+            "object_source_support_counts": {"sam+teacher": 9, "no_label_source_support": 1},
+            "conflict_flag_counts": {},
+        }
+    )
+
+    assert warnings == [
+        "evidence provenance missing/unsupported for 10.0% of visible points",
+        "evidence provenance missing/unsupported for 10.0% of visible objects",
+    ]
 
 
 def test_build_index_links_object_review_pack(tmp_path: Path) -> None:
@@ -176,8 +197,10 @@ def test_index_html_uses_generated_json_and_existing_viewer() -> None:
     assert "object_source_support_counts" in html
     assert "fusion_status_counts" in html
     assert "conflict_flag_counts" in html
+    assert "evidence_warnings" in html
     assert "Evidence 来源点数" in html
     assert "Fusion 状态" in html
+    assert "Evidence QA" in html
 
 
 def test_build_index_keeps_symlink_url_prefix(tmp_path: Path) -> None:

@@ -335,6 +335,7 @@
         .map(([flag, count]) => `<span class="pill">${flag}: ${fmtInt(count)}</span>`)
         .join("");
       const warningText = (entry.warnings || []).length ? entry.warnings.join("\n") : "无";
+      const evidenceWarningText = (entry.evidence_warnings || []).length ? entry.evidence_warnings.join("\n") : "无";
       const errorText = (entry.errors || []).length ? entry.errors.join("\n") : "无";
       const reviewActions = review ? `
         <h3>对象审阅</h3>
@@ -376,6 +377,8 @@
         <div>${fusionStatusCounts || "<span class='muted'>无统计</span>"}</div>
         <h3>冲突标记</h3>
         <div>${conflictFlagCounts || "<span class='muted'>无统计</span>"}</div>
+        <h3>Evidence QA</h3>
+        <pre>${evidenceWarningText}</pre>
         <h3>Warnings</h3>
         <pre>${warningText}</pre>
         <h3>Errors</h3>

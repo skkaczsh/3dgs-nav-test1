@@ -247,6 +247,65 @@ def extract_counts(qa: dict[str, Any], export_report: dict[str, Any], localgeom_
     }
 
 
+def count_total(counts: dict[str, Any]) -> int:
+    total = 0
+    for value in counts.values():
+        try:
+            total += int(value)
+        except (TypeError, ValueError):
+            continue
+    return total
+
+
+def ratio_for_keys(counts: dict[str, Any], keys: tuple[str, ...]) -> float:
+    total = count_total(counts)
+    if total <= 0:
+        return 0.0
+    matched = 0
+    for key in keys:
+        try:
+            matched += int(counts.get(key, 0) or 0)
+        except (TypeError, ValueError):
+            continue
+    return matched / total
+
+
+def evidence_risk_warnings(counts: dict[str, Any]) -> list[str]:
+    point_sources = counts.get("point_source_support_counts")
+    if not isinstance(point_sources, dict):
+        point_sources = {}
+    object_sources = counts.get("object_source_support_counts")
+    if not isinstance(object_sources, dict):
+        object_sources = {}
+    conflict_flags = counts.get("conflict_flag_counts")
+    if not isinstance(conflict_flags, dict):
+        conflict_flags = {}
+
+    warnings: list[str] = []
+    missing_point_ratio = ratio_for_keys(point_sources, ("missing_object", "missing_source_scores", "no_label_source_support"))
+    if missing_point_ratio >= 0.01:
+        warnings.append(f"evidence provenance missing/unsupported for {missing_point_ratio:.1%} of visible points")
+    missing_object_ratio = ratio_for_keys(object_sources, ("missing_object", "missing_source_scores", "no_label_source_support"))
+    if missing_object_ratio >= 0.01:
+        warnings.append(f"evidence provenance missing/unsupported for {missing_object_ratio:.1%} of visible objects")
+
+    scene_point_ratio = ratio_for_keys(point_sources, ("scene",))
+    if scene_point_ratio >= 0.05:
+        warnings.append(f"scene-only support covers {scene_point_ratio:.1%} of visible points")
+    scene_object_ratio = ratio_for_keys(object_sources, ("scene",))
+    if scene_object_ratio >= 0.05:
+        warnings.append(f"scene-only support covers {scene_object_ratio:.1%} of visible objects")
+
+    try:
+        geometry_veto_count = int(conflict_flags.get("geometry_vetoed_some_evidence", 0) or 0)
+    except (TypeError, ValueError):
+        geometry_veto_count = 0
+    object_total = count_total(object_sources)
+    if object_total > 0 and geometry_veto_count / object_total >= 0.10:
+        warnings.append(f"geometry veto evidence is dense: {geometry_veto_count} flags over {object_total} visible objects")
+    return warnings
+
+
 def build_entry(
     artifact: ViewerArtifact,
     web_root: Path,
@@ -270,6 +329,8 @@ def build_entry(
 
     counts = extract_counts(qa, export_report, localgeom_report)
     warnings = qa.get("warnings") if isinstance(qa.get("warnings"), list) else []
+    evidence_warnings = evidence_risk_warnings(counts)
+    warnings = list(warnings) + evidence_warnings
     errors = qa.get("errors") if isinstance(qa.get("errors"), list) else []
     status = qa.get("status") or ("missing_qa" if not qa else "unknown")
 
@@ -293,6 +354,7 @@ def build_entry(
         "updated_at_ts": updated_at_ts,
         "status": status,
         "warnings": warnings,
+        "evidence_warnings": evidence_warnings,
         "errors": errors,
         "ply": file_url,
         "objects": objects_url,
