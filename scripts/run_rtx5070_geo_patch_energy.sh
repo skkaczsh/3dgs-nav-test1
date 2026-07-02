@@ -17,6 +17,7 @@ LOCAL_PYTHON="${LOCAL_PYTHON:-python3}"
 TMUX_SESSION="${TMUX_SESSION:-scan_patch_energy_v3_003}"
 
 RUN="${RUN:-0}"
+REQUIRE_CURRENT_DENSE_INPUTS="${REQUIRE_CURRENT_DENSE_INPUTS:-1}"
 KILL_LLAMA="${KILL_LLAMA:-1}"
 OUT_NAME="${OUT_NAME:-geo_patch_5070_full_0000_6180_energy_v3_voxel003_20260624_0018}"
 INPUT_PLY="${INPUT_PLY:-${REMOTE_WORK}/dense_sources/dense_las_voxel003_20260624/dense_las_voxel003_binary.ply}"
@@ -37,7 +38,11 @@ MAX_MERGE_CANDIDATES="${MAX_MERGE_CANDIDATES:-240000}"
 SSH=(ssh -i "${REMOTE_KEY}" -p "${REMOTE_PORT}" "${REMOTE_HOST}")
 RSYNC_SSH="ssh -i ${REMOTE_KEY} -p ${REMOTE_PORT}"
 
-"${LOCAL_PYTHON}" scripts/validate_production_inputs.py "${INPUT_PLY}"
+if [[ "${REQUIRE_CURRENT_DENSE_INPUTS}" == "1" ]]; then
+  "${LOCAL_PYTHON}" scripts/validate_production_inputs.py --require-current-dense "${INPUT_PLY}"
+else
+  "${LOCAL_PYTHON}" scripts/validate_production_inputs.py "${INPUT_PLY}"
+fi
 
 echo "remote=${REMOTE_HOST}:${REMOTE_PORT}"
 echo "input_ply=${INPUT_PLY}"

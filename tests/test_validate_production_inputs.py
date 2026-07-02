@@ -26,6 +26,22 @@ def test_validate_paths_allows_dense_voxel_ply() -> None:
     assert report["errors"] == []
 
 
+def test_validate_paths_requires_current_dense_allowlist() -> None:
+    allowed = {"/tmp/dense_las_voxel003_binary.ply"}
+
+    report = module.validate_paths(["/tmp/dense_las_voxel003_binary.ply"], allowed_paths=allowed)
+
+    assert report["passed"] is True
+    assert report["checked"][0]["allowlist_match"] is True
+
+
+def test_validate_paths_rejects_not_current_dense_input() -> None:
+    report = module.validate_paths(["/tmp/random_dense_like.ply"], allowed_paths={"/tmp/other.ply"})
+
+    assert report["passed"] is False
+    assert report["errors"] == ["not_current_dense_input:/tmp/random_dense_like.ply"]
+
+
 def test_cli_json_report() -> None:
     result = subprocess.run(
         [sys.executable, str(SCRIPT), "--json", "/tmp/dense_las_voxel003_binary.ply"],
@@ -38,6 +54,28 @@ def test_cli_json_report() -> None:
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report["passed"] is True
+
+
+def test_cli_requires_current_dense_path_from_state() -> None:
+    state = ROOT / "docs" / "current_dense_patch_state.json"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--json",
+            "--state",
+            str(state),
+            "--require-current-dense",
+            "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/_cpp_region_grower_input.bin",
+        ],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert json.loads(result.stdout)["passed"] is True
 
 
 def test_cli_rejects_forbidden_path() -> None:

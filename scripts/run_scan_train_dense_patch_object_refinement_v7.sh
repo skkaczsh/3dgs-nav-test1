@@ -15,6 +15,7 @@ REMOTE_WORK="${REMOTE_WORK:-/root/epfs/SCAN/work_MT20260616-175807}"
 TMUX_SESSION="${TMUX_SESSION:-scan_dense_object_v7}"
 RUN="${RUN:-0}"
 RUN_PREFLIGHT="${RUN_PREFLIGHT:-1}"
+REQUIRE_CURRENT_DENSE_INPUTS="${REQUIRE_CURRENT_DENSE_INPUTS:-1}"
 PREFLIGHT="${PREFLIGHT:-${LOCAL_REPO}/scripts/validate_current_mainline.py}"
 
 BASE="${BASE:-${REMOTE_WORK}/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623}"
@@ -80,12 +81,18 @@ fi
 if [[ "${RUN_PREFLIGHT}" == "1" ]]; then
   echo "preflight=${PREFLIGHT}"
   "${PYTHON}" "${PREFLIGHT}"
+  if [[ "${REQUIRE_CURRENT_DENSE_INPUTS}" == "1" ]]; then
+    "${PYTHON}" "${LOCAL_REPO}/scripts/validate_production_inputs.py" --require-current-dense "${REGION_INPUT}" "${PATCH_LABELS}"
+  else
+    "${PYTHON}" "${LOCAL_REPO}/scripts/validate_production_inputs.py" "${REGION_INPUT}" "${PATCH_LABELS}"
+  fi
 else
   echo "preflight=skipped"
 fi
 
 rsync -az \
   scripts/current_mainline_contract.py \
+  scripts/validate_production_inputs.py \
   scripts/propose_geo_patch_object_merges.py \
   scripts/build_geo_patch_objects_from_candidates.py \
   scripts/run_dense_patch_object_refinement_v7.py \

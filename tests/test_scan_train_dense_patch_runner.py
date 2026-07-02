@@ -27,7 +27,9 @@ def test_scan_train_dense_patch_runner_runs_mainline_preflight_before_remote_lau
     tmux_pos = text.index("tmux new-session -d -s")
 
     assert 'RUN_PREFLIGHT="${RUN_PREFLIGHT:-1}"' in text
+    assert 'REQUIRE_CURRENT_DENSE_INPUTS="${REQUIRE_CURRENT_DENSE_INPUTS:-1}"' in text
     assert 'PREFLIGHT="${PREFLIGHT:-${LOCAL_REPO}/scripts/validate_current_mainline.py}"' in text
+    assert "validate_production_inputs.py\" --require-current-dense" in text
     assert "preflight=skipped" in text
     assert "--skip-mainline-healthcheck" in text
     assert preflight_pos < rsync_pos < ssh_pos < tmux_pos
@@ -40,4 +42,5 @@ def test_scan_train_dense_patch_runner_syncs_contract_dependency() -> None:
     rsync_block = text[rsync_start:rsync_end]
 
     assert "scripts/current_mainline_contract.py" in rsync_block
+    assert "scripts/validate_production_inputs.py" in rsync_block
     assert "scripts/run_dense_patch_object_refinement_v7.py" in rsync_block
