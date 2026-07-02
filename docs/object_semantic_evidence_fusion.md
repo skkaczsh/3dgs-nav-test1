@@ -32,7 +32,25 @@ Each object row may contain:
 
 ## CLI
 
-Safe launcher, default dry-run:
+Recommended end-to-end launcher, default dry-run:
+
+```bash
+PYTHONPATH=. python scripts/run_semantic_evidence_pipeline.py \
+  --source-ply source_object_viewer.ply \
+  --objects-jsonl input_objects.jsonl \
+  --output-dir semantic_evidence_output
+```
+
+The pipeline writes a plan and, when ready, runs:
+
+1. `scripts/fuse_object_semantic_evidence.py`
+2. `scripts/validate_object_semantic_evidence_fusion.py`
+3. `scripts/run_validated_semantic_viewer_export.py --run`
+
+It inherits the patch promotion gate and refuses `--run` while the patch
+experiment is still unreviewed.
+
+Object JSONL fusion-only launcher:
 
 ```bash
 PYTHONPATH=. python scripts/run_object_semantic_evidence_fusion.py \
@@ -41,11 +59,11 @@ PYTHONPATH=. python scripts/run_object_semantic_evidence_fusion.py \
   --report fused_objects_report.json
 ```
 
-The launcher reads `docs/patch_experiment_promotion_gate.json`.  If the patch
-experiment has not passed visual promotion, the plan is written as `blocked` and
-`--run` exits without executing fusion.  For explicitly marked experiments, use
-`--allow-unpromoted-patch-experiment` and keep the output out of promoted
-mainline artifacts.
+The fusion-only launcher reads `docs/patch_experiment_promotion_gate.json`.  If
+the patch experiment has not passed visual promotion, the plan is written as
+`blocked` and `--run` exits without executing fusion.  For explicitly marked
+experiments, use `--allow-unpromoted-patch-experiment` and keep the output out
+of promoted mainline artifacts.
 
 When the plan is ready, the launcher executes two commands in order:
 
