@@ -23,6 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from scripts.current_mainline_contract import reject_forbidden_production_input
 from scripts.semantic_label_contract import LABEL_TO_SEMANTIC, TRUSTED_SURFACE_LABELS
 
 
@@ -170,8 +171,17 @@ def main() -> None:
         action="store_true",
         help="Allow geometry_rejected trusted surfaces to be demoted to unknown. Off by default.",
     )
+    parser.add_argument(
+        "--allow-qa-preview-source",
+        action="store_true",
+        help="Allow a stride-sampled viewer PLY as QA source. Outputs remain QA-only.",
+    )
     args = parser.parse_args()
 
+    reject_forbidden_production_input(args.input_ply, allow_qa_preview=args.allow_qa_preview_source)
+    reject_forbidden_production_input(args.input_objects_jsonl)
+    reject_forbidden_production_input(args.guard_jsonl)
+    reject_forbidden_production_input(args.output_dir)
     guard = load_guard(args.guard_jsonl)
     objects = read_jsonl(args.input_objects_jsonl)
     transformed = [
