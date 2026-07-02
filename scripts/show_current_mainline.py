@@ -19,6 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from scripts import validate_current_mainline
 from scripts import validate_production_inputs
 
 
@@ -44,6 +45,7 @@ def summarize(
     architecture: dict[str, Any],
     dense_patch: dict[str, Any],
     *,
+    architecture_path: Path | None = None,
     dense_patch_state_path: Path | None = None,
 ) -> dict[str, Any]:
     active = [
@@ -66,6 +68,12 @@ def summarize(
     production_input_allowlist = {}
     if dense_patch_state_path is not None:
         production_input_allowlist = validate_production_inputs.validate_dense_allowlist(resolve_path(dense_patch_state_path))
+    state_consistency = {}
+    if architecture_path is not None and dense_patch_state_path is not None:
+        state_consistency = validate_current_mainline.validate_state_consistency(
+            resolve_path(architecture_path),
+            resolve_path(dense_patch_state_path),
+        )
 
     return {
         "dataset": architecture.get("dataset"),
@@ -83,6 +91,7 @@ def summarize(
         "forbidden_inputs": dense_patch.get("forbidden_inputs", []),
         "rejected_semantic_artifacts": rejected,
         "production_input_allowlist": production_input_allowlist,
+        "state_consistency": state_consistency,
     }
 
 
@@ -198,6 +207,20 @@ def format_text(summary: dict[str, Any]) -> str:
         for warning in allowlist.get("warnings", []):
             lines.append(f"  warning: {warning}")
         lines.append("")
+    state_consistency = summary.get("state_consistency", {})
+    if state_consistency:
+        lines.append("state consistency:")
+        lines.append(
+            f"- passed={state_consistency.get('passed')} "
+            f"dataset={state_consistency.get('dataset')}"
+        )
+        lines.append(f"  architecture: {state_consistency.get('architecture')}")
+        lines.append(f"  dense_patch_state: {state_consistency.get('dense_patch_state')}")
+        for error in state_consistency.get("errors", []):
+            lines.append(f"  error: {error}")
+        for warning in state_consistency.get("warnings", []):
+            lines.append(f"  warning: {warning}")
+        lines.append("")
     next_action = summary.get("next_action", {})
     lines.append("next action:")
     lines.append(f"- {next_action.get('id')}: {next_action.get('description')}")
@@ -234,6 +257,7 @@ def main() -> int:
     summary = summarize(
         load(args.architecture),
         load(args.dense_patch_state),
+        architecture_path=args.architecture,
         dense_patch_state_path=args.dense_patch_state,
     )
     if output_format == "json":

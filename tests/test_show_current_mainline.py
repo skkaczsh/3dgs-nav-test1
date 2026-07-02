@@ -30,6 +30,8 @@ def test_show_current_mainline_json_output() -> None:
     assert data["current_qa_report"]["review_artifact_allowlist"]["passed"] is True
     assert data["production_input_allowlist"]["passed"] is True
     assert data["production_input_allowlist"]["allowed_count"] == 6
+    assert data["state_consistency"]["passed"] is True
+    assert data["state_consistency"]["dataset"] == "MT20260616-175807"
     assert data["current_qa_report"]["rejected_guard_diagnostics"]["variants"][0]["unknown_delta_vs_v9"] > 0
     assert any(item["path"] == "scripts/run_dense_patch_object_refinement_v7.py" for item in data["approved_runners"])
     assert any(item["path"] == "scripts/run_semantic_evidence_pipeline.py" for item in data["approved_runners"])
@@ -68,6 +70,8 @@ def test_show_current_mainline_text_output() -> None:
     assert "review_allowlist: passed=True" in result.stdout
     assert "production input allowlist:" in result.stdout
     assert "allowed_count=6" in result.stdout
+    assert "state consistency:" in result.stdout
+    assert "dataset=MT20260616-175807" in result.stdout
     assert "rejected_guard: objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor" in result.stdout
     assert "unknown_delta_vs_v9=1006072" in result.stdout
     assert "forbidden inputs:" in result.stdout
@@ -99,3 +103,4 @@ def test_show_current_mainline_supports_json_alias() -> None:
     assert result.returncode == 0, result.stdout + result.stderr
     data = json.loads(result.stdout)
     assert data["production_input_allowlist"]["allowed_count"] == 6
+    assert data["state_consistency"]["passed"] is True
