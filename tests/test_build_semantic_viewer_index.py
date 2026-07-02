@@ -71,7 +71,7 @@ def test_build_index_sorts_by_artifact_update_time_and_builds_viewer_urls(tmp_pa
     assert "objects=/server_parking_priority_s10/new_run/viewer_localgeom/frame_objects_viewer.jsonl" in newest["viewer_urls"]["semantic"]
 
     older = index["entries"][1]
-    assert older["status"] == "missing_qa"
+    assert older["status"] == "report_only"
     assert older["counts"]["vertex_count"] == 10
     assert older["counts"]["semantic_point_counts"] == {"wall": 7, "car": 3}
     assert older["counts"]["point_source_support_counts"] == {"sam+teacher": 8, "scene": 2}
@@ -87,6 +87,41 @@ def test_build_index_sorts_by_artifact_update_time_and_builds_viewer_urls(tmp_pa
         "geometry veto evidence is dense: 2 flags over 2 visible objects",
     ]
     assert older["warnings"] == older["evidence_warnings"]
+
+
+def test_build_index_discovers_generic_stride_patch_outputs(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "server_parking_priority_s10"
+    run_dir = artifact_root / "geo_patch_las_opt" / "energy_bucket_split_frag_attach_v5_20260702"
+    write(run_dir / "geo_patches_bucket_split_frag_attach_v5_stride10.ply", "ply\n")
+    write(run_dir / "geo_patches_bucket_split_frag_attach_v5.jsonl", "{}\n")
+    write(
+        run_dir / "geo_patches_bucket_split_frag_attach_v5_report.json",
+        json.dumps({"preview_points": 123, "output_patch_count": 45, "schema": "geo-patch-energy-graph-v4"}),
+    )
+
+    index = build_index(web_root=tmp_path, artifact_root=artifact_root)
+
+    assert index["artifact_count"] == 1
+    entry = index["entries"][0]
+    assert entry["name"] == "energy_bucket_split_frag_attach_v5_20260702"
+    assert entry["ply"].endswith("/geo_patches_bucket_split_frag_attach_v5_stride10.ply")
+    assert entry["objects"].endswith("/geo_patches_bucket_split_frag_attach_v5.jsonl")
+    assert "objects=" in entry["viewer_urls"]["semantic"]
+    assert entry["status"] == "report_only"
+    assert entry["counts"]["vertex_count"] == 123
+    assert entry["counts"]["object_count"] == 45
+    assert entry["reports"]["generic"]["schema"] == "geo-patch-energy-graph-v4"
+
+
+def test_build_index_skips_rejected_generic_stride_outputs(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "server_parking_priority_s10"
+    run_dir = artifact_root / "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor"
+    write(run_dir / "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor_stride10.ply", "ply\n")
+    write(run_dir / "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor.jsonl", "{}\n")
+
+    index = build_index(web_root=tmp_path, artifact_root=artifact_root)
+
+    assert index["artifact_count"] == 0
 
 
 def test_evidence_risk_warnings_flags_missing_source_scores() -> None:

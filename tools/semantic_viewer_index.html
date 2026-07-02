@@ -401,6 +401,14 @@
             output_object_count: entry.reports.local_geometry.output_object_count,
             split_candidate_count: entry.reports.local_geometry.split_candidate_count,
           } : null,
+          generic: entry.reports?.generic ? {
+            schema: entry.reports.generic.schema,
+            input_point_count: entry.reports.generic.input_point_count,
+            preview_points: entry.reports.generic.preview_points,
+            input_patch_count: entry.reports.generic.input_patch_count,
+            output_patch_count: entry.reports.generic.output_patch_count,
+            jsonl_patch_count: entry.reports.generic.jsonl_patch_count,
+          } : null,
         }, null, 2)}</pre>
       `;
     }

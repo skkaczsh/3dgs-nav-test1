@@ -11,10 +11,17 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.current_mainline_contract import forbidden_artifact_match
 
 
 PLY_NAMES = (
@@ -23,6 +30,12 @@ PLY_NAMES = (
     "frame_object_points.ply",
     "semantic_review_candidates_ascii.ply",
     "full_scene_objects_ascii.ply",
+)
+PLY_GLOB_PATTERNS = (
+    "*_stride10.ply",
+    "geo_patches_*.ply",
+    "geo_patch_objects_*.ply",
+    "objects_v*.ply",
 )
 OBJECT_NAMES = (
     "frame_objects_viewer.jsonl",
@@ -79,13 +92,53 @@ def first_existing(directory: Path, names: tuple[str, ...]) -> Path | None:
     return None
 
 
+def companion_object_candidates(ply: Path) -> list[Path]:
+    stem = ply.stem
+    stems = [stem]
+    for suffix in ("_stride10", "_stride5", "_stride3", "_stride2"):
+        if stem.endswith(suffix):
+            stems.append(stem[: -len(suffix)])
+    out: list[Path] = []
+    for candidate_stem in dict.fromkeys(stems):
+        out.append(ply.with_name(f"{candidate_stem}.jsonl"))
+    return out
+
+
+def find_companion_objects(directory: Path, ply: Path) -> Path | None:
+    exact = first_existing(directory, OBJECT_NAMES)
+    if exact:
+        return exact
+    for candidate in companion_object_candidates(ply):
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def find_generic_report(directory: Path, ply: Path) -> Path | None:
+    stems = [candidate.stem for candidate in companion_object_candidates(ply)]
+    stems.append(ply.stem)
+    for stem in dict.fromkeys(stems):
+        candidate = directory / f"{stem}_report.json"
+        if candidate.exists():
+            return candidate
+    reports = sorted(directory.glob("*_report.json"))
+    return reports[0] if len(reports) == 1 else None
+
+
 def iter_viewer_artifacts(artifact_root: Path) -> list[ViewerArtifact]:
     artifacts: list[ViewerArtifact] = []
-    for directory in sorted({p.parent for name in PLY_NAMES for p in artifact_root.rglob(name)}):
-        ply = first_existing(directory, PLY_NAMES)
-        if not ply:
+    ply_paths: set[Path] = set()
+    for name in PLY_NAMES:
+        ply_paths.update(artifact_root.rglob(name))
+    for pattern in PLY_GLOB_PATTERNS:
+        ply_paths.update(artifact_root.rglob(pattern))
+    for ply in sorted(ply_paths):
+        if forbidden_artifact_match(ply):
             continue
-        objects = first_existing(directory, OBJECT_NAMES)
+        directory = ply.parent
+        objects = find_companion_objects(directory, ply)
+        if objects and forbidden_artifact_match(objects):
+            continue
         artifacts.append(ViewerArtifact(directory=directory, ply=ply, objects=objects))
     return artifacts
 
@@ -193,7 +246,12 @@ def collect_review_indexes(web_root: Path, artifact_root: Path | None = None) ->
     return reviews
 
 
-def extract_counts(qa: dict[str, Any], export_report: dict[str, Any], localgeom_report: dict[str, Any]) -> dict[str, Any]:
+def extract_counts(
+    qa: dict[str, Any],
+    export_report: dict[str, Any],
+    localgeom_report: dict[str, Any],
+    generic_report: dict[str, Any],
+) -> dict[str, Any]:
     ply_qa = qa.get("ply") if isinstance(qa.get("ply"), dict) else {}
     semantic_counts = ply_qa.get("semantic_point_counts")
     if not isinstance(semantic_counts, dict):
@@ -215,10 +273,14 @@ def extract_counts(qa: dict[str, Any], export_report: dict[str, Any], localgeom_
         vertex_count = localgeom_report.get("input_vertex_count")
     if vertex_count is None:
         vertex_count = export_report.get("output_vertices")
+    if vertex_count is None:
+        vertex_count = generic_report.get("preview_points") or generic_report.get("input_point_count")
 
     object_count = localgeom_report.get("output_object_count")
     if object_count is None:
         object_count = export_report.get("object_records") or export_report.get("object_count_with_points")
+    if object_count is None:
+        object_count = generic_report.get("output_patch_count") or generic_report.get("jsonl_patch_count")
     if object_count is None and isinstance(object_counts, dict):
         object_count = sum(v for v in object_counts.values() if isinstance(v, int))
 
@@ -317,22 +379,26 @@ def build_entry(
     export_report = read_json(directory / "frame_object_viewer_export_report.json")
     localgeom_report = read_json(directory / "frame_object_points_local_geometry_report.json")
     split_report = read_json(directory / "local_geometry_split_candidates_report.json")
+    generic_report_path = find_generic_report(directory, artifact.ply)
+    generic_report = read_json(generic_report_path) if generic_report_path else {}
 
     watched_paths = [artifact.ply]
     if artifact.objects:
         watched_paths.append(artifact.objects)
     watched_paths.extend(directory / name for name in QA_NAMES if (directory / name).exists())
+    if generic_report_path:
+        watched_paths.append(generic_report_path)
     stats = [safe_stat(path) for path in watched_paths]
     mtimes = [stat.st_mtime for stat in stats if stat is not None]
     sizes = {path.name: stat.st_size for path, stat in zip(watched_paths, stats) if stat is not None}
     updated_at_ts = max(mtimes) if mtimes else 0.0
 
-    counts = extract_counts(qa, export_report, localgeom_report)
+    counts = extract_counts(qa, export_report, localgeom_report, generic_report)
     warnings = qa.get("warnings") if isinstance(qa.get("warnings"), list) else []
     evidence_warnings = evidence_risk_warnings(counts)
     warnings = list(warnings) + evidence_warnings
     errors = qa.get("errors") if isinstance(qa.get("errors"), list) else []
-    status = qa.get("status") or ("missing_qa" if not qa else "unknown")
+    status = qa.get("status") or ("report_only" if generic_report else ("missing_qa" if not qa else "unknown"))
 
     file_url = rel_url(artifact.ply, web_root)
     objects_url = rel_url(artifact.objects, web_root) if artifact.objects else ""
@@ -370,6 +436,7 @@ def build_entry(
             "export": export_report if export_report else None,
             "local_geometry": localgeom_report if localgeom_report else None,
             "split_candidates": split_report if split_report else None,
+            "generic": generic_report if generic_report else None,
         },
         "review": review,
     }
