@@ -47,11 +47,11 @@ def test_dense_sources_separate_production_from_qa_cache() -> None:
     dense_sources = {item["id"]: item for item in data["dense_sources"]}
     assert set(REQUIRED_DENSE_SOURCE_IDS).issubset(dense_sources)
 
-    raw_las = dense_sources["raw_opt_las_local"]
+    raw_las = dense_sources["raw_opt_las_2920mb"]
     assert raw_las["role"] == "authoritative_dense_geometry_source"
     assert raw_las["required"] is True
 
-    voxel003 = dense_sources["dense_las_voxel003_canonical"]
+    voxel003 = dense_sources["dense_las_voxel003_binary"]
     assert voxel003["required"] is True
     assert "0.03m" in voxel003["role"]
     assert any("voxel003" in path for path in voxel003["remote_paths"])

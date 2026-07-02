@@ -15,7 +15,7 @@
   },
   "dense_sources": [
     {
-      "id": "raw_opt_las_local",
+      "id": "raw_opt_las_2920mb",
       "role": "authoritative_dense_geometry_source",
       "local_paths": [
         "/Users/skkac/Work/SCAN/MT20260616-175807/3dgs_20260616_3dgs_0095fd8ebe7845f2b24820cb98de4abb_task_c967d04831bf45f0b9d7c3fac31b4103_output_pointcloud_CommandProcessLXOutput_MANIFOLD_MT20260616-175807-Opt.las"
@@ -31,7 +31,7 @@
       "required": false
     },
     {
-      "id": "dense_las_voxel003_canonical",
+      "id": "dense_las_voxel003_binary",
       "role": "canonical_0.03m_dense_voxel_source_for_production_patch_logic",
       "remote_paths": [
         "/home/zsh/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_20260624/dense_las_voxel003_binary.ply",

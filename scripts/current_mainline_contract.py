@@ -33,8 +33,8 @@ REQUIRED_ACTIVE_BASELINE_IDS: tuple[str, ...] = (
 )
 
 REQUIRED_DENSE_SOURCE_IDS: tuple[str, ...] = (
-    "raw_opt_las_local",
-    "dense_las_voxel003_canonical",
+    "raw_opt_las_2920mb",
+    "dense_las_voxel003_binary",
 )
 
 REQUIRED_REJECTED_ARTIFACT_IDS: tuple[str, ...] = (
