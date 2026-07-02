@@ -72,6 +72,42 @@ def write_fixture(tmp_path: Path, semantic_for_object_2: int = 9) -> tuple[Path,
     return ply, objects
 
 
+def write_provenance_fixture(tmp_path: Path) -> tuple[Path, Path]:
+    ply, objects = write_fixture(tmp_path)
+    rows = [
+        {
+            "object_id": 1,
+            "semantic_label": "floor",
+            "status": "stable",
+            "point_count": 2,
+            "target_count": 1,
+            "semantic_fusion_status": "evidence_fusion_applied",
+            "semantic_evidence_source_scores": {
+                "sam": {"floor": 2},
+                "teacher": {},
+                "scene": {},
+            },
+            "conflict_flags": [],
+        },
+        {
+            "object_id": 2,
+            "semantic_label": "railing",
+            "status": "stable",
+            "point_count": 2,
+            "target_count": 2,
+            "semantic_fusion_status": "evidence_fusion_applied",
+            "semantic_evidence_source_scores": {
+                "sam": {},
+                "teacher": {},
+                "scene": {"railing": 2},
+            },
+            "conflict_flags": ["geometry_vetoed_some_evidence"],
+        },
+    ]
+    objects.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    return ply, objects
+
+
 def args(tmp_path: Path, ply: Path, objects: Path):
     return type(
         "Args",
@@ -97,6 +133,7 @@ def test_build_report_accepts_ground_floor_alias_and_warns_on_ambiguous(tmp_path
     assert report["ply"]["data_rows"] == 4
     assert report["consistency"]["semantic_mismatch_count"] == 0
     assert "remaining ambiguous objects: 1" in report["warnings"]
+    assert "evidence provenance missing/unsupported for 100.0% of visible points" in report["warnings"]
 
 
 def test_build_report_fails_on_object_semantic_mismatch(tmp_path: Path):
@@ -119,6 +156,7 @@ def test_write_markdown_contains_chinese_labels(tmp_path: Path):
     text = run_args.output_md.read_text(encoding="utf-8")
     assert "地面" in text
     assert "栏杆/护栏" in text
+    assert "Evidence source points" in text
 
 
 def test_large_fine_warning_uses_class_aware_thresholds():
@@ -141,3 +179,20 @@ def test_ten_k_point_car_is_not_large_fine_warning():
     )
 
     assert summary["large_fine_objects"] == []
+
+
+def test_build_report_summarizes_evidence_provenance_risks(tmp_path: Path):
+    ply, objects = write_provenance_fixture(tmp_path)
+
+    report = qa.build_report(args(tmp_path, ply, objects))
+
+    assert report["evidence"]["point_source_support_counts"] == {"sam": 2, "scene": 2}
+    assert report["evidence"]["object_source_support_counts"] == {"sam": 1, "scene": 1}
+    assert report["evidence"]["fusion_status_counts"] == {"evidence_fusion_applied": 2}
+    assert report["evidence"]["conflict_flag_counts"] == {"geometry_vetoed_some_evidence": 1}
+    assert report["evidence"]["warnings"] == [
+        "scene-only support covers 50.0% of visible points",
+        "scene-only support covers 50.0% of visible objects",
+        "geometry veto evidence is dense: 1 flags over 2 visible objects",
+    ]
+    assert report["warnings"] == report["evidence"]["warnings"]

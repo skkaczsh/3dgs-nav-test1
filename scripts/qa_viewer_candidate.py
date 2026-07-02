@@ -155,6 +155,69 @@ def object_point_count(row: dict[str, Any]) -> int:
         return 0
 
 
+def source_support_kind(row: dict[str, Any]) -> str:
+    label = str(row.get("semantic_label") or "unknown")
+    source_scores = row.get("semantic_evidence_source_scores")
+    if not isinstance(source_scores, dict):
+        return "missing_source_scores"
+    active_sources: list[str] = []
+    for source in ("sam", "teacher", "scene"):
+        scores = source_scores.get(source)
+        if not isinstance(scores, dict):
+            continue
+        try:
+            score = float(scores.get(label, 0.0) or 0.0)
+        except (TypeError, ValueError):
+            score = 0.0
+        if score > 0:
+            active_sources.append(source)
+    return "+".join(active_sources) if active_sources else "no_label_source_support"
+
+
+def count_total(counts: dict[str, int]) -> int:
+    return sum(int(value) for value in counts.values())
+
+
+def ratio_for_keys(counts: dict[str, int], keys: tuple[str, ...]) -> float:
+    total = count_total(counts)
+    if total <= 0:
+        return 0.0
+    matched = sum(int(counts.get(key, 0)) for key in keys)
+    return matched / total
+
+
+def evidence_risk_warnings(evidence_summary: dict[str, Any]) -> list[str]:
+    point_sources = evidence_summary.get("point_source_support_counts")
+    if not isinstance(point_sources, dict):
+        point_sources = {}
+    object_sources = evidence_summary.get("object_source_support_counts")
+    if not isinstance(object_sources, dict):
+        object_sources = {}
+    conflict_flags = evidence_summary.get("conflict_flag_counts")
+    if not isinstance(conflict_flags, dict):
+        conflict_flags = {}
+
+    warnings: list[str] = []
+    unsupported_keys = ("missing_object", "missing_source_scores", "no_label_source_support")
+    missing_point_ratio = ratio_for_keys(point_sources, unsupported_keys)
+    if missing_point_ratio >= 0.01:
+        warnings.append(f"evidence provenance missing/unsupported for {missing_point_ratio:.1%} of visible points")
+    missing_object_ratio = ratio_for_keys(object_sources, unsupported_keys)
+    if missing_object_ratio >= 0.01:
+        warnings.append(f"evidence provenance missing/unsupported for {missing_object_ratio:.1%} of visible objects")
+    scene_point_ratio = ratio_for_keys(point_sources, ("scene",))
+    if scene_point_ratio >= 0.05:
+        warnings.append(f"scene-only support covers {scene_point_ratio:.1%} of visible points")
+    scene_object_ratio = ratio_for_keys(object_sources, ("scene",))
+    if scene_object_ratio >= 0.05:
+        warnings.append(f"scene-only support covers {scene_object_ratio:.1%} of visible objects")
+    geometry_veto_count = int(conflict_flags.get("geometry_vetoed_some_evidence", 0))
+    object_total = count_total(object_sources)
+    if object_total > 0 and geometry_veto_count / object_total >= 0.10:
+        warnings.append(f"geometry veto evidence is dense: {geometry_veto_count} flags over {object_total} visible objects")
+    return warnings
+
+
 def summarize_objects(objects: list[dict[str, Any]]) -> dict[str, Any]:
     label_counts = Counter()
     status_counts = Counter()
@@ -208,6 +271,37 @@ def summarize_objects(objects: list[dict[str, Any]]) -> dict[str, Any]:
         "top_resolved_by_points": sorted(resolved, key=sort_key, reverse=True),
         "large_fine_objects": sorted(fine_large, key=sort_key, reverse=True),
     }
+
+
+def summarize_evidence(objects: list[dict[str, Any]], ply_stats: dict[str, Any]) -> dict[str, Any]:
+    json_by_id = {oid: row for row in objects if (oid := object_id(row)) is not None}
+    point_source_counts: Counter[str] = Counter()
+    object_source_counts: Counter[str] = Counter()
+    fusion_status_counts: Counter[str] = Counter()
+    conflict_flag_counts: Counter[str] = Counter()
+    for oid, point_count in ply_stats["object_point_counts"].items():
+        obj = json_by_id.get(int(oid))
+        if obj is None:
+            point_source_counts["missing_object"] += int(point_count)
+            continue
+        point_source_counts[source_support_kind(obj)] += int(point_count)
+    for oid in set(int(value) for value in ply_stats["object_point_counts"].keys()):
+        obj = json_by_id.get(oid)
+        if obj is None:
+            object_source_counts["missing_object"] += 1
+            continue
+        object_source_counts[source_support_kind(obj)] += 1
+        fusion_status_counts[str(obj.get("semantic_fusion_status") or "missing")] += 1
+        for flag in obj.get("conflict_flags") or []:
+            conflict_flag_counts[str(flag)] += 1
+    summary = {
+        "point_source_support_counts": dict(point_source_counts),
+        "object_source_support_counts": dict(object_source_counts),
+        "fusion_status_counts": dict(fusion_status_counts),
+        "conflict_flag_counts": dict(conflict_flag_counts),
+    }
+    summary["warnings"] = evidence_risk_warnings(summary)
+    return summary
 
 
 def compare_ply_objects(objects: list[dict[str, Any]], ply_stats: dict[str, Any], top_n: int) -> dict[str, Any]:
@@ -273,6 +367,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     objects = read_jsonl(args.objects_jsonl)
     ply_header, ply_stats = parse_ply(args.ply)
     object_summary = summarize_objects(objects)
+    evidence_summary = summarize_evidence(objects, ply_stats)
     consistency = compare_ply_objects(objects, ply_stats, args.top_n)
     errors = []
     warnings = []
@@ -292,6 +387,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         )
     if object_summary["large_fine_objects"]:
         warnings.append("large fine objects exceed class-aware thresholds; inspect for surface swallowing")
+    warnings.extend(evidence_summary["warnings"])
 
     report = {
         "status": "failed" if errors else "ok",
@@ -300,6 +396,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "inputs": {"ply": str(args.ply), "objects_jsonl": str(args.objects_jsonl)},
         "ply": {**ply_header, **{k: v for k, v in ply_stats.items() if k != "object_semantic_counts"}},
         "objects": object_summary,
+        "evidence": evidence_summary,
         "consistency": consistency,
         "ambiguous_surface_resolve_report": load_optional_json(args.ambiguous_report),
         "consolidation_report": load_optional_json(args.consolidation_report),
@@ -314,6 +411,7 @@ def format_counter(counter: dict[str, int], limit: int = 12) -> str:
 
 def write_markdown(path: Path, report: dict[str, Any], top_n: int) -> None:
     obj = report["objects"]
+    evidence = report.get("evidence", {})
     ply = report["ply"]
     consistency = report["consistency"]
     lines = [
@@ -325,6 +423,9 @@ def write_markdown(path: Path, report: dict[str, Any], top_n: int) -> None:
         f"- Object labels: {format_counter(obj['label_object_counts'])}",
         f"- Point labels: {format_counter(obj['label_point_counts'])}",
         f"- Status counts: {format_counter(obj['status_counts'])}",
+        f"- Evidence source points: {format_counter(evidence.get('point_source_support_counts', {}))}",
+        f"- Evidence source objects: {format_counter(evidence.get('object_source_support_counts', {}))}",
+        f"- Fusion statuses: {format_counter(evidence.get('fusion_status_counts', {}))}",
         "",
         "## Warnings",
         "",
