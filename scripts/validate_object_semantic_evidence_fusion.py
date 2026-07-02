@@ -16,6 +16,7 @@ REQUIRED_OUTPUT_FIELDS = {
     "semantic_fusion_status",
     "semantic_fusion_confidence",
     "semantic_evidence_scores",
+    "semantic_evidence_source_scores",
     "semantic_vetoed_scores",
 }
 OWNERSHIP_FIELDS = (
@@ -83,16 +84,16 @@ def scene_only_promoted(row: dict[str, Any]) -> bool:
     if row.get("semantic_fusion_status") != "evidence_fusion_applied":
         return False
     label = str(row.get("semantic_label") or "unknown")
-    scores = row.get("semantic_evidence_scores") if isinstance(row.get("semantic_evidence_scores"), dict) else {}
-    scene = row.get("scene_prior") if isinstance(row.get("scene_prior"), dict) else {}
-    scene_weights = scene.get("scene_expected_label_weights") if isinstance(scene.get("scene_expected_label_weights"), dict) else {}
-    if label not in scene_weights:
+    by_source = row.get("semantic_evidence_source_scores")
+    if not isinstance(by_source, dict):
         return False
-    # The output does not retain per-source scores.  Treat a label as scene-only
-    # only when no SAM/teacher source can support it in the original row fields.
-    semantic_votes = row.get("semantic_votes") if isinstance(row.get("semantic_votes"), dict) else {}
-    teacher_votes = row.get("teacher_allowed_votes") if isinstance(row.get("teacher_allowed_votes"), dict) else {}
-    return label not in semantic_votes and label not in teacher_votes and float(scores.get(label, 0.0) or 0.0) > 0
+    scene_scores = by_source.get("scene") if isinstance(by_source.get("scene"), dict) else {}
+    sam_scores = by_source.get("sam") if isinstance(by_source.get("sam"), dict) else {}
+    teacher_scores = by_source.get("teacher") if isinstance(by_source.get("teacher"), dict) else {}
+    scene_score = float(scene_scores.get(label, 0.0) or 0.0)
+    sam_score = float(sam_scores.get(label, 0.0) or 0.0)
+    teacher_score = float(teacher_scores.get(label, 0.0) or 0.0)
+    return scene_score > 0 and sam_score <= 0 and teacher_score <= 0
 
 
 def validate(
@@ -132,6 +133,8 @@ def validate(
                 errors.append(f"object={oid}:membership_field_changed={field}")
         if not isinstance(out.get("semantic_evidence_scores"), dict):
             errors.append(f"object={oid}:semantic_evidence_scores_not_object")
+        if not isinstance(out.get("semantic_evidence_source_scores"), dict):
+            errors.append(f"object={oid}:semantic_evidence_source_scores_not_object")
         if not isinstance(out.get("semantic_vetoed_scores"), dict):
             errors.append(f"object={oid}:semantic_vetoed_scores_not_object")
         if not allow_scene_only and scene_only_promoted(out):

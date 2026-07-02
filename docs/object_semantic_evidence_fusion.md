@@ -26,9 +26,12 @@ Each object row may contain:
   winner ratio and total evidence weight pass thresholds.
 - Geometry vetoes are applied before winner selection.  For example, `car` votes
   on a horizontal surface are recorded as vetoed evidence, not accepted labels.
-- The output keeps `semantic_evidence_scores`, `semantic_vetoed_scores`,
-  `semantic_fusion_status`, and `semantic_fusion_confidence` so every label is
-  auditable.
+- The output keeps both the mixed posterior `semantic_evidence_scores` and the
+  per-source provenance `semantic_evidence_source_scores` (`sam`, `teacher`,
+  `scene`).  QA and validators must be able to tell whether a label came from
+  scene prior alone, SAM/mask evidence, teacher evidence, or a combination.
+- The output also keeps `semantic_vetoed_scores`, `semantic_fusion_status`, and
+  `semantic_fusion_confidence` so every label is auditable.
 
 ## CLI
 
@@ -80,8 +83,8 @@ When the plan is ready, the launcher executes two commands in order:
 2. `scripts/validate_object_semantic_evidence_fusion.py`
 
 The validator checks that object ids and ownership fields did not change, that
-fusion status/evidence fields exist, and that scene-only promotion has not
-slipped into a default run.
+fusion status/evidence/provenance fields exist, and that scene-only promotion
+has not slipped into a default run.
 
 Validated viewer export:
 

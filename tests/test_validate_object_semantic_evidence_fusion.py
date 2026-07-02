@@ -36,6 +36,11 @@ def output_row(**overrides) -> dict:
         "semantic_fusion_status": "evidence_fusion_applied",
         "semantic_fusion_confidence": 1.0,
         "semantic_evidence_scores": {"floor": 10},
+        "semantic_evidence_source_scores": {
+            "sam": {"floor": 10},
+            "teacher": {},
+            "scene": {},
+        },
         "semantic_vetoed_scores": {},
     }
     row.update(overrides)
@@ -78,7 +83,16 @@ def test_validator_rejects_scene_only_promotion(tmp_path: Path) -> None:
     src = input_row()
     src.pop("semantic_votes")
     src["scene_prior"] = {"scene_expected_label_weights": {"floor": 10}}
-    out = output_row(semantic_votes={}, scene_prior=src["scene_prior"], semantic_evidence_scores={"floor": 3.5})
+    out = output_row(
+        semantic_votes={},
+        scene_prior=src["scene_prior"],
+        semantic_evidence_scores={"floor": 3.5},
+        semantic_evidence_source_scores={
+            "sam": {},
+            "teacher": {},
+            "scene": {"floor": 3.5},
+        },
+    )
     before = write_jsonl(tmp_path / "before.jsonl", [src])
     after = write_jsonl(tmp_path / "after.jsonl", [out])
 
@@ -86,6 +100,19 @@ def test_validator_rejects_scene_only_promotion(tmp_path: Path) -> None:
 
     assert result["passed"] is False
     assert "object=1:scene_only_promotion" in result["errors"]
+
+
+def test_validator_rejects_missing_source_scores(tmp_path: Path) -> None:
+    before = write_jsonl(tmp_path / "before.jsonl", [input_row()])
+    out = output_row()
+    out.pop("semantic_evidence_source_scores")
+    after = write_jsonl(tmp_path / "after.jsonl", [out])
+
+    result = validate(before, after)
+
+    assert result["passed"] is False
+    assert any("missing_fields=['semantic_evidence_source_scores']" in err for err in result["errors"])
+    assert "object=1:semantic_evidence_source_scores_not_object" in result["errors"]
 
 
 def test_cli_writes_validation_report(tmp_path: Path) -> None:

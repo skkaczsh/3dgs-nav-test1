@@ -43,6 +43,9 @@ def test_scene_prior_alone_does_not_promote_geometry_only_object() -> None:
     assert decision["semantic_label"] == "unknown"
     assert decision["semantic_status"] == "kept_original_scene_only_evidence"
     assert "scene_only_label_not_promoted" in decision["conflict_flags"]
+    assert decision["semantic_evidence_source_scores"]["scene"] == {"floor": 3.5}
+    assert decision["semantic_evidence_source_scores"]["sam"] == {}
+    assert decision["semantic_evidence_source_scores"]["teacher"] == {}
 
 
 def test_sam_and_teacher_evidence_can_promote_allowed_label() -> None:
@@ -57,6 +60,8 @@ def test_sam_and_teacher_evidence_can_promote_allowed_label() -> None:
     assert decision["semantic_status"] == "evidence_fusion_applied"
     assert decision["semantic_confidence"] > 0.70
     assert decision["semantic_vetoed_scores"]["wall"] > 0
+    assert decision["semantic_evidence_source_scores"]["sam"]["floor"] == 4.0
+    assert decision["semantic_evidence_source_scores"]["teacher"]["floor"] == 2.5
     assert "geometry_vetoed_some_evidence" in decision["conflict_flags"]
 
 
@@ -79,6 +84,7 @@ def test_apply_decision_writes_semantic_id_and_status() -> None:
     assert out["semantic_id"] == 3
     assert out["semantic_fusion_status"] == "evidence_fusion_applied"
     assert out["semantic_label_original"] == "unknown"
+    assert out["semantic_evidence_source_scores"]["sam"] == {"floor": 10.0}
 
 
 def test_cli_writes_fused_jsonl_and_report(tmp_path: Path) -> None:
@@ -108,5 +114,6 @@ def test_cli_writes_fused_jsonl_and_report(tmp_path: Path) -> None:
     row = json.loads(output.read_text(encoding="utf-8").splitlines()[0])
     data = json.loads(report.read_text(encoding="utf-8"))
     assert row["semantic_label"] == "floor"
+    assert row["semantic_evidence_source_scores"]["sam"] == {"floor": 10.0}
     assert data["schema"] == "object-semantic-evidence-fusion/v1"
     assert data["label_counts"] == {"floor": 1}

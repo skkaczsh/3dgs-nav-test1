@@ -145,6 +145,10 @@ def combine_allowed(
     return allowed, vetoed
 
 
+def evidence_source_scores(evidence: dict[str, Counter[str]]) -> dict[str, dict[str, float]]:
+    return {source: dict(scores) for source, scores in sorted(evidence.items())}
+
+
 def has_non_scene_support(label: str, evidence: dict[str, Counter[str]]) -> bool:
     return evidence["sam"].get(label, 0.0) > 0 or evidence["teacher"].get(label, 0.0) > 0
 
@@ -167,6 +171,7 @@ def choose_label(row: dict[str, Any], params: FusionParams | None = None) -> dic
             "semantic_confidence": 0.0,
             "semantic_label_original": original,
             "semantic_evidence_scores": dict(allowed),
+            "semantic_evidence_source_scores": evidence_source_scores(evidence),
             "semantic_vetoed_scores": dict(vetoed),
             "conflict_flags": conflict_flags,
         }
@@ -180,6 +185,7 @@ def choose_label(row: dict[str, Any], params: FusionParams | None = None) -> dic
             "semantic_confidence": ratio,
             "semantic_label_original": original,
             "semantic_evidence_scores": dict(allowed),
+            "semantic_evidence_source_scores": evidence_source_scores(evidence),
             "semantic_vetoed_scores": dict(vetoed),
             "conflict_flags": conflict_flags + ["scene_only_label_not_promoted"],
         }
@@ -191,6 +197,7 @@ def choose_label(row: dict[str, Any], params: FusionParams | None = None) -> dic
             "semantic_confidence": ratio,
             "semantic_label_original": original,
             "semantic_evidence_scores": dict(allowed),
+            "semantic_evidence_source_scores": evidence_source_scores(evidence),
             "semantic_vetoed_scores": dict(vetoed),
             "conflict_flags": conflict_flags + ["low_winner_ratio"],
         }
@@ -200,6 +207,7 @@ def choose_label(row: dict[str, Any], params: FusionParams | None = None) -> dic
         "semantic_confidence": ratio,
         "semantic_label_original": original,
         "semantic_evidence_scores": dict(allowed),
+        "semantic_evidence_source_scores": evidence_source_scores(evidence),
         "semantic_vetoed_scores": dict(vetoed),
         "conflict_flags": conflict_flags,
     }
@@ -213,6 +221,7 @@ def apply_decision(row: dict[str, Any], decision: dict[str, Any]) -> dict[str, A
     out["semantic_fusion_status"] = decision["semantic_status"]
     out["semantic_fusion_confidence"] = decision["semantic_confidence"]
     out["semantic_evidence_scores"] = decision["semantic_evidence_scores"]
+    out["semantic_evidence_source_scores"] = decision["semantic_evidence_source_scores"]
     out["semantic_vetoed_scores"] = decision["semantic_vetoed_scores"]
     existing_flags = list(out.get("conflict_flags") or [])
     out["conflict_flags"] = sorted(set(existing_flags + list(decision.get("conflict_flags") or [])))
