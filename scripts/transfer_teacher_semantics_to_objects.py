@@ -28,6 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from scripts.geometry_input_contract import is_geometry_only_row
 from scripts.semantic_label_contract import LABEL_TO_SEMANTIC, SEMANTIC_COLORS, SEMANTIC_TO_LABEL
 
 GEOMETRY_LABELS = {"horizontal", "vertical", "thin_linear", "rough_mixed", "mixed", "unknown"}
@@ -107,6 +108,8 @@ def geometry_type(row: dict[str, Any]) -> str:
 
 def normalized_original_label(row: dict[str, Any]) -> str:
     label = str(row.get("semantic_label") or "unknown")
+    if is_geometry_only_row(row):
+        return "unknown"
     if label not in GEOMETRY_LABELS:
         return label
     geom = geometry_type(row)

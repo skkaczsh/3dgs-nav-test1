@@ -16,6 +16,10 @@ pretend that geometry buckets are semantic labels.
   label from visual and geometric evidence.
 - `semantic_status` must be `geometry_only_unlabeled` for geometry-only rows.
 - `label_policy` must be `geometry_is_not_semantic`.
+- Teacher-transfer stages must treat rows with this policy as unlabeled
+  geometry.  They may assign a semantic label from teacher votes, but they must
+  not fall back from `horizontal -> floor` or `vertical -> wall` without direct
+  semantic evidence.
 
 ## Reason
 
