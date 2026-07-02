@@ -63,6 +63,7 @@ def summarize(architecture: dict[str, Any], dense_patch: dict[str, Any]) -> dict
         "remote_executable_baseline": dense_patch.get("remote_executable_baseline", {}),
         "latest_remote_run": dense_patch.get("latest_remote_run", {}),
         "current_qa_report": dense_patch.get("current_qa_report", {}),
+        "approved_runners": dense_patch.get("approved_runners", []),
         "next_action": dense_patch.get("next_action", {}),
         "forbidden_inputs": dense_patch.get("forbidden_inputs", []),
         "rejected_semantic_artifacts": rejected,
@@ -160,6 +161,12 @@ def format_text(summary: dict[str, Any]) -> str:
         lines.append(f"  blocker: {next_action.get('current_blocker')}")
     for item in next_action.get("success_criteria", []):
         lines.append(f"  gate: {item}")
+    lines.append("")
+    lines.append("approved runners:")
+    for item in summary.get("approved_runners", []):
+        lines.append(f"- {item.get('path')} [{item.get('stage')}]")
+        if item.get("scope"):
+            lines.append(f"  scope: {item.get('scope')}")
     lines.append("")
     lines.append("forbidden inputs:")
     for item in summary.get("forbidden_inputs", []):

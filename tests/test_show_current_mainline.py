@@ -27,6 +27,8 @@ def test_show_current_mainline_json_output() -> None:
     assert data["current_qa_report"]["review_index_url"] == "/docs/current_dense_review_index.html"
     assert data["current_qa_report"]["review_artifact_allowlist"]["passed"] is True
     assert data["current_qa_report"]["rejected_guard_diagnostics"]["variants"][0]["unknown_delta_vs_v9"] > 0
+    assert any(item["path"] == "scripts/run_dense_patch_object_refinement_v7.py" for item in data["approved_runners"])
+    assert any(item["path"] == "scripts/run_semantic_evidence_pipeline.py" for item in data["approved_runners"])
     assert any(item["pattern"] == "frame_object_points_stride10.ply" for item in data["forbidden_inputs"])
 
 
@@ -46,6 +48,8 @@ def test_show_current_mainline_text_output() -> None:
     assert "dense_patch_object_refinement_v8_tiny_attach_20260624_170619" in result.stdout
     assert "runner: scripts/run_dense_patch_object_refinement_v7.py" in result.stdout
     assert "remote_runner: scripts/run_scan_train_dense_patch_object_refinement_v7.sh" in result.stdout
+    assert "approved runners:" in result.stdout
+    assert "scripts/run_semantic_evidence_pipeline.py [semantic_evidence]" in result.stdout
     assert "blocker:" in result.stdout
     assert "current QA / promotion gate:" in result.stdout
     assert "promotion_gate_status: awaiting_required_visual_checks" in result.stdout

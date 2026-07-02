@@ -186,6 +186,33 @@
       "reason": "Diagnostic only; high point-level unknown."
     }
   ],
+  "approved_runners": [
+    {
+      "path": "scripts/run_dense_patch_object_refinement_v7.py",
+      "stage": "object_building",
+      "scope": "Local/dry-run dense Patch object-refinement command planner and trusted executor. It must use current dense allowlist inputs by default."
+    },
+    {
+      "path": "scripts/run_scan_train_dense_patch_object_refinement_v7.sh",
+      "stage": "object_building",
+      "scope": "Remote scan-train launcher for dense Patch object-refinement. It runs local mainline preflight before rsync/ssh/tmux launch."
+    },
+    {
+      "path": "scripts/run_object_semantic_evidence_fusion.py",
+      "stage": "semantic_evidence",
+      "scope": "Plan or run object-level semantic evidence fusion after geometry ownership is fixed; it cannot create object boundaries."
+    },
+    {
+      "path": "scripts/run_semantic_evidence_pipeline.py",
+      "stage": "semantic_evidence",
+      "scope": "Orchestrated semantic evidence pipeline for approved object candidates; protected against forbidden production inputs."
+    },
+    {
+      "path": "scripts/run_validated_semantic_viewer_export.py",
+      "stage": "qa_viewer_export",
+      "scope": "QA-only viewer export after semantic validation; viewer PLY must not become production geometry input."
+    }
+  ],
   "next_action": {
     "id": "dense_patch_object_refinement_v7",
     "description": "Compare v8 high-recall object refinement visually against v7 and the local v6/v3 dense baselines, then continue object building only where ownership and overlap metrics remain stable.",

@@ -13,7 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.current_mainline_contract import FORBIDDEN_PRODUCTION_INPUT_SUBSTRINGS
+from scripts.current_mainline_contract import APPROVED_MAINLINE_RUNNER_PATHS, FORBIDDEN_PRODUCTION_INPUT_SUBSTRINGS
 
 
 REQUIRED_SCHEMA = "current-dense-patch-state/v1"
@@ -29,6 +29,7 @@ REQUIRED_TOP_LEVEL = {
     "latest_remote_run",
     "current_qa_report",
     "stage_contract",
+    "approved_runners",
     "forbidden_inputs",
     "next_action",
 }
@@ -42,6 +43,8 @@ REQUIRED_STAGE_RULES = {
     "object_building",
     "semantic_evidence",
 }
+
+REQUIRED_APPROVED_RUNNERS = set(APPROVED_MAINLINE_RUNNER_PATHS)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -84,6 +87,14 @@ def validate(path: Path) -> dict[str, Any]:
     stages = {str(item.get("stage")) for item in data.get("stage_contract", []) if isinstance(item, dict)}
     for stage in sorted(REQUIRED_STAGE_RULES - stages):
         errors.append(f"missing_stage_contract={stage}")
+
+    approved_runners = {str(item.get("path")) for item in data.get("approved_runners", []) if isinstance(item, dict)}
+    for runner in sorted(REQUIRED_APPROVED_RUNNERS - approved_runners):
+        errors.append(f"missing_approved_runner={runner}")
+    for runner in sorted(approved_runners):
+        runner_path = REPO_ROOT / runner
+        if not runner_path.exists():
+            errors.append(f"approved_runner_missing_file={runner}")
 
     all_paths = iter_local_paths(data)
     for item in all_paths:
@@ -141,6 +152,15 @@ def validate(path: Path) -> dict[str, Any]:
             if int(candidate_metrics.get("structural_multimaterial_candidates", 0)) <= 0:
                 errors.append("latest_remote_run_no_structural_candidates")
 
+    next_action = data.get("next_action", {})
+    if isinstance(next_action, dict):
+        for key in ("runner", "remote_runner"):
+            value = str(next_action.get(key, ""))
+            if not value:
+                errors.append(f"next_action_missing_{key}")
+            elif value not in approved_runners:
+                errors.append(f"next_action_unapproved_{key}={value}")
+
     qa = data.get("current_qa_report", {})
     if isinstance(qa, dict):
         for key in (
@@ -183,6 +203,7 @@ def validate(path: Path) -> dict[str, Any]:
         "path": str(path),
         "checked_local_path_count": len(all_paths),
         "stage_contract_count": len(stages),
+        "approved_runner_count": len(approved_runners),
         "forbidden_input_count": len(forbidden),
         "errors": errors,
         "warnings": warnings,

@@ -43,6 +43,14 @@ REQUIRED_REJECTED_ARTIFACT_IDS: tuple[str, ...] = (
     "raw_sam_png_vote_on_patches",
 )
 
+APPROVED_MAINLINE_RUNNER_PATHS: tuple[str, ...] = (
+    "scripts/run_dense_patch_object_refinement_v7.py",
+    "scripts/run_scan_train_dense_patch_object_refinement_v7.sh",
+    "scripts/run_object_semantic_evidence_fusion.py",
+    "scripts/run_semantic_evidence_pipeline.py",
+    "scripts/run_validated_semantic_viewer_export.py",
+)
+
 
 def forbidden_artifact_match(value: str | Path) -> str | None:
     text = str(value)
