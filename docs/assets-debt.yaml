@@ -1,10 +1,59 @@
 assets:
   - id: asset-colorized-ply
-    title: 着色点云
+    title: 旧着色点云
+    type: output
+    status: deprecated
+    value: 旧 colorized_final.ply 不再作为当前权威资产；后续点云/语义产物应由 new_route/scripts 重新生成
+    path: /Users/skkac/Work/SCAN/new_route/colorized_final.ply
+
+  - id: asset-opt-las-dense-source
+    title: 停车场权威稠密点云源
+    type: data
+    status: active
+    value: MT20260616-175807 Opt LAS，约 2.92GB / 97,194,579 points；当前 Patch/Object 结论只允许从该源或其 0.03m dense voxel 派生
+    path: /Users/skkac/Work/SCAN/MT20260616-175807/3dgs_20260616_3dgs_0095fd8ebe7845f2b24820cb98de4abb_task_c967d04831bf45f0b9d7c3fac31b4103_output_pointcloud_CommandProcessLXOutput_MANIFOLD_MT20260616-175807-Opt.las
+
+  - id: asset-dense-voxel003
+    title: 0.03m 稠密 Voxel 输入
+    type: data
+    status: active
+    value: Opt LAS 派生的 canonical dense patch input，14,482,557 voxels；禁止用 stride viewer PLY 替代
+    path: /home/zsh/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_20260624/dense_las_voxel003_binary.ply
+
+  - id: asset-dense-patch-baseline
+    title: 当前 Patch 决策基线
     type: output
     status: active
-    value: colorized_final.ply (41,890,502 点, 599 MB, sky mask 过滤后 100% 着色)
-    path: /Users/skkac/Work/SCAN/new_route/colorized_final.ply
+    value: dense_las_voxel003_energy_v6_fine_gated_overlap_20260624；exclusive voxel ownership，约 48,863 patches；作为当前 dense patch decision baseline
+    path: /Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/
+
+  - id: asset-object-baseline
+    title: 当前 Object 诊断基线
+    type: output
+    status: diagnostic
+    value: dense_las_voxel003_objects_v3_high_recall_clean_20260624；保守 object stage baseline，仍存在 fragmentation，不能直接视作最终语义 object
+    path: /Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_objects_v3_high_recall_clean_20260624/
+
+  - id: asset-object-v8-candidate
+    title: v8 Object Refinement 视觉候选
+    type: output
+    status: pending_visual_acceptance
+    value: v8_tiny_attach 改善 accepted candidates / object count / mixed overlap，但未通过必要人工视觉 gate；不得自动 promotion
+    path: /Users/skkac/Work/SCAN/new_route/docs/current_dense_visual_acceptance.json
+
+  - id: asset-validated-route-scripts
+    title: 正确投影路线脚本
+    type: code
+    status: active
+    value: scanner-native calibration route; includes project_color.py, project_semantic.py, first-touch/z-buffer/skymask visibility and semantic evidence export
+    path: /Users/skkac/Work/SCAN/new_route/scripts/
+
+  - id: asset-semantic-sample
+    title: 正确路线语义样本
+    type: output
+    status: deprecated
+    value: 早期 project_semantic.py QA 样本，只可作历史对齐参考；当前生产语义必须从 geometry-first object + evidence fusion 进入
+    path: /Users/skkac/Work/SCAN/server_new_route_semantic_manifest_sample/
 
   - id: asset-sky-masks
     title: 天空Mask数据集
@@ -21,18 +70,18 @@ assets:
     path: /root/epfs/new_route_data/frames/
 
   - id: asset-server
-    title: GPU服务器
+    title: GPU服务器/远端执行机
     type: infrastructure
     status: active
-    value: "L20 46GB, PyTorch 2.10, transformers 5.9, onnxruntime 1.23"
-    path: ssh root@10.0.8.114 -p 31079
+    value: 当前 dense Patch 主线优先使用 scan-train/4090D；5070Ti 可作为备机。长任务用 tmux，远端 run 需通过 current mainline preflight。
+    path: scan-train
 
   - id: asset-old-pipeline
     title: 旧路线管线
     type: reference
-    status: active
-    value: 服务器 /root/epfs/manifold_3dgs_project/ 完整脚本
-    path: /root/epfs/manifold_3dgs_project/scripts/
+    status: deprecated
+    value: 本地旧 3DGS processed/outputs 已删除；仅保留脚本/文档/metrics 作历史参考
+    path: /Users/skkac/Work/SCAN/MT20260511-165822/manifold_3dgs_project/
 
   - id: asset-skyseg-model
     title: skyseg ONNX模型
@@ -41,14 +90,45 @@ assets:
     value: skyseg_batch.onnx (168MB)，天空分割
     path: /root/epfs/lingbot-map/lingbot-map/skyseg_batch.onnx
 
+  - id: asset-success-retrospective
+    title: 新路线成功经验复盘
+    type: document
+    status: active
+    value: 记录原生采集闭环、旧路线失败根因、skymask/fast voxel 经验和后续工程规则
+    path: /Users/skkac/Work/SCAN/new_route/SUCCESS_RETROSPECTIVE.md
+
 debts:
-  - id: debt-no-transforms
-    title: transforms.json 未构建
+  - id: debt-semantic-order-wrong
+    title: 语义驱动边界的路线已证明上限低
+    severity: high
+    status: accepted
+    cause: SAM/DINO/VLM mask label 先决定 object，再投回点云，会把墙/地/车/栏杆错误吞并；不同传感器的不确定性被当作硬边界使用
+    impact: 每个版本都有不同的大面积混杂，且调参无法稳定提升上限
+    repayment_plan: 当前主线改为 geometry-first：先锁定 exclusive voxel patch/object ownership，再把 skymask、first-touch、mask、VLM、scene prior 作为 evidence
+
+  - id: debt-patch-fragmentation
+    title: Patch/Object 仍偏碎
     severity: high
     status: open
-    cause: 着色完成后尚未构建 Nerfstudio 格式 transforms.json
-    impact: 无法进行 3DGS 训练
-    repayment_plan: 从 img_pos 位姿 + Tcl + Til 构建
+    cause: 当前 v6 patch baseline 保守保护边界；v9 remote run更保守，v8 object refinement 尚未视觉验收
+    impact: 车、窗、建筑立面、树木等目标可能被拆成多个 patch/object，语义聚合缺少稳定对象容器
+    repayment_plan: 继续在 dense Opt-LAS / 0.03m voxel 上优化 object refinement；gate 必须同时看 exclusive ownership、fine overlap、fragmentation 和 visual QA
+
+  - id: debt-sensor-trust-contract
+    title: 传感器证据职责边界需继续固化
+    severity: high
+    status: open
+    cause: drivability_cpp、first-touch depth、skymask、VLM、MASK 各自有不同误差模型；历史上多次把 evidence 当 truth
+    impact: 结构先验会被语义污染，VLM/MASK 会跨越几何边界，导致地面/墙面/细目标互相覆盖
+    repayment_plan: 在代码合同中强制：几何 ownership 只能由点云结构产生；VLM/MASK 只能写 posterior/evidence；viewer artifact QA-only
+
+  - id: debt-no-transforms
+    title: transforms.json 未构建
+    severity: low
+    status: open
+    cause: 旧 3DGS processed/outputs 已清理，需从正确 scanner-native 投影链重建 Nerfstudio 输入
+    impact: 影响 3DGS 研究备线，不影响当前停车场 dense Patch/Object 主线
+    repayment_plan: 从 img_pos + Tcl + Til + frame_id 构建，并用 MID360 扫描线/CloudCompare QA 验证
 
   - id: debt-cam1-sky
     title: cam1 天空检测不适用
@@ -58,10 +138,34 @@ debts:
     impact: cam1 帧天空未过滤，但着色时已通过深度融合缓解
     repayment_plan: 可对 cam1 使用不同策略或跳过 sky mask
 
-  - id: debt-data-redundancy
-    title: 数据冗余
+  - id: debt-cam2-skymask-gap
+    title: cam2 skymask 连续缺口
     severity: medium
-    status: open
-    cause: data.zip 与 extracted/ 重复
-    impact: 浪费 ~6.6GB 磁盘
-    repayment_plan: 验证后删除 data.zip 和 __MACOSX/
+    status: historical
+    cause: 0-500 样本中 cam2 在 365-500 存在连续 skymask 缺失；sky_masks_refined 不覆盖 cam2，不能替代 sky_masks_color
+    impact: 属于 202605/早期投影路线历史债；停车场当前以 first-touch/skymask visibility 作 evidence，需按新数据集重新审计
+    repayment_plan: 补跑 cam2 365-500 的 skyseg/颜色扩展；完成后重新生成 skymask_missing 和 QA summary
+
+  - id: debt-old-transform-route
+    title: 旧 transforms/3DGS 投影链路不可信
+    severity: high
+    status: accepted
+    cause: 旧链路混用 transforms.json、3DGS/COLMAP 坐标和推断帧映射；MID360 扫描线结构曾异常
+    impact: 高覆盖率可能是假覆盖，颜色/语义会错投到地面、天空或背景
+    repayment_plan: 已废弃其 correctness 结论；直接点云语义生产必须以 new_route/scripts 的原生 img_pos/cam_in_ex/Tcl/Til/frame_id 闭环为主
+
+  - id: debt-data-redundancy
+    title: 旧实验产物冗余
+    severity: low
+    status: mitigated
+    cause: 旧 debug、deprecated semantic PLY、tmp smoke、旧 3DGS processed/outputs 占用空间
+    impact: 已清理；MT20260511-165822 当前约 3.3G，manifold_3dgs_project 当前约 6.7M
+    repayment_plan: 后续按阶段保留 QA 报告，及时删除临时 PLY/PNG/debug 目录
+
+  - id: debt-semantic-coverage
+    title: 2D mask-first 语义覆盖率不足
+    severity: high
+    status: accepted
+    cause: 已测 SAM3/skymask/Qwen 组合点级 labeled ratio 仍低；VLM parse 可接受但 2D mask coverage 不足
+    impact: 不再适合作为主边界生成路线，只能作为 patch/object 的视觉 evidence
+    repayment_plan: 不再追求 SAM 全图 mask 直接产出最终 object；转为 dense patch/object 后的多视角 evidence fusion

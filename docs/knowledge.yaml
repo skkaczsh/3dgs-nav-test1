@@ -4,12 +4,14 @@ nodes:
   type: module
   title: New Route 项目
   status: active
-  summary: MANIFOLD Pocket2-Q9000 大范围路线扫描 · 全量着色完成 · 41.9M 点 · 599MB
+  summary: MANIFOLD 扫描数据点级语义项目 · 当前主线为停车场 Opt-LAS 稠密几何优先 Patch/Object，再做多视角语义 evidence fusion
   links:
   - data-raw
+  - data-opt-las
+  - pipeline-geo-patch
   - pipeline-colorize
   - knowledge-convention
-  - task-3dgs-train
+  - knowledge-sensor-trust-contract
 
 # ═══════════ DATA ═══════════
 - id: data-raw
@@ -20,6 +22,15 @@ nodes:
   links:
   - data-calib
   - data-pointcloud
+
+- id: data-opt-las
+  type: data
+  title: 停车场 Opt-LAS 稠密源
+  status: active
+  summary: MT20260616-175807 Opt LAS，约 2.92GB / 97,194,579 points；当前生产 Patch/Object 结论只允许从该源或其 0.03m voxel 派生。
+  links:
+  - data-pointcloud
+  - pipeline-geo-patch
 
 - id: data-calib
   type: data
@@ -34,10 +45,11 @@ nodes:
   type: data
   title: 点云数据
   status: done
-  summary: 7631 PLY sections(世界坐标,~1.1亿点) + colorized_final.ply(41.9M点,599MB)
+  summary: 原始 .lx 保留；停车场当前权威几何源为 Opt-LAS 派生 0.03m dense voxel，禁止用 stride viewer PLY 作为生产输入。
   links:
   - knowledge-world-coords
   - pipeline-colorize
+  - pipeline-geo-patch
 
 # ═══════════ PIPELINE ═══════════
 - id: pipeline-preprocess
@@ -62,17 +74,40 @@ nodes:
   type: module
   title: 着色管线
   status: done
-  summary: Convention B投影 + OpenCV fisheye + sky mask过滤 + 深度融合 → 41.9M点着色
+  summary: 原生frame_id对齐 + Convention B投影 + OpenCV fisheye + sky mask过滤；当前作为 first-touch/skymask/RGB evidence 入口，不直接决定 object 边界。
   links:
   - knowledge-convention
   - pipeline-skymask
-  - task-3dgs-train
+  - knowledge-success-native-loop
+  - pipeline-evidence-fusion
+
+- id: pipeline-geo-patch
+  type: module
+  title: 稠密几何 Patch/Object 管线
+  status: active
+  summary: 从 Opt-LAS 生成 0.03m dense voxel，先做 exclusive voxel patch ownership，再做 object refinement；语义标签不能创建或合并几何边界。
+  links:
+  - data-opt-las
+  - knowledge-sensor-trust-contract
+  - knowledge-patch-current-state
+  - pipeline-evidence-fusion
+
+- id: pipeline-evidence-fusion
+  type: module
+  title: 多视角语义 Evidence Fusion
+  status: active
+  summary: skymask、first-touch depth、2D mask、VLM、scene prior 只为 Patch/Object 写 evidence/posterior；不得覆盖 geometry ownership。
+  links:
+  - pipeline-colorize
+  - pipeline-geo-patch
+  - knowledge-mask-first-failure
+  - knowledge-sensor-trust-contract
 
 - id: pipeline-3dgs
   type: module
   title: 3DGS训练管线
-  status: pending
-  summary: Splatfacto训练，待建
+  status: research
+  summary: 旧 processed/outputs 已清理；3DGS 仅作研究备线，不参与当前停车场语义主线。
   links:
   - pipeline-colorize
   - asset-old-pipeline
@@ -113,21 +148,91 @@ nodes:
   links:
   - data-raw
 
+- id: knowledge-success-native-loop
+  type: module
+  title: 新路线成功经验：原生采集闭环
+  status: active
+  summary: "成功关键是直接使用 section_XXXX.ply + img_pos.txt + cam_in_ex.txt + Tcl/Til + video frame XXXX；避免依赖 transforms.json/3DGS 坐标推断。验证信号是 MID360 环状扫描线结构正确。"
+  links:
+  - data-raw
+  - data-calib
+  - pipeline-colorize
+
+- id: knowledge-failure-old-route
+  type: module
+  title: 旧路线失败根因
+  status: active
+  summary: "旧 transforms.json/3DGS/processed-image 链路混入坐标系和帧号推断；semantic_pointcloud_pipeline/project_frame_local_semantics.py 结果已废弃，不能作为语义正确性依据。"
+  links:
+  - pipeline-3dgs
+  - pipeline-colorize
+
+- id: knowledge-correct-semantic-route
+  type: module
+  title: 正确语义投影路线
+  status: historical
+  summary: "早期权威入口是 new_route/scripts/project_semantic.py：section_XXXX.ply + img_pos.txt + cam_in_ex.txt + Tcl/Til + frame XXXX；现在只作为投影/对齐经验，最终 object 边界转向 geometry-first。"
+  links:
+  - pipeline-colorize
+  - knowledge-success-native-loop
+
+- id: knowledge-surface-residual
+  type: module
+  title: Surface/Residual 二阶段语义
+  status: active
+  summary: "先稳定地面/墙面/大结构，再把碎片和小目标放入 residual review，避免 scattered mask 直接污染全云。"
+  links:
+  - knowledge-correct-semantic-route
+
+- id: knowledge-patch-current-state
+  type: module
+  title: 当前 Dense Patch 状态
+  status: active
+  summary: "当前 dense patch baseline 是 dense_las_voxel003_energy_v6_fine_gated_overlap_20260624；object baseline 是 dense_las_voxel003_objects_v3_high_recall_clean_20260624；v8 object refinement 待视觉验收，v9 remote run 仅证明 runner 可跑通。"
+  links:
+  - data-opt-las
+  - pipeline-geo-patch
+
+- id: knowledge-mask-first-failure
+  type: module
+  title: Mask/Label First 路线失败结论
+  status: active
+  summary: "SAM/DINO/VLM 先定 mask/label 再投点云，会把传感器误差当作硬边界，导致地面/墙面/车/栏杆互相吞并；这些输出只能作为 evidence。"
+  links:
+  - pipeline-evidence-fusion
+
+- id: knowledge-sensor-trust-contract
+  type: module
+  title: 传感器职责边界
+  status: active
+  summary: "点云结构负责 ownership；first-touch/skymask/RGB/2D mask/VLM 负责 evidence；drivability_cpp 是结构区域先验，不是语义真值；viewer PLY 只做 QA，不能作为生产输入。"
+  links:
+  - pipeline-geo-patch
+  - pipeline-evidence-fusion
+
+- id: knowledge-fast-voxel
+  type: module
+  title: 快速 Voxel 经验
+  status: active
+  summary: "先 voxel_size=0 快速合并，再用 numpy vectorized voxel。0-500 样本 4,784,570→1,235,715 点，0.04m，总耗时约 2.70s。"
+  links:
+  - pipeline-colorize
+
 # ═══════════ ASSETS ═══════════
 - id: asset-server
   type: asset
   title: GPU服务器
   status: active
-  summary: "ssh root@10.0.8.114:31079 · L20 46GB · PyTorch 2.10 · transformers 5.9 · 数据: /root/epfs/new_route_data/"
+  summary: "当前 dense Patch 主线优先用 scan-train/4090D 远端；5070Ti 可作备机。长任务用 tmux，远端 runner 必须先跑 current mainline preflight。"
   links:
-  - pipeline-colorize
-  - pipeline-skymask
+  - pipeline-geo-patch
+  - pipeline-evidence-fusion
 
 - id: asset-old-pipeline
   type: asset
   title: 旧路线完整管线
-  status: active
-  summary: 服务器/manifold_3dgs_project/有旧路线脚本(00~08) + SAM3 + Qwen VLM
+  status: deprecated
+  summary: 本地旧 3DGS processed/outputs 已清理；只保留脚本/文档作为参考，后续从 new_route 重启
   links:
   - pipeline-3dgs
 
@@ -135,16 +240,16 @@ nodes:
 - id: task-transforms
   type: task
   title: 构建transforms.json
-  status: pending
-  summary: img_pos位姿+Tcl+Til → Nerfstudio格式transforms.json
+  status: research
+  summary: 基于已验证的 img_pos + Tcl + Til + frame_id 构建 Nerfstudio transforms；不得复用旧 processed 输出
   links:
   - pipeline-3dgs
 
 - id: task-3dgs-train
   type: task
   title: 3DGS训练
-  status: pending
-  summary: Splatfacto训练，参考旧路线V22参数
+  status: research
+  summary: 从 new_route 生成的新训练输入启动；旧 V22/V26 产物已删除，只可参考参数经验
   links:
   - pipeline-3dgs
   - asset-old-pipeline
@@ -152,7 +257,8 @@ nodes:
 - id: task-visualize
   type: task
   title: 可视化验证
-  status: pending
-  summary: CloudCompare/Open3D打开colorized_final.ply验证
+  status: active
+  summary: 使用 current_dense_review_index.html / semantic_ply_viewer / Potree 做 QA；viewer artifact 严禁反向作为生产输入
   links:
-  - pipeline-colorize
+  - pipeline-geo-patch
+  - pipeline-evidence-fusion
