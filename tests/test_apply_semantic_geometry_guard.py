@@ -1,6 +1,10 @@
 import sys
 from argparse import Namespace
+from pathlib import Path
 
+import pytest
+
+from scripts import apply_semantic_geometry_guard as module
 from scripts.apply_semantic_geometry_guard import choose_label, parse_args
 
 
@@ -70,3 +74,22 @@ def test_cli_defaults_to_surface_preserve_policy(monkeypatch):
     )
 
     assert parse_args().surface_label_policy == "preserve"
+
+
+def test_semantic_geometry_guard_rejects_stride_preview_source(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "apply_semantic_geometry_guard.py",
+            "--input-ply",
+            str(tmp_path / "frame_object_points_stride10.ply"),
+            "--input-objects-jsonl",
+            str(tmp_path / "objects.jsonl"),
+            "--output-dir",
+            str(tmp_path / "out"),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="forbidden input path"):
+        module.main()

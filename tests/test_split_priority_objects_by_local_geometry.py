@@ -106,3 +106,24 @@ def test_split_handles_noncontiguous_object_runs(tmp_path: Path):
     assert len(data_lines) == 5
     assert sum(1 for line in data_lines if line.split()[6] == "1") == 2
     assert sum(1 for line in data_lines if line.split()[6] == "3000000") == 3
+
+
+def test_split_rejects_stride_preview_source_by_default(tmp_path: Path):
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--input-ply",
+            str(tmp_path / "frame_object_points_stride10.ply"),
+            "--objects-jsonl",
+            str(tmp_path / "objects.jsonl"),
+            "--output-dir",
+            str(tmp_path / "out"),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "forbidden input path" in result.stderr

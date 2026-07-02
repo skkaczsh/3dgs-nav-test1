@@ -88,12 +88,16 @@ PROTECTED_PRODUCTION_GUARD_SCRIPT_PATHS: tuple[str, ...] = (
     "scripts/apply_visual_promotion_geometry_guard.py",
     "scripts/apply_surface_trust_guard_to_ply.py",
     "scripts/build_spatial_partition_objects.py",
+    "scripts/apply_semantic_geometry_guard.py",
+    "scripts/mask_unconfirmed_fine_candidates.py",
+    "scripts/split_priority_objects_by_local_geometry.py",
 )
 
 PROTECTED_SEMANTIC_CONTRACT_SCRIPT_PATHS: tuple[str, ...] = (
     "scripts/analyze_residual_absorbability.py",
     "scripts/apply_geometry_conflict_relabels.py",
     "scripts/apply_priority_guard_to_full_scene.py",
+    "scripts/apply_semantic_geometry_guard.py",
     "scripts/apply_surface_trust_guard_to_ply.py",
     "scripts/apply_visual_promotion_geometry_guard.py",
     "scripts/build_parking_dataset_manifest.py",
@@ -102,6 +106,8 @@ PROTECTED_SEMANTIC_CONTRACT_SCRIPT_PATHS: tuple[str, ...] = (
     "scripts/project_semantic.py",
     "scripts/qa_object_voxel_overlap.py",
     "scripts/qa_viewer_candidate.py",
+    "scripts/mask_unconfirmed_fine_candidates.py",
+    "scripts/split_priority_objects_by_local_geometry.py",
     "scripts/transfer_teacher_semantics_to_objects.py",
 )
 

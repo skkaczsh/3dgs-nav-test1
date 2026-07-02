@@ -21,7 +21,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.export_frame_target_objects_for_viewer import LABEL_TO_SEMANTIC, SEMANTIC_COLORS
+from scripts.current_mainline_contract import reject_forbidden_production_input
+from scripts.semantic_label_contract import LABEL_TO_SEMANTIC, SEMANTIC_COLORS
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -284,11 +285,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--car-surface-normal-abs-z", type=float, default=0.88)
     parser.add_argument("--car-surface-max-z-extent", type=float, default=0.35)
     parser.add_argument("--railing-surface-normal-abs-z", type=float, default=0.88)
+    parser.add_argument(
+        "--allow-qa-preview-source",
+        action="store_true",
+        help="Allow a stride-sampled viewer PLY as QA source. Outputs remain QA-only.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
-    print(json.dumps(apply_guard(parse_args()), ensure_ascii=False, indent=2, default=str))
+    args = parse_args()
+    reject_forbidden_production_input(args.input_ply, allow_qa_preview=args.allow_qa_preview_source)
+    reject_forbidden_production_input(args.input_objects_jsonl)
+    reject_forbidden_production_input(args.output_dir)
+    print(json.dumps(apply_guard(args), ensure_ascii=False, indent=2, default=str))
     return 0
 
 

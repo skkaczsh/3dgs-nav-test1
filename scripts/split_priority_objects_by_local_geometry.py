@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,16 +26,13 @@ from typing import Any, Iterable
 
 import numpy as np
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-LABEL_TO_SEMANTIC = {
-    "unknown": 0,
-    "wall": 2,
-    "floor": 3,
-    "ground": 3,
-    "grass": 5,
-    "car": 8,
-    "railing": 9,
-}
+from scripts.current_mainline_contract import reject_forbidden_production_input
+from scripts.semantic_label_contract import LABEL_TO_SEMANTIC
+
 
 SPLIT_CANDIDATE_LABELS = {"floor", "wall", "grass", "railing"}
 
@@ -664,7 +662,18 @@ def main() -> None:
     parser.add_argument("--railing-keep-linearity", type=float, default=0.82)
     parser.add_argument("--railing-max-minor-extent", type=float, default=1.20)
     parser.add_argument("--horizontal-label", choices=["floor", "ground"], default="floor")
+    parser.add_argument(
+        "--allow-qa-preview-source",
+        action="store_true",
+        help="Allow a stride-sampled viewer PLY as QA source. Outputs remain QA-only.",
+    )
     args = parser.parse_args()
+
+    reject_forbidden_production_input(args.input_ply, allow_qa_preview=args.allow_qa_preview_source)
+    reject_forbidden_production_input(args.objects_jsonl)
+    if args.conflicts_jsonl:
+        reject_forbidden_production_input(args.conflicts_jsonl)
+    reject_forbidden_production_input(args.output_dir)
 
     header = read_header(args.input_ply)
     idx = {name: i for i, name in enumerate(header.props)}

@@ -15,32 +15,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-LABEL_TO_SEMANTIC = {
-    "unknown": 0,
-    "other": 1,
-    "wall": 2,
-    "floor": 3,
-    "ceiling": 4,
-    "grass": 5,
-    "tree": 6,
-    "person": 7,
-    "car": 8,
-    "railing": 9,
-    "building": 10,
-    "sky": 11,
-    "road": 12,
-    "water": 13,
-    "furniture": 14,
-    "pipe": 15,
-    "equipment": 16,
-    "fine_candidate": 17,
-    "ignore": 255,
-}
+from scripts.current_mainline_contract import reject_forbidden_production_input
+from scripts.semantic_label_contract import LABEL_TO_SEMANTIC
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -173,7 +158,16 @@ def main() -> None:
     parser.add_argument("--downstream-stage", action="append", default=["dino_fine_object_review"])
     parser.add_argument("--mask-label", default="fine_candidate")
     parser.add_argument("--keep-visual-confirmed", action="store_true")
+    parser.add_argument(
+        "--allow-qa-preview-source",
+        action="store_true",
+        help="Allow a stride-sampled viewer PLY as QA source. Outputs remain QA-only.",
+    )
     args = parser.parse_args()
+
+    reject_forbidden_production_input(args.input_ply, allow_qa_preview=args.allow_qa_preview_source)
+    reject_forbidden_production_input(args.input_objects_jsonl)
+    reject_forbidden_production_input(args.output_dir)
 
     objects = read_jsonl(args.input_objects_jsonl)
     transformed, masked = transform_objects(objects, args)
