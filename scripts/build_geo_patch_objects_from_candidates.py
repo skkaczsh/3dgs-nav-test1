@@ -16,7 +16,12 @@ from typing import Any
 
 import numpy as np
 
-from optimize_patch_graph_energy import compute_patch_stats, read_labels, read_region_input, write_labels, write_ply
+try:
+    from scripts.geometry_input_contract import geometry_only_semantic_fields
+    from scripts.optimize_patch_graph_energy import compute_patch_stats, read_labels, read_region_input, write_labels, write_ply
+except ModuleNotFoundError:  # pragma: no cover - supports direct script execution.
+    from geometry_input_contract import geometry_only_semantic_fields
+    from optimize_patch_graph_energy import compute_patch_stats, read_labels, read_region_input, write_labels, write_ply
 
 
 class UnionFind:
@@ -208,8 +213,8 @@ def write_objects_jsonl(
                 "object_id": int(object_id),
                 "voxel_count": int(s.count),
                 "geometry_type": s.geometry_type,
-                "semantic_label": s.geometry_type,
-                "description": f"geo object from {len(patch_ids)} patches",
+                **geometry_only_semantic_fields(s.geometry_type),
+                "description": f"geometry-only object from {len(patch_ids)} patches",
                 "patch_count": len(patch_ids),
                 "patch_ids": patch_ids[:64],
                 "patch_ids_truncated": len(patch_ids) > 64,

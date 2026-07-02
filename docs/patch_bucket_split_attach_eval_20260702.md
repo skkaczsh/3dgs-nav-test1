@@ -47,6 +47,10 @@ without creating excessive residual fragments.
   local contact and fragmentation evidence with better bucket compatibility
   handling, rather than relying only on literal child-label provenance or
   globally relaxing merge rules.
+- Patch/object exports from this branch are geometry ownership inputs only.
+  `semantic_label` must stay `unknown`; structural buckets are stored as
+  `geometry_type` / `geometry_label` and may only become semantic labels after a
+  later evidence-fusion stage.
 
 ## Comparison QA
 
