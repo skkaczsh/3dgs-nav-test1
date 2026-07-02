@@ -24,9 +24,18 @@
     },
     {
       "id": "dense_colorized_voxel010_cache",
-      "role": "dense_colorized_visibility_cache_for_qa",
+      "role": "dense_colorized_visibility_cache_for_qa_only",
       "local_paths": [
         "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_dense_colorized_cached_voxel010_viewer/colorized_visible_0000_6180_voxel010_ascii.ply"
+      ],
+      "required": false
+    },
+    {
+      "id": "dense_las_voxel003_canonical",
+      "role": "canonical_0.03m_dense_voxel_source_for_production_patch_logic",
+      "remote_paths": [
+        "/home/zsh/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_20260624/dense_las_voxel003_binary.ply",
+        "/root/epfs/SCAN/work_MT20260616-175807/las_opt_voxel003/MANIFOLD_MT20260616-175807-Opt_voxel003_ascii.ply"
       ],
       "required": true
     },

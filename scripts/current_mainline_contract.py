@@ -32,6 +32,11 @@ REQUIRED_ACTIVE_BASELINE_IDS: tuple[str, ...] = (
     "objects_v17_teacher_v20_surface_preserve_guard",
 )
 
+REQUIRED_DENSE_SOURCE_IDS: tuple[str, ...] = (
+    "raw_opt_las_local",
+    "dense_las_voxel003_canonical",
+)
+
 REQUIRED_REJECTED_ARTIFACT_IDS: tuple[str, ...] = (
     "objects_v12_teacher_v20_grid6_unknown_absorb",
     "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
