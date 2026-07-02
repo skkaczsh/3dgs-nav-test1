@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from scripts.validate_current_dense_patch_state import validate
+
 
 ROOT = Path(__file__).resolve().parents[1]
 STATE = ROOT / "docs" / "current_dense_patch_state.json"
@@ -101,3 +103,43 @@ def test_dense_patch_validator_passes() -> None:
     report = json.loads(result.stdout)
     assert report["passed"] is True
     assert report["errors"] == []
+
+
+def test_dense_patch_validator_rejects_weak_latest_run_without_diagnostic_status(tmp_path: Path) -> None:
+    state = load_state()
+    qa = tmp_path / "qa.json"
+    qa.write_text(
+        json.dumps(
+            {
+                "object_refinement": {
+                    "metrics": {
+                        "v8": {
+                            "accepted_candidate_rows": 100,
+                            "output_object_count": 1000,
+                        }
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    for key in (
+        "markdown_path",
+        "review_index_html",
+        "promotion_gate_json",
+        "visual_acceptance_markdown",
+    ):
+        placeholder = tmp_path / f"{key}.txt"
+        placeholder.write_text("x", encoding="utf-8")
+        state["current_qa_report"][key] = str(placeholder)
+    state["current_qa_report"]["json_path"] = str(qa)
+    state["latest_remote_run"]["promotion_status"] = "candidate"
+    state["latest_remote_run"]["object_metrics"]["accepted_candidate_rows"] = 1
+    state["latest_remote_run"]["object_metrics"]["output_object_count"] = 2000
+    path = tmp_path / "state.json"
+    path.write_text(json.dumps(state), encoding="utf-8")
+
+    report = validate(path)
+
+    assert report["passed"] is False
+    assert "latest_weaker_than_v8_but_not_diagnostic" in report["errors"]

@@ -55,6 +55,16 @@ def load_json(path: Path) -> dict[str, Any]:
     return data
 
 
+def read_optional_json(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    with path.open("r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    if not isinstance(data, dict):
+        raise ValueError(f"{path} must contain a JSON object")
+    return data
+
+
 def iter_local_paths(data: Any) -> list[str]:
     found: list[str] = []
     if isinstance(data, dict):
@@ -151,6 +161,11 @@ def validate(path: Path) -> dict[str, Any]:
         if isinstance(candidate_metrics, dict):
             if int(candidate_metrics.get("structural_multimaterial_candidates", 0)) <= 0:
                 errors.append("latest_remote_run_no_structural_candidates")
+        if latest.get("promotion_status") == "diagnostic_not_promoted":
+            if "verify_latest_remote_dense_run.py" not in str(latest.get("verification_command", "")):
+                errors.append("latest_diagnostic_missing_verification_command")
+            if "Keep v8 as the current visual-promotion candidate" not in str(latest.get("interpretation", "")):
+                errors.append("latest_diagnostic_missing_v8_candidate_interpretation")
 
     next_action = data.get("next_action", {})
     if isinstance(next_action, dict):
@@ -163,6 +178,7 @@ def validate(path: Path) -> dict[str, Any]:
 
     qa = data.get("current_qa_report", {})
     if isinstance(qa, dict):
+        qa_json_data: dict[str, Any] | None = None
         for key in (
             "json_path",
             "markdown_path",
@@ -179,6 +195,8 @@ def validate(path: Path) -> dict[str, Any]:
                 path_value = path.parent / ".." / path_value
             if not path_value.resolve().exists():
                 errors.append(f"current_qa_report_path_missing={value}")
+            elif key == "json_path":
+                qa_json_data = read_optional_json(path_value.resolve())
         findings = qa.get("key_findings", {})
         if isinstance(findings, dict):
             if findings.get("v17_label_point_delta_vs_v9_all_zero") is not True:
@@ -197,6 +215,21 @@ def validate(path: Path) -> dict[str, Any]:
             errors.append("missing_visual_acceptance_update_command")
         if "gate_current_dense_mainline_promotion.py" not in str(qa.get("visual_acceptance_gate_command", "")):
             errors.append("missing_visual_acceptance_gate_command")
+        if isinstance(qa_json_data, dict) and isinstance(latest, dict):
+            v8_metrics = (
+                qa_json_data.get("object_refinement", {})
+                .get("metrics", {})
+                .get("v8", {})
+            )
+            latest_objects = latest.get("object_metrics", {})
+            if isinstance(v8_metrics, dict) and isinstance(latest_objects, dict):
+                latest_accepted = int(latest_objects.get("accepted_candidate_rows", 0))
+                v8_accepted = int(v8_metrics.get("accepted_candidate_rows", 0))
+                latest_output_objects = int(latest_objects.get("output_object_count", 0))
+                v8_output_objects = int(v8_metrics.get("output_object_count", 0))
+                latest_is_weaker = latest_accepted < v8_accepted or latest_output_objects > v8_output_objects
+                if latest_is_weaker and latest.get("promotion_status") != "diagnostic_not_promoted":
+                    errors.append("latest_weaker_than_v8_but_not_diagnostic")
 
     return {
         "passed": not errors,
