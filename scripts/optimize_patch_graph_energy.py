@@ -37,6 +37,7 @@ BUCKET_NAMES = {
     3: "thin_linear",
     4: "rough_mixed",
 }
+BUCKET_IDS_BY_NAME = {name: bucket_id for bucket_id, name in BUCKET_NAMES.items()}
 
 
 def log(message: str) -> None:
@@ -125,6 +126,38 @@ def entropy(values: Counter[int]) -> float:
     p = np.array([v / total for v in values.values()], dtype=np.float64)
     p = p[p > 0]
     return float(-np.sum(p * np.log2(p)))
+
+
+def parse_bucket_id_set(value: str) -> set[int]:
+    out: set[int] = set()
+    for raw in value.split(","):
+        item = raw.strip()
+        if not item:
+            continue
+        if item in BUCKET_IDS_BY_NAME:
+            out.add(BUCKET_IDS_BY_NAME[item])
+            continue
+        try:
+            bucket_id = int(item)
+        except ValueError as exc:
+            raise ValueError(f"unknown bucket name/id: {item}") from exc
+        if bucket_id not in BUCKET_NAMES:
+            raise ValueError(f"unknown bucket id: {bucket_id}")
+        out.add(bucket_id)
+    return out
+
+
+def significant_buckets(
+    bucket_counts: Counter[int],
+    min_ratio: float,
+    target_buckets: set[int],
+) -> set[int]:
+    total = max(sum(bucket_counts.values()), 1)
+    return {
+        int(bucket)
+        for bucket, count in bucket_counts.items()
+        if int(bucket) in target_buckets and (float(count) / float(total)) >= min_ratio
+    }
 
 
 def dominant_geometry(bucket_counts: Counter[int]) -> str:
@@ -865,13 +898,28 @@ def split_component(
 
     # Feature continuity for this patch
     geoidx = arrays["buckets"][point_ids]
-    geom = dominant_geometry(Counter(int(v) for v in geoidx.tolist()))
+    bucket_counts = Counter(int(v) for v in geoidx.tolist())
+    geom = dominant_geometry(bucket_counts)
+    bucket_split_targets = parse_bucket_id_set(args.bucket_split_target_buckets)
+    bucket_split_active = bool(args.enable_bucket_connectivity_split) and len(
+        significant_buckets(bucket_counts, args.bucket_split_min_bucket_ratio, bucket_split_targets)
+    ) >= 2
+    split_bucket_ids = significant_buckets(bucket_counts, args.bucket_split_min_bucket_ratio, bucket_split_targets)
     for a, b in zip(s.tolist(), t.tolist(), strict=True):
         la = loc.get(int(a))
         lb = loc.get(int(b))
         if la is None or lb is None:
             continue
         if a == b:
+            continue
+        bucket_a = int(arrays["buckets"][a])
+        bucket_b = int(arrays["buckets"][b])
+        if (
+            bucket_split_active
+            and bucket_a != bucket_b
+            and bucket_a in split_bucket_ids
+            and bucket_b in split_bucket_ids
+        ):
             continue
         if np.linalg.norm(arrays["rgb"][a] - arrays["rgb"][b]) > args.internal_color_distance:
             continue
@@ -910,7 +958,8 @@ def split_component(
                 "patch_id": int(patch_id),
                 "new_patch_id": int(new_id),
                 "component_size": int(comp_size),
-                "reason": "split",
+                "reason": "bucket_connectivity_split" if bucket_split_active else "split",
+                "bucket_split_active": bool(bucket_split_active),
             })
         elif comp_size >= args.split_min_component_voxels:
             new_id = next_id
@@ -920,7 +969,8 @@ def split_component(
                 "patch_id": int(patch_id),
                 "new_patch_id": int(new_id),
                 "component_size": int(comp_size),
-                "reason": "residual",
+                "reason": "bucket_connectivity_residual" if bucket_split_active else "residual",
+                "bucket_split_active": bool(bucket_split_active),
             })
         else:
             logs.append({
@@ -928,6 +978,7 @@ def split_component(
                 "new_patch_id": int(patch_id),
                 "component_size": int(comp_size),
                 "reason": "kept",
+                "bucket_split_active": bool(bucket_split_active),
             })
 
     return labels, next_id, logs
@@ -949,6 +1000,7 @@ def propose_splits(
     next_id = int(labels.max()) + 1
     split_logs: list[dict[str, Any]] = []
     split_count = 0
+    bucket_split_targets = parse_bucket_id_set(args.bucket_split_target_buckets)
     candidates = [
         (pid, st)
         for pid, st in stats.items()
@@ -957,6 +1009,11 @@ def propose_splits(
             st.count >= args.dirty_entropy_min_voxels
             and entropy(st.bucket_counts) >= args.entropy_split_threshold
             and (st.bbox_max[2] - st.bbox_min[2]) > args.dirty_min_height
+        )
+        or (
+            args.enable_bucket_connectivity_split
+            and st.count >= args.bucket_split_min_voxels
+            and len(significant_buckets(st.bucket_counts, args.bucket_split_min_bucket_ratio, bucket_split_targets)) >= 2
         )
     ]
     for pid, _st in sorted(candidates, key=lambda x: x[1].count, reverse=True):
@@ -1352,6 +1409,10 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--internal-normal-dot", type=float, default=0.52)
     parser.add_argument("--internal-color-distance", type=float, default=55.0)
+    parser.add_argument("--enable-bucket-connectivity-split", action="store_true")
+    parser.add_argument("--bucket-split-min-voxels", type=int, default=1400)
+    parser.add_argument("--bucket-split-min-bucket-ratio", type=float, default=0.15)
+    parser.add_argument("--bucket-split-target-buckets", default="unknown,thin_linear,rough_mixed")
 
     parser.add_argument("--fine-voxel-size", type=float, default=0.05)
     parser.add_argument("--min-boundary-owner-score", type=float, default=0.50)
