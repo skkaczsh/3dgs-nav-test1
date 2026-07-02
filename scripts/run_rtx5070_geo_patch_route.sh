@@ -23,6 +23,7 @@ INPUT_PLY="${INPUT_PLY:-${INPUT_VIEWER_DIR}/frame_object_points_stride10.ply}"
 STRUCTURAL_FIELD="${STRUCTURAL_FIELD:-${REMOTE_WORK}/structural_region_field_pure_surface_visibility_window_3000_3600/structural_region_field.npz}"
 SCENE_PRIOR="${SCENE_PRIOR:-${REMOTE_WORK}/mimo_scene_prior_cam1_stride30_20260620/mimo_scene_prior.json}"
 OUTPUT_DIR="${OUTPUT_DIR:-${REMOTE_WORK}/${OUT_SUFFIX}}"
+REMOTE_VENV="${REMOTE_VENV:-/home/zsh/Work/SCAN/.venvs/scan-semantic}"
 
 PATCH_VOXEL_SIZE="${PATCH_VOXEL_SIZE:-0.18}"
 MIN_PATCH_POINTS="${MIN_PATCH_POINTS:-120}"
@@ -66,9 +67,10 @@ rsync -az \
 remote_cmd=$(cat <<REMOTE
 set -euo pipefail
 cd '${REMOTE_REPO}'
+source '${REMOTE_VENV}/bin/activate'
 echo "input_ply=${INPUT_PLY}"
 echo "output_dir=${OUTPUT_DIR}"
-rm -rf '${OUTPUT_DIR}'
+mkdir -p '${OUTPUT_DIR}'
 '${REMOTE_PYTHON}' scripts/build_geo_patches.py \
   --input-ply '${INPUT_PLY}' \
   --output-dir '${OUTPUT_DIR}' \

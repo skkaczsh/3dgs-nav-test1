@@ -76,9 +76,9 @@ This is the practical boundary between structure priors and semantics.  A
 region prior can explain why a target is near a wall-like/ground-like region,
 but it cannot by itself confirm `wall`, `floor`, or `ceiling`.
 
-## Geometry-First Patch Route
+## Legacy Viewer-Seed Patch Route
 
-The next refinement layer is geometry-first.  It treats the current viewer
+This was an intermediate geometry-first route.  It treats the current viewer
 object id as a seed only, then rebuilds smaller `GeoPatch` units from local
 PCA, connectivity, and conservative plane-slab splitting:
 
@@ -90,7 +90,7 @@ viewer PLY seed object
 -> viewer PLY/JSONL
 ```
 
-The main scripts are:
+The main scripts were:
 
 - `scripts/build_geo_patches.py`: emits `geo_patches.jsonl` and
   `geo_patch_points.ply`.
@@ -98,12 +98,19 @@ The main scripts are:
   structural, frame/camera, and scene-prior evidence without relabeling.
 - `scripts/classify_geo_objects.py`: applies geometry vetoes and exports
   viewer-compatible object artifacts.
-- `scripts/run_rtx5070_geo_patch_route.sh`: reproducible remote runner.
+- `scripts/run_rtx5070_geo_patch_route.sh`: deprecated remote runner for
+  intentional viewer-input reproduction only.
 
 This route is intentionally conservative.  It may increase `unknown` and
 `fine_candidate`, but it should reduce mixed wall/floor/ceiling/car objects.
 VLM or Mimo evidence must remain post-geometry evidence; it must not override
 GeoPatch boundaries.
+
+It is no longer the production dense Patch path because it starts from
+`frame_object_points_stride10.ply`, which is a QA/viewer artifact.  Production
+Patch/Object work must use dense Opt-LAS / `0.03m` voxel inputs through
+`scripts/run_rtx5070_geo_patch_energy.sh` and the current dense allowlist.  The
+legacy runner now refuses `RUN=1` unless `ALLOW_VIEWER_INPUT_ROUTE=1` is set.
 
 Initial 3000..3600 smoke:
 

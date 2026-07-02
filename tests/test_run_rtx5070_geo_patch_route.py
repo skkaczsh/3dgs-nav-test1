@@ -40,3 +40,12 @@ def test_legacy_geo_patch_route_documents_explicit_override() -> None:
 
     assert 'ALLOW_VIEWER_INPUT_ROUTE="${ALLOW_VIEWER_INPUT_ROUTE:-0}"' in text
     assert "RUN=1 ALLOW_VIEWER_INPUT_ROUTE=1" in text
+
+
+def test_legacy_geo_patch_route_uses_venv_and_does_not_delete_output_dir() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+
+    assert 'REMOTE_VENV="${REMOTE_VENV:-/home/zsh/Work/SCAN/.venvs/scan-semantic}"' in text
+    assert "source '${REMOTE_VENV}/bin/activate'" in text
+    assert "mkdir -p '${OUTPUT_DIR}'" in text
+    assert "rm -rf '${OUTPUT_DIR}'" not in text
