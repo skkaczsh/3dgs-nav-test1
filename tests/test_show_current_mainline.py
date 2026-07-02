@@ -62,6 +62,7 @@ def test_show_current_mainline_text_output() -> None:
     assert "promotion_gate_status: awaiting_required_visual_checks" in result.stdout
     assert "update_command: python3 scripts/update_current_dense_visual_acceptance.py" in result.stdout
     assert "gate_command: python3 scripts/gate_current_dense_mainline_promotion.py" in result.stdout
+    assert "promotion_plan_command: python3 scripts/plan_current_dense_promotion.py" in result.stdout
     assert "review_allowlist: passed=True" in result.stdout
     assert "rejected_guard: objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor" in result.stdout
     assert "unknown_delta_vs_v9=1006072" in result.stdout

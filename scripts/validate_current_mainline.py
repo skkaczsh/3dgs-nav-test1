@@ -19,6 +19,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from scripts import build_current_dense_review_index
 from scripts import gate_current_dense_mainline_promotion
+from scripts import plan_current_dense_promotion
 from scripts.gate_cache_contract import resolve_relative_path, stale_gate_reasons
 from scripts import validate_approved_mainline_runners
 from scripts import validate_current_dense_patch_state
@@ -31,6 +32,7 @@ from scripts import validate_semantic_contract_usage
 DEFAULT_ARCHITECTURE = REPO_ROOT / "docs" / "current_project_architecture.json"
 DEFAULT_DENSE_STATE = REPO_ROOT / "docs" / "current_dense_patch_state.json"
 DEFAULT_PROMOTION_GATE = REPO_ROOT / "docs" / "current_dense_promotion_gate.json"
+DEFAULT_QA = REPO_ROOT / "docs" / "current_dense_mainline_qa.json"
 
 ALLOWED_VISUAL_PENDING_REASONS = (
     "visual_status_not_accepted=",
@@ -118,6 +120,46 @@ def validate_promotion_gate(path: Path) -> dict[str, Any]:
     }
 
 
+def validate_promotion_plan(state_path: Path, qa_path: Path, gate_path: Path) -> dict[str, Any]:
+    plan = plan_current_dense_promotion.build_plan(read_json(state_path), read_json(qa_path), read_json(gate_path))
+    errors: list[str] = []
+    warnings: list[str] = []
+    if plan.get("schema") != "current-dense-promotion-plan/v1":
+        errors.append(f"unexpected_promotion_plan_schema={plan.get('schema')!r}")
+    if plan.get("candidate") != "v8_object_refinement":
+        errors.append(f"unexpected_promotion_plan_candidate={plan.get('candidate')!r}")
+    proposed = plan.get("proposed_object_baseline", {})
+    if not isinstance(proposed, dict):
+        errors.append("promotion_plan_missing_proposed_object_baseline")
+        proposed = {}
+    if proposed.get("id") != "v8_object_refinement":
+        errors.append(f"promotion_plan_proposed_id_mismatch={proposed.get('id')!r}")
+    if proposed.get("status") != "promoted_dense_object_geometry_baseline":
+        errors.append(f"promotion_plan_unexpected_status={proposed.get('status')!r}")
+    for path in proposed.get("local_paths", []):
+        if "stride10" in str(path):
+            errors.append(f"promotion_plan_stride10_in_production_path={path}")
+    qa_paths = proposed.get("qa_only_paths", [])
+    if not any("stride10" in str(path) for path in qa_paths):
+        errors.append("promotion_plan_missing_stride10_qa_path")
+
+    plan_errors = [str(item) for item in plan.get("errors", [])]
+    if plan.get("passed"):
+        warnings.append("promotion_plan_ready_to_apply_after_gate_pass")
+    elif plan_errors == ["promotion_gate_not_passed=fail"]:
+        warnings.append("promotion_plan_waiting_for_gate_pass")
+    else:
+        errors.extend(f"promotion_plan_error={item}" for item in plan_errors)
+    return {
+        "passed": not errors,
+        "candidate": plan.get("candidate"),
+        "gate_status": plan.get("gate_status"),
+        "proposed_object_baseline_id": proposed.get("id"),
+        "errors": errors,
+        "warnings": warnings,
+    }
+
+
 def validate(args: argparse.Namespace) -> dict[str, Any]:
     architecture = validate_current_project_architecture.validate(args.architecture)
     dense_state = validate_current_dense_patch_state.validate(args.dense_patch_state)
@@ -127,6 +169,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
     geometry_input_contract_usage = validate_geometry_input_contract_usage.validate()
     production_input_guard_usage = validate_production_input_guard_usage.validate()
     promotion_gate = validate_promotion_gate(args.promotion_gate)
+    promotion_plan = validate_promotion_plan(args.dense_patch_state, args.qa_json, args.promotion_gate)
 
     checks = {
         "architecture": architecture,
@@ -137,6 +180,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
         "geometry_input_contract_usage": geometry_input_contract_usage,
         "production_input_guard_usage": production_input_guard_usage,
         "promotion_gate_health": promotion_gate,
+        "promotion_plan_health": promotion_plan,
     }
     errors: list[str] = []
     warnings: list[str] = []
@@ -158,6 +202,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--architecture", type=Path, default=DEFAULT_ARCHITECTURE)
     parser.add_argument("--dense-patch-state", type=Path, default=DEFAULT_DENSE_STATE)
+    parser.add_argument("--qa-json", type=Path, default=DEFAULT_QA)
     parser.add_argument("--promotion-gate", type=Path, default=DEFAULT_PROMOTION_GATE)
     args = parser.parse_args()
     report = validate(args)

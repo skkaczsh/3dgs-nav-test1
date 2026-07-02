@@ -144,6 +144,7 @@ def format_text(summary: dict[str, Any]) -> str:
             lines.append(f"  update_command: {qa.get('visual_acceptance_update_command')}")
         if qa.get("visual_acceptance_gate_command"):
             lines.append(f"  gate_command: {qa.get('visual_acceptance_gate_command')}")
+        lines.append("  promotion_plan_command: python3 scripts/plan_current_dense_promotion.py")
         for reason in qa.get("promotion_gate_current_reasons", []):
             lines.append(f"  blocked_by: {reason}")
         allowlist = qa.get("review_artifact_allowlist", {})

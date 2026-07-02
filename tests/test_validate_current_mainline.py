@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from scripts.gate_current_dense_mainline_promotion import evaluate as evaluate_dense_gate
-from scripts.validate_current_mainline import validate_promotion_gate
+from scripts.validate_current_mainline import validate_promotion_gate, validate_promotion_plan
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,7 +27,9 @@ def test_current_mainline_healthcheck_passes_with_visual_pending() -> None:
     report = json.loads(result.stdout)
     assert report["passed"] is True
     assert report["checks"]["review_artifact_allowlist"]["passed"] is True
+    assert report["checks"]["promotion_plan_health"]["passed"] is True
     assert "promotion_gate_health:promotion_candidate_waiting_for_visual_acceptance" in report["warnings"]
+    assert "promotion_plan_health:promotion_plan_waiting_for_gate_pass" in report["warnings"]
 
 
 def test_promotion_gate_health_rejects_unknown_spike(tmp_path: Path) -> None:
@@ -112,3 +114,47 @@ def test_promotion_gate_health_rejects_stale_cached_metrics(tmp_path: Path) -> N
 
     assert report["passed"] is False
     assert "promotion_gate_stale_metrics" in report["errors"]
+
+
+def test_promotion_plan_health_rejects_candidate_mismatch(tmp_path: Path) -> None:
+    state = tmp_path / "state.json"
+    qa = tmp_path / "qa.json"
+    gate = tmp_path / "gate.json"
+    state.write_text(
+        json.dumps(
+            {
+                "current_object_baseline": {"id": "old"},
+                "current_promotion_candidate": {
+                    "id": "v8_object_refinement",
+                    "qa_candidate_id": "v8_tiny_attach",
+                    "source_run_id": "dense_patch_object_refinement_v8_tiny_attach_20260624_170619",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    qa.write_text(
+        json.dumps(
+            {
+                "object_refinement": {
+                    "candidate": "wrong",
+                    "metrics": {
+                        "v8": {
+                            "candidate_count": 1,
+                            "accepted_candidate_rows": 1,
+                            "output_object_count": 1,
+                            "mixed_object_voxel_ratio_020": 0,
+                            "object_count_in_overlap_preview": 1,
+                        }
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    gate.write_text(json.dumps({"candidate": "v8_object_refinement", "status": "pass"}), encoding="utf-8")
+
+    report = validate_promotion_plan(state, qa, gate)
+
+    assert report["passed"] is False
+    assert "promotion_plan_error=qa_candidate_mismatch=wrong!=v8_tiny_attach" in report["errors"]
