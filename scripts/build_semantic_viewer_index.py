@@ -222,11 +222,28 @@ def extract_counts(qa: dict[str, Any], export_report: dict[str, Any], localgeom_
     if object_count is None and isinstance(object_counts, dict):
         object_count = sum(v for v in object_counts.values() if isinstance(v, int))
 
+    point_source_support_counts = export_report.get("point_source_support_counts")
+    if not isinstance(point_source_support_counts, dict):
+        point_source_support_counts = {}
+    object_source_support_counts = export_report.get("object_source_support_counts")
+    if not isinstance(object_source_support_counts, dict):
+        object_source_support_counts = {}
+    fusion_status_counts = export_report.get("fusion_status_counts")
+    if not isinstance(fusion_status_counts, dict):
+        fusion_status_counts = {}
+    conflict_flag_counts = export_report.get("conflict_flag_counts")
+    if not isinstance(conflict_flag_counts, dict):
+        conflict_flag_counts = {}
+
     return {
         "vertex_count": vertex_count,
         "object_count": object_count,
         "semantic_point_counts": semantic_counts,
         "object_label_counts": object_counts if isinstance(object_counts, dict) else {},
+        "point_source_support_counts": point_source_support_counts,
+        "object_source_support_counts": object_source_support_counts,
+        "fusion_status_counts": fusion_status_counts,
+        "conflict_flag_counts": conflict_flag_counts,
     }
 
 

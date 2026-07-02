@@ -27,7 +27,17 @@ def test_build_index_sorts_by_artifact_update_time_and_builds_viewer_urls(tmp_pa
     write(old_dir / "frame_objects_viewer.jsonl", "{}\n")
     write(
         old_dir / "frame_object_viewer_export_report.json",
-        json.dumps({"output_vertices": 10, "object_records": 2, "label_counts": {"wall": 7, "car": 3}}),
+        json.dumps(
+            {
+                "output_vertices": 10,
+                "object_records": 2,
+                "label_counts": {"wall": 7, "car": 3},
+                "point_source_support_counts": {"sam+teacher": 8, "scene": 2},
+                "object_source_support_counts": {"sam+teacher": 1, "scene": 1},
+                "fusion_status_counts": {"evidence_fusion_applied": 1, "kept_original_scene_only_evidence": 1},
+                "conflict_flag_counts": {"geometry_vetoed_some_evidence": 2},
+            }
+        ),
     )
     touch_time(old_dir / "frame_object_points_stride10.ply", 100)
 
@@ -64,6 +74,13 @@ def test_build_index_sorts_by_artifact_update_time_and_builds_viewer_urls(tmp_pa
     assert older["status"] == "missing_qa"
     assert older["counts"]["vertex_count"] == 10
     assert older["counts"]["semantic_point_counts"] == {"wall": 7, "car": 3}
+    assert older["counts"]["point_source_support_counts"] == {"sam+teacher": 8, "scene": 2}
+    assert older["counts"]["object_source_support_counts"] == {"sam+teacher": 1, "scene": 1}
+    assert older["counts"]["fusion_status_counts"] == {
+        "evidence_fusion_applied": 1,
+        "kept_original_scene_only_evidence": 1,
+    }
+    assert older["counts"]["conflict_flag_counts"] == {"geometry_vetoed_some_evidence": 2}
 
 
 def test_build_index_links_object_review_pack(tmp_path: Path) -> None:
@@ -155,6 +172,12 @@ def test_index_html_uses_generated_json_and_existing_viewer() -> None:
     assert "决策 CSV" in html
     assert "打开最新版语义" in html
     assert "updateLatestLinks" in html
+    assert "point_source_support_counts" in html
+    assert "object_source_support_counts" in html
+    assert "fusion_status_counts" in html
+    assert "conflict_flag_counts" in html
+    assert "Evidence 来源点数" in html
+    assert "Fusion 状态" in html
 
 
 def test_build_index_keeps_symlink_url_prefix(tmp_path: Path) -> None:

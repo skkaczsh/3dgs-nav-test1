@@ -247,6 +247,10 @@
         entry.name, entry.relative_dir, entry.status, entry.ply, entry.objects,
         ...Object.keys(entry.counts?.semantic_point_counts || {}),
         ...Object.keys(entry.counts?.object_label_counts || {}),
+        ...Object.keys(entry.counts?.point_source_support_counts || {}),
+        ...Object.keys(entry.counts?.object_source_support_counts || {}),
+        ...Object.keys(entry.counts?.fusion_status_counts || {}),
+        ...Object.keys(entry.counts?.conflict_flag_counts || {}),
       ].join(" ").toLowerCase();
       return haystack.includes(query.toLowerCase());
     }
@@ -262,6 +266,9 @@
         const labels = topCounts(counts.semantic_point_counts, 6)
           .map(([label, count]) => `<span class="pill">${labelZh[label] || label} ${fmtInt(count)}</span>`)
           .join("");
+        const evidence = topCounts(counts.point_source_support_counts, 3)
+          .map(([kind, count]) => `<span class="pill">${kind} ${fmtInt(count)}</span>`)
+          .join("");
         const tr = document.createElement("tr");
         tr.className = state.selected === entry ? "selected" : "";
         const review = entry.review || null;
@@ -274,7 +281,7 @@
           <td><span class="${statusClass(entry)}">${entry.status}</span><div class="muted">${(entry.warnings || []).length} warnings</div></td>
           <td>${reviewText}</td>
           <td><div>${fmtInt(counts.vertex_count)} 点</div><div class="muted">${fmtInt(counts.object_count)} objects</div></td>
-          <td>${labels || "<span class='muted'>无统计</span>"}</td>
+          <td>${labels || "<span class='muted'>无统计</span>"}${evidence ? `<div class="muted">${evidence}</div>` : ""}</td>
         `;
         tr.addEventListener("click", () => {
           state.selected = entry;
@@ -315,6 +322,18 @@
       const labelCounts = topCounts(counts.semantic_point_counts, 20)
         .map(([label, count]) => `<span class="pill">${labelZh[label] || label}: ${fmtInt(count)}</span>`)
         .join("");
+      const pointSourceCounts = topCounts(counts.point_source_support_counts, 20)
+        .map(([kind, count]) => `<span class="pill">${kind}: ${fmtInt(count)}</span>`)
+        .join("");
+      const objectSourceCounts = topCounts(counts.object_source_support_counts, 20)
+        .map(([kind, count]) => `<span class="pill">${kind}: ${fmtInt(count)}</span>`)
+        .join("");
+      const fusionStatusCounts = topCounts(counts.fusion_status_counts, 20)
+        .map(([status, count]) => `<span class="pill">${status}: ${fmtInt(count)}</span>`)
+        .join("");
+      const conflictFlagCounts = topCounts(counts.conflict_flag_counts, 20)
+        .map(([flag, count]) => `<span class="pill">${flag}: ${fmtInt(count)}</span>`)
+        .join("");
       const warningText = (entry.warnings || []).length ? entry.warnings.join("\n") : "无";
       const errorText = (entry.errors || []).length ? entry.errors.join("\n") : "无";
       const reviewActions = review ? `
@@ -349,6 +368,14 @@
         ${reviewActions}
         <h3>标签点数</h3>
         <div>${labelCounts || "<span class='muted'>无统计</span>"}</div>
+        <h3>Evidence 来源点数</h3>
+        <div>${pointSourceCounts || "<span class='muted'>无统计</span>"}</div>
+        <h3>Evidence 来源对象数</h3>
+        <div>${objectSourceCounts || "<span class='muted'>无统计</span>"}</div>
+        <h3>Fusion 状态</h3>
+        <div>${fusionStatusCounts || "<span class='muted'>无统计</span>"}</div>
+        <h3>冲突标记</h3>
+        <div>${conflictFlagCounts || "<span class='muted'>无统计</span>"}</div>
         <h3>Warnings</h3>
         <pre>${warningText}</pre>
         <h3>Errors</h3>
