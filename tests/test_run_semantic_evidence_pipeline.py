@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -150,3 +152,80 @@ def test_pipeline_run_mode_checks_health_and_runs_three_commands(tmp_path: Path,
 
     assert module.main() == 0
     assert calls == ["healthcheck", "command", "command", "command"]
+
+
+def test_pipeline_run_mode_executes_minimal_smoke(tmp_path: Path) -> None:
+    source_ply = tmp_path / "source.ply"
+    objects = tmp_path / "objects.jsonl"
+    gate = write_gate(tmp_path / "gate.json", status="fail")
+    out_dir = tmp_path / "out"
+    source_ply.write_text(
+        "\n".join(
+            [
+                "ply",
+                "format ascii 1.0",
+                "element vertex 1",
+                "property float x",
+                "property float y",
+                "property float z",
+                "property uchar red",
+                "property uchar green",
+                "property uchar blue",
+                "property int object",
+                "property uchar semantic",
+                "end_header",
+                "0 0 0 0 0 0 1 0",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    objects.write_text(
+        json.dumps(
+            {
+                "object_id": 1,
+                "geometry_type": "horizontal",
+                "semantic_label": "unknown",
+                "semantic_status": "geometry_only_unlabeled",
+                "label_policy": "geometry_is_not_semantic",
+                "bbox_3d": {"min": [0, 0, 0], "max": [1, 1, 0.1]},
+                "voxel_count": 1,
+                "semantic_votes": {"floor": 10},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--source-ply",
+            str(source_ply),
+            "--objects-jsonl",
+            str(objects),
+            "--output-dir",
+            str(out_dir),
+            "--patch-gate",
+            str(gate),
+            "--python",
+            sys.executable,
+            "--allow-unpromoted-patch-experiment",
+            "--skip-mainline-healthcheck",
+            "--run",
+        ],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    fused = json.loads((out_dir / "semantic_evidence_objects.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    validation = json.loads((out_dir / "semantic_evidence_fusion_validation.json").read_text(encoding="utf-8"))
+    viewer_report = json.loads((out_dir / "semantic_evidence_viewer_report.json").read_text(encoding="utf-8"))
+    assert fused["semantic_label"] == "floor"
+    assert validation["passed"] is True
+    assert viewer_report["label_counts"] == {"floor": 1}
+    assert (out_dir / "semantic_evidence_viewer.ply").exists()
