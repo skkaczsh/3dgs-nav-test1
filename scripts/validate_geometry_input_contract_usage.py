@@ -9,13 +9,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from scripts.current_mainline_contract import PROTECTED_GEOMETRY_INPUT_CONTRACT_SCRIPT_PATHS
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-
-PROTECTED_SCRIPT_PATHS: tuple[str, ...] = (
-    "scripts/accumulate_semantic_png_votes_to_objects.py",
-    "scripts/transfer_teacher_semantics_to_objects.py",
-)
 
 
 def imports_geometry_contract(tree: ast.AST) -> bool:
@@ -72,7 +69,7 @@ def validate_script(path: Path) -> dict[str, Any]:
     }
 
 
-def validate(paths: tuple[str, ...] = PROTECTED_SCRIPT_PATHS) -> dict[str, Any]:
+def validate(paths: tuple[str, ...] = PROTECTED_GEOMETRY_INPUT_CONTRACT_SCRIPT_PATHS) -> dict[str, Any]:
     reports = []
     errors: list[str] = []
     for rel in paths:

@@ -3,9 +3,16 @@ import pytest
 from scripts import build_current_dense_review_index
 from scripts import validate_current_project_architecture
 from scripts import validate_current_dense_patch_state
+from scripts import validate_geometry_input_contract_usage
+from scripts import validate_production_input_guard_usage
+from scripts import validate_semantic_contract_usage
 from scripts.current_mainline_contract import (
+    APPROVED_MAINLINE_RUNNER_PATHS,
     FORBIDDEN_ARTIFACT_SUBSTRINGS,
     FORBIDDEN_PRODUCTION_INPUT_SUBSTRINGS,
+    PROTECTED_GEOMETRY_INPUT_CONTRACT_SCRIPT_PATHS,
+    PROTECTED_PRODUCTION_GUARD_SCRIPT_PATHS,
+    PROTECTED_SEMANTIC_CONTRACT_SCRIPT_PATHS,
     REQUIRED_ACTIVE_BASELINE_IDS,
     REQUIRED_REJECTED_ARTIFACT_IDS,
     REJECTED_ARTIFACT_SUBSTRINGS,
@@ -24,6 +31,20 @@ def test_forbidden_artifact_contract_is_shared_by_current_mainline_tools() -> No
 def test_architecture_contract_is_shared_by_current_mainline_tools() -> None:
     assert validate_current_project_architecture.REQUIRED_ACTIVE_IDS == set(REQUIRED_ACTIVE_BASELINE_IDS)
     assert validate_current_project_architecture.REQUIRED_REJECTED_IDS == set(REQUIRED_REJECTED_ARTIFACT_IDS)
+
+
+def test_protected_script_contracts_are_shared_by_usage_validators() -> None:
+    assert validate_production_input_guard_usage.PROTECTED_PRODUCTION_GUARD_SCRIPT_PATHS is (
+        PROTECTED_PRODUCTION_GUARD_SCRIPT_PATHS
+    )
+    assert validate_semantic_contract_usage.PROTECTED_SEMANTIC_CONTRACT_SCRIPT_PATHS is (
+        PROTECTED_SEMANTIC_CONTRACT_SCRIPT_PATHS
+    )
+    assert validate_geometry_input_contract_usage.PROTECTED_GEOMETRY_INPUT_CONTRACT_SCRIPT_PATHS is (
+        PROTECTED_GEOMETRY_INPUT_CONTRACT_SCRIPT_PATHS
+    )
+    approved_python_runners = {item for item in APPROVED_MAINLINE_RUNNER_PATHS if item.endswith(".py")}
+    assert approved_python_runners <= set(PROTECTED_PRODUCTION_GUARD_SCRIPT_PATHS)
 
 
 def test_forbidden_artifact_match_reports_first_matching_substring() -> None:

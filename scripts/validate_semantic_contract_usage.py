@@ -9,23 +9,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from scripts.current_mainline_contract import PROTECTED_SEMANTIC_CONTRACT_SCRIPT_PATHS
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-
-PROTECTED_SCRIPT_PATHS: tuple[str, ...] = (
-    "scripts/analyze_residual_absorbability.py",
-    "scripts/apply_geometry_conflict_relabels.py",
-    "scripts/apply_priority_guard_to_full_scene.py",
-    "scripts/apply_surface_trust_guard_to_ply.py",
-    "scripts/apply_visual_promotion_geometry_guard.py",
-    "scripts/build_parking_dataset_manifest.py",
-    "scripts/build_spatial_partition_objects.py",
-    "scripts/export_frame_target_objects_for_viewer.py",
-    "scripts/project_semantic.py",
-    "scripts/qa_object_voxel_overlap.py",
-    "scripts/qa_viewer_candidate.py",
-    "scripts/transfer_teacher_semantics_to_objects.py",
-)
 
 SENSITIVE_ASSIGNMENTS: frozenset[str] = frozenset(
     {
@@ -98,7 +85,7 @@ def validate_script(path: Path) -> dict[str, Any]:
     }
 
 
-def validate(paths: tuple[str, ...] = PROTECTED_SCRIPT_PATHS) -> dict[str, Any]:
+def validate(paths: tuple[str, ...] = PROTECTED_SEMANTIC_CONTRACT_SCRIPT_PATHS) -> dict[str, Any]:
     reports = []
     errors: list[str] = []
     for rel in paths:

@@ -51,6 +51,36 @@ APPROVED_MAINLINE_RUNNER_PATHS: tuple[str, ...] = (
     "scripts/run_validated_semantic_viewer_export.py",
 )
 
+PROTECTED_PRODUCTION_GUARD_SCRIPT_PATHS: tuple[str, ...] = (
+    "scripts/run_object_semantic_evidence_fusion.py",
+    "scripts/run_validated_semantic_viewer_export.py",
+    "scripts/run_semantic_evidence_pipeline.py",
+    "scripts/run_dense_patch_object_refinement_v7.py",
+    "scripts/rewrite_viewer_ply_semantics.py",
+    "scripts/transfer_teacher_semantics_to_objects.py",
+    "scripts/accumulate_semantic_png_votes_to_objects.py",
+)
+
+PROTECTED_SEMANTIC_CONTRACT_SCRIPT_PATHS: tuple[str, ...] = (
+    "scripts/analyze_residual_absorbability.py",
+    "scripts/apply_geometry_conflict_relabels.py",
+    "scripts/apply_priority_guard_to_full_scene.py",
+    "scripts/apply_surface_trust_guard_to_ply.py",
+    "scripts/apply_visual_promotion_geometry_guard.py",
+    "scripts/build_parking_dataset_manifest.py",
+    "scripts/build_spatial_partition_objects.py",
+    "scripts/export_frame_target_objects_for_viewer.py",
+    "scripts/project_semantic.py",
+    "scripts/qa_object_voxel_overlap.py",
+    "scripts/qa_viewer_candidate.py",
+    "scripts/transfer_teacher_semantics_to_objects.py",
+)
+
+PROTECTED_GEOMETRY_INPUT_CONTRACT_SCRIPT_PATHS: tuple[str, ...] = (
+    "scripts/accumulate_semantic_png_votes_to_objects.py",
+    "scripts/transfer_teacher_semantics_to_objects.py",
+)
+
 
 def forbidden_artifact_match(value: str | Path) -> str | None:
     text = str(value)

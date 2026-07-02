@@ -9,18 +9,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from scripts.current_mainline_contract import PROTECTED_PRODUCTION_GUARD_SCRIPT_PATHS
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-
-PROTECTED_SCRIPT_PATHS: tuple[str, ...] = (
-    "scripts/run_object_semantic_evidence_fusion.py",
-    "scripts/run_validated_semantic_viewer_export.py",
-    "scripts/run_semantic_evidence_pipeline.py",
-    "scripts/run_dense_patch_object_refinement_v7.py",
-    "scripts/rewrite_viewer_ply_semantics.py",
-    "scripts/transfer_teacher_semantics_to_objects.py",
-    "scripts/accumulate_semantic_png_votes_to_objects.py",
-)
 
 CONTRACT_MODULES: frozenset[str] = frozenset(
     {
@@ -92,7 +84,7 @@ def validate_script(path: Path) -> dict[str, Any]:
     }
 
 
-def validate(paths: tuple[str, ...] = PROTECTED_SCRIPT_PATHS) -> dict[str, Any]:
+def validate(paths: tuple[str, ...] = PROTECTED_PRODUCTION_GUARD_SCRIPT_PATHS) -> dict[str, Any]:
     reports = []
     errors: list[str] = []
     for rel in paths:
