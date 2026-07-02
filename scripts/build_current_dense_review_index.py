@@ -74,6 +74,12 @@ OBJECT_SCHEMA_REQUIRED_KEYS = {
     "centroid",
 }
 OBJECT_SCHEMA_SAMPLE_LIMIT = 20
+VIEWER_REPO_ROOT_PREFIXES = (
+    "/server_parking_priority_s10/",
+    "/docs/",
+    "/tools/",
+    "/third_party/",
+)
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -98,6 +104,9 @@ def viewer_url(artifact: dict[str, Any], mode: str | None = None) -> str:
 
 
 def local_artifact_path(path: str) -> Path:
+    candidate = Path(path)
+    if candidate.is_absolute() and not path.startswith(VIEWER_REPO_ROOT_PREFIXES):
+        return candidate
     if path.startswith("/"):
         return REPO_ROOT / path.lstrip("/")
     return REPO_ROOT / path

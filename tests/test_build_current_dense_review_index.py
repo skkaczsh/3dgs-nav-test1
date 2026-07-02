@@ -122,6 +122,42 @@ def test_artifact_allowlist_rejects_missing_review_files() -> None:
     assert any("artifact_ply_missing" in error for error in result["errors"])
 
 
+def test_local_artifact_path_preserves_filesystem_absolute_paths(tmp_path: Path) -> None:
+    assert module.local_artifact_path(str(tmp_path / "artifact.ply")) == tmp_path / "artifact.ply"
+
+
+def test_local_artifact_path_maps_viewer_paths_to_repo() -> None:
+    path = module.local_artifact_path("/server_parking_priority_s10/example/artifact.ply")
+
+    assert path == ROOT / "server_parking_priority_s10" / "example" / "artifact.ply"
+
+
+def test_artifact_file_validation_accepts_filesystem_absolute_paths(tmp_path: Path) -> None:
+    ply = tmp_path / "artifact.ply"
+    objects = tmp_path / "objects.jsonl"
+    ply.write_text("ply\nformat ascii 1.0\nend_header\n", encoding="utf-8")
+    objects.write_text(
+        json.dumps(
+            {
+                "object_id": 1,
+                "voxel_count": 42,
+                "geometry_type": "vertical",
+                "semantic_label": "wall",
+                "bbox_3d": {"min": [0, 0, 0], "max": [1, 1, 1]},
+                "centroid": [0.5, 0.5, 0.5],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    errors = module.validate_artifact_files(
+        [{"id": "tmp_review_artifact", "ply": str(ply), "objects": str(objects)}]
+    )
+
+    assert errors == []
+
+
 def test_object_jsonl_schema_validation_rejects_missing_schema(tmp_path: Path) -> None:
     objects = tmp_path / "objects.jsonl"
     objects.write_text(json.dumps({"object_id": 1, "semantic_label": "wall"}) + "\n", encoding="utf-8")
