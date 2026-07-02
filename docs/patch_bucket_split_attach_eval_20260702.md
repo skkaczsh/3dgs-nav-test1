@@ -20,6 +20,7 @@ without creating excessive residual fragments.
 | bucket split + attachment v2 | 188,536 | 8,410 | 8,118 | 7,120 |
 | stricter mid-anchor v3 | 190,778 | 8,763 | 5,883 | 4,899 |
 | split-provenance attachment v4 | 192,518 | 9,018 | 4,144 | 2,967 + 209 split-provenance |
+| fragment-evidence attachment v5 | 189,898 | 8,615 | 6,759 | 5,565 fragment + 211 split-provenance |
 
 ## Interpretation
 
@@ -34,11 +35,15 @@ without creating excessive residual fragments.
   children is too narrow.  It accepted only 209 split-provenance attachments,
   because many bad fragments are created by ordinary split branches or later
   boundary movement, not only by the new child label.
+- v5 adds contact/fragment evidence, accepts 5,565 fragment-evidence
+  attachments, and recovers most of v2's benefit while keeping global
+  attachment gates strict.  It is architecturally cleaner than v2 but still
+  slightly worse on aggregate high-entropy count.
 - The result is still not a promoted baseline because high-entropy patches remain
   above the input count.  The next improvement should make attachment aware of
-  local contact and fragmentation evidence across all split-adjacent patches,
-  rather than relying only on literal child-label provenance or globally
-  relaxing merge rules.
+  local contact and fragmentation evidence with better bucket compatibility
+  handling, rather than relying only on literal child-label provenance or
+  globally relaxing merge rules.
 
 ## Reproduce
 
@@ -52,4 +57,10 @@ RUN=1 OUT_NAME=energy_bucket_split_attach_v2_20260702 \
 
 ```text
 http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_bucket_split_attach_v2_20260702/geo_patches_bucket_split_attach_v2_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_bucket_split_attach_v2_20260702/geo_patches_bucket_split_attach_v2.jsonl&mode=object&stride=1&pointSize=1.2
+```
+
+v5 mechanism-clean review:
+
+```text
+http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_bucket_split_frag_attach_v5_20260702/geo_patches_bucket_split_frag_attach_v5_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_bucket_split_frag_attach_v5_20260702/geo_patches_bucket_split_frag_attach_v5.jsonl&mode=object&stride=1&pointSize=1.2
 ```
