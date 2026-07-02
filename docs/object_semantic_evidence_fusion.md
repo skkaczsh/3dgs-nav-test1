@@ -56,6 +56,20 @@ The validator checks that object ids and ownership fields did not change, that
 fusion status/evidence fields exist, and that scene-only promotion has not
 slipped into a default run.
 
+Validated viewer export:
+
+```bash
+PYTHONPATH=. python scripts/run_validated_semantic_viewer_export.py \
+  --source-ply source_object_viewer.ply \
+  --objects-jsonl fused_objects.jsonl \
+  --fusion-validation fused_objects_report_validation.json \
+  --output-ply fused_semantic_viewer.ply \
+  --report-json fused_semantic_viewer_report.json
+```
+
+This launcher refuses `--run` unless the fusion validation report passed.  It
+delegates the streaming PLY rewrite to `scripts/rewrite_viewer_ply_semantics.py`.
+
 Direct fusion entry point:
 
 ```bash
