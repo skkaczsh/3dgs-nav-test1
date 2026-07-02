@@ -863,8 +863,7 @@ def split_component(
         return labels, next_id, []
 
     # Build internal edges for this patch.
-    in_patch = set(point_ids.tolist())
-    patch_mask = np.isin(src, point_ids) & np.isin(dst, point_ids)
+    patch_mask = (labels[src] == patch_id) & (labels[dst] == patch_id)
     if not np.any(patch_mask):
         return labels, next_id, []
     s = src[patch_mask]
@@ -1016,6 +1015,7 @@ def propose_splits(
             and len(significant_buckets(st.bucket_counts, args.bucket_split_min_bucket_ratio, bucket_split_targets)) >= 2
         )
     ]
+    log(f"split candidates: {len(candidates)}")
     for pid, _st in sorted(candidates, key=lambda x: x[1].count, reverse=True):
         mask = np.nonzero(labels == pid)[0]
         if len(mask) < args.split_min_component_voxels:
