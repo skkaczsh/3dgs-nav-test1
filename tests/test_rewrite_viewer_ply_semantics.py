@@ -40,7 +40,25 @@ def write_minimal_ply(path: Path) -> Path:
 
 
 def write_objects(path: Path) -> Path:
-    path.write_text(json.dumps({"object_id": 1, "semantic_label": "floor"}) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(
+            {
+                "object_id": 1,
+                "semantic_label": "floor",
+                "semantic_fusion_status": "evidence_fusion_applied",
+                "semantic_evidence_scores": {"floor": 10},
+                "semantic_evidence_source_scores": {
+                    "sam": {"floor": 4},
+                    "teacher": {"floor": 6},
+                    "scene": {},
+                },
+                "semantic_vetoed_scores": {"wall": 1},
+                "conflict_flags": ["geometry_vetoed_some_evidence"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     return path
 
 
@@ -61,6 +79,20 @@ def test_rewrite_ply_allows_explicit_qa_preview_source(tmp_path: Path) -> None:
 
     assert report["rows"] == 1
     assert output.exists()
+
+
+def test_rewrite_report_summarizes_evidence_provenance(tmp_path: Path) -> None:
+    source = write_minimal_ply(tmp_path / "source.ply")
+    objects = write_objects(tmp_path / "objects.jsonl")
+    output = tmp_path / "semantic_viewer.ply"
+
+    report = module.rewrite_ply(source, objects, output)
+
+    assert report["point_source_support_counts"] == {"sam+teacher": 1}
+    assert report["object_source_support_counts"] == {"sam+teacher": 1}
+    assert report["fusion_status_counts"] == {"evidence_fusion_applied": 1}
+    assert report["conflict_flag_counts"] == {"geometry_vetoed_some_evidence": 1}
+    assert report["object_label_counts"] == {"floor": 1}
 
 
 def test_rewrite_ply_rejects_forbidden_output_path(tmp_path: Path) -> None:

@@ -16,3 +16,16 @@ def test_semantic_ply_viewer_blocks_rejected_mainline_artifacts() -> None:
     for forbidden in REJECTED_ARTIFACT_SUBSTRINGS:
         assert forbidden in html
     assert "frame_object_points_stride10.ply" not in html
+
+
+def test_semantic_ply_viewer_exposes_semantic_evidence_provenance() -> None:
+    html = VIEWER.read_text(encoding="utf-8")
+
+    assert "semanticEvidenceSourceScores" in html
+    assert "semantic_evidence_source_scores" in html
+    assert "semanticEvidenceScores" in html
+    assert "semanticVetoedScores" in html
+    assert "semanticFusionStatus" in html
+    assert "Fusion 状态" in html
+    assert "Evidence 来源" in html
+    assert "Vetoed 分数" in html
