@@ -40,6 +40,7 @@ def base_args(tmp_path: Path) -> argparse.Namespace:
         objects_jsonl=objects,
         output_jsonl=tmp_path / "fused.jsonl",
         report=tmp_path / "fused_report.json",
+        validation_report=tmp_path / "fused_report_validation.json",
         plan_json=None,
         python="python",
         run=False,
@@ -69,6 +70,9 @@ def test_runner_builds_fusion_command_when_gate_passes(tmp_path: Path) -> None:
     assert "scripts/fuse_object_semantic_evidence.py" in argv
     assert "--objects-jsonl" in argv
     assert "--min-winner-ratio" in argv
+    validate_argv = plan["commands"][1]["argv"]
+    assert "scripts/validate_object_semantic_evidence_fusion.py" in validate_argv
+    assert "--input-objects" in validate_argv
 
 
 def test_runner_blocks_unpromoted_patch_gate(tmp_path: Path) -> None:
@@ -107,6 +111,8 @@ def test_runner_main_writes_blocked_plan_without_run_failure(tmp_path: Path, mon
         str(args.output_jsonl),
         "--report",
         str(args.report),
+        "--validation-report",
+        str(args.validation_report),
         "--patch-gate",
         str(args.patch_gate),
         "--plan-json",
@@ -130,6 +136,8 @@ def test_runner_run_mode_refuses_blocked_plan(tmp_path: Path, monkeypatch) -> No
         str(args.output_jsonl),
         "--report",
         str(args.report),
+        "--validation-report",
+        str(args.validation_report),
         "--patch-gate",
         str(args.patch_gate),
         "--run",
@@ -154,6 +162,8 @@ def test_runner_run_mode_checks_mainline_before_command(tmp_path: Path, monkeypa
         str(args.output_jsonl),
         "--report",
         str(args.report),
+        "--validation-report",
+        str(args.validation_report),
         "--patch-gate",
         str(args.patch_gate),
         "--run",
@@ -161,4 +171,4 @@ def test_runner_run_mode_checks_mainline_before_command(tmp_path: Path, monkeypa
     monkeypatch.setattr("sys.argv", argv)
 
     assert module.main() == 0
-    assert calls == ["healthcheck", "command"]
+    assert calls == ["healthcheck", "command", "command"]

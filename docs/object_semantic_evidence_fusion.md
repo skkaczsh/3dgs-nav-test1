@@ -47,6 +47,15 @@ experiment has not passed visual promotion, the plan is written as `blocked` and
 `--allow-unpromoted-patch-experiment` and keep the output out of promoted
 mainline artifacts.
 
+When the plan is ready, the launcher executes two commands in order:
+
+1. `scripts/fuse_object_semantic_evidence.py`
+2. `scripts/validate_object_semantic_evidence_fusion.py`
+
+The validator checks that object ids and ownership fields did not change, that
+fusion status/evidence fields exist, and that scene-only promotion has not
+slipped into a default run.
+
 Direct fusion entry point:
 
 ```bash

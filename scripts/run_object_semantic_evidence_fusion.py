@@ -68,7 +68,7 @@ def patch_gate_status(path: Path) -> dict[str, Any]:
     }
 
 
-def build_command(args: argparse.Namespace) -> list[str]:
+def build_fuse_command(args: argparse.Namespace) -> list[str]:
     return [
         args.python,
         "scripts/fuse_object_semantic_evidence.py",
@@ -93,8 +93,27 @@ def build_command(args: argparse.Namespace) -> list[str]:
     ] + (["--allow-scene-only"] if args.allow_scene_only else [])
 
 
+def build_validate_command(args: argparse.Namespace) -> list[str]:
+    command = [
+        args.python,
+        "scripts/validate_object_semantic_evidence_fusion.py",
+        "--input-objects",
+        str(args.objects_jsonl),
+        "--output-objects",
+        str(args.output_jsonl),
+        "--report",
+        str(args.report),
+        "--output-json",
+        str(args.validation_report),
+    ]
+    if args.allow_scene_only:
+        command.append("--allow-scene-only")
+    return command
+
+
 def build_plan(args: argparse.Namespace, gate: dict[str, Any]) -> dict[str, Any]:
-    command = build_command(args)
+    fuse_command = build_fuse_command(args)
+    validate_command = build_validate_command(args)
     blocked = not gate["passed"] and not args.allow_unpromoted_patch_experiment
     return {
         "schema": "object-semantic-evidence-fusion-plan/v1",
@@ -102,13 +121,19 @@ def build_plan(args: argparse.Namespace, gate: dict[str, Any]) -> dict[str, Any]
         "objects_jsonl": str(args.objects_jsonl),
         "output_jsonl": str(args.output_jsonl),
         "report": str(args.report),
+        "validation_report": str(args.validation_report),
         "patch_gate": gate,
         "allow_unpromoted_patch_experiment": bool(args.allow_unpromoted_patch_experiment),
         "commands": [
             {
                 "name": "fuse_object_semantic_evidence",
-                "argv": command,
-                "shell": shell_join(command),
+                "argv": fuse_command,
+                "shell": shell_join(fuse_command),
+            },
+            {
+                "name": "validate_object_semantic_evidence_fusion",
+                "argv": validate_command,
+                "shell": shell_join(validate_command),
             }
         ],
     }
@@ -132,6 +157,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--objects-jsonl", type=Path, required=True)
     parser.add_argument("--output-jsonl", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--validation-report", type=Path)
     parser.add_argument("--plan-json", type=Path)
     parser.add_argument("--python", default="python")
     parser.add_argument("--run", action="store_true")
@@ -154,6 +180,9 @@ def main() -> int:
     existing_file(args.objects_jsonl, "objects jsonl")
     reject_forbidden_path(args.output_jsonl)
     reject_forbidden_path(args.report)
+    if args.validation_report is None:
+        args.validation_report = args.report.with_name(args.report.stem + "_validation.json")
+    reject_forbidden_path(args.validation_report)
     gate = patch_gate_status(args.patch_gate)
     plan = build_plan(args, gate)
     plan_path = args.plan_json or (args.report.parent / "object_semantic_evidence_fusion_plan.json")
@@ -165,7 +194,9 @@ def main() -> int:
         return 2 if args.run else 0
     if args.run:
         run_mainline_healthcheck(args)
-        run_command([str(part) for part in plan["commands"][0]["argv"]], Path.cwd())
+        cwd = Path.cwd()
+        for item in plan["commands"]:
+            run_command([str(part) for part in item["argv"]], cwd)
     return 0
 
 
