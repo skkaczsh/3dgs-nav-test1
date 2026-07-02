@@ -33,6 +33,57 @@ def make_chain_fixture() -> tuple[dict[str, np.ndarray], np.ndarray, np.ndarray,
     return arrays, labels, src, dst
 
 
+def make_attachment_args() -> argparse.Namespace:
+    return argparse.Namespace(
+        enable_attachment_merge=True,
+        attachment_min_anchor_voxels=20000,
+        attachment_max_fragment_voxels=5000,
+        attachment_min_size_ratio=4.0,
+        attachment_min_score=0.78,
+        attachment_min_contact_ratio=0.08,
+        attachment_min_shared_edges=8,
+        attachment_max_color_distance=70.0,
+        attachment_min_normal_score=0.42,
+        attachment_max_bbox_gap=0.08,
+        attachment_contact_norm=0.18,
+        attachment_color_weight=0.32,
+        attachment_normal_weight=0.16,
+        attachment_bucket_weight=0.14,
+        attachment_contact_weight=0.30,
+        attachment_gap_weight=0.08,
+        attachment_use_contact_evidence=True,
+        split_attachment_min_anchor_voxels=5000,
+        split_attachment_max_fragment_voxels=5000,
+        split_attachment_min_size_ratio=2.5,
+        split_attachment_min_score=0.78,
+        split_attachment_min_contact_ratio=0.08,
+        split_attachment_min_shared_edges=8,
+        split_attachment_max_color_distance=70.0,
+        split_attachment_min_normal_score=0.42,
+        split_attachment_max_bbox_gap=0.08,
+    )
+
+
+def make_patch(
+    patch_id: int,
+    count: int,
+    mean_rgb: list[float],
+    geometry_type: str = "rough_mixed",
+) -> module.PatchStats:
+    return module.PatchStats(
+        patch_id=patch_id,
+        count=count,
+        centroid=np.zeros(3, dtype=np.float64),
+        mean_rgb=np.array(mean_rgb, dtype=np.float64),
+        mean_normal=np.array([0.0, 0.0, 1.0], dtype=np.float64),
+        bbox_min=np.zeros(3, dtype=np.float64),
+        bbox_max=np.array([1.0, 1.0, 0.02], dtype=np.float64),
+        bucket_counts=Counter({4: count}),
+        geometry_type=geometry_type,
+        source_patch_ids={patch_id},
+    )
+
+
 def test_bucket_connectivity_split_breaks_mixed_spectrum_bridge() -> None:
     arrays, labels, src, dst = make_chain_fixture()
 
@@ -84,3 +135,35 @@ def test_significant_bucket_selection_uses_ratio_and_targets() -> None:
     )
 
     assert selected == {0, 4}
+
+
+def test_split_provenance_attachment_uses_dedicated_anchor_threshold() -> None:
+    args = make_attachment_args()
+    anchor = make_patch(1, 8000, [10.0, 10.0, 10.0])
+    fragment = make_patch(2, 1000, [12.0, 10.0, 10.0])
+    candidate = {"contact_color_distance": 2.0, "contact_normal_score": 0.95}
+
+    ok, reason, _detail = module.attachment_merge_decision(
+        anchor,
+        fragment,
+        shared_edges=200,
+        candidate_support=0.2,
+        candidate=candidate,
+        args=args,
+        provenance_relaxed=False,
+    )
+    assert not ok
+    assert reason == "attachment_anchor_too_small"
+
+    ok, reason, detail = module.attachment_merge_decision(
+        anchor,
+        fragment,
+        shared_edges=200,
+        candidate_support=0.2,
+        candidate=candidate,
+        args=args,
+        provenance_relaxed=True,
+    )
+    assert ok
+    assert reason == "accepted_split_attachment"
+    assert detail["attachment_provenance_relaxed"] == 1.0
