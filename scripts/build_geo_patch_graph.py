@@ -198,12 +198,15 @@ def edge_keep(
     veto |= plane_residual > max_plane_residual * 3.5
     if bucket_guard in {"same-bucket-or-color", "same-bucket-or-fine-color"}:
         if bucket_guard == "same-bucket-or-fine-color":
-            bridge_buckets = np.isin(
-                arrays["buckets"][src],
-                [BUCKET_IDS["rough_mixed"], BUCKET_IDS["thin_linear"], BUCKET_IDS["unknown"]],
-            ) & np.isin(
-                arrays["buckets"][dst],
-                [BUCKET_IDS["rough_mixed"], BUCKET_IDS["thin_linear"], BUCKET_IDS["unknown"]],
+            bridge_buckets = (
+                np.isin(
+                    arrays["buckets"][src],
+                    [BUCKET_IDS["rough_mixed"], BUCKET_IDS["thin_linear"], BUCKET_IDS["unknown"]],
+                )
+                | np.isin(
+                    arrays["buckets"][dst],
+                    [BUCKET_IDS["rough_mixed"], BUCKET_IDS["thin_linear"], BUCKET_IDS["unknown"]],
+                )
             )
         else:
             bridge_buckets = np.ones_like(veto, dtype=bool)

@@ -106,12 +106,49 @@ void test_region_model_breaks_pairwise_chain_bridge() {
   require(labels[2] != labels[0], "far height jump should not bridge through pairwise chain");
 }
 
+void test_vertical_surface_can_bridge_local_rough_voxel() {
+  std::vector<Voxel> voxels;
+  for (int i = 0; i < 4; ++i) {
+    Voxel p;
+    p.xyz = {0.0, static_cast<double>(i) * 0.1, 0.0};
+    p.rgb = {130.0, 132.0, 128.0};
+    p.normal = {1.0, 0.0, 0.0};
+    p.roughness = 0.03;
+    p.planarity = 0.82;
+    p.linearity = 0.06;
+    p.local_color_std = 9.0;
+    p.height_range = 0.03;
+    p.bucket = geo_patch::kVertical;
+    voxels.push_back(p);
+  }
+  Voxel rough = voxels.back();
+  rough.xyz = {0.0, 0.4, 0.0};
+  rough.rgb = {132.0, 131.0, 129.0};
+  rough.roughness = 0.08;
+  rough.planarity = 0.62;
+  rough.bucket = geo_patch::kRoughMixed;
+  voxels.push_back(rough);
+
+  RegionArgs args;
+  args.min_surface_bridge_score = 0.50;
+  args.surface_bridge_texture_score = 0.55;
+  args.surface_bridge_shape_score = 0.20;
+
+  PatchModel model(0, geo_patch::kVertical);
+  for (int i = 0; i < 4; ++i) {
+    model.add(voxels, i);
+  }
+  const auto bridged = geo_patch::membership_score(voxels, model, 4, args, 3);
+  require(bridged.ok, "vertical surfaces should accept locally consistent rough bridge voxels");
+}
+
 }  // namespace
 
 int main() {
   try {
     test_frontier_chart_rescues_local_growth();
     test_region_model_breaks_pairwise_chain_bridge();
+    test_vertical_surface_can_bridge_local_rough_voxel();
   } catch (const std::exception& e) {
     std::cerr << "geo_patch_region_model_smoke failed: " << e.what() << "\n";
     return 1;

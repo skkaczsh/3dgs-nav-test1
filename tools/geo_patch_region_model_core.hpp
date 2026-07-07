@@ -440,7 +440,7 @@ inline MembershipResult membership_score(
   double threshold = 0.0;
   if (is_stable_surface(dominant) && model.dominant_ratio() >= args.stable_surface_ratio) {
     const bool surface_bridge = args.enable_surface_multimodal_bridge &&
-                                dominant == kHorizontal &&
+                                is_stable_surface(dominant) &&
                                 (bucket == kRoughMixed || bucket == kUnknown || bucket == kThinLinear) &&
                                 texture_score >= args.surface_bridge_texture_score &&
                                 (shape_score >= args.surface_bridge_shape_score ||
