@@ -267,6 +267,25 @@ describes local patches while the SPG edge table is full-scene. Do not tune
 weights on this partial evidence; the next real experiment is full-source
 patch descriptors.
 
+Touch-edge endpoint sample smoke:
+
+- sample dir:
+  `/root/epfs/SCAN/work_MT20260616-175807/touch_edge_patch_sample_v1_20260708`
+- Sonata evidence dir:
+  `/root/epfs/SCAN/work_MT20260616-175807/sonata_touch_edge_patch_sample_v1_20260708`
+- SPG output:
+  `/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708`
+- sampled `26013` points from `8483` touch-edge endpoint patches
+- produced `8483` patch descriptors
+- wrote `7793 / 7793` touch-edge evidence rows
+- SPG consumed all `7793` external evidence rows and produced `197129`
+  patches from `197630` input patches, with `501` accepted edges
+
+Interpretation: patch-level Sonata evidence now covers the full current SPG
+touch-edge table. This is a useful cheap proxy for full-source descriptors,
+but still sampled evidence; do not promote it before visual QA against the v4
+baseline and at least one weight sweep.
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure

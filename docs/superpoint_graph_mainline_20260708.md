@@ -136,3 +136,7 @@ Implementation hook:
 - Default behavior is unchanged when no external evidence file is provided.
 - The fixed five smoke crops have passed the patch-feature edge wiring smoke.
   This proves the interface, not the value of Sonata as a full-scene baseline.
+- A touch-edge endpoint sample now covers all `7793` current SPG touch edges
+  with sampled Sonata descriptors. This is the first useful cheap proxy for
+  full-source descriptors; next compare visual QA and a small weight sweep
+  against v4 before any baseline promotion.
