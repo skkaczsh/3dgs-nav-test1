@@ -33,25 +33,26 @@
   <main>
     <section>
       <h2>Promotion Review Checklist</h2>
-      <p class="muted">Candidate <code>v8_object_refinement</code> is not promoted until all required visual checks are accepted. Current status: <span class="status">pending</span></p>
+      <p class="muted">Candidate <code>superpoint_graph_v4_nearbbox_s070_e120_20260708_183437</code> is not promoted until all required visual checks are accepted. Current status: <span class="status">pending</span></p>
       <table>
         <thead><tr><th>check id</th><th>required</th><th>status</th><th>question</th></tr></thead>
         <tbody>
-<tr><td><code>v8_fragmentation_improves</code></td><td>yes</td><td>pending</td><td>v8 visibly reduces object fragmentation compared with v7 in the same areas.</td></tr>
-<tr><td><code>v8_no_obvious_overmerge</code></td><td>yes</td><td>pending</td><td>v8 does not visibly merge unrelated large structures such as ground/building/tree into one object.</td></tr>
-<tr><td><code>surface_guard_no_unknown_regression</code></td><td>yes</td><td>pending</td><td>v17 keeps floor/wall visible and does not reproduce the v15/v16 unknown spike.</td></tr>
-<tr><td><code>semantic_not_promoted_from_object_view</code></td><td>yes</td><td>pending</td><td>Object refinement is only promoted as geometry ownership; semantic labels remain evidence/QA references.</td></tr>
+<tr><td><code>large_surfaces_not_cross_merged</code></td><td>yes</td><td>pending</td><td>Large horizontal surfaces remain separated from vertical building/wall surfaces.</td></tr>
+<tr><td><code>vertical_surfaces_do_not_swallow_vegetation</code></td><td>yes</td><td>pending</td><td>Large vertical surfaces do not swallow trees or rough vegetation.</td></tr>
+<tr><td><code>rough_mixed_not_merged_into_facade</code></td><td>yes</td><td>pending</td><td>rough_mixed patches around trees/shrubs are not merged into building facades.</td></tr>
+<tr><td><code>cars_separated_from_surfaces</code></td><td>yes</td><td>pending</td><td>Cars remain visually separated from ground and building surfaces where visible.</td></tr>
+<tr><td><code>fragmentation_better_without_giant_mixed_patch</code></td><td>yes</td><td>pending</td><td>Patch fragmentation is visibly better than v3/v1 without creating giant mixed patches.</td></tr>
         </tbody>
       </table>
       <p class="muted">Update one accepted check after reviewing the fixed viewer links:</p>
-      <code>python3 scripts/update_current_dense_visual_acceptance.py --check-id &lt;check_id&gt; --status accepted --reviewer &lt;name&gt; --notes &lt;brief_evidence&gt; --run-gate</code>
-      <p class="muted">Re-run gate explicitly if needed:</p>
-      <code>python3 scripts/gate_current_dense_mainline_promotion.py --qa-json docs/current_dense_mainline_qa.json --visual-acceptance docs/current_dense_visual_acceptance.json --output docs/current_dense_promotion_gate.json</code>
+      <code>python3 scripts/update_spg_visual_acceptance.py --check-id &lt;check_id&gt; --status accepted --reviewer &lt;name&gt; --notes &lt;brief_evidence&gt;</code>
+      <p class="muted">Re-run the current mainline gate explicitly:</p>
+      <code>python3 scripts/validate_current_mainline.py</code>
       <p class="muted">After the gate passes, generate the exact state-change plan:</p>
       <code>python3 scripts/plan_current_dense_promotion.py</code>
     </section>
     <section>
-      <h2>Object Refinement QA</h2>
+      <h2>Legacy Dense Object QA</h2>
       <table>
         <thead><tr><th>metric</th><th>v7</th><th>v8</th><th>delta</th></tr></thead>
         <tbody>
@@ -64,7 +65,7 @@
       </table>
     </section>
     <section>
-      <h2>Surface Guard QA</h2>
+      <h2>Legacy Surface Guard QA</h2>
       <table>
         <thead><tr><th>label</th><th>v9 points</th><th>v17 points</th><th>delta</th></tr></thead>
         <tbody>
@@ -82,54 +83,54 @@
       <div class="grid">
 
       <article class="card">
-        <h2>v7 Object Refinement</h2>
-        <p class="role">conservative object baseline</p>
-        <p>Lower recall; useful as over-merge guard.</p>
+        <h2>Energy Attach v4</h2>
+        <p class="role">current dense patch baseline</p>
+        <p>Retained 0.03m dense patch baseline.</p>
         <div class="actions">
-          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.2" target="_blank">Open default</a>
-          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.2" target="_blank">Object mode</a>
-          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.2" target="_blank">Semantic mode</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.2" target="_blank">Open default</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.2" target="_blank">Object mode</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.2" target="_blank">Semantic mode</a>
         </div>
-        <code>/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply</code>
+        <code>/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_stride10.ply</code>
       </article>
 
 
       <article class="card">
-        <h2>v8 Object Refinement</h2>
-        <p class="role">high-recall object candidate</p>
-        <p>More merges; requires visual QA before promotion.</p>
+        <h2>SPG v4 near-bbox</h2>
+        <p class="role">current trusted SPG visual baseline</p>
+        <p>Trusted visual baseline after v7 uncertain-fragment rejection.</p>
         <div class="actions">
-          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.2" target="_blank">Open default</a>
-          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.2" target="_blank">Object mode</a>
-          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.2" target="_blank">Semantic mode</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.5" target="_blank">Open default</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.5" target="_blank">Object mode</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.5" target="_blank">Semantic mode</a>
         </div>
-        <code>/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply</code>
+        <code>/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_stride10.ply</code>
       </article>
 
 
       <article class="card">
-        <h2>v9 Teacher Semantic</h2>
-        <p class="role">safe semantic diagnostic</p>
-        <p>Teacher transfer without the surface-preserve guard wrapper.</p>
+        <h2>SPG Sonata touch-edge 0.15</h2>
+        <p class="role">visual QA candidate</p>
+        <p>Modest Sonata edge-evidence weight; review against v4.</p>
         <div class="actions">
-          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.2" target="_blank">Open default</a>
-          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.2" target="_blank">Object mode</a>
-          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.2" target="_blank">Semantic mode</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.5" target="_blank">Open default</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.5" target="_blank">Object mode</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.5" target="_blank">Semantic mode</a>
         </div>
-        <code>/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.ply</code>
+        <code>/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1_stride10.ply</code>
       </article>
 
 
       <article class="card">
-        <h2>v17 Surface Preserve Guard</h2>
-        <p class="role">unknown-regression guard reference</p>
-        <p>Same point labels as v9; proves guard does not create unknown spike.</p>
+        <h2>SPG Sonata touch-edge 0.30</h2>
+        <p class="role">visual QA candidate</p>
+        <p>Stronger Sonata edge-evidence weight; review for over-merge.</p>
         <div class="actions">
-          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.2" target="_blank">Open default</a>
-          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.2" target="_blank">Object mode</a>
-          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.2" target="_blank">Semantic mode</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_w030_20260708/superpoint_graph_v1_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_w030_20260708/superpoint_graph_v1.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.5" target="_blank">Open default</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_w030_20260708/superpoint_graph_v1_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_w030_20260708/superpoint_graph_v1.jsonl&amp;mode=object&amp;stride=1&amp;pointSize=1.5" target="_blank">Object mode</a>
+          <a href="/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_w030_20260708/superpoint_graph_v1_stride10.ply&amp;objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_w030_20260708/superpoint_graph_v1.jsonl&amp;mode=semantic&amp;stride=1&amp;pointSize=1.5" target="_blank">Semantic mode</a>
         </div>
-        <code>/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.ply</code>
+        <code>/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_w030_20260708/superpoint_graph_v1_stride10.ply</code>
       </article>
 
       </div>

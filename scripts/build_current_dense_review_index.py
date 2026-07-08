@@ -18,7 +18,7 @@ if str(REPO_ROOT) not in sys.path:
 from scripts.current_mainline_contract import FORBIDDEN_ARTIFACT_SUBSTRINGS, forbidden_artifact_match
 
 DEFAULT_QA = REPO_ROOT / "docs" / "current_dense_mainline_qa.json"
-DEFAULT_VISUAL_ACCEPTANCE = REPO_ROOT / "docs" / "current_dense_visual_acceptance.json"
+DEFAULT_VISUAL_ACCEPTANCE = REPO_ROOT / "docs" / "superpoint_graph_v4_visual_acceptance.json"
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "current_dense_review_index.html"
 
 
@@ -288,18 +288,13 @@ def artifact_cards() -> str:
 
 def build_html(qa: dict[str, Any], visual: dict[str, Any] | None = None) -> str:
     visual_status = visual.get("status", "missing") if visual else "missing"
-    accepted_candidate = visual.get("accepted_candidate", "unknown") if visual else "unknown"
+    accepted_candidate = visual.get("accepted_candidate", visual.get("candidate", "unknown")) if visual else "unknown"
     update_command = (
-        "python3 scripts/update_current_dense_visual_acceptance.py "
+        "python3 scripts/update_spg_visual_acceptance.py "
         "--check-id <check_id> --status accepted --reviewer <name> "
-        "--notes <brief_evidence> --run-gate"
+        "--notes <brief_evidence>"
     )
-    gate_command = (
-        "python3 scripts/gate_current_dense_mainline_promotion.py "
-        "--qa-json docs/current_dense_mainline_qa.json "
-        "--visual-acceptance docs/current_dense_visual_acceptance.json "
-        "--output docs/current_dense_promotion_gate.json"
-    )
+    gate_command = "python3 scripts/validate_current_mainline.py"
     plan_command = "python3 scripts/plan_current_dense_promotion.py"
     return f"""<!doctype html>
 <html lang="zh-CN">
@@ -345,13 +340,13 @@ def build_html(qa: dict[str, Any], visual: dict[str, Any] | None = None) -> str:
       </table>
       <p class="muted">Update one accepted check after reviewing the fixed viewer links:</p>
       <code>{html.escape(update_command)}</code>
-      <p class="muted">Re-run gate explicitly if needed:</p>
+      <p class="muted">Re-run the current mainline gate explicitly:</p>
       <code>{html.escape(gate_command)}</code>
       <p class="muted">After the gate passes, generate the exact state-change plan:</p>
       <code>{html.escape(plan_command)}</code>
     </section>
     <section>
-      <h2>Object Refinement QA</h2>
+      <h2>Legacy Dense Object QA</h2>
       <table>
         <thead><tr><th>metric</th><th>v7</th><th>v8</th><th>delta</th></tr></thead>
         <tbody>
@@ -360,7 +355,7 @@ def build_html(qa: dict[str, Any], visual: dict[str, Any] | None = None) -> str:
       </table>
     </section>
     <section>
-      <h2>Surface Guard QA</h2>
+      <h2>Legacy Surface Guard QA</h2>
       <table>
         <thead><tr><th>label</th><th>v9 points</th><th>v17 points</th><th>delta</th></tr></thead>
         <tbody>

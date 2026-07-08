@@ -52,21 +52,21 @@ def qa_fixture() -> dict:
 
 def visual_fixture() -> dict:
     return {
-        "schema": "current-dense-visual-acceptance/v1",
+        "schema": "superpoint-graph-visual-acceptance/v1",
         "status": "pending",
-        "accepted_candidate": "v8_object_refinement",
+        "candidate": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
         "checks": [
             {
-                "id": "v8_fragmentation_improves",
+                "id": "fragmentation_better_without_giant_mixed_patch",
                 "required": True,
                 "status": "pending",
-                "question": "v8 visibly reduces object fragmentation compared with v7.",
+                "question": "Patch fragmentation is visibly better without giant mixed patches.",
             },
             {
-                "id": "semantic_not_promoted_from_object_view",
+                "id": "large_surfaces_not_cross_merged",
                 "required": True,
                 "status": "pending",
-                "question": "Object refinement is only promoted as geometry ownership.",
+                "question": "Large horizontal surfaces remain separated from vertical surfaces.",
             },
         ],
     }
@@ -80,10 +80,11 @@ def test_build_html_links_only_current_review_artifacts() -> None:
     assert "SPG Sonata touch-edge 0.15" in html
     assert "SPG Sonata touch-edge 0.30" in html
     assert "Promotion Review Checklist" in html
-    assert "v8_fragmentation_improves" in html
-    assert "update_current_dense_visual_acceptance.py" in html
+    assert "fragmentation_better_without_giant_mixed_patch" in html
+    assert "update_spg_visual_acceptance.py" in html
+    assert "update_current_dense_visual_acceptance.py" not in html
+    assert "gate_current_dense_mainline_promotion.py" not in html
     assert "plan_current_dense_promotion.py" in html
-    assert "--run-gate" in html
     assert "objects_v12" not in html
     assert "objects_v15" not in html
     assert "semantic_ply_viewer.html" in html
