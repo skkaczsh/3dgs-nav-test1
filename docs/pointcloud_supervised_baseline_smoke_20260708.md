@@ -25,6 +25,15 @@ domain-gap diagnostic, not as a geometry ownership stage.
 These four runs are the minimum needed to tell whether current errors come from
 geometry, color, normal estimation, or height priors.
 
+## Fixed Smoke Crops
+
+Use `docs/pointcloud_supervised_baseline_smoke_manifest_20260708.json`.
+
+It contains five local crops from the canonical dense `0.03m` Opt-LAS voxel
+source: largest horizontal, vertical, rough, thin-linear patches, plus the
+known v7 `70503/9366` risk area. These crops are small enough for a smoke test
+and large enough to expose the current surface/object failure modes.
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure

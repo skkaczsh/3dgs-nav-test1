@@ -1,0 +1,152 @@
+{
+  "schema": "pointcloud-supervised-baseline-smoke-manifest/v1",
+  "status": "ready",
+  "contract": "docs/pointcloud_supervised_baseline_smoke_20260708.json",
+  "dense_input": {
+    "id": "dense_las_voxel003_binary",
+    "ply": "/Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply",
+    "report": "/Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/report.json",
+    "voxel_size_m": 0.03,
+    "voxel_count": 14482557,
+    "scanned_point_count": 14482557
+  },
+  "crop_count": 5,
+  "crops": [
+    {
+      "id": "largest_horizontal_4",
+      "source": "superpoint_graph_v7_largest_patch",
+      "geometry_type": "horizontal",
+      "patch_id": 4,
+      "source_voxel_count": 2867111,
+      "centroid": [
+        -23.85180371785988,
+        19.21937640884133,
+        -0.2715989186027429
+      ],
+      "bbox_3d": {
+        "min": [
+          -29.85180371785988,
+          13.219376408841331,
+          -0.7020000219345093
+        ],
+        "max": [
+          -17.85180371785988,
+          25.21937640884133,
+          2.5420000553131104
+        ]
+      },
+      "dense_voxel_count_in_crop": 227375
+    },
+    {
+      "id": "largest_vertical_2",
+      "source": "superpoint_graph_v7_largest_patch",
+      "geometry_type": "vertical",
+      "patch_id": 2,
+      "source_voxel_count": 2695662,
+      "centroid": [
+        -4.299307051380563,
+        -10.544978168425516,
+        8.56944473519211
+      ],
+      "bbox_3d": {
+        "min": [
+          -10.299307051380563,
+          -16.544978168425516,
+          4.569444735192111
+        ],
+        "max": [
+          1.7006929486194373,
+          -4.544978168425516,
+          12.56944473519211
+        ]
+      },
+      "dense_voxel_count_in_crop": 488760
+    },
+    {
+      "id": "largest_rough_mixed_70448",
+      "source": "superpoint_graph_v7_largest_patch",
+      "geometry_type": "rough_mixed",
+      "patch_id": 70448,
+      "source_voxel_count": 1037475,
+      "centroid": [
+        -24.160332867190874,
+        51.97349122542634,
+        4.683931779371746
+      ],
+      "bbox_3d": {
+        "min": [
+          -30.160332867190874,
+          45.97349122542634,
+          0.6839317793717461
+        ],
+        "max": [
+          -18.160332867190874,
+          57.97349122542634,
+          8.683931779371747
+        ]
+      },
+      "dense_voxel_count_in_crop": 434261
+    },
+    {
+      "id": "largest_thin_linear_76635",
+      "source": "superpoint_graph_v7_largest_patch",
+      "geometry_type": "thin_linear",
+      "patch_id": 76635,
+      "source_voxel_count": 4009,
+      "centroid": [
+        -9.279330065554293,
+        -22.064901517495517,
+        17.82237027749423
+      ],
+      "bbox_3d": {
+        "min": [
+          -11.886327743530273,
+          -25.5667724609375,
+          16.415000915527344
+        ],
+        "max": [
+          -7.030327796936035,
+          -17.64577293395996,
+          18.641000747680664
+        ]
+      },
+      "dense_voxel_count_in_crop": 40793
+    },
+    {
+      "id": "risk_70503_9366_local",
+      "source": "superpoint_graph_v7_known_overlap_risk",
+      "geometry_type": "mixed_risk",
+      "patch_ids": [
+        70503,
+        9366
+      ],
+      "bbox_3d": {
+        "min": [
+          -47.099327087402344,
+          -11.58977222442627,
+          -1.7099999785423279
+        ],
+        "max": [
+          -38.40732955932617,
+          6.707228183746338,
+          5.908999919891357
+        ]
+      },
+      "dense_voxel_count_in_crop": 375689
+    }
+  ],
+  "runner_contract": {
+    "crop_input": "read dense_input.ply and keep xyz within crop.bbox_3d",
+    "allowed_outputs": [
+      "per_crop_predictions",
+      "per_voxel_logits_or_labels",
+      "per_patch_vote_summary",
+      "domain_gap_report"
+    ],
+    "forbidden_outputs": [
+      "new_patch_boundaries",
+      "merged_objects",
+      "overwritten_geometry_owner"
+    ]
+  }
+}
