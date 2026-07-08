@@ -134,6 +134,5 @@ Implementation hook:
 - `scripts/run_scan_train_superpoint_graph.sh` forwards this through
   `EXTERNAL_EDGE_EVIDENCE` and `EXTERNAL_EDGE_WEIGHT`.
 - Default behavior is unchanged when no external evidence file is provided.
-- The `70503/9366` risk crop has passed the wiring smoke with `133` external
-  edge rows consumed by SPG. This proves the interface, not the value of Sonata
-  as a full-scene baseline.
+- The fixed five smoke crops have passed the patch-feature edge wiring smoke.
+  This proves the interface, not the value of Sonata as a full-scene baseline.

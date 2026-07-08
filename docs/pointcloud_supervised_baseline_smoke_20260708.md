@@ -242,6 +242,31 @@ point descriptor -> patch descriptor -> edge evidence -> SPG. This is still a
 local evidence smoke, not a promoted baseline; full-source patch descriptors
 are required before visual QA or promotion.
 
+Five-crop patch-feature edge smoke:
+
+```bash
+RUN=1 bash scripts/run_scan_train_sonata_patch_edge_smoke.sh
+```
+
+- remote dir:
+  `/root/epfs/SCAN/work_MT20260616-175807/sonata_patch_edge_smoke_crops_20260708`
+- local JSON reports:
+  `server_parking_priority_s10/sonata_patch_edge_smoke_crops_20260708`
+
+| crop | patch descriptors | edge evidence rows |
+| --- | ---: | ---: |
+| `largest_horizontal_4` | 457 | 14 |
+| `largest_vertical_2` | 603 | 74 |
+| `largest_rough_mixed_70448` | 4161 | 188 |
+| `largest_thin_linear_76635` | 60 | 9 |
+| `risk_70503_9366_local` | 1884 | 133 |
+
+Interpretation: all five geometry modes can produce patch descriptors and SPG
+edge evidence. The edge row count is intentionally low because each crop only
+describes local patches while the SPG edge table is full-scene. Do not tune
+weights on this partial evidence; the next real experiment is full-source
+patch descriptors.
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure
