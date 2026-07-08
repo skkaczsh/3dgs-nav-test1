@@ -61,6 +61,14 @@ bash scripts/sync_supervised_smoke_crops_to_remote.sh
 Defaults are `SSH_HOST=scan-train` and
 `REMOTE_DIR=/root/epfs/SCAN/work_MT20260616-175807/pointcloud_supervised_baseline_smoke_crops_20260708`.
 
+Remote sync evidence on 2026-07-08:
+
+- host: `scan-train`
+- remote dir:
+  `/root/epfs/SCAN/work_MT20260616-175807/pointcloud_supervised_baseline_smoke_crops_20260708`
+- synced crop count: `5`
+- remote sha256 verification: `passed`
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure
