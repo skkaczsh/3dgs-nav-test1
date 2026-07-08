@@ -48,13 +48,13 @@ def load_point(path: Path, max_points: int) -> tuple[dict[str, np.ndarray], np.n
     return {"coord": coord, "color": color, "normal": normal}, original
 
 
-def upcast_feature(point) -> torch.Tensor:
+def upcast_point(point):
     while "pooling_parent" in point.keys():
         parent = point.pop("pooling_parent")
         inverse = point.pop("pooling_inverse")
         parent.feat = torch.cat([parent.feat, point.feat[inverse]], dim=-1)
         point = parent
-    return point.feat
+    return point
 
 
 def main() -> int:
@@ -87,7 +87,8 @@ def main() -> int:
             if isinstance(value, torch.Tensor):
                 point[key] = value.cuda(non_blocking=True)
         point = model(point)
-        feat = upcast_feature(point)
+        point = upcast_point(point)
+        feat = point.feat
         colors = pca_color(feat)
 
     out_ply = args.output_dir / f"{args.input.stem}_sonata_pca.ply"

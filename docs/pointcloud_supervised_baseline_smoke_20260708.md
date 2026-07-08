@@ -132,6 +132,14 @@ Remote repo/runtime status on 2026-07-08:
   downloads do not consume the small system disk.
 - active retry run dir:
   `/root/epfs/conda_envs/sonata_setup_20260708_124327`.
+- full conda setup was abandoned after repeated solver/cache issues. The final
+  working environment is the lightweight venv:
+  `/root/epfs/venvs/sonata-lite`, built from
+  `/opt/conda/envs/depth-anything-3/bin/python --system-site-packages`.
+  It imports `torch`, `sonata`, `spconv`, `torch_scatter`, `timm`, `open3d`,
+  and `fast_pytorch_kmeans`.
+- failed conda setup dirs and `/root/epfs/conda_pkgs` were removed after the
+  lite environment succeeded.
 
 Prepared Sonata crop smoke:
 
@@ -142,9 +150,22 @@ RUN=1 bash scripts/run_scan_train_sonata_crop_smoke.sh
 Default input is the known mixed-risk crop:
 `/root/epfs/SCAN/work_MT20260616-175807/pointcloud_supervised_baseline_smoke_crops_20260708/risk_70503_9366_local.ply`.
 The script writes a Sonata encoder PCA-colored PLY and a small JSON report.
-Run it only after `/root/epfs/conda_envs/sonata/bin/python` exists and imports
+Run it only after `/root/epfs/venvs/sonata-lite/bin/python` exists and imports
 `torch`, `sonata`, `spconv`, `torch_scatter`, `timm`, `open3d`, and
 `fast_pytorch_kmeans`.
+
+Successful Sonata crop smoke on 2026-07-08:
+
+- python: `/root/epfs/venvs/sonata-lite/bin/python`
+- remote dir:
+  `/root/epfs/SCAN/work_MT20260616-175807/sonata_crop_smoke_20260708`
+- local copy:
+  `server_parking_priority_s10/sonata_crop_smoke_20260708`
+- input points: `120000`
+- model points: `118942`
+- feature dim: `1232`
+- viewer:
+  `/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/sonata_crop_smoke_20260708/risk_70503_9366_local_sonata_pca.ply&mode=rgb&stride=1&pointSize=2`
 
 ## Acceptance
 

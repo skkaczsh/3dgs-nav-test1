@@ -4,7 +4,7 @@ set -euo pipefail
 SSH_HOST="${SSH_HOST:-scan-train}"
 LOCAL_REPO="${LOCAL_REPO:-/Users/skkac/Work/SCAN/new_route}"
 REMOTE_REPO="${REMOTE_REPO:-/root/epfs/SCAN/new_route}"
-REMOTE_PYTHON="${REMOTE_PYTHON:-/root/epfs/conda_envs/sonata/bin/python}"
+REMOTE_PYTHON="${REMOTE_PYTHON:-/root/epfs/venvs/sonata-lite/bin/python}"
 SONATA_REPO="${SONATA_REPO:-/root/epfs/model_side_tracks/sonata}"
 REMOTE_WORK="${REMOTE_WORK:-/root/epfs/SCAN/work_MT20260616-175807}"
 CROP_DIR="${CROP_DIR:-${REMOTE_WORK}/pointcloud_supervised_baseline_smoke_crops_20260708}"
