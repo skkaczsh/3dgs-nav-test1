@@ -18,6 +18,8 @@ from scripts.current_mainline_contract import (
     FORBIDDEN_PRODUCTION_INPUT_SUBSTRINGS,
     REQUIRED_AUTHORITATIVE_POINT_COUNT,
     REQUIRED_AUTHORITATIVE_SOURCE_ID,
+    REQUIRED_CURRENT_OBJECT_BASELINE_ID,
+    REQUIRED_CURRENT_PATCH_BASELINE_ID,
     REQUIRED_DERIVED_DENSE_INPUT_ID,
     REQUIRED_DERIVED_VOXEL_COUNT,
     REQUIRED_OPERATOR_TOOL_PATHS,
@@ -160,11 +162,19 @@ def validate(path: Path) -> dict[str, Any]:
 
     patch = data.get("current_patch_baseline", {})
     if isinstance(patch, dict):
-        if "v6" not in str(patch.get("id", "")):
-            warnings.append("current_patch_baseline_is_not_v6")
+        if patch.get("id") != REQUIRED_CURRENT_PATCH_BASELINE_ID:
+            errors.append(f"unexpected_current_patch_baseline_id={patch.get('id')}")
         metrics = patch.get("metrics", {})
         if isinstance(metrics, dict) and int(metrics.get("output_patch_count", 0)) <= 0:
             errors.append("current_patch_output_patch_count_missing")
+
+    obj = data.get("current_object_baseline", {})
+    if isinstance(obj, dict):
+        if obj.get("id") != REQUIRED_CURRENT_OBJECT_BASELINE_ID:
+            errors.append(f"unexpected_current_object_baseline_id={obj.get('id')}")
+        metrics = obj.get("metrics", {})
+        if isinstance(metrics, dict) and int(metrics.get("output_object_count", 0)) <= 0:
+            errors.append("current_object_output_object_count_missing")
 
     remote = data.get("remote_executable_baseline", {})
     if isinstance(remote, dict):

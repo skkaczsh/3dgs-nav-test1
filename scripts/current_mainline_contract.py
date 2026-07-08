@@ -37,6 +37,8 @@ REQUIRED_ACTIVE_BASELINE_IDS: tuple[str, ...] = (
     "energy_attach_v4_contact_evidence",
     "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
 )
+REQUIRED_CURRENT_PATCH_BASELINE_ID = "energy_attach_v4_contact_evidence"
+REQUIRED_CURRENT_OBJECT_BASELINE_ID = "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437"
 
 REQUIRED_DENSE_SOURCE_IDS: tuple[str, ...] = (
     "raw_opt_las_2920mb",

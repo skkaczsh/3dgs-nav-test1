@@ -17,6 +17,8 @@ from scripts.current_mainline_contract import (
     REQUIRED_ACTIVE_BASELINE_IDS,
     REQUIRED_AUTHORITATIVE_POINT_COUNT,
     REQUIRED_AUTHORITATIVE_SOURCE_ID,
+    REQUIRED_CURRENT_OBJECT_BASELINE_ID,
+    REQUIRED_CURRENT_PATCH_BASELINE_ID,
     REQUIRED_DERIVED_DENSE_INPUT_ID,
     REQUIRED_DERIVED_VOXEL_COUNT,
     REQUIRED_DENSE_SOURCE_IDS,
@@ -48,6 +50,8 @@ def test_dense_state_operator_tool_contract_is_shared() -> None:
     assert validate_current_dense_patch_state.REQUIRED_OPERATOR_TOOLS == set(REQUIRED_OPERATOR_TOOL_PATHS)
     assert validate_current_dense_patch_state.REQUIRED_AUTHORITATIVE_SOURCE_ID == REQUIRED_AUTHORITATIVE_SOURCE_ID
     assert validate_current_dense_patch_state.REQUIRED_AUTHORITATIVE_POINT_COUNT == REQUIRED_AUTHORITATIVE_POINT_COUNT
+    assert validate_current_dense_patch_state.REQUIRED_CURRENT_PATCH_BASELINE_ID == REQUIRED_CURRENT_PATCH_BASELINE_ID
+    assert validate_current_dense_patch_state.REQUIRED_CURRENT_OBJECT_BASELINE_ID == REQUIRED_CURRENT_OBJECT_BASELINE_ID
     assert validate_current_dense_patch_state.REQUIRED_DERIVED_DENSE_INPUT_ID == REQUIRED_DERIVED_DENSE_INPUT_ID
     assert validate_current_dense_patch_state.REQUIRED_DERIVED_VOXEL_COUNT == REQUIRED_DERIVED_VOXEL_COUNT
 

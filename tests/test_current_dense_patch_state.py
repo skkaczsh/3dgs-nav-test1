@@ -69,6 +69,15 @@ def test_dense_patch_state_records_remote_executable_baseline() -> None:
     assert any(path.endswith("_labels.bin") for path in remote["remote_paths"])
 
 
+def test_dense_patch_state_records_current_spg_baselines() -> None:
+    data = load_state()
+
+    assert data["current_patch_baseline"]["id"] == "energy_attach_v4_contact_evidence"
+    assert data["current_patch_baseline"]["metrics"]["output_patch_count"] == 197630
+    assert data["current_object_baseline"]["id"] == "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437"
+    assert data["current_object_baseline"]["metrics"]["accepted_edges"] == 422
+
+
 def test_dense_patch_state_records_latest_remote_run() -> None:
     data = load_state()
     latest = data["latest_remote_run"]
@@ -225,3 +234,23 @@ def test_dense_patch_validator_rejects_wrong_dense_voxel_identity(tmp_path: Path
     assert "derived_dense_input_not_voxel003" in report["errors"]
     assert "derived_dense_input_voxel_count_mismatch=1440000" in report["errors"]
     assert "remote_baseline_voxel003_count_mismatch=1440000" in report["errors"]
+
+
+def test_dense_patch_validator_rejects_stale_current_baseline_ids(tmp_path: Path) -> None:
+    state = load_state()
+    state["current_patch_baseline"]["id"] = "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624"
+    state["current_object_baseline"]["id"] = "dense_las_voxel003_objects_v3_high_recall_clean_20260624"
+    path = tmp_path / "state.json"
+    path.write_text(json.dumps(state), encoding="utf-8")
+
+    report = validate(path)
+
+    assert report["passed"] is False
+    assert (
+        "unexpected_current_patch_baseline_id=dense_las_voxel003_energy_v6_fine_gated_overlap_20260624"
+        in report["errors"]
+    )
+    assert (
+        "unexpected_current_object_baseline_id=dense_las_voxel003_objects_v3_high_recall_clean_20260624"
+        in report["errors"]
+    )
