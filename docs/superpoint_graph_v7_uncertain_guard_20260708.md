@@ -28,6 +28,13 @@ high-entropy count and large isolated surface count against v4. It also slightly
 increases fine-cell overlap risk, so it is a visual QA candidate, not a promoted
 baseline.
 
+The new fine-overlap risk is localized:
+
+- v4 had 3 top1000 pairs with fine overlap `>= 0.50`.
+- v7 has the same 3 pairs plus one new pair: patch `70503` rough_mixed with
+  patch `9366` horizontal, fine ratio `0.500`, 158 shared fine cells, and the
+  smaller patch has 530 voxels.
+
 Visual QA must check whether the added uncertain fragments are legitimate
 surface cleanup or whether they create visible over-merge around building,
 ground, tree, and car boundaries.
