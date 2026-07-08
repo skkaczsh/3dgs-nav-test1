@@ -94,7 +94,7 @@ def test_build_markdown_uses_report_accepted_edges_without_merge_log() -> None:
                     "high_entropy_count": 0,
                     "large_high_entropy_count": 0,
                     "large_low_purity_count": 0,
-                    "source_report": {"accepted_edges": 7},
+                    "source_report": {"accepted_edges": 7, "accepted_reasons": {"near_bbox_bridge": 3}},
                     "merge_log_summary": {},
                     "voxel_count_p50": 1,
                     "voxel_count_p90": 1,
@@ -109,4 +109,4 @@ def test_build_markdown_uses_report_accepted_edges_without_merge_log() -> None:
         }
     )
 
-    assert "| spg | 2 | 0 | 0 | 0 | 7 | - |" in markdown
+    assert "| spg | 2 | 0 | 0 | 0 | 7 | near_bbox_bridge:3 |" in markdown

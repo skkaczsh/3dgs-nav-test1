@@ -15,6 +15,12 @@ def args(**overrides):
         contact_bridge_min_support=0.25,
         contact_bridge_max_color_distance=65.0,
         contact_bridge_max_color_p90=80.0,
+        disable_near_bbox_candidates=False,
+        near_candidate_min_voxels=1,
+        near_candidate_max_gap=0.2,
+        near_candidate_max_color_distance=70.0,
+        near_candidate_min_normal_score=0.65,
+        near_candidate_max_per_patch=8,
         enable_structural_merge_veto=False,
         structural_veto_min_bucket_ratio=0.2,
         structural_veto_min_voxels=1,
@@ -80,6 +86,57 @@ def test_contact_bridge_accepts_same_geometry_high_support_edge_below_score_thre
 
     assert len(set(out.tolist())) == 1
     assert report["accepted_reasons"]["contact_bridge"] == 1
+
+
+def test_near_bbox_candidate_merges_same_geometry_without_touch_edge():
+    arrays = {
+        "xyz": np.array([[0, 0, 0], [1, 0, 0], [1.1, 0, 0], [2.1, 0, 0]], dtype=np.float32),
+        "rgb": np.array([[10, 10, 10], [10, 10, 10], [12, 10, 10], [12, 10, 10]], dtype=np.float32),
+        "normal": np.array([[0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]], dtype=np.float32),
+        "roughness": np.array([0.1, 0.1, 0.1, 0.1], dtype=np.float32),
+        "planarity": np.array([0.9, 0.9, 0.9, 0.9], dtype=np.float32),
+        "linearity": np.array([0.1, 0.1, 0.1, 0.1], dtype=np.float32),
+        "local_color_std": np.array([1, 1, 1, 1], dtype=np.float32),
+        "height_range": np.array([0, 0, 0, 0], dtype=np.float32),
+        "buckets": np.array([1, 1, 1, 1], dtype=np.int16),
+    }
+    labels = np.array([1, 1, 2, 2], dtype=np.int32)
+    out, report = cluster(
+        arrays,
+        labels,
+        np.array([], dtype=np.int32),
+        np.array([], dtype=np.int32),
+        args(min_edge_score=0.95),
+    )
+
+    assert len(set(out.tolist())) == 1
+    assert report["near_bbox_candidate_count"] == 1
+    assert report["accepted_reasons"]["near_bbox_bridge"] == 1
+
+
+def test_near_bbox_candidate_does_not_cross_geometry_type():
+    arrays = {
+        "xyz": np.array([[0, 0, 0], [1, 0, 0], [1.1, 0, 0], [2.1, 0, 0]], dtype=np.float32),
+        "rgb": np.array([[10, 10, 10], [10, 10, 10], [12, 10, 10], [12, 10, 10]], dtype=np.float32),
+        "normal": np.array([[0, 0, 1], [0, 0, 1], [1, 0, 0], [1, 0, 0]], dtype=np.float32),
+        "roughness": np.array([0.1, 0.1, 0.1, 0.1], dtype=np.float32),
+        "planarity": np.array([0.9, 0.9, 0.9, 0.9], dtype=np.float32),
+        "linearity": np.array([0.1, 0.1, 0.1, 0.1], dtype=np.float32),
+        "local_color_std": np.array([1, 1, 1, 1], dtype=np.float32),
+        "height_range": np.array([0, 0, 0, 0], dtype=np.float32),
+        "buckets": np.array([1, 1, 2, 2], dtype=np.int16),
+    }
+    labels = np.array([1, 1, 2, 2], dtype=np.int32)
+    out, report = cluster(
+        arrays,
+        labels,
+        np.array([], dtype=np.int32),
+        np.array([], dtype=np.int32),
+        args(min_edge_score=0.95),
+    )
+
+    assert len(set(out.tolist())) == 2
+    assert report["near_bbox_candidate_count"] == 0
 
 
 def test_superpoint_graph_vetoes_stable_surface_crossing():

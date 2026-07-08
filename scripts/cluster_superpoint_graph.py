@@ -20,11 +20,13 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.optimize_patch_graph_energy import (
+    bbox_gap,
     build_edge_counts,
     build_edge_features,
     compute_patch_stats,
     entropy,
     merge_patch_stats,
+    normal_score,
     read_labels,
     read_region_input,
     structural_merge_veto,
@@ -74,6 +76,54 @@ def contact_bridge(a, b, feature: dict[str, float], args: argparse.Namespace) ->
     )
 
 
+def near_bbox_bridge(a, b, feature: dict[str, float], args: argparse.Namespace) -> bool:
+    if getattr(args, "disable_near_bbox_candidates", False):
+        return False
+    if a.geometry_type != b.geometry_type or a.geometry_type in {"unknown", "mixed"}:
+        return False
+    return (
+        float(feature.get("bbox_gap", 1e9)) <= getattr(args, "near_candidate_max_gap", 0.15)
+        and float(feature.get("contact_color_distance", args.max_color_distance)) <= getattr(args, "near_candidate_max_color_distance", 70.0)
+        and float(feature.get("contact_normal_score", 0.0)) >= getattr(args, "near_candidate_min_normal_score", 0.65)
+    )
+
+
+def build_near_bbox_candidates(stats: dict[int, object], existing_pairs: set[tuple[int, int]], args: argparse.Namespace) -> dict[tuple[int, int], dict[str, float]]:
+    if getattr(args, "disable_near_bbox_candidates", False):
+        return {}
+    patches = [
+        stat
+        for stat in stats.values()
+        if stat.count >= getattr(args, "near_candidate_min_voxels", 1000)
+        and stat.geometry_type not in {"unknown", "mixed"}
+    ]
+    out: dict[tuple[int, int], dict[str, float]] = {}
+    for i, a in enumerate(patches):
+        kept = 0
+        for b in patches[i + 1 :]:
+            pair = (min(a.patch_id, b.patch_id), max(a.patch_id, b.patch_id))
+            if pair in existing_pairs:
+                continue
+            gap = bbox_gap(a, b)
+            if gap > args.near_candidate_max_gap:
+                continue
+            color = float(np.linalg.norm(a.mean_rgb - b.mean_rgb))
+            normal = normal_score(a.mean_normal, b.mean_normal)
+            feature = {
+                "bbox_gap": gap,
+                "contact_color_distance": color,
+                "contact_color_p90": color,
+                "contact_normal_score": normal,
+                "contact_support": 0.0,
+            }
+            if near_bbox_bridge(a, b, feature, args):
+                out[pair] = feature
+                kept += 1
+                if kept >= args.near_candidate_max_per_patch:
+                    break
+    return out
+
+
 def remap_labels(labels: np.ndarray, dsu: DSU) -> np.ndarray:
     max_label = int(labels.max())
     remap = np.arange(max_label + 1, dtype=np.int32)
@@ -93,6 +143,9 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
         feature = dict(edge_features.get(pair, {}))
         feature["contact_support"] = float(shared) / max(float(min(stats[a].count, stats[b].count)), 1.0)
         rows.append((edge_score(feature, args.max_color_distance), int(shared), pair, feature))
+    near_candidates = build_near_bbox_candidates(stats, set(edge_counts), args)
+    for pair, feature in near_candidates.items():
+        rows.append((edge_score(feature, args.max_color_distance), 0, pair, feature))
     rows.sort(reverse=True)
 
     accepted = 0
@@ -110,10 +163,13 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
             continue
         accepted_reason = "score"
         if score < args.min_edge_score:
-            if not contact_bridge(sa, sb, feature, args):
+            if near_bbox_bridge(sa, sb, feature, args):
+                accepted_reason = "near_bbox_bridge"
+            elif not contact_bridge(sa, sb, feature, args):
                 rejects["score"] = rejects.get("score", 0) + 1
                 continue
-            accepted_reason = "contact_bridge"
+            else:
+                accepted_reason = "contact_bridge"
         vetoed, reason, _ = structural_merge_veto(sa, sb, args)
         if vetoed:
             rejects[reason] = rejects.get(reason, 0) + 1
@@ -135,6 +191,8 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
         "input_patch_count": int(len(set(labels.tolist()))),
         "output_patch_count": int(len(set(out.tolist()))),
         "edge_count": int(len(rows)),
+        "touch_edge_count": int(len(edge_counts)),
+        "near_bbox_candidate_count": int(len(near_candidates)),
         "accepted_edges": int(accepted),
         "accepted_reasons": accepted_reasons,
         "reject_counts": rejects,
@@ -157,6 +215,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--contact-bridge-min-support", type=float, default=0.25)
     parser.add_argument("--contact-bridge-max-color-distance", type=float, default=65.0)
     parser.add_argument("--contact-bridge-max-color-p90", type=float, default=80.0)
+    parser.add_argument("--disable-near-bbox-candidates", action="store_true")
+    parser.add_argument("--near-candidate-min-voxels", type=int, default=1000)
+    parser.add_argument("--near-candidate-max-gap", type=float, default=0.15)
+    parser.add_argument("--near-candidate-max-color-distance", type=float, default=70.0)
+    parser.add_argument("--near-candidate-min-normal-score", type=float, default=0.65)
+    parser.add_argument("--near-candidate-max-per-patch", type=int, default=8)
     parser.add_argument("--enable-structural-merge-veto", action="store_true")
     parser.add_argument("--structural-veto-min-bucket-ratio", type=float, default=0.20)
     parser.add_argument("--structural-veto-min-voxels", type=int, default=1000)

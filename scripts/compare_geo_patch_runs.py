@@ -164,6 +164,8 @@ def build_markdown(report: dict[str, Any]) -> str:
         if accepts is None:
             accepts = (run.get("source_report") or {}).get("accepted_edges", 0)
         profiles = merge.get("accepted_profiles") or {}
+        if not profiles:
+            profiles = (run.get("source_report") or {}).get("accepted_reasons") or {}
         profile_text = ", ".join(f"{k}:{v}" for k, v in sorted(profiles.items()) if k != "None") or "-"
         lines.append(
             f"| {run['name']} | {run['patch_count']} | {run['high_entropy_count']} | "
