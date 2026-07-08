@@ -153,12 +153,15 @@
     "local_smoke_result": {
       "source": "server_parking_priority_s10/geo_patch_region_model_smoke_bridge_v2_20260707",
       "output": "server_parking_priority_s10/geo_patch_region_model_smoke_bridge_v2_attachment_shape_v1_20260708",
+      "compare_report": "server_parking_priority_s10/patch_energy_contact_shape_smoke_compare_20260708/compare.md",
       "input_patch_count": 13290,
       "output_patch_count": 13242,
       "merge_accept": 48,
       "merge_reject": 3104,
       "fh_merge_guard_reject": 13,
-      "interpretation": "Contact-rich evidence is now wired into both FH guard and attachment scoring. Smoke output is slightly more conservative than FH-only contact-rich because attachment shape can reject locally inconsistent small-fragment merges."
+      "largest_horizontal_patch_purity": 0.939,
+      "baseline_largest_horizontal_patch_purity": 0.933,
+      "interpretation": "Contact-rich evidence is now wired into both FH guard and attachment scoring. Smoke output is slightly more conservative than FH-only contact-rich because attachment shape can reject locally inconsistent small-fragment merges. The largest horizontal patch becomes smaller but slightly purer, so this is worth one dense 0.03m full validation when scan-train SSH recovers."
     },
     "pending_remote_run": {
       "host": "scan-train",
