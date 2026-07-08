@@ -69,6 +69,22 @@ Remote sync evidence on 2026-07-08:
 - synced crop count: `5`
 - remote sha256 verification: `passed`
 
+Remote feature probe on 2026-07-08:
+
+- runner: `scripts/run_scan_train_supervised_smoke_probe.sh`
+- python: `/opt/conda/envs/depth-anything-3/bin/python`
+- report:
+  `/root/epfs/SCAN/work_MT20260616-175807/pointcloud_supervised_baseline_smoke_probe_v2_20260708/feature_probe_report.json`
+- local copy:
+  `server_parking_priority_s10/pointcloud_supervised_baseline_smoke_probe_v2_20260708/feature_probe_report.json`
+- result: all `5` crop inputs loaded and probed successfully.
+- diagnostic: on `risk_70503_9366_local`, `xyz_rgb_normal_height` still has
+  high entropy (`2.935`) and no clear dominant cluster (`0.198` largest
+  cluster ratio). This supports the current diagnosis: surface/grass/shrub
+  ownership failure is not solved by simple local feature clustering; the next
+  useful test is a real supervised point model as patch/object evidence, not
+  another local exception in v7.
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure
