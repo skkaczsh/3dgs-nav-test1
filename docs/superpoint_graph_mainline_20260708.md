@@ -122,6 +122,12 @@ Move the dense patch mainline from chained post-passes to a single superpoint-gr
 
 Implementation hook:
 
+- `scripts/run_sonata_crop_smoke.py --save-feature-npz` can write point-level
+  descriptors as `features[N,D]`.
+- `scripts/pool_point_features_to_patch_features.py` pools point descriptors
+  into `patch_ids/features/counts` NPZ using the current labels file.
+- `scripts/build_patch_feature_edge_evidence.py` converts patch descriptors
+  into touch-edge evidence CSV.
 - `scripts/cluster_superpoint_graph.py` accepts optional external edge
   evidence via `--external-edge-evidence`, with rows containing
   `patch_a,patch_b,similarity` or `patch_a,patch_b,distance`.

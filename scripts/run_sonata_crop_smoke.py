@@ -63,6 +63,7 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--max-points", type=int, default=120000)
     parser.add_argument("--download-root", type=Path, default=Path.home() / ".cache" / "sonata")
+    parser.add_argument("--save-feature-npz", action="store_true")
     args = parser.parse_args()
 
     sonata.utils.set_seed(53124)
@@ -90,7 +91,9 @@ def main() -> int:
         point = upcast_point(point)
         feat = point.feat
         colors = pca_color(feat)
-        original_colors = colors[point.inverse.detach().cpu().numpy()]
+        inverse = point.inverse.detach().cpu().numpy()
+        original_colors = colors[inverse]
+        original_features = feat.detach().cpu().numpy()[inverse].astype(np.float32, copy=False)
 
     out_ply = args.output_dir / f"{args.input.stem}_sonata_pca.ply"
     pcd = o3d.geometry.PointCloud()
@@ -106,6 +109,10 @@ def main() -> int:
         "output_points": int(len(original_coord)),
         "feature_dim": int(feat.shape[1]),
     }
+    if args.save_feature_npz:
+        feature_path = args.output_dir / f"{args.input.stem}_sonata_features.npz"
+        np.savez_compressed(feature_path, features=original_features)
+        report["feature_npz"] = str(feature_path)
     report_path = args.output_dir / f"{args.input.stem}_sonata_report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
