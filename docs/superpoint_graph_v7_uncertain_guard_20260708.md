@@ -38,3 +38,8 @@ The new fine-overlap risk is localized:
 Visual QA must check whether the added uncertain fragments are legitimate
 surface cleanup or whether they create visible over-merge around building,
 ground, tree, and car boundaries.
+
+Visual acceptance gate:
+
+- `docs/superpoint_graph_v7_visual_acceptance.json`
+- `docs/superpoint_graph_v7_visual_acceptance.md`

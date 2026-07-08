@@ -1,0 +1,72 @@
+{
+  "schema": "superpoint-graph-visual-acceptance/v1",
+  "status": "pending",
+  "candidate": "superpoint_graph_v7_uncertain_guard_20260708_191958",
+  "review_doc": "docs/superpoint_graph_v7_uncertain_guard_20260708.md",
+  "viewer_url": "http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
+  "quantitative_summary": {
+    "output_patches_v4": 197208,
+    "output_patches_v7": 197014,
+    "accepted_edges_v4": 422,
+    "accepted_edges_v7": 616,
+    "uncertain_fragment_accepted_edges_v7": 300,
+    "high_entropy_patches_v4": 6410,
+    "high_entropy_patches_v7": 6361,
+    "isolated_10000_plus_patches_v4": 13,
+    "isolated_10000_plus_patches_v7": 9,
+    "fine_overlap_pairs_ge_50_top1000_v4": 3,
+    "fine_overlap_pairs_ge_50_top1000_v7": 4,
+    "fine_overlap_pairs_ge_95_top1000_v7": 0
+  },
+  "known_risks": [
+    {
+      "id": "new_fine_overlap_70503_9366",
+      "patch_a": 70503,
+      "patch_b": 9366,
+      "geom_a": "rough_mixed",
+      "geom_b": "horizontal",
+      "fine_ratio_min_cells": 0.5,
+      "shared_fine_cells": 158,
+      "smaller_patch_voxels": 530,
+      "required_review": "Confirm this is not a visible wrong merge between rough vegetation/object fragments and a stable horizontal surface."
+    }
+  ],
+  "checks": [
+    {
+      "id": "fragment_noise_reduced_on_stable_surfaces",
+      "required": true,
+      "status": "pending",
+      "question": "Small isolated fragments around stable ground, wall, roof, and facade surfaces are visibly reduced versus v4.",
+      "notes": ""
+    },
+    {
+      "id": "no_ground_building_tree_car_overmerge",
+      "required": true,
+      "status": "pending",
+      "question": "The extra uncertain-fragment edges do not visibly over-merge ground, building, tree, shrub, or car regions.",
+      "notes": ""
+    },
+    {
+      "id": "new_overlap_pair_70503_9366_safe",
+      "required": true,
+      "status": "pending",
+      "question": "The new fine-overlap pair 70503/9366 is acceptable or visually irrelevant.",
+      "notes": ""
+    },
+    {
+      "id": "large_surfaces_remain_structurally_separated",
+      "required": true,
+      "status": "pending",
+      "question": "Large horizontal surfaces remain separated from vertical walls/facades and rough vegetation.",
+      "notes": ""
+    },
+    {
+      "id": "spg_direction_still_valid",
+      "required": true,
+      "status": "pending",
+      "question": "The result supports the Superpoint Graph direction: merge only adjacent regions with geometry/contact/visual evidence, not post-hoc object relabeling.",
+      "notes": ""
+    }
+  ],
+  "decision_rule": "Do not promote v7 unless every required check is accepted after visual QA; if any required check fails, keep v4 as the metric baseline and treat v7 only as a diagnostic edge-recall experiment."
+}
