@@ -648,5 +648,39 @@
             }
         ],
         "decision_rule": "Promote only after visual QA shows lower over-merge risk than v4 without visible fragmentation regression."
+    },
+    "superpoint_graph_edge_sparsity_20260708": {
+        "id": "superpoint_graph_edge_sparsity_20260708",
+        "status": "diagnosed_candidate_graph_bottleneck",
+        "report_markdown": "docs/superpoint_graph_edge_sparsity_20260708.md",
+        "v4": {
+            "patch_count": 197208,
+            "edge_pair_count": 7569,
+            "isolated_patch_count": 189029,
+            "isolated_voxels": 2716607,
+            "isolated_size_bins": {
+                "1": 105374,
+                "2_9": 63356,
+                "10_99": 16732,
+                "100_999": 3280,
+                "1000_9999": 274,
+                "10000_plus": 13
+            }
+        },
+        "fh240": {
+            "patch_count": 197326,
+            "edge_pair_count": 7672,
+            "isolated_patch_count": 189036,
+            "isolated_voxels": 3244373,
+            "isolated_size_bins": {
+                "1": 105374,
+                "2_9": 63356,
+                "10_99": 16732,
+                "100_999": 3279,
+                "1000_9999": 279,
+                "10000_plus": 16
+            }
+        },
+        "decision": "Stop tuning merge thresholds for now; diagnose and fix missing candidate edges for isolated patches first."
     }
 }

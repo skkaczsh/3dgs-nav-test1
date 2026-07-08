@@ -24,5 +24,7 @@ def test_summarize_reports_isolated_patches():
     assert report["patch_count"] == 3
     assert report["edge_pair_count"] == 1
     assert report["isolated_patch_count"] == 1
+    assert report["isolated_size_bins"]["1"] == 1
+    assert report["patch_size_bins"]["1"] == 3
     assert report["isolated_geometry_counts"] == {"vertical": 1}
     assert report["large_isolated_top20"][0]["patch_id"] == 3

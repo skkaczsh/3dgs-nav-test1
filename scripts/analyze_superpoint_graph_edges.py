@@ -16,11 +16,31 @@ if str(REPO_ROOT) not in sys.path:
 from scripts.optimize_patch_graph_energy import build_edge_counts, compute_patch_stats, entropy, read_labels, read_region_input
 
 
+SIZE_BINS = [
+    ("1", 1, 1),
+    ("2_9", 2, 9),
+    ("10_99", 10, 99),
+    ("100_999", 100, 999),
+    ("1000_9999", 1000, 9999),
+    ("10000_plus", 10000, None),
+]
+
+
 def percentile(values: list[int], q: float) -> int:
     if not values:
         return 0
     values = sorted(values)
     return int(values[min(len(values) - 1, max(0, int(round((len(values) - 1) * q))))])
+
+
+def size_bins(values: list[int]) -> dict[str, int]:
+    counts = {name: 0 for name, _lo, _hi in SIZE_BINS}
+    for value in values:
+        for name, lo, hi in SIZE_BINS:
+            if value >= lo and (hi is None or value <= hi):
+                counts[name] += 1
+                break
+    return counts
 
 
 def summarize(arrays, labels, src, dst, large_isolated_min_voxels: int) -> dict:
@@ -59,6 +79,8 @@ def summarize(arrays, labels, src, dst, large_isolated_min_voxels: int) -> dict:
         "edge_shared_p50": percentile(edge_shared, 0.50),
         "edge_shared_p90": percentile(edge_shared, 0.90),
         "edge_shared_p99": percentile(edge_shared, 0.99),
+        "patch_size_bins": size_bins(voxel_counts),
+        "isolated_size_bins": size_bins(isolated_voxel_counts),
         "isolated_geometry_counts": dict(Counter(stats[patch_id].geometry_type for patch_id in isolated)),
         "large_isolated_top20": sorted(
             [

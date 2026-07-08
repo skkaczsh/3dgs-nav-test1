@@ -64,3 +64,12 @@ Move the dense patch mainline from chained post-passes to a single superpoint-gr
   304 accepted edges, 19 FH-threshold rejects, and the same fine overlap
   result. It supersedes the 120000 run as the FH visual QA candidate, but not
   as the main metric baseline: v4 still has fewer high-entropy patches.
+
+## 2026-07-08 Edge Sparsity Diagnosis
+
+- v4 has 197,208 patches but only 7,569 graph edge pairs; 189,029 patches are
+  isolated.
+- FH240 has the same failure mode and additionally isolates a 470,534-voxel
+  horizontal patch.
+- Therefore the next useful fix is candidate-edge generation, not FH threshold
+  tuning and not `precluster_small_patches.py`.
