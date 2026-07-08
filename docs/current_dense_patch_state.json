@@ -263,6 +263,21 @@
         "large_low_purity_count": 17,
         "interpretation": "Adding contact-support to the Superpoint Graph score and lowering min_edge_score to 0.70 doubles accepted edges without increasing large low-purity patches, but recall is still conservative. Next improve candidate edge features/contact modeling before promoting."
       },
+      "superpoint_graph_contact_bridge_followup": {
+        "id": "superpoint_graph_v3_bridge_s070_e120_20260708_182445",
+        "status": "diagnostic_candidate_not_promoted",
+        "runner": "scripts/run_scan_train_superpoint_graph.sh",
+        "local_dir": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v3_bridge_s070_e120_20260708_182445",
+        "compare_report": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_bridge_compare_20260708/compare.md",
+        "input_patch_count": 197630,
+        "output_patch_count": 197406,
+        "accepted_edges": 224,
+        "contact_bridge_edges": 13,
+        "output_high_entropy_count": 6415,
+        "large_high_entropy_count": 2,
+        "large_low_purity_count": 17,
+        "interpretation": "Same-geometry, high-contact, color-continuous bridge accepts a small number of additional edges without worsening large mixed-patch metrics. This is a safer recall direction than lowering score alone, but the current candidate graph remains too sparse for major object consolidation."
+      },
       "local_region_smoke": {
                 "path": "server_parking_priority_s10/dense_las_voxel003_local_region_smoke_1m_20260708",
                 "input": "/Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply",

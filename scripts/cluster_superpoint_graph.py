@@ -59,6 +59,21 @@ def edge_score(feature: dict[str, float], max_color_distance: float) -> float:
     return 0.28 * color + 0.16 * color_p90 + 0.18 * support + 0.14 * normal + 0.10 * rough + 0.07 * planar + 0.07 * linear
 
 
+def contact_bridge(a, b, feature: dict[str, float], args: argparse.Namespace) -> bool:
+    if getattr(args, "disable_contact_bridge", False):
+        return False
+    if a.geometry_type != b.geometry_type or a.geometry_type in {"unknown", "mixed"}:
+        return False
+    support = float(feature.get("contact_support", 0.0))
+    color = float(feature.get("contact_color_distance", args.max_color_distance))
+    color_p90 = float(feature.get("contact_color_p90", args.max_color_distance))
+    return (
+        support >= getattr(args, "contact_bridge_min_support", 0.25)
+        and color <= getattr(args, "contact_bridge_max_color_distance", 65.0)
+        and color_p90 <= getattr(args, "contact_bridge_max_color_p90", 80.0)
+    )
+
+
 def remap_labels(labels: np.ndarray, dsu: DSU) -> np.ndarray:
     max_label = int(labels.max())
     remap = np.arange(max_label + 1, dtype=np.int32)
@@ -82,19 +97,23 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
 
     accepted = 0
     rejects: dict[str, int] = {}
+    accepted_reasons: dict[str, int] = {}
     for score, shared, (a0, b0), feature in rows:
         a = dsu.find(a0)
         b = dsu.find(b0)
         if a == b:
-            continue
-        if score < args.min_edge_score:
-            rejects["score"] = rejects.get("score", 0) + 1
             continue
         sa = stats[a]
         sb = stats[b]
         if min(sa.count, sb.count) < args.min_patch_voxels:
             rejects["small_patch"] = rejects.get("small_patch", 0) + 1
             continue
+        accepted_reason = "score"
+        if score < args.min_edge_score:
+            if not contact_bridge(sa, sb, feature, args):
+                rejects["score"] = rejects.get("score", 0) + 1
+                continue
+            accepted_reason = "contact_bridge"
         vetoed, reason, _ = structural_merge_veto(sa, sb, args)
         if vetoed:
             rejects[reason] = rejects.get(reason, 0) + 1
@@ -108,6 +127,7 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
         stats[keep] = merge_patch_stats(stats[keep], stats[drop])
         del stats[drop]
         accepted += 1
+        accepted_reasons[accepted_reason] = accepted_reasons.get(accepted_reason, 0) + 1
 
     out = remap_labels(labels, dsu)
     report = {
@@ -116,6 +136,7 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
         "output_patch_count": int(len(set(out.tolist()))),
         "edge_count": int(len(rows)),
         "accepted_edges": int(accepted),
+        "accepted_reasons": accepted_reasons,
         "reject_counts": rejects,
         "params": vars(args),
     }
@@ -132,6 +153,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-color-distance", type=float, default=90.0)
     parser.add_argument("--max-merged-entropy", type=float, default=1.05)
     parser.add_argument("--min-patch-voxels", type=int, default=4)
+    parser.add_argument("--disable-contact-bridge", action="store_true")
+    parser.add_argument("--contact-bridge-min-support", type=float, default=0.25)
+    parser.add_argument("--contact-bridge-max-color-distance", type=float, default=65.0)
+    parser.add_argument("--contact-bridge-max-color-p90", type=float, default=80.0)
     parser.add_argument("--enable-structural-merge-veto", action="store_true")
     parser.add_argument("--structural-veto-min-bucket-ratio", type=float, default=0.20)
     parser.add_argument("--structural-veto-min-voxels", type=int, default=1000)
