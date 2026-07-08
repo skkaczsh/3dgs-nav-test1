@@ -167,6 +167,22 @@ Successful Sonata crop smoke on 2026-07-08:
 - viewer:
   `/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/sonata_crop_smoke_20260708/risk_70503_9366_local_sonata_pca.ply&mode=rgb&stride=1&pointSize=2`
 
+Sonata PCA smoke analysis:
+
+- local report:
+  `server_parking_priority_s10/sonata_crop_smoke_20260708/risk_70503_9366_local_sonata_analysis.json`
+- `sonata_pca_rgb`: entropy `2.940`, largest cluster ratio `0.151`,
+  local neighbor label agreement `0.950`
+- `xyz_height`: entropy `2.902`, largest cluster ratio `0.228`,
+  local neighbor label agreement `0.986`
+- `xyz_height_plus_sonata_pca_rgb`: entropy `2.921`, largest cluster ratio
+  `0.189`, local neighbor label agreement `0.975`
+- interpretation: Sonata representation is spatially smooth enough to be used
+  as edge/similarity evidence, but this risk crop does not show a dominant
+  semantic separation from PCA color alone. It should not replace exclusive
+  geometry ownership; the next useful test is to add Sonata feature distance as
+  one graph edge term and compare against the current SPG boundary failures.
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure
