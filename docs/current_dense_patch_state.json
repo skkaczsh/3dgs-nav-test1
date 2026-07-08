@@ -681,6 +681,38 @@
                 "10000_plus": 16
             }
         },
-        "decision": "Stop tuning merge thresholds for now; diagnose and fix missing candidate edges for isolated patches first."
+        "fine_cell_neighbor_diagnostic": {
+            "cell_size": 0.05,
+            "radius": 1,
+            "v4_examples": [
+                {
+                    "patch_id": 58,
+                    "geometry_type": "horizontal",
+                    "neighbor_candidate_count": 153,
+                    "same_geometry_neighbor_count": 0
+                },
+                {
+                    "patch_id": 42,
+                    "geometry_type": "vertical",
+                    "neighbor_candidate_count": 192,
+                    "same_geometry_neighbor_count": 2
+                },
+                {
+                    "patch_id": 449,
+                    "geometry_type": "vertical",
+                    "neighbor_candidate_count": 994,
+                    "same_geometry_neighbor_count": 4
+                }
+            ],
+            "fh240_examples": [
+                {
+                    "patch_id": 7,
+                    "geometry_type": "horizontal",
+                    "neighbor_candidate_count": 572,
+                    "same_geometry_neighbor_count": 0
+                }
+            ]
+        },
+        "decision": "Stop tuning merge thresholds for now. Missing neighbors are mostly uncertain fragments around stable surfaces, so the next useful experiment is guarded uncertain-fragment attachment, not same-geometry bridging."
     }
 }

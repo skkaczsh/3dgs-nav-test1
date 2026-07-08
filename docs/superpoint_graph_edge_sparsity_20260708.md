@@ -29,3 +29,22 @@ Next useful work:
    into `cluster_superpoint_graph.py`.
 3. Keep v4 as metric baseline until a candidate-edge run reduces isolated
    large patches or high-entropy count without increasing fine overlap.
+
+## Fine-Cell Neighbor Diagnostic
+
+Using `0.05m` fine cells, radius `1`, top 10 large isolated patches:
+
+- v4 large isolated patches have many fine-cell neighbors, but almost no
+  same-geometry neighbors. Examples:
+  - patch `58` horizontal: 153 neighbor candidates, 0 same-geometry candidates.
+  - patch `42` vertical: 192 neighbor candidates, 2 same-geometry candidates,
+    both single-voxel contacts.
+  - patch `449` vertical: 994 neighbor candidates, 4 same-geometry candidates,
+    all tiny contacts.
+- FH240 repeats the pattern and makes it more visible:
+  - patch `7` horizontal: 572 neighbor candidates, 0 same-geometry candidates.
+
+Interpretation: missing candidate edges are mostly between stable surfaces and
+`unknown` / `mixed` / `rough_mixed` fragments. A same-geometry bridge will not
+recover much. A useful next experiment must be a guarded uncertain-fragment
+attachment rule, not a broad spatial bridge.

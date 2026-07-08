@@ -19,7 +19,16 @@ def test_summarize_reports_isolated_patches():
     }
     labels = np.array([1, 2, 3], dtype=np.int32)
 
-    report = summarize(arrays, labels, np.array([0], dtype=np.int32), np.array([1], dtype=np.int32), 1)
+    report = summarize(
+        arrays,
+        labels,
+        np.array([0], dtype=np.int32),
+        np.array([1], dtype=np.int32),
+        1,
+        neighbor_top_n=1,
+        neighbor_cell_size=1.0,
+        neighbor_radius=1,
+    )
 
     assert report["patch_count"] == 3
     assert report["edge_pair_count"] == 1
@@ -28,3 +37,6 @@ def test_summarize_reports_isolated_patches():
     assert report["patch_size_bins"]["1"] == 3
     assert report["isolated_geometry_counts"] == {"vertical": 1}
     assert report["large_isolated_top20"][0]["patch_id"] == 3
+    assert report["missing_neighbor_diagnostics"][0]["patch_id"] == 3
+    assert report["missing_neighbor_diagnostics"][0]["neighbor_candidate_count"] == 0
+    assert report["missing_neighbor_diagnostics"][0]["same_geometry_neighbor_count"] == 0

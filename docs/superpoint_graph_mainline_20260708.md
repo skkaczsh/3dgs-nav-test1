@@ -73,3 +73,7 @@ Move the dense patch mainline from chained post-passes to a single superpoint-gr
   horizontal patch.
 - Therefore the next useful fix is candidate-edge generation, not FH threshold
   tuning and not `precluster_small_patches.py`.
+- Fine-cell neighbor diagnostics show the missing candidates are mostly
+  stable-surface to `unknown` / `mixed` / `rough_mixed` fragments, not
+  same-geometry patch pairs. The next experiment should be guarded uncertain
+  fragment attachment, not broad same-geometry bridging.
