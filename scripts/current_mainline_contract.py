@@ -72,8 +72,7 @@ APPROVED_MAINLINE_RUNNER_PATHS: tuple[str, ...] = (
 
 REQUIRED_OPERATOR_TOOL_PATHS: tuple[str, ...] = (
     "scripts/show_current_mainline.py",
-    "scripts/update_current_dense_visual_acceptance.py",
-    "scripts/gate_current_dense_mainline_promotion.py",
+    "scripts/update_spg_visual_acceptance.py",
     "scripts/plan_current_dense_promotion.py",
     "scripts/verify_latest_remote_dense_run.py",
     "scripts/validate_current_mainline.py",

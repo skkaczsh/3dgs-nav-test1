@@ -56,6 +56,9 @@ def test_dense_patch_state_records_operator_tools() -> None:
     data = load_state()
     tools = {item["path"] for item in data["operator_tools"]}
     assert set(REQUIRED_OPERATOR_TOOL_PATHS).issubset(tools)
+    assert "scripts/update_spg_visual_acceptance.py" in tools
+    assert "scripts/update_current_dense_visual_acceptance.py" not in tools
+    assert "scripts/gate_current_dense_mainline_promotion.py" not in tools
     assert "scripts/plan_current_dense_promotion.py" in tools
     assert "scripts/validate_current_mainline.py" in tools
 
