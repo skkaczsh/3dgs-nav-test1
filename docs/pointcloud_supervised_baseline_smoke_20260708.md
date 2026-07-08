@@ -198,6 +198,32 @@ Sonata patch-edge diagnosis for `70503/9366`:
   Sonata distance as one weighted graph edge term only; do not let it alone
   accept or reject patch ownership.
 
+Five-crop Sonata smoke on 2026-07-08:
+
+```bash
+RUN=1 bash scripts/run_scan_train_sonata_smoke_crops.sh
+```
+
+- remote dir:
+  `/root/epfs/SCAN/work_MT20260616-175807/sonata_smoke_crops_20260708`
+- local JSON reports:
+  `server_parking_priority_s10/sonata_smoke_crops_20260708`
+- crop count: `5`
+
+| crop | points | Sonata entropy | largest cluster | local agreement |
+| --- | ---: | ---: | ---: | ---: |
+| `largest_horizontal_4` | 120000 | 2.699 | 0.312 | 0.959 |
+| `largest_vertical_2` | 120000 | 2.946 | 0.170 | 0.932 |
+| `largest_rough_mixed_70448` | 120000 | 2.949 | 0.201 | 0.879 |
+| `largest_thin_linear_76635` | 40793 | 2.854 | 0.241 | 0.943 |
+| `risk_70503_9366_local` | 120000 | 2.943 | 0.159 | 0.946 |
+
+Interpretation: all five crops show useful local smoothness, but none show a
+dominant PCA-color cluster that can define object ownership by itself. Sonata
+is approved only as a weighted edge/similarity evidence source after
+patch-level descriptors are generated; it is not approved as a standalone
+segmenter or hard ownership veto.
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure

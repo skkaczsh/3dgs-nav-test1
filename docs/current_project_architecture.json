@@ -1,6 +1,6 @@
 {
   "schema": "current-project-architecture/v1",
-  "updated_at": "2026-06-24T17:20:00+08:00",
+  "updated_at": "2026-07-08T21:30:00+08:00",
   "dataset": "MT20260616-175807",
   "objective": "Build dense point-level semantic assets from scanner data by keeping geometry ownership clean first, then accumulating visual and VLM evidence as semantic posterior signals.",
   "current_diagnosis": {
@@ -65,12 +65,8 @@
     },
     {
       "id": "full_scene_objects_refined_v20",
-      "status": "best_local_semantic_teacher_from_structure_prior_vlm_mask_route",
-      "description": "Earlier structure-prior plus VLM/MASK semantic teacher. It is not a geometry ownership solution, but remains the strongest local semantic teacher.",
-      "local_paths": [
-        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_refined_v20/full_scene_objects_refined_v20_stride10.ply",
-        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_scene_objects_refined_v20/full_scene_objects.jsonl"
-      ]
+      "status": "historical_semantic_teacher_from_structure_prior_vlm_mask_route",
+      "description": "Earlier structure-prior plus VLM/MASK semantic teacher. It is not a geometry ownership solution. Heavy local artifacts were deleted during workspace cleanup; keep this only as a historical teacher reference."
     },
     {
       "id": "objects_v9_teacher_v20_semantic",

@@ -111,6 +111,11 @@ Move the dense patch mainline from chained post-passes to a single superpoint-gr
 - Disallowed use: hard-code the `70503/9366` pair, use Sonata PCA viewer colors
   as semantic labels, or let Sonata override structural veto / exclusive voxel
   ownership.
-- Minimum gate before production use: at least five fixed smoke crops must have
-  patch-level descriptors and edge reports, including the current mixed-risk
-  crop. A single local crop is diagnostic only.
+- Five fixed smoke crops now have Sonata PCA reports:
+  horizontal, vertical, rough-mixed, thin-linear, and the `70503/9366`
+  mixed-risk crop. All show local smoothness, but no crop gives a dominant
+  standalone object cluster.
+- Minimum gate before production use is now narrower: generate patch-level
+  Sonata descriptors for the full dense voxel source, add them as one weighted
+  edge term, and compare against the current v4 baseline. A single crop, or
+  PCA viewer color alone, remains diagnostic only.
