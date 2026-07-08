@@ -154,6 +154,10 @@ Implementation hook:
   - v7 fails with `uncertain_fragment_bridge_exceeded=300>0` and
     `fine_high_pairs_50_regression=4>3`, matching user visual QA where
     ground/wall/grass and shrub ownership were over-merged.
+  - Sonata 0.15 passes only the lightweight report gate, but still lacks
+    fine-overlap evidence.
+  - Sonata 0.30 fails with `accepted_edges_growth=728>633`; it should not be
+    promoted without a stricter overlap/visual justification.
 - This gate is deliberately small: it does not replace visual QA or improve
   clustering by itself; it prevents known-bad structural over-merge candidates
   from being treated as serious promotion candidates.
