@@ -4,12 +4,16 @@ set -euo pipefail
 SSH_HOST="${SSH_HOST:-scan-train}"
 SONATA_REPO="${SONATA_REPO:-/root/epfs/model_side_tracks/sonata}"
 ENV_PREFIX="${ENV_PREFIX:-/root/epfs/conda_envs/sonata}"
+CONDA_PKGS_DIRS="${CONDA_PKGS_DIRS:-/root/epfs/conda_pkgs}"
 TMUX_SESSION="${TMUX_SESSION:-scan_sonata_env_setup}"
+CONDA_SOLVER="${CONDA_SOLVER:-libmamba}"
 RUN="${RUN:-0}"
 
 echo "host=${SSH_HOST}"
 echo "sonata_repo=${SONATA_REPO}"
 echo "env_prefix=${ENV_PREFIX}"
+echo "conda_pkgs_dirs=${CONDA_PKGS_DIRS}"
+echo "conda_solver=${CONDA_SOLVER}"
 
 if [[ "${RUN}" != "1" ]]; then
   echo "dry_run=1"
@@ -17,22 +21,26 @@ if [[ "${RUN}" != "1" ]]; then
   exit 0
 fi
 
-ssh "${SSH_HOST}" bash -s -- "${SONATA_REPO}" "${ENV_PREFIX}" "${TMUX_SESSION}" <<'REMOTE'
+ssh "${SSH_HOST}" bash -s -- "${SONATA_REPO}" "${ENV_PREFIX}" "${CONDA_PKGS_DIRS}" "${TMUX_SESSION}" "${CONDA_SOLVER}" <<'REMOTE'
 set -euo pipefail
 SONATA_REPO="$1"
 ENV_PREFIX="$2"
-TMUX_SESSION="$3"
+CONDA_PKGS_DIRS="$3"
+TMUX_SESSION="$4"
+CONDA_SOLVER="$5"
 
 test -f "${SONATA_REPO}/environment.yml"
 mkdir -p "$(dirname "${ENV_PREFIX}")"
+mkdir -p "${CONDA_PKGS_DIRS}"
 RUN_DIR="${ENV_PREFIX}_setup_$(date +%Y%m%d_%H%M%S)"
 mkdir -p "${RUN_DIR}"
 cat > "${RUN_DIR}/run.sh" <<SCRIPT
 #!/usr/bin/env bash
 set -euo pipefail
 exec > >(tee -a "${RUN_DIR}/setup.log") 2>&1
+export CONDA_PKGS_DIRS="${CONDA_PKGS_DIRS}"
 cd "${SONATA_REPO}"
-conda env create -p "${ENV_PREFIX}" -f environment.yml --verbose
+conda env create -p "${ENV_PREFIX}" -f environment.yml --solver "${CONDA_SOLVER}" --verbose
 "${ENV_PREFIX}/bin/python" - <<'PY'
 import importlib.util, json
 mods = ["torch", "sonata", "spconv", "torch_scatter", "timm", "open3d", "fast_pytorch_kmeans"]

@@ -123,6 +123,15 @@ Remote repo/runtime status on 2026-07-08:
   run dir: `/root/epfs/conda_envs/sonata_setup_20260708_123238`.
   Current observed state: conda metadata collection still running; no smoke
   inference result yet.
+- classic conda setup was stopped because it stayed in metadata collection.
+  The setup script now defaults to `--solver libmamba`.
+- `/opt/conda/pkgs` cache was cleaned after a failed run filled the system disk:
+  system overlay went from `100%` used to `90%` used, and `/opt/conda/pkgs`
+  went from `5.4G` to `189M`.
+- Sonata setup now uses `CONDA_PKGS_DIRS=/root/epfs/conda_pkgs` so package
+  downloads do not consume the small system disk.
+- active retry run dir:
+  `/root/epfs/conda_envs/sonata_setup_20260708_124327`.
 
 Prepared Sonata crop smoke:
 
