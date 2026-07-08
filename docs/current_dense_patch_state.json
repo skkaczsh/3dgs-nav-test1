@@ -456,6 +456,10 @@
       "purpose": "Generate the explicit state-change plan after the current gate passes; does not edit state by itself."
     },
     {
+      "path": "scripts/compare_spg_risk.py",
+      "purpose": "Compare a new SPG candidate against the trusted v4 baseline and fail structural over-merge risk before visual promotion."
+    },
+    {
       "path": "scripts/verify_latest_remote_dense_run.py",
       "purpose": "Verify the latest recorded remote dense run reports against current_dense_patch_state.json."
     },
@@ -479,6 +483,7 @@
     "success_criteria": [
       "Patch/object ownership remains exclusive.",
       "Fine occupied-cell overlap does not regress while object fragmentation decreases.",
+      "SPG candidate passes scripts/compare_spg_risk.py against the trusted v4 baseline before promotion review.",
       "No semantic label can merge ground, wall, car, railing, or vegetation by itself.",
       "Viewer output is generated only for QA after dense labels are produced.",
       "Semantic guard outputs must keep floor/wall surface labels unless there is direct contradictory geometry evidence; missing teacher evidence alone is not enough to demote to unknown."

@@ -142,3 +142,18 @@ Implementation hook:
   against v4 before any baseline promotion.
 - Weight sweep shows monotonic edge acceptance from `0.05` to `0.50`; do not
   use `0.50` as a default before visual QA because it sharply increases merges.
+
+## 2026-07-08 Over-Merge Risk Gate
+
+- `scripts/compare_spg_risk.py` now compares any SPG candidate against the
+  trusted v4 baseline before promotion review.
+- It fails candidates that add uncertain-fragment bridge edges by default,
+  increase fine occupied-cell overlap, or grow accepted edge count too fast.
+- Current check:
+  - v4 vs v4 passes.
+  - v7 fails with `uncertain_fragment_bridge_exceeded=300>0` and
+    `fine_high_pairs_50_regression=4>3`, matching user visual QA where
+    ground/wall/grass and shrub ownership were over-merged.
+- This gate is deliberately small: it does not replace visual QA or improve
+  clustering by itself; it prevents known-bad structural over-merge candidates
+  from being treated as serious promotion candidates.
