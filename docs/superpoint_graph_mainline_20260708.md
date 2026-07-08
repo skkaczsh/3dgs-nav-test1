@@ -96,3 +96,21 @@ Move the dense patch mainline from chained post-passes to a single superpoint-gr
 - Keep v4 as the metric baseline. The next edge-recall experiment must improve
   graph candidate coverage without using uncertain fragments as bridges across
   stable surface / vegetation ownership.
+
+## 2026-07-08 Sonata Evidence Contract
+
+- Sonata smoke on the `70503/9366` risk crop is now available, but only as
+  representation evidence.
+- The edge diagnosis gives a weak-to-moderate separation signal for `70503/9366`
+  (`distance_over_pooled_std=1.746`) with low support on patch `9366`
+  (`29` matched points).
+- Therefore Sonata must not hard-veto or hard-accept ownership by itself.
+- Allowed use: add a weighted `sonata_feature_distance` term to
+  `cluster_superpoint_graph.py` edge features after generating patch-level
+  Sonata descriptors for the same dense voxel source.
+- Disallowed use: hard-code the `70503/9366` pair, use Sonata PCA viewer colors
+  as semantic labels, or let Sonata override structural veto / exclusive voxel
+  ownership.
+- Minimum gate before production use: at least five fixed smoke crops must have
+  patch-level descriptors and edge reports, including the current mixed-risk
+  crop. A single local crop is diagnostic only.
