@@ -119,3 +119,12 @@ Move the dense patch mainline from chained post-passes to a single superpoint-gr
   Sonata descriptors for the full dense voxel source, add them as one weighted
   edge term, and compare against the current v4 baseline. A single crop, or
   PCA viewer color alone, remains diagnostic only.
+
+Implementation hook:
+
+- `scripts/cluster_superpoint_graph.py` accepts optional external edge
+  evidence via `--external-edge-evidence`, with rows containing
+  `patch_a,patch_b,similarity` or `patch_a,patch_b,distance`.
+- `scripts/run_scan_train_superpoint_graph.sh` forwards this through
+  `EXTERNAL_EDGE_EVIDENCE` and `EXTERNAL_EDGE_WEIGHT`.
+- Default behavior is unchanged when no external evidence file is provided.

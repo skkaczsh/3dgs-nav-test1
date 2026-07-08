@@ -57,6 +57,24 @@ def test_edge_score_rewards_contact_support():
     assert strong > weak + 0.10
 
 
+def test_external_edge_evidence_can_lower_score():
+    feature = {
+        "contact_color_distance": 5.0,
+        "contact_color_p90": 5.0,
+        "contact_support": 1.0,
+        "contact_normal_score": 1.0,
+        "contact_roughness_delta": 0.0,
+        "contact_planarity_delta": 0.0,
+        "contact_linearity_delta": 0.0,
+    }
+
+    base = edge_score(feature, 100.0)
+    lowered = edge_score({**feature, "external_similarity": 0.0, "external_edge_weight": 0.5}, 100.0)
+
+    assert base > 0.9
+    assert lowered < base - 0.4
+
+
 def test_superpoint_graph_merges_similar_neighbors():
     arrays = {
         "xyz": np.array([[0, 0, 0], [1, 0, 0]], dtype=np.float32),
@@ -73,6 +91,37 @@ def test_superpoint_graph_merges_similar_neighbors():
     out, report = cluster(arrays, labels, np.array([0], dtype=np.int32), np.array([1], dtype=np.int32), args())
     assert len(set(out.tolist())) == 1
     assert report["accepted_edges"] == 1
+
+
+def test_external_edge_evidence_participates_in_cluster_decision():
+    arrays = {
+        "xyz": np.array([[0, 0, 0], [1, 0, 0]], dtype=np.float32),
+        "rgb": np.array([[10, 10, 10], [12, 10, 10]], dtype=np.float32),
+        "normal": np.array([[0, 0, 1], [0, 0, 1]], dtype=np.float32),
+        "roughness": np.array([0.1, 0.1], dtype=np.float32),
+        "planarity": np.array([0.9, 0.9], dtype=np.float32),
+        "linearity": np.array([0.1, 0.1], dtype=np.float32),
+        "local_color_std": np.array([1, 1], dtype=np.float32),
+        "height_range": np.array([0, 0], dtype=np.float32),
+        "buckets": np.array([1, 1], dtype=np.int16),
+    }
+    labels = np.array([1, 2], dtype=np.int32)
+    out, report = cluster(
+        arrays,
+        labels,
+        np.array([0], dtype=np.int32),
+        np.array([1], dtype=np.int32),
+        args(
+            min_edge_score=0.8,
+            disable_contact_bridge=True,
+            external_edge_evidence={(1, 2): 0.0},
+            external_edge_weight=0.5,
+        ),
+    )
+
+    assert len(set(out.tolist())) == 2
+    assert report["external_edge_evidence_count"] == 1
+    assert report["reject_counts"]["score"] == 1
 
 
 def test_contact_bridge_accepts_same_geometry_high_support_edge_below_score_threshold():

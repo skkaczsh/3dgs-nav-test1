@@ -17,6 +17,8 @@ MIN_EDGE_SCORE="${MIN_EDGE_SCORE:-0.78}"
 MAX_MERGED_ENTROPY="${MAX_MERGED_ENTROPY:-1.20}"
 FH_K="${FH_K:-0}"
 ENABLE_UNCERTAIN="${ENABLE_UNCERTAIN:-0}"
+EXTERNAL_EDGE_EVIDENCE="${EXTERNAL_EDGE_EVIDENCE:-}"
+EXTERNAL_EDGE_WEIGHT="${EXTERNAL_EDGE_WEIGHT:-0.15}"
 
 echo "remote=${REMOTE_HOST}"
 echo "region_input=${REGION_INPUT}"
@@ -26,6 +28,8 @@ echo "min_edge_score=${MIN_EDGE_SCORE}"
 echo "max_merged_entropy=${MAX_MERGED_ENTROPY}"
 echo "fh_k=${FH_K}"
 echo "enable_uncertain=${ENABLE_UNCERTAIN}"
+echo "external_edge_evidence=${EXTERNAL_EDGE_EVIDENCE:-none}"
+echo "external_edge_weight=${EXTERNAL_EDGE_WEIGHT}"
 
 if [[ "${RUN}" != "1" ]]; then
   echo "dry_run=1"
@@ -58,6 +62,13 @@ if [[ "${ENABLE_UNCERTAIN}" == "1" ]]; then
     --uncertain-max-stable-patches 200
   "
 fi
+EXTERNAL_ARGS=""
+if [[ -n "${EXTERNAL_EDGE_EVIDENCE}" ]]; then
+  EXTERNAL_ARGS="
+    --external-edge-evidence ${EXTERNAL_EDGE_EVIDENCE}
+    --external-edge-weight ${EXTERNAL_EDGE_WEIGHT}
+  "
+fi
 "${PYTHON}" scripts/cluster_superpoint_graph.py \
   --region-input "${REGION_INPUT}" \
   --labels "${PATCH_LABELS}" \
@@ -71,6 +82,7 @@ fi
   --structural-veto-min-voxels 1000 \
   --preview-stride 10 \
   \${UNCERTAIN_ARGS} \
+  \${EXTERNAL_ARGS} \
   > "${OUTPUT_DIR}/cluster.log" 2>&1
 date -Is > "${OUTPUT_DIR}/DONE"
 SCRIPT

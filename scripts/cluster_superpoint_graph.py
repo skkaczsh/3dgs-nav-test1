@@ -9,6 +9,7 @@ superpoints, scores adjacent edges once, and unions compatible components.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import sys
 from pathlib import Path
@@ -59,7 +60,12 @@ def edge_score(feature: dict[str, float], max_color_distance: float) -> float:
     rough = 1.0 - min(1.0, max(0.0, feature.get("contact_roughness_delta", 1.0)) / 0.35)
     planar = 1.0 - min(1.0, max(0.0, feature.get("contact_planarity_delta", 1.0)) / 0.35)
     linear = 1.0 - min(1.0, max(0.0, feature.get("contact_linearity_delta", 1.0)) / 0.35)
-    return 0.28 * color + 0.16 * color_p90 + 0.18 * support + 0.14 * normal + 0.10 * rough + 0.07 * planar + 0.07 * linear
+    base = 0.28 * color + 0.16 * color_p90 + 0.18 * support + 0.14 * normal + 0.10 * rough + 0.07 * planar + 0.07 * linear
+    external_weight = max(0.0, min(1.0, feature.get("external_edge_weight", 0.0)))
+    if external_weight <= 0.0:
+        return base
+    external = max(0.0, min(1.0, feature.get("external_similarity", base)))
+    return (1.0 - external_weight) * base + external_weight * external
 
 
 def edge_dissimilarity(feature: dict[str, float], max_color_distance: float) -> float:
@@ -127,6 +133,49 @@ def build_near_bbox_candidates(stats: dict[int, object], existing_pairs: set[tup
                 if kept >= args.near_candidate_max_per_patch:
                     break
     return out
+
+
+def edge_pair(a: int, b: int) -> tuple[int, int]:
+    return (min(int(a), int(b)), max(int(a), int(b)))
+
+
+def row_pair(row: dict[str, object]) -> tuple[int, int]:
+    a = row.get("patch_a", row.get("a", row.get("src")))
+    b = row.get("patch_b", row.get("b", row.get("dst")))
+    if a is None or b is None:
+        raise ValueError(f"external edge row missing patch ids: {row}")
+    return edge_pair(int(a), int(b))
+
+
+def row_similarity(row: dict[str, object], max_distance: float) -> float:
+    if "similarity" in row:
+        return float(row["similarity"])
+    if "external_similarity" in row:
+        return float(row["external_similarity"])
+    if "distance" in row:
+        return 1.0 - min(1.0, max(0.0, float(row["distance"])) / max(max_distance, 1e-6))
+    if "external_distance" in row:
+        return 1.0 - min(1.0, max(0.0, float(row["external_distance"])) / max(max_distance, 1e-6))
+    raise ValueError(f"external edge row missing similarity or distance: {row}")
+
+
+def load_external_edge_evidence(path: Path | None, max_distance: float) -> dict[tuple[int, int], float]:
+    if path is None:
+        return {}
+    rows: list[dict[str, object]] = []
+    if path.suffix == ".jsonl":
+        rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    else:
+        with path.open("r", encoding="utf-8", newline="") as fh:
+            rows = list(csv.DictReader(fh))
+    return {row_pair(row): max(0.0, min(1.0, row_similarity(row, max_distance))) for row in rows}
+
+
+def add_external_evidence(feature: dict[str, float], pair: tuple[int, int], evidence: dict[tuple[int, int], float], weight: float) -> None:
+    if pair not in evidence:
+        return
+    feature["external_similarity"] = evidence[pair]
+    feature["external_edge_weight"] = weight
 
 
 def is_stable_surface(stat) -> bool:
@@ -249,17 +298,22 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
     dsu = DSU(sorted(stats))
     edge_counts = build_edge_counts(labels, src, dst)
     edge_features = build_edge_features(labels, src, dst, arrays)
+    external_evidence = getattr(args, "external_edge_evidence", None) or {}
+    external_weight = float(getattr(args, "external_edge_weight", 0.0))
     rows = []
     for pair, shared in edge_counts.items():
         a, b = pair
         feature = dict(edge_features.get(pair, {}))
         feature["contact_support"] = float(shared) / max(float(min(stats[a].count, stats[b].count)), 1.0)
+        add_external_evidence(feature, pair, external_evidence, external_weight)
         rows.append((edge_score(feature, args.max_color_distance), int(shared), pair, feature))
     near_candidates = build_near_bbox_candidates(stats, set(edge_counts), args)
     for pair, feature in near_candidates.items():
+        add_external_evidence(feature, pair, external_evidence, external_weight)
         rows.append((edge_score(feature, args.max_color_distance), 0, pair, feature))
     uncertain_candidates = build_uncertain_fragment_candidates(arrays, labels, stats, set(edge_counts) | set(near_candidates), args)
     for pair, feature in uncertain_candidates.items():
+        add_external_evidence(feature, pair, external_evidence, external_weight)
         rows.append((edge_score(feature, args.max_color_distance), 0, pair, feature))
     rows.sort(reverse=True)
 
@@ -309,6 +363,8 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
         accepted_reasons[accepted_reason] = accepted_reasons.get(accepted_reason, 0) + 1
 
     out = remap_labels(labels, dsu)
+    params = {k: v for k, v in vars(args).items() if k != "external_edge_evidence"}
+    params["external_edge_evidence_count"] = int(len(external_evidence))
     report = {
         "schema": "superpoint-graph-cluster/v1",
         "input_patch_count": int(len(set(labels.tolist()))),
@@ -317,10 +373,11 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
         "touch_edge_count": int(len(edge_counts)),
         "near_bbox_candidate_count": int(len(near_candidates)),
         "uncertain_fragment_candidate_count": int(len(uncertain_candidates)),
+        "external_edge_evidence_count": int(len(external_evidence)),
         "accepted_edges": int(accepted),
         "accepted_reasons": accepted_reasons,
         "reject_counts": rejects,
-        "params": vars(args),
+        "params": params,
     }
     return out, report
 
@@ -362,7 +419,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--structural-veto-min-voxels", type=int, default=1000)
     parser.add_argument("--preview-stride", type=int, default=10)
     parser.add_argument("--max-source-patch-ids", type=int, default=24)
-    return parser.parse_args()
+    parser.add_argument("--external-edge-evidence", type=Path)
+    parser.add_argument("--external-edge-weight", type=float, default=0.15)
+    parser.add_argument("--external-edge-max-distance", type=float, default=2.0)
+    args = parser.parse_args()
+    args.external_edge_evidence = load_external_edge_evidence(args.external_edge_evidence, args.external_edge_max_distance)
+    return args
 
 
 def main() -> int:
