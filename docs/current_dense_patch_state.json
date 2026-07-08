@@ -129,7 +129,7 @@
       }
     },
     "failure_repaired": "The first 20260702 run failed because the remote shell runner did not rsync scripts/geometry_input_contract.py. The runner and validator now require that dependency.",
-    "interpretation": "This dependency-fixed run proves the approved remote runner executes end-to-end on dense Opt-LAS inputs, but it is more conservative than v8: accepted_candidate_rows dropped from 1235 to 96 and output_object_count increased from 196395 to 197534. Keep v8 as the current visual-promotion candidate; use this run only as a diagnostic execution proof.",
+    "interpretation": "Historical pre-SPG dependency-fixed run. It proves the old approved remote runner executed end-to-end on dense Opt-LAS inputs, but it is superseded by the current energy_attach_v4 + SPG v4 review line and must not drive current promotion decisions.",
     "verification_command": "python3 scripts/verify_latest_remote_dense_run.py --ssh-host scan-train"
   },
   "latest_patch_graph_change": {
@@ -469,15 +469,15 @@
     }
   ],
   "next_action": {
-    "id": "dense_patch_object_refinement_v7",
-    "description": "Compare v8 high-recall object refinement visually against v7 and the local v6/v3 dense baselines, then continue object building only where ownership and overlap metrics remain stable.",
+    "id": "superpoint_graph_sonata_review",
+    "description": "Compare SPG v4 against Sonata touch-edge 0.15/0.30 on current dense Opt-LAS graph artifacts, then only promote an edge-evidence change if visual QA improves fragmentation without structural over-merge.",
     "runner": "scripts/cluster_superpoint_graph.py",
     "remote_runner": "scripts/run_scan_train_superpoint_graph.sh",
     "required_inputs": [
-      "dense_las_voxel003_region_model_full_cpp_20260624/_cpp_region_grower_input.bin",
-      "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap_labels.bin",
-      "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap.jsonl",
-      "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/object_merge_candidates_v2_high_recall/geo_patch_object_merge_candidates.jsonl"
+      "geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/_cpp_region_grower_input.bin",
+      "geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_labels.bin",
+      "geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence.jsonl",
+      "optional: superpoint_graph_sonata_touch_edge_* edge evidence CSV"
     ],
     "current_blocker": "Visual QA is needed for Sonata touch-edge 0.15/0.30 versus v4; v7 uncertain-fragment bridge remains rejected.",
     "success_criteria": [
@@ -489,7 +489,7 @@
     ],
     "preflight_command": "python3 scripts/validate_current_mainline.py",
     "remote_runner_preflight": "RUN_PREFLIGHT=1 is default; RUN=1 will stop before rsync/ssh/tmux if the current mainline healthcheck fails.",
-    "python_runner_healthcheck": "scripts/run_dense_patch_object_refinement_v7.py --run defaults to mainline healthcheck; pass --skip-mainline-healthcheck only from a trusted outer launcher."
+    "python_runner_healthcheck": "scripts/cluster_superpoint_graph.py is an spg_review runner; production promotion still requires python3 scripts/validate_current_mainline.py plus visual QA."
   },
   "current_qa_report": {
     "id": "current_dense_mainline_qa",

@@ -82,7 +82,7 @@ def test_dense_patch_state_records_latest_remote_run() -> None:
     assert latest["candidate_metrics"]["reject_counts"]["small_patch"] == 7522
     assert latest["object_metrics"]["rejection_counts"]["score"] == 117
     assert "geometry_input_contract.py" in latest["failure_repaired"]
-    assert "Keep v8 as the current visual-promotion candidate" in latest["interpretation"]
+    assert "superseded by the current energy_attach_v4 + SPG v4 review line" in latest["interpretation"]
 
 
 def test_dense_patch_state_records_current_promotion_candidate() -> None:

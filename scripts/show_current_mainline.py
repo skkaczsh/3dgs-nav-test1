@@ -75,6 +75,22 @@ def summarize(
             resolve_path(dense_patch_state_path),
         )
 
+    promotion_candidate = dense_patch.get("current_promotion_candidate", {})
+    qa_report = dense_patch.get("current_qa_report", {})
+    if isinstance(promotion_candidate, dict) and str(promotion_candidate.get("id", "")).startswith("superpoint_graph_"):
+        qa_report = {
+            "id": "spg_visual_qa",
+            "markdown_path": "docs/superpoint_graph_v4_visual_qa.md",
+            "review_index_url": "/tools/semantic_viewer_index.html",
+            "promotion_gate_status": promotion_candidate.get("status"),
+            "visual_acceptance_expected_path": promotion_candidate.get("visual_acceptance_json"),
+            "promotion_gate_current_reasons": [
+                "SPG v4 remains pending explicit visual acceptance",
+                "v7 uncertain-fragment bridge rejected by user QA",
+                "Sonata 0.15/0.30 remain diagnostic candidates",
+            ],
+        }
+
     return {
         "dataset": architecture.get("dataset"),
         "decision": architecture.get("current_diagnosis", {}).get("decision"),
@@ -84,8 +100,8 @@ def summarize(
         "dense_object_baseline": dense_patch.get("current_object_baseline", {}),
         "remote_executable_baseline": dense_patch.get("remote_executable_baseline", {}),
         "latest_remote_run": dense_patch.get("latest_remote_run", {}),
-        "current_promotion_candidate": dense_patch.get("current_promotion_candidate", {}),
-        "current_qa_report": dense_patch.get("current_qa_report", {}),
+        "current_promotion_candidate": promotion_candidate,
+        "current_qa_report": qa_report,
         "approved_runners": dense_patch.get("approved_runners", []),
         "next_action": dense_patch.get("next_action", {}),
         "forbidden_inputs": dense_patch.get("forbidden_inputs", []),

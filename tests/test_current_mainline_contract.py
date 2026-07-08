@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 
 from scripts import build_current_dense_review_index
 from scripts import validate_current_project_architecture
@@ -94,3 +95,18 @@ def test_reject_forbidden_production_input_can_explicitly_allow_qa_preview_sourc
 
     assert qa_preview_input_match(path) == "_stride"
     reject_forbidden_production_input(path, allow_qa_preview=True)
+
+
+def test_human_state_docs_do_not_publish_stale_current_baselines() -> None:
+    root = Path(__file__).resolve().parents[1]
+    text = "\n".join(
+        (root / path).read_text(encoding="utf-8")
+        for path in ("docs/knowledge.yaml", "docs/assets-debt.yaml")
+    )
+
+    stale = (
+        "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624",
+        "dense_las_voxel003_objects_v3_high_recall_clean_20260624",
+        "v8_tiny_attach 改善",
+    )
+    assert not any(item in text for item in stale)

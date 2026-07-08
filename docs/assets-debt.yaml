@@ -24,22 +24,22 @@ assets:
     title: 当前 Patch 决策基线
     type: output
     status: active
-    value: dense_las_voxel003_energy_v6_fine_gated_overlap_20260624；exclusive voxel ownership，约 48,863 patches；作为当前 dense patch decision baseline
-    path: /Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/
+    value: energy_attach_v4_contact_evidence；0.03m Opt LAS/C++ region input 派生，197,630 patches；作为当前 dense patch decision baseline
+    path: /Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/
 
   - id: asset-object-baseline
-    title: 当前 Object 诊断基线
+    title: 当前 SPG/Object 诊断基线
     type: output
     status: diagnostic
-    value: dense_las_voxel003_objects_v3_high_recall_clean_20260624；保守 object stage baseline，仍存在 fragmentation，不能直接视作最终语义 object
-    path: /Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_objects_v3_high_recall_clean_20260624/
+    value: superpoint_graph_v4_nearbbox_s070_e120_20260708_183437；当前视觉可信 SPG baseline，197,208 objects，v7 uncertain-fragment bridge 因过合并被拒绝
+    path: /Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/
 
-  - id: asset-object-v8-candidate
-    title: v8 Object Refinement 视觉候选
+  - id: asset-spg-sonata-candidates
+    title: Sonata touch-edge SPG 诊断候选
     type: output
-    status: pending_visual_acceptance
-    value: v8_tiny_attach 改善 accepted candidates / object count / mixed overlap，但未通过必要人工视觉 gate；不得自动 promotion
-    path: /Users/skkac/Work/SCAN/new_route/docs/current_dense_visual_acceptance.json
+    status: diagnostic
+    value: superpoint_graph_sonata_touch_edge_sample_v1_20260708 与 w030；只能作为 representation evidence 权重扫描，不能硬覆盖结构边界
+    path: /Users/skkac/Work/SCAN/new_route/docs/superpoint_graph_sonata_touch_edge_review_20260708.md
 
   - id: asset-validated-route-scripts
     title: 正确投影路线脚本
@@ -110,9 +110,9 @@ debts:
     title: Patch/Object 仍偏碎
     severity: high
     status: open
-    cause: 当前 v6 patch baseline 保守保护边界；v9 remote run更保守，v8 object refinement 尚未视觉验收
+    cause: 当前 energy_attach_v4 + SPG v4 保守保护结构边界；提高召回的 v7 uncertain-fragment bridge 已出现地面/墙/草地过合并
     impact: 车、窗、建筑立面、树木等目标可能被拆成多个 patch/object，语义聚合缺少稳定对象容器
-    repayment_plan: 继续在 dense Opt-LAS / 0.03m voxel 上优化 object refinement；gate 必须同时看 exclusive ownership、fine overlap、fragmentation 和 visual QA
+    repayment_plan: 继续在 dense Opt-LAS / 0.03m voxel 上优化 SPG edge evidence；gate 必须同时看 exclusive ownership、fine overlap、fragmentation、过合并风险和 visual QA
 
   - id: debt-sensor-trust-contract
     title: 传感器证据职责边界需继续固化
