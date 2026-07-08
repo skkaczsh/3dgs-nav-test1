@@ -90,11 +90,12 @@ def main() -> int:
         point = upcast_point(point)
         feat = point.feat
         colors = pca_color(feat)
+        original_colors = colors[point.inverse.detach().cpu().numpy()]
 
     out_ply = args.output_dir / f"{args.input.stem}_sonata_pca.ply"
     pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(point.coord.detach().cpu().numpy())
-    pcd.colors = o3d.utility.Vector3dVector(colors)
+    pcd.points = o3d.utility.Vector3dVector(original_coord)
+    pcd.colors = o3d.utility.Vector3dVector(original_colors)
     o3d.io.write_point_cloud(str(out_ply), pcd, write_ascii=True)
     report = {
         "schema": "sonata-crop-smoke/v1",
@@ -102,6 +103,7 @@ def main() -> int:
         "output_ply": str(out_ply),
         "input_points": int(len(original_coord)),
         "model_points": int(feat.shape[0]),
+        "output_points": int(len(original_coord)),
         "feature_dim": int(feat.shape[1]),
     }
     report_path = args.output_dir / f"{args.input.stem}_sonata_report.json"

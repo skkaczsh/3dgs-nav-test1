@@ -183,6 +183,21 @@ Sonata PCA smoke analysis:
   geometry ownership; the next useful test is to add Sonata feature distance as
   one graph edge term and compare against the current SPG boundary failures.
 
+Sonata patch-edge diagnosis for `70503/9366`:
+
+- local report:
+  `server_parking_priority_s10/sonata_crop_smoke_20260708/risk_70503_9366_sonata_edge_analysis.json`
+- risk QA point match ratio against Sonata output: `0.676`
+- matched points: `25368`
+- patch `70503`: `10319` matched points
+- patch `9366`: `29` matched points
+- mean Sonata PCA RGB distance between patches: `0.2705`
+- distance over pooled channel std: `1.746`
+- interpretation: Sonata gives a weak-to-moderate separation signal for this
+  risky edge, but patch `9366` has too few matched points for a hard veto. Use
+  Sonata distance as one weighted graph edge term only; do not let it alone
+  accept or reject patch ownership.
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure
