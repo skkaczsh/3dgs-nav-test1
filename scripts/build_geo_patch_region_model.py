@@ -21,6 +21,7 @@ import argparse
 import json
 import random
 import subprocess
+import time
 from collections import Counter, defaultdict, deque
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -42,6 +43,15 @@ from build_geo_patch_graph import (
     collect_edges,
     voxel_arrays,
 )
+
+
+def log_stage(name: str, start: float | None = None) -> float:
+    now = time.monotonic()
+    if start is None:
+        print(f"[geo_patch] start {name}", flush=True)
+    else:
+        print(f"[geo_patch] done {name} elapsed={now - start:.1f}s", flush=True)
+    return now
 
 
 STABLE_SURFACE_BUCKETS = {BUCKET_IDS["horizontal"], BUCKET_IDS["vertical"]}
@@ -849,6 +859,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    stage = log_stage("read_voxels")
     voxels = read_voxels(
         args.input_ply,
         args.voxel_size,
@@ -857,13 +868,19 @@ def main() -> int:
         args.torch_device,
         args.binary_voxel_input,
     )
+    log_stage("read_voxels", stage)
+    stage = log_stage("compute_local_features")
     if args.feature_backend == "torch":
         compute_local_features_torch(voxels, args.feature_radius_voxels, args.torch_device, args.feature_batch_size)
     else:
         compute_local_features(voxels, args.feature_radius_voxels)
+    log_stage("compute_local_features", stage)
+    stage = log_stage("bucket_and_pack_arrays")
     for item in voxels.values():
         item["bucket"] = geometry_bucket(item)
     arrays = voxel_arrays(voxels)
+    log_stage("bucket_and_pack_arrays", stage)
+    stage = log_stage("collect_edges")
     src, dst = collect_edges(
         arrays,
         args.connect_radius_voxels,
@@ -884,12 +901,17 @@ def main() -> int:
         args.color_bridge_distance_factor,
         args.color_bridge_texture_delta,
     )
+    log_stage("collect_edges", stage)
+    stage = log_stage(f"region_grow_{args.region_grow_backend}")
     if args.region_grow_backend == "cpp":
         labels, patches = grow_region_model_cpp(arrays, src, dst, args)
     else:
         adjacency = build_adjacency(len(arrays["keys"]), src, dst)
         labels, patches = grow_region_model(arrays, adjacency, args)
+    log_stage(f"region_grow_{args.region_grow_backend}", stage)
+    stage = log_stage("write_outputs")
     write_outputs(args.output_dir, arrays, labels, patches, args)
+    log_stage("write_outputs", stage)
     return 0
 
 
