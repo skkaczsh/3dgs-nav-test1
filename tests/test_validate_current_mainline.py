@@ -7,7 +7,12 @@ import sys
 from pathlib import Path
 
 from scripts.gate_current_dense_mainline_promotion import evaluate as evaluate_dense_gate
-from scripts.validate_current_mainline import validate_promotion_gate, validate_promotion_plan, validate_state_consistency
+from scripts.validate_current_mainline import (
+    validate_promotion_gate,
+    validate_promotion_plan,
+    validate_spg_visual_acceptance,
+    validate_state_consistency,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,9 +35,51 @@ def test_current_mainline_healthcheck_passes_with_visual_pending() -> None:
     assert report["checks"]["production_input_allowlist"]["passed"] is True
     assert report["checks"]["production_input_allowlist"]["allowed_count"] == 6
     assert report["checks"]["state_consistency"]["passed"] is True
+    assert report["checks"]["spg_visual_acceptance"]["passed"] is True
+    assert report["checks"]["spg_visual_acceptance"]["status"] == "pending"
     assert report["checks"]["promotion_plan_health"]["passed"] is True
-    assert "promotion_gate_health:legacy_dense_object_promotion_gate_skipped_for_spg_candidate" in report["warnings"]
-    assert "promotion_plan_health:legacy_dense_object_promotion_plan_skipped_for_spg_candidate" in report["warnings"]
+    assert any(item.startswith("spg_visual_acceptance:spg_visual_pending_required_checks=") for item in report["warnings"])
+    assert not any("legacy_" in item for item in report["warnings"])
+
+
+def test_spg_visual_acceptance_rejects_wrong_candidate(tmp_path: Path) -> None:
+    visual = tmp_path / "visual.json"
+    visual.write_text(
+        json.dumps(
+            {
+                "schema": "superpoint-graph-visual-acceptance/v1",
+                "status": "pending",
+                "candidate": "wrong",
+                "checks": [{"id": "a", "required": True, "status": "pending"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = validate_spg_visual_acceptance(visual, "expected")
+
+    assert report["passed"] is False
+    assert "spg_visual_candidate_mismatch=wrong!=expected" in report["errors"]
+
+
+def test_spg_visual_acceptance_rejects_accepted_with_pending_checks(tmp_path: Path) -> None:
+    visual = tmp_path / "visual.json"
+    visual.write_text(
+        json.dumps(
+            {
+                "schema": "superpoint-graph-visual-acceptance/v1",
+                "status": "accepted",
+                "candidate": "spg",
+                "checks": [{"id": "a", "required": True, "status": "pending"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = validate_spg_visual_acceptance(visual, "spg")
+
+    assert report["passed"] is False
+    assert "spg_visual_accepted_with_unaccepted_required_checks" in report["errors"]
 
 
 def test_promotion_gate_health_rejects_unknown_spike(tmp_path: Path) -> None:

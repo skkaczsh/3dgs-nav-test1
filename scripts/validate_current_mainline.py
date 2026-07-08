@@ -56,6 +56,52 @@ def read_json(path: Path) -> dict[str, Any]:
     return data
 
 
+def resolve_state_path(value: str | None, state_path: Path) -> Path | None:
+    if not value:
+        return None
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    return (state_path.parent / ".." / path).resolve()
+
+
+def validate_spg_visual_acceptance(path: Path | None, candidate_id: str) -> dict[str, Any]:
+    errors: list[str] = []
+    warnings: list[str] = []
+    if path is None or not path.exists():
+        errors.append(f"missing_spg_visual_acceptance={path}")
+        return {"passed": False, "path": str(path), "candidate": candidate_id, "errors": errors, "warnings": warnings}
+    data = read_json(path)
+    if data.get("schema") != "superpoint-graph-visual-acceptance/v1":
+        errors.append(f"unexpected_spg_visual_acceptance_schema={data.get('schema')}")
+    if data.get("candidate") != candidate_id:
+        errors.append(f"spg_visual_candidate_mismatch={data.get('candidate')}!={candidate_id}")
+    status = str(data.get("status", ""))
+    if status not in {"pending", "accepted", "failed"}:
+        errors.append(f"unexpected_spg_visual_status={status}")
+    checks = [row for row in data.get("checks", []) if isinstance(row, dict)]
+    required = [row for row in checks if row.get("required")]
+    if not required:
+        errors.append("spg_visual_missing_required_checks")
+    pending = [str(row.get("id")) for row in required if row.get("status") == "pending"]
+    failed = [str(row.get("id")) for row in required if row.get("status") == "failed"]
+    if status == "accepted" and (pending or failed):
+        errors.append("spg_visual_accepted_with_unaccepted_required_checks")
+    if status == "failed" or failed:
+        errors.append("spg_visual_failed")
+    if pending:
+        warnings.append(f"spg_visual_pending_required_checks={pending}")
+    return {
+        "passed": not errors,
+        "path": str(path),
+        "candidate": candidate_id,
+        "status": status,
+        "required_check_count": len(required),
+        "errors": errors,
+        "warnings": warnings,
+    }
+
+
 def number(value: Any, default: float = 0.0) -> float:
     try:
         return float(value)
@@ -231,43 +277,48 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
     production_input_allowlist = validate_production_inputs.validate_dense_allowlist(args.dense_patch_state)
     state_consistency = validate_state_consistency(args.architecture, args.dense_patch_state)
     if promotion_candidate_id.startswith("superpoint_graph_"):
+        spg_visual_acceptance = validate_spg_visual_acceptance(
+            resolve_state_path(str(promotion_candidate.get("visual_acceptance_json", "")), args.dense_patch_state),
+            promotion_candidate_id,
+        )
         supervised_baseline_smoke = {
             "passed": True,
-            "status": "skipped",
+            "status": "not_applicable",
             "candidate": promotion_candidate_id,
             "errors": [],
-            "warnings": ["legacy_supervised_baseline_smoke_skipped_for_spg_candidate"],
+            "warnings": [],
         }
         supervised_smoke_manifest = {
             "passed": True,
-            "status": "skipped",
+            "status": "not_applicable",
             "candidate": promotion_candidate_id,
             "errors": [],
-            "warnings": ["legacy_supervised_smoke_manifest_skipped_for_spg_candidate"],
+            "warnings": [],
         }
         supervised_smoke_crop_export = {
             "passed": True,
-            "status": "skipped",
+            "status": "not_applicable",
             "candidate": promotion_candidate_id,
             "errors": [],
-            "warnings": ["legacy_supervised_crop_export_skipped_for_spg_candidate"],
+            "warnings": [],
         }
         promotion_gate = {
             "passed": True,
-            "status": "skipped",
+            "status": "not_applicable",
             "candidate": promotion_candidate_id,
             "errors": [],
-            "warnings": ["legacy_dense_object_promotion_gate_skipped_for_spg_candidate"],
+            "warnings": [],
         }
         promotion_plan = {
             "passed": True,
             "candidate": promotion_candidate_id,
-            "gate_status": "skipped",
+            "gate_status": "not_applicable",
             "proposed_object_baseline_id": promotion_candidate_id,
             "errors": [],
-            "warnings": ["legacy_dense_object_promotion_plan_skipped_for_spg_candidate"],
+            "warnings": [],
         }
     else:
+        spg_visual_acceptance = {"passed": True, "status": "not_applicable", "errors": [], "warnings": []}
         supervised_baseline_smoke = validate_pointcloud_supervised_baseline_smoke.validate(args.supervised_smoke)
         supervised_smoke_manifest = validate_pointcloud_supervised_smoke_manifest.validate(args.supervised_manifest)
         supervised_smoke_crop_export = validate_pointcloud_supervised_smoke_crop_export.validate(args.supervised_crop_export)
@@ -286,6 +337,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
         "supervised_baseline_smoke": supervised_baseline_smoke,
         "supervised_smoke_manifest": supervised_smoke_manifest,
         "supervised_smoke_crop_export": supervised_smoke_crop_export,
+        "spg_visual_acceptance": spg_visual_acceptance,
         "state_consistency": state_consistency,
         "promotion_gate_health": promotion_gate,
         "promotion_plan_health": promotion_plan,
