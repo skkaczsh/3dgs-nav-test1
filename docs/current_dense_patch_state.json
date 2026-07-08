@@ -301,6 +301,7 @@
         "local_dir": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
         "compare_report": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_nearbbox_compare_20260708/compare.md",
         "bbox_overlap_report": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/bbox_overlap_top1000/bbox_overlap_top1000_report.json",
+        "visual_qa_doc": "docs/superpoint_graph_v4_visual_qa.md",
         "viewer_url": "http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
         "input_patch_count": 197630,
         "output_patch_count": 197208,
