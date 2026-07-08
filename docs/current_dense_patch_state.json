@@ -172,13 +172,25 @@
             "baseline_largest_horizontal_patch_purity": 0.933,
             "interpretation": "Contact-rich evidence is now wired into both FH guard and attachment scoring. Smoke output is slightly more conservative than FH-only contact-rich because attachment shape can reject locally inconsistent small-fragment merges. The largest horizontal patch becomes smaller but slightly purer, so this is worth one dense 0.03m full validation when scan-train SSH recovers."
         },
-        "pending_remote_run": {
-            "host": "scan-train",
-            "runner": "scripts/run_scan_train_patch_energy_contact_shape.sh",
-            "input_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623",
-            "output_dir_pattern": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attachment_shape_v1_<timestamp>",
-            "launch_command": "RUN=1 bash scripts/run_scan_train_patch_energy_contact_shape.sh",
-            "local_region_smoke": {
+    "pending_remote_run": {
+      "host": "scan-train",
+      "runner": "scripts/run_scan_train_patch_energy_contact_shape.sh",
+      "input_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623",
+      "output_dir_pattern": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attachment_shape_v1_<timestamp>",
+      "launch_command": "RUN=1 bash scripts/run_scan_train_patch_energy_contact_shape.sh",
+      "completed_remote_run": {
+        "id": "energy_attachment_shape_v1_20260708_171900",
+        "remote_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attachment_shape_v1_20260708_171900",
+        "local_dir": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attachment_shape_v1_20260708_171900",
+        "input_patch_count": 197630,
+        "output_patch_count": 197362,
+        "merge_accept": 268,
+        "merge_reject": 7518,
+        "output_high_entropy_count": 6421,
+        "compare_to_input": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attachment_shape_vs_input_20260708/compare.md",
+        "interpretation": "Contact-shape attachment is a conservative post-pass over attach_v4: it removes 268 patches and slightly lowers high-entropy count from 6424 to 6421, but large low-purity count is unchanged and large high-entropy increases from 1 to 2. Keep as diagnostic candidate; do not promote without visual QA."
+      },
+      "local_region_smoke": {
                 "path": "server_parking_priority_s10/dense_las_voxel003_local_region_smoke_1m_20260708",
                 "input": "/Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply",
                 "max_points": 1000000,
