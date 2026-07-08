@@ -19,6 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_STATE = REPO_ROOT / "docs" / "current_dense_patch_state.json"
 DEFAULT_QA = REPO_ROOT / "docs" / "current_dense_mainline_qa.json"
 DEFAULT_GATE = REPO_ROOT / "docs" / "current_dense_promotion_gate.json"
+DEFAULT_SPG_VISUAL = REPO_ROOT / "docs" / "superpoint_graph_v4_visual_acceptance.json"
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -50,6 +51,84 @@ def candidate_local_paths(source_run_id: str) -> dict[str, list[str]]:
 
 def existing_paths(paths: list[str]) -> list[str]:
     return [path for path in paths if Path(path).exists()]
+
+
+def spg_local_paths(source_run_id: str) -> dict[str, list[str]]:
+    base = (
+        REPO_ROOT
+        / "server_parking_priority_s10"
+        / "geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623"
+        / source_run_id
+    )
+    return {
+        "production": [
+            str(base / "superpoint_graph_v1_report.json"),
+            str(base / "superpoint_graph_v1_labels.bin"),
+            str(base / "superpoint_graph_v1.jsonl"),
+        ],
+        "qa_only": [
+            str(base / "superpoint_graph_v1_stride10.ply"),
+        ],
+    }
+
+
+def build_spg_plan(state: dict[str, Any], visual: dict[str, Any]) -> dict[str, Any]:
+    errors: list[str] = []
+    candidate = state.get("current_promotion_candidate", {})
+    if not isinstance(candidate, dict):
+        errors.append("current_promotion_candidate_missing")
+        candidate = {}
+    candidate_id = str(candidate.get("id", ""))
+    source_run_id = str(candidate.get("source_run_id", candidate_id))
+    if visual.get("candidate") != candidate_id:
+        errors.append(f"visual_candidate_mismatch={visual.get('candidate')}!={candidate_id}")
+    if visual.get("status") != "accepted":
+        errors.append(f"spg_visual_acceptance_not_accepted={visual.get('status')}")
+    required = [row for row in visual.get("checks", []) if isinstance(row, dict) and row.get("required")]
+    pending = [row.get("id") for row in required if row.get("status") != "accepted"]
+    if pending:
+        errors.append(f"spg_visual_required_checks_not_accepted={pending}")
+
+    paths = spg_local_paths(source_run_id)
+    missing = sorted(set(paths["production"]) - set(existing_paths(paths["production"])))
+    errors.extend(f"candidate_production_path_missing={path}" for path in missing)
+    report = read_json(Path(paths["production"][0])) if not missing else {}
+    metrics = {
+        "input_patch_count": int(report.get("input_patch_count", 0)),
+        "output_object_count": int(report.get("output_patch_count", 0)),
+        "accepted_edges": int(report.get("accepted_edges", 0)),
+        "fine_overlap_pairs_ge_50_top1000": state.get("current_object_baseline", {})
+        .get("metrics", {})
+        .get("fine_overlap_pairs_ge_50_top1000"),
+    }
+    proposed_object_baseline = {
+        "id": candidate_id,
+        "status": "promoted_spg_object_geometry_baseline",
+        "reason": "Promoted after SPG visual acceptance required checks passed. Semantic labels remain evidence.",
+        "local_paths": paths["production"],
+        "qa_only_paths": paths["qa_only"],
+        "metrics": metrics,
+    }
+    return {
+        "schema": "current-dense-promotion-plan/v1",
+        "passed": not errors,
+        "candidate": candidate_id,
+        "gate_status": visual.get("status"),
+        "errors": errors,
+        "current_object_baseline": state.get("current_object_baseline", {}),
+        "proposed_object_baseline": proposed_object_baseline,
+        "proposed_current_promotion_candidate": {
+            **candidate,
+            "status": "promoted",
+            "promoted_object_baseline_id": candidate_id,
+        },
+        "manual_steps": [
+            "Apply proposed_object_baseline to docs/current_dense_patch_state.json current_object_baseline.",
+            "Mark current_promotion_candidate status as promoted only after SPG visual acceptance remains accepted.",
+            "Run python3 scripts/validate_current_mainline.py before committing.",
+            "Do not promote qa_only_paths to production geometry inputs.",
+        ],
+    }
 
 
 def build_plan(state: dict[str, Any], qa: dict[str, Any], gate: dict[str, Any]) -> dict[str, Any]:
@@ -129,10 +208,16 @@ def main() -> int:
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
     parser.add_argument("--qa-json", type=Path, default=DEFAULT_QA)
     parser.add_argument("--promotion-gate", type=Path, default=DEFAULT_GATE)
+    parser.add_argument("--spg-visual-acceptance", type=Path, default=DEFAULT_SPG_VISUAL)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
-    plan = build_plan(read_json(args.state), read_json(args.qa_json), read_json(args.promotion_gate))
+    state = read_json(args.state)
+    candidate = state.get("current_promotion_candidate", {})
+    if isinstance(candidate, dict) and str(candidate.get("id", "")).startswith("superpoint_graph_"):
+        plan = build_spg_plan(state, read_json(args.spg_visual_acceptance))
+    else:
+        plan = build_plan(state, read_json(args.qa_json), read_json(args.promotion_gate))
     text = json.dumps(plan, ensure_ascii=False, indent=2) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
