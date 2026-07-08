@@ -288,6 +288,7 @@ def artifact_cards() -> str:
 
 def evidence_links() -> str:
     links = [
+        ("Sonata 0.15 visual acceptance", "/docs/superpoint_graph_sonata015_visual_acceptance.md"),
         ("Sonata 0.15 delta queue", "/docs/superpoint_graph_sonata015_delta_20260708.md"),
         ("Sonata touch-edge review notes", "/docs/superpoint_graph_sonata_touch_edge_review_20260708.md"),
         ("SPG mainline decision", "/docs/superpoint_graph_mainline_20260708.md"),

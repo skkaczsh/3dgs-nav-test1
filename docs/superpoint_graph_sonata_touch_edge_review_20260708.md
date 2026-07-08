@@ -4,6 +4,9 @@
 
 - Keep `superpoint_graph_v4_nearbbox_s070_e120_20260708_183437` as the trusted visual baseline.
 - Review Sonata touch-edge weight `0.15` visually before promotion.
+- Sonata touch-edge weight `0.15` has a confirmed visual failure: it improves
+  one building-scale merge, but also merges a nearby shrub face and a separate
+  small building into that large object.
 - Do not prioritize Sonata touch-edge weight `0.30`; it fails the SPG
   over-merge risk gate by accepted-edge growth.
 - Do not promote `superpoint_graph_v7_uncertain_guard_20260708_191958`; user QA found ground/wall/grass mixed into one object and shrub partially merged.
@@ -38,6 +41,7 @@ The `70503/9366` local counts are effectively unchanged across v4 and Sonata `0.
 
 ## Sonata 0.15 Delta Queue
 
+- Visual acceptance: `docs/superpoint_graph_sonata015_visual_acceptance.md`
 - Delta report: `docs/superpoint_graph_sonata015_delta_20260708.md`
 - Method: direct `labels.bin` overlap between v4 and Sonata 0.15.
 - New merge objects: `35`.

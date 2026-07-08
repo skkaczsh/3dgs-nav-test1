@@ -54,12 +54,14 @@ def update_record(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def format_md(record: dict[str, Any]) -> str:
+    title = record.get("title") or f"Superpoint Graph Visual Acceptance: {record['candidate']}"
     lines = [
-        "# Superpoint Graph v4 Visual Acceptance",
+        f"# {title}",
         "",
         f"Status: `{record['status']}`",
         f"Candidate: `{record['candidate']}`",
         f"Review doc: `{record.get('review_doc', '')}`",
+        f"Viewer: {record.get('viewer_url', '')}",
         f"Reviewer: `{record.get('reviewer', '')}`",
         f"Reviewed at: `{record.get('reviewed_at', '')}`",
         "",

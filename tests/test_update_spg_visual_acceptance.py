@@ -39,6 +39,24 @@ def test_update_spg_visual_acceptance_recomputes_status(tmp_path: Path) -> None:
     assert "Run `python3 scripts/validate_current_mainline.py`" in format_md(record)
 
 
+def test_format_md_uses_custom_title_and_viewer() -> None:
+    record = {
+        "title": "Custom SPG Acceptance",
+        "status": "pending",
+        "candidate": "spg_candidate",
+        "review_doc": "docs/review.md",
+        "viewer_url": "http://127.0.0.1:8765/viewer",
+        "checks": [
+            {"id": "a", "required": True, "status": "pending", "question": "A?"},
+        ],
+    }
+
+    text = format_md(record)
+
+    assert text.startswith("# Custom SPG Acceptance")
+    assert "Viewer: http://127.0.0.1:8765/viewer" in text
+
+
 def test_spg_visual_acceptance_failed_required_blocks_record() -> None:
     record = {
         "checks": [

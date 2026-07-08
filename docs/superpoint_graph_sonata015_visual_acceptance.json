@@ -1,0 +1,56 @@
+{
+  "schema": "superpoint-graph-visual-acceptance/v1",
+  "title": "SPG Sonata 0.15 Visual Acceptance",
+  "status": "failed",
+  "candidate": "superpoint_graph_sonata_touch_edge_sample_v1_20260708",
+  "comparison_baseline": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
+  "review_doc": "docs/superpoint_graph_sonata_touch_edge_review_20260708.md",
+  "viewer_url": "http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
+  "quantitative_summary": {
+    "accepted_edges_v4": 422,
+    "accepted_edges_sonata015": 501,
+    "fine_high_pairs_50_v4": 3,
+    "fine_high_pairs_50_sonata015": 3,
+    "fine_high_pairs_95_v4": 0,
+    "fine_high_pairs_95_sonata015": 0,
+    "new_merge_objects_sonata015_vs_v4": 35
+  },
+  "reviewer": "user",
+  "reviewed_at": "2026-07-08T14:35:00+00:00",
+  "checks": [
+    {
+      "id": "large_building_fragmentation_improved",
+      "required": false,
+      "status": "accepted",
+      "question": "A building body can be represented as one object more often than in the previous baseline.",
+      "notes": "User QA: Sonata 0.15 improves at least one building-scale merge."
+    },
+    {
+      "id": "large_vertical_object_does_not_swallow_shrub",
+      "required": true,
+      "status": "failed",
+      "question": "Large vertical building objects do not swallow nearby shrubs or rough vegetation faces.",
+      "notes": "User QA: the shrub face perpendicular to the ground was merged into the same object as the building."
+    },
+    {
+      "id": "large_vertical_object_does_not_swallow_neighbor_building",
+      "required": true,
+      "status": "failed",
+      "question": "Large building objects do not merge adjacent small buildings or independent structures.",
+      "notes": "User QA: a nearby small building was also merged into the same large object."
+    },
+    {
+      "id": "delta_queue_object_70448_safe",
+      "required": true,
+      "status": "pending",
+      "question": "Delta object 70448 does not over-merge rough vegetation/object fragments with facade or building structure."
+    },
+    {
+      "id": "delta_queue_object_70415_safe",
+      "required": true,
+      "status": "pending",
+      "question": "Delta object 70415 does not over-merge rough vegetation/object fragments with facade or building structure."
+    }
+  ],
+  "decision_rule": "Do not promote Sonata 0.15 until the two failed structural over-merge checks are fixed and all required delta queue checks pass."
+}

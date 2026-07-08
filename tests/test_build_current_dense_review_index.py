@@ -79,6 +79,8 @@ def test_build_html_links_only_current_review_artifacts() -> None:
     assert "SPG v4 near-bbox" in html
     assert "SPG Sonata touch-edge 0.15" in html
     assert "SPG Sonata touch-edge 0.30" in html
+    assert "Sonata 0.15 visual acceptance" in html
+    assert "/docs/superpoint_graph_sonata015_visual_acceptance.md" in html
     assert "Sonata 0.15 delta queue" in html
     assert "/docs/superpoint_graph_sonata015_delta_20260708.md" in html
     assert "Promotion Review Checklist" in html
