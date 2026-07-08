@@ -1,0 +1,1223 @@
+{
+  "schema": "spg-object-delta/v1",
+  "method": "labels",
+  "baseline_jsonl": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1.jsonl",
+  "candidate_jsonl": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1.jsonl",
+  "baseline_labels": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_labels.bin",
+  "candidate_labels": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1_labels.bin",
+  "baseline_object_count": 197208,
+  "candidate_object_count": 197129,
+  "new_merge_object_count": 35,
+  "truncated_source_list_count": 0,
+  "top_new_merges": [
+    {
+      "candidate_object": 2,
+      "voxel_count": 2666743,
+      "geometry_type": "vertical",
+      "bucket_entropy": -0.0,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        2,
+        544,
+        50318
+      ],
+      "baseline_objects_merged": [
+        2,
+        544,
+        50318
+      ],
+      "baseline_object_count": 3,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 2,
+          "voxels": 2666723
+        },
+        {
+          "object": 544,
+          "voxels": 14
+        },
+        {
+          "object": 50318,
+          "voxels": 6
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 31,
+      "voxel_count": 1156459,
+      "geometry_type": "vertical",
+      "bucket_entropy": -0.0,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        31,
+        9631,
+        20046
+      ],
+      "baseline_objects_merged": [
+        31,
+        9631,
+        20046
+      ],
+      "baseline_object_count": 3,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 31,
+          "voxels": 1156414
+        },
+        {
+          "object": 9631,
+          "voxels": 38
+        },
+        {
+          "object": 20046,
+          "voxels": 7
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70448,
+      "voxel_count": 1038238,
+      "geometry_type": "rough_mixed",
+      "bucket_entropy": 0.7997209429971835,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70448,
+        74118,
+        84060,
+        85593,
+        87756,
+        73297,
+        151328,
+        143800,
+        139815
+      ],
+      "baseline_objects_merged": [
+        70448,
+        74118,
+        84060,
+        85593,
+        87756,
+        73297,
+        151328,
+        143800,
+        139815
+      ],
+      "baseline_object_count": 9,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70448,
+          "voxels": 1037993
+        },
+        {
+          "object": 74118,
+          "voxels": 148
+        },
+        {
+          "object": 84060,
+          "voxels": 27
+        },
+        {
+          "object": 85593,
+          "voxels": 24
+        },
+        {
+          "object": 87756,
+          "voxels": 23
+        },
+        {
+          "object": 73297,
+          "voxels": 9
+        },
+        {
+          "object": 151328,
+          "voxels": 6
+        },
+        {
+          "object": 143800,
+          "voxels": 4
+        },
+        {
+          "object": 139815,
+          "voxels": 4
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 7,
+      "voxel_count": 724664,
+      "geometry_type": "horizontal",
+      "bucket_entropy": -0.0,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        7,
+        420
+      ],
+      "baseline_objects_merged": [
+        7,
+        420
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 7,
+          "voxels": 724650
+        },
+        {
+          "object": 420,
+          "voxels": 14
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70415,
+      "voxel_count": 666771,
+      "geometry_type": "rough_mixed",
+      "bucket_entropy": 1.084178877304336,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70415,
+        72877,
+        95713,
+        84016,
+        87750,
+        131258,
+        113163,
+        98606,
+        119571,
+        110917,
+        142777,
+        125322,
+        98543,
+        162204,
+        149802,
+        140178,
+        144192,
+        119965,
+        135570
+      ],
+      "baseline_objects_merged": [
+        70415,
+        72877,
+        95713,
+        84016,
+        87750,
+        131258,
+        113163,
+        98606,
+        119571,
+        110917,
+        142777,
+        125322,
+        98543,
+        162204,
+        149802,
+        140178,
+        144192,
+        119965,
+        135570
+      ],
+      "baseline_object_count": 19,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70415,
+          "voxels": 663970
+        },
+        {
+          "object": 72877,
+          "voxels": 1156
+        },
+        {
+          "object": 95713,
+          "voxels": 1017
+        },
+        {
+          "object": 84016,
+          "voxels": 285
+        },
+        {
+          "object": 87750,
+          "voxels": 159
+        },
+        {
+          "object": 131258,
+          "voxels": 37
+        },
+        {
+          "object": 113163,
+          "voxels": 26
+        },
+        {
+          "object": 98606,
+          "voxels": 26
+        },
+        {
+          "object": 119571,
+          "voxels": 15
+        },
+        {
+          "object": 110917,
+          "voxels": 13
+        },
+        {
+          "object": 142777,
+          "voxels": 11
+        },
+        {
+          "object": 125322,
+          "voxels": 10
+        },
+        {
+          "object": 98543,
+          "voxels": 8
+        },
+        {
+          "object": 162204,
+          "voxels": 8
+        },
+        {
+          "object": 149802,
+          "voxels": 8
+        },
+        {
+          "object": 140178,
+          "voxels": 6
+        },
+        {
+          "object": 144192,
+          "voxels": 6
+        },
+        {
+          "object": 119965,
+          "voxels": 5
+        },
+        {
+          "object": 135570,
+          "voxels": 5
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70503,
+      "voxel_count": 158930,
+      "geometry_type": "rough_mixed",
+      "bucket_entropy": 0.6659066701603668,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70503,
+        71947,
+        147954,
+        74672,
+        113707,
+        71392,
+        106578,
+        76957,
+        105942
+      ],
+      "baseline_objects_merged": [
+        70503,
+        71947,
+        147954,
+        74672,
+        113707,
+        71392,
+        106578,
+        76957,
+        105942
+      ],
+      "baseline_object_count": 9,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70503,
+          "voxels": 158786
+        },
+        {
+          "object": 71947,
+          "voxels": 29
+        },
+        {
+          "object": 147954,
+          "voxels": 25
+        },
+        {
+          "object": 74672,
+          "voxels": 24
+        },
+        {
+          "object": 113707,
+          "voxels": 23
+        },
+        {
+          "object": 71392,
+          "voxels": 22
+        },
+        {
+          "object": 106578,
+          "voxels": 9
+        },
+        {
+          "object": 76957,
+          "voxels": 8
+        },
+        {
+          "object": 105942,
+          "voxels": 4
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70594,
+      "voxel_count": 138130,
+      "geometry_type": "rough_mixed",
+      "bucket_entropy": 0.7836910420931702,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70594,
+        72282,
+        78686,
+        71422,
+        125504
+      ],
+      "baseline_objects_merged": [
+        70594,
+        72282,
+        78686,
+        71422,
+        125504
+      ],
+      "baseline_object_count": 5,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70594,
+          "voxels": 138092
+        },
+        {
+          "object": 72282,
+          "voxels": 17
+        },
+        {
+          "object": 78686,
+          "voxels": 11
+        },
+        {
+          "object": 71422,
+          "voxels": 6
+        },
+        {
+          "object": 125504,
+          "voxels": 4
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 337,
+      "voxel_count": 113113,
+      "geometry_type": "vertical",
+      "bucket_entropy": -0.0,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        337,
+        47759
+      ],
+      "baseline_objects_merged": [
+        337,
+        47759
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 337,
+          "voxels": 113109
+        },
+        {
+          "object": 47759,
+          "voxels": 4
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70574,
+      "voxel_count": 56567,
+      "geometry_type": "rough_mixed",
+      "bucket_entropy": 0.5298685740631706,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70574,
+        70641,
+        73108
+      ],
+      "baseline_objects_merged": [
+        70574,
+        70641,
+        73108
+      ],
+      "baseline_object_count": 3,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70574,
+          "voxels": 56411
+        },
+        {
+          "object": 70641,
+          "voxels": 150
+        },
+        {
+          "object": 73108,
+          "voxels": 6
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 71168,
+      "voxel_count": 34171,
+      "geometry_type": "rough_mixed",
+      "bucket_entropy": 0.6111784300814348,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        71168,
+        72794,
+        73155,
+        72011
+      ],
+      "baseline_objects_merged": [
+        71168,
+        72794,
+        73155,
+        72011
+      ],
+      "baseline_object_count": 4,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 71168,
+          "voxels": 34145
+        },
+        {
+          "object": 72794,
+          "voxels": 17
+        },
+        {
+          "object": 73155,
+          "voxels": 5
+        },
+        {
+          "object": 72011,
+          "voxels": 4
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70398,
+      "voxel_count": 29461,
+      "geometry_type": "mixed",
+      "bucket_entropy": 1.0946149396203566,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70398,
+        108942
+      ],
+      "baseline_objects_merged": [
+        70398,
+        108942
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70398,
+          "voxels": 29438
+        },
+        {
+          "object": 108942,
+          "voxels": 23
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70403,
+      "voxel_count": 14612,
+      "geometry_type": "unknown",
+      "bucket_entropy": 0.9769139483966426,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70403,
+        91263,
+        89623,
+        100988
+      ],
+      "baseline_objects_merged": [
+        70403,
+        91263,
+        89623,
+        100988
+      ],
+      "baseline_object_count": 4,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70403,
+          "voxels": 14559
+        },
+        {
+          "object": 91263,
+          "voxels": 36
+        },
+        {
+          "object": 89623,
+          "voxels": 10
+        },
+        {
+          "object": 100988,
+          "voxels": 7
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70409,
+      "voxel_count": 14056,
+      "geometry_type": "rough_mixed",
+      "bucket_entropy": 1.0231241643611686,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70409,
+        107056
+      ],
+      "baseline_objects_merged": [
+        70409,
+        107056
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70409,
+          "voxels": 14044
+        },
+        {
+          "object": 107056,
+          "voxels": 12
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70570,
+      "voxel_count": 13826,
+      "geometry_type": "rough_mixed",
+      "bucket_entropy": 0.9051308121756996,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70570,
+        91500
+      ],
+      "baseline_objects_merged": [
+        70570,
+        91500
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70570,
+          "voxels": 13821
+        },
+        {
+          "object": 91500,
+          "voxels": 5
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70427,
+      "voxel_count": 10602,
+      "geometry_type": "mixed",
+      "bucket_entropy": 1.09244300851193,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70427,
+        71851
+      ],
+      "baseline_objects_merged": [
+        70427,
+        71851
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70427,
+          "voxels": 10598
+        },
+        {
+          "object": 71851,
+          "voxels": 4
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70562,
+      "voxel_count": 6690,
+      "geometry_type": "unknown",
+      "bucket_entropy": 0.6671534456147766,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70562,
+        109918,
+        123785
+      ],
+      "baseline_objects_merged": [
+        70562,
+        109918,
+        123785
+      ],
+      "baseline_object_count": 3,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70562,
+          "voxels": 6679
+        },
+        {
+          "object": 109918,
+          "voxels": 6
+        },
+        {
+          "object": 123785,
+          "voxels": 5
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70528,
+      "voxel_count": 6314,
+      "geometry_type": "rough_mixed",
+      "bucket_entropy": 0.9928796666009782,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70528,
+        79487
+      ],
+      "baseline_objects_merged": [
+        70528,
+        79487
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70528,
+          "voxels": 6310
+        },
+        {
+          "object": 79487,
+          "voxels": 4
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70507,
+      "voxel_count": 4761,
+      "geometry_type": "mixed",
+      "bucket_entropy": 1.0055662019215046,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70507,
+        78918
+      ],
+      "baseline_objects_merged": [
+        70507,
+        78918
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70507,
+          "voxels": 4731
+        },
+        {
+          "object": 78918,
+          "voxels": 30
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70514,
+      "voxel_count": 4488,
+      "geometry_type": "mixed",
+      "bucket_entropy": 1.0729994366269697,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70514,
+        156422
+      ],
+      "baseline_objects_merged": [
+        70514,
+        156422
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70514,
+          "voxels": 4484
+        },
+        {
+          "object": 156422,
+          "voxels": 4
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 214,
+      "voxel_count": 4244,
+      "geometry_type": "vertical",
+      "bucket_entropy": -0.0,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        214,
+        39154
+      ],
+      "baseline_objects_merged": [
+        214,
+        39154
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 214,
+          "voxels": 4240
+        },
+        {
+          "object": 39154,
+          "voxels": 4
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 76635,
+      "voxel_count": 4056,
+      "geometry_type": "thin_linear",
+      "bucket_entropy": 0.9945457153453412,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        76635,
+        87821,
+        91675
+      ],
+      "baseline_objects_merged": [
+        76635,
+        87821,
+        91675
+      ],
+      "baseline_object_count": 3,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 76635,
+          "voxels": 4024
+        },
+        {
+          "object": 87821,
+          "voxels": 27
+        },
+        {
+          "object": 91675,
+          "voxels": 5
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70443,
+      "voxel_count": 3668,
+      "geometry_type": "unknown",
+      "bucket_entropy": 0.9087701107222692,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70443,
+        70533
+      ],
+      "baseline_objects_merged": [
+        70443,
+        70533
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70443,
+          "voxels": 2268
+        },
+        {
+          "object": 70533,
+          "voxels": 1400
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70442,
+      "voxel_count": 3519,
+      "geometry_type": "mixed",
+      "bucket_entropy": 1.1487401484694546,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70442,
+        80295
+      ],
+      "baseline_objects_merged": [
+        70442,
+        80295
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70442,
+          "voxels": 3408
+        },
+        {
+          "object": 80295,
+          "voxels": 111
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70476,
+      "voxel_count": 3196,
+      "geometry_type": "unknown",
+      "bucket_entropy": 1.1447359965904236,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70476,
+        83864,
+        121651
+      ],
+      "baseline_objects_merged": [
+        70476,
+        83864,
+        121651
+      ],
+      "baseline_object_count": 3,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70476,
+          "voxels": 3177
+        },
+        {
+          "object": 83864,
+          "voxels": 14
+        },
+        {
+          "object": 121651,
+          "voxels": 5
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 72039,
+      "voxel_count": 3130,
+      "geometry_type": "rough_mixed",
+      "bucket_entropy": 1.00673687917649,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        72039,
+        114412
+      ],
+      "baseline_objects_merged": [
+        72039,
+        114412
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 72039,
+          "voxels": 3124
+        },
+        {
+          "object": 114412,
+          "voxels": 6
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70663,
+      "voxel_count": 2798,
+      "geometry_type": "unknown",
+      "bucket_entropy": 1.0452415738352063,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70663,
+        84969
+      ],
+      "baseline_objects_merged": [
+        70663,
+        84969
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70663,
+          "voxels": 2769
+        },
+        {
+          "object": 84969,
+          "voxels": 29
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70754,
+      "voxel_count": 2190,
+      "geometry_type": "mixed",
+      "bucket_entropy": 1.1497334905757486,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70754,
+        93429
+      ],
+      "baseline_objects_merged": [
+        70754,
+        93429
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70754,
+          "voxels": 2182
+        },
+        {
+          "object": 93429,
+          "voxels": 8
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70445,
+      "voxel_count": 1794,
+      "geometry_type": "unknown",
+      "bucket_entropy": 0.2540510967906724,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70445,
+        70698
+      ],
+      "baseline_objects_merged": [
+        70445,
+        70698
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70445,
+          "voxels": 1571
+        },
+        {
+          "object": 70698,
+          "voxels": 223
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 75862,
+      "voxel_count": 1443,
+      "geometry_type": "thin_linear",
+      "bucket_entropy": 0.9762403002702491,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        75862,
+        130295
+      ],
+      "baseline_objects_merged": [
+        75862,
+        130295
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 75862,
+          "voxels": 1439
+        },
+        {
+          "object": 130295,
+          "voxels": 4
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 71349,
+      "voxel_count": 1237,
+      "geometry_type": "mixed",
+      "bucket_entropy": 1.1802976758011428,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        71349,
+        94128
+      ],
+      "baseline_objects_merged": [
+        71349,
+        94128
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 71349,
+          "voxels": 1233
+        },
+        {
+          "object": 94128,
+          "voxels": 4
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 70603,
+      "voxel_count": 861,
+      "geometry_type": "unknown",
+      "bucket_entropy": 0.9206975342949018,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        70603,
+        145715
+      ],
+      "baseline_objects_merged": [
+        70603,
+        145715
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 70603,
+          "voxels": 855
+        },
+        {
+          "object": 145715,
+          "voxels": 6
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 72983,
+      "voxel_count": 852,
+      "geometry_type": "rough_mixed",
+      "bucket_entropy": 0.7208026831541152,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        72983,
+        74859
+      ],
+      "baseline_objects_merged": [
+        72983,
+        74859
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 72983,
+          "voxels": 847
+        },
+        {
+          "object": 74859,
+          "voxels": 5
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 75399,
+      "voxel_count": 125,
+      "geometry_type": "rough_mixed",
+      "bucket_entropy": 0.6112312714438519,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        75399,
+        79169
+      ],
+      "baseline_objects_merged": [
+        75399,
+        79169
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 75399,
+          "voxels": 101
+        },
+        {
+          "object": 79169,
+          "voxels": 24
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 87145,
+      "voxel_count": 66,
+      "geometry_type": "rough_mixed",
+      "bucket_entropy": 0.8621963913937968,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        87145,
+        143544
+      ],
+      "baseline_objects_merged": [
+        87145,
+        143544
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 87145,
+          "voxels": 60
+        },
+        {
+          "object": 143544,
+          "voxels": 6
+        }
+      ],
+      "source_patch_ids_truncated": false
+    },
+    {
+      "candidate_object": 80618,
+      "voxel_count": 32,
+      "geometry_type": "rough_mixed",
+      "bucket_entropy": 1.072080954883921,
+      "source_patch_count": 1,
+      "source_patch_ids": [
+        80618,
+        142053
+      ],
+      "baseline_objects_merged": [
+        80618,
+        142053
+      ],
+      "baseline_object_count": 2,
+      "baseline_object_voxel_counts": [
+        {
+          "object": 80618,
+          "voxels": 27
+        },
+        {
+          "object": 142053,
+          "voxels": 5
+        }
+      ],
+      "source_patch_ids_truncated": false
+    }
+  ]
+}

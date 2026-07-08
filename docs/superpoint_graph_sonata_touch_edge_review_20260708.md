@@ -35,3 +35,15 @@ Color code: `70503` red, `9366` cyan, local context gray.
 ## Interpretation
 
 The `70503/9366` local counts are effectively unchanged across v4 and Sonata `0.15/0.30`, so the rejected v7 behavior is not caused by Sonata touch-edge evidence. The failure boundary is the separate `uncertain_fragment_bridge` path, which should stay disabled unless it gets a stronger mixed-structure veto.
+
+## Sonata 0.15 Delta Queue
+
+- Delta report: `docs/superpoint_graph_sonata015_delta_20260708.md`
+- Method: direct `labels.bin` overlap between v4 and Sonata 0.15.
+- New merge objects: `35`.
+- Priority visual checks:
+  - `2`: large vertical object, merges v4 objects `2`, `544`, `50318`.
+  - `31`: large vertical object, merges v4 objects `31`, `9631`, `20046`.
+  - `70448`: rough mixed object, merges 9 v4 objects.
+  - `7`: horizontal object, merges v4 objects `7`, `420`.
+  - `70415`: rough mixed object, merges more than 12 v4 objects.

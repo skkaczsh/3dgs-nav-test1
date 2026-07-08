@@ -479,11 +479,12 @@
       "geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence.jsonl",
       "optional: superpoint_graph_sonata_touch_edge_* edge evidence CSV"
     ],
-    "current_blocker": "Visual QA is needed for Sonata touch-edge 0.15 versus v4; Sonata 0.30 fails the SPG over-merge risk gate and v7 uncertain-fragment bridge remains rejected.",
+    "current_blocker": "Visual QA is needed for Sonata touch-edge 0.15 delta queue versus v4; inspect objects 2, 31, 70448, 7, and 70415 first. Sonata 0.30 fails the SPG over-merge risk gate and v7 uncertain-fragment bridge remains rejected.",
     "success_criteria": [
       "Patch/object ownership remains exclusive.",
       "Fine occupied-cell overlap does not regress while object fragmentation decreases.",
       "SPG candidate passes scripts/compare_spg_risk.py against the trusted v4 baseline before promotion review.",
+      "Sonata 0.15 visual review must inspect the delta queue top objects 2, 31, 70448, 7, and 70415 before promotion.",
       "No semantic label can merge ground, wall, car, railing, or vegetation by itself.",
       "Viewer output is generated only for QA after dense labels are produced.",
       "Semantic guard outputs must keep floor/wall surface labels unless there is direct contradictory geometry evidence; missing teacher evidence alone is not enough to demote to unknown."
