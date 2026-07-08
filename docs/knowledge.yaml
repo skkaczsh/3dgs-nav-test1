@@ -188,7 +188,7 @@ nodes:
   type: module
   title: 当前 Dense Patch 状态
   status: active
-  summary: "当前 dense patch baseline 是 energy_attach_v4_contact_evidence；object/SPG baseline 是 superpoint_graph_v4_nearbbox_s070_e120_20260708_183437；v7 uncertain-fragment bridge 已被视觉 QA 拒绝；Sonata 0.15/0.30 仅作诊断候选。"
+  summary: "当前 dense patch baseline 是 energy_attach_v4_contact_evidence；object/SPG baseline 是 superpoint_graph_v4_nearbbox_s070_e120_20260708_183437；v7 uncertain-fragment bridge 已被视觉 QA 拒绝；Sonata 0.15 是当前唯一 edge-evidence 视觉审阅候选，Sonata 0.30 因 SPG risk gate 失败仅保留为诊断对照。"
   links:
   - data-opt-las
   - pipeline-geo-patch

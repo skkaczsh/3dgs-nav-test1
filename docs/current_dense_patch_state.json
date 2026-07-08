@@ -510,7 +510,7 @@
     "blocked_by": [
       "SPG v4 required visual checks are pending",
       "v7 uncertain-fragment bridge rejected by user QA",
-      "Sonata 0.15/0.30 remain diagnostic candidates"
+      "Sonata 0.15 visual comparison versus v4 is pending; Sonata 0.30 is diagnostic-only after SPG risk-gate failure"
     ],
     "healthcheck_command": "python3 scripts/validate_current_mainline.py"
   },

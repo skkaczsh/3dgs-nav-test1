@@ -5,7 +5,7 @@
   "objective": "Build dense point-level semantic assets from scanner data by keeping geometry ownership clean first, then accumulating visual and VLM evidence as semantic posterior signals.",
   "current_diagnosis": {
     "summary": "After workspace cleanup, the active geometry ownership route is dense Opt LAS -> 0.03m voxel input -> energy_attach_v4 patch baseline -> SPG v4 near-bbox object baseline. Legacy v8/object-refinement and teacher-transfer artifacts are historical only and are no longer required locally.",
-    "decision": "Keep v4 SPG as the trusted visual baseline; review Sonata touch-edge 0.15/0.30 as diagnostic candidates. Do not promote v7 uncertain-fragment bridge because visual QA found structural over-merge.",
+    "decision": "Keep v4 SPG as the trusted visual baseline; visually review Sonata touch-edge 0.15 as the only current edge-evidence candidate. Keep Sonata 0.30 diagnostic-only because it fails the SPG over-merge risk gate, and do not promote v7 uncertain-fragment bridge because visual QA found structural over-merge.",
     "safe_rollback": [
       "energy_attach_v4_contact_evidence",
       "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
