@@ -16,6 +16,7 @@ PYTHON="${PYTHON:-python3}"
 MIN_EDGE_SCORE="${MIN_EDGE_SCORE:-0.78}"
 MAX_MERGED_ENTROPY="${MAX_MERGED_ENTROPY:-1.20}"
 FH_K="${FH_K:-0}"
+ENABLE_UNCERTAIN="${ENABLE_UNCERTAIN:-0}"
 
 echo "remote=${REMOTE_HOST}"
 echo "region_input=${REGION_INPUT}"
@@ -24,6 +25,7 @@ echo "output_dir=${OUTPUT_DIR}"
 echo "min_edge_score=${MIN_EDGE_SCORE}"
 echo "max_merged_entropy=${MAX_MERGED_ENTROPY}"
 echo "fh_k=${FH_K}"
+echo "enable_uncertain=${ENABLE_UNCERTAIN}"
 
 if [[ "${RUN}" != "1" ]]; then
   echo "dry_run=1"
@@ -45,6 +47,17 @@ cat > "${OUTPUT_DIR}/run.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 cd "${REMOTE_REPO}"
+UNCERTAIN_ARGS=""
+if [[ "${ENABLE_UNCERTAIN}" == "1" ]]; then
+  UNCERTAIN_ARGS="
+    --enable-uncertain-fragment-candidates
+    --uncertain-min-stable-voxels 10000
+    --uncertain-max-fragment-voxels 5000
+    --uncertain-min-contact-points 16
+    --uncertain-max-color-distance 75
+    --uncertain-max-stable-patches 200
+  "
+fi
 "${PYTHON}" scripts/cluster_superpoint_graph.py \
   --region-input "${REGION_INPUT}" \
   --labels "${PATCH_LABELS}" \
@@ -57,6 +70,7 @@ cd "${REMOTE_REPO}"
   --enable-structural-merge-veto \
   --structural-veto-min-voxels 1000 \
   --preview-stride 10 \
+  \${UNCERTAIN_ARGS} \
   > "${OUTPUT_DIR}/cluster.log" 2>&1
 date -Is > "${OUTPUT_DIR}/DONE"
 SCRIPT

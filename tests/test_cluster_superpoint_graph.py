@@ -22,6 +22,17 @@ def args(**overrides):
         near_candidate_max_color_distance=70.0,
         near_candidate_min_normal_score=0.65,
         near_candidate_max_per_patch=8,
+        enable_uncertain_fragment_candidates=False,
+        uncertain_cell_size=0.05,
+        uncertain_radius=1,
+        uncertain_min_stable_voxels=10000,
+        uncertain_max_fragment_voxels=5000,
+        uncertain_min_contact_points=16,
+        uncertain_max_color_distance=75.0,
+        uncertain_max_bbox_gap=0.06,
+        uncertain_max_cells_per_patch=30000,
+        uncertain_max_stable_patches=200,
+        uncertain_max_candidates_per_stable=8,
         enable_structural_merge_veto=False,
         structural_veto_min_bucket_ratio=0.2,
         structural_veto_min_voxels=1,
@@ -187,3 +198,36 @@ def test_fh_threshold_rejects_edge_that_is_too_weak_for_component_size():
 
     assert len(set(out.tolist())) == 2
     assert report["reject_counts"]["fh_threshold"] == 1
+
+
+def test_uncertain_fragment_candidate_attaches_small_unknown_to_stable_surface():
+    arrays = {
+        "xyz": np.array([[0, 0, 0], [0.03, 0, 0], [0.06, 0, 0]], dtype=np.float32),
+        "rgb": np.array([[10, 10, 10], [10, 10, 10], [12, 10, 10]], dtype=np.float32),
+        "normal": np.array([[0, 0, 1], [0, 0, 1], [0, 0, 1]], dtype=np.float32),
+        "roughness": np.array([0.1, 0.1, 0.12], dtype=np.float32),
+        "planarity": np.array([0.9, 0.9, 0.4], dtype=np.float32),
+        "linearity": np.array([0.1, 0.1, 0.2], dtype=np.float32),
+        "local_color_std": np.array([1, 1, 2], dtype=np.float32),
+        "height_range": np.array([0, 0, 0], dtype=np.float32),
+        "buckets": np.array([1, 1, 0], dtype=np.int16),
+    }
+    labels = np.array([1, 1, 2], dtype=np.int32)
+    out, report = cluster(
+        arrays,
+        labels,
+        np.array([], dtype=np.int32),
+        np.array([], dtype=np.int32),
+        args(
+            min_edge_score=0.95,
+            enable_uncertain_fragment_candidates=True,
+            uncertain_cell_size=0.03,
+            uncertain_min_stable_voxels=2,
+            uncertain_min_contact_points=1,
+            uncertain_max_fragment_voxels=4,
+        ),
+    )
+
+    assert len(set(out.tolist())) == 1
+    assert report["uncertain_fragment_candidate_count"] == 1
+    assert report["accepted_reasons"]["uncertain_fragment_bridge"] == 1

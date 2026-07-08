@@ -77,3 +77,12 @@ Move the dense patch mainline from chained post-passes to a single superpoint-gr
   stable-surface to `unknown` / `mixed` / `rough_mixed` fragments, not
   same-geometry patch pairs. The next experiment should be guarded uncertain
   fragment attachment, not broad same-geometry bridging.
+
+## 2026-07-08 Guarded Uncertain Attachment
+
+- `superpoint_graph_v7_uncertain_guard_20260708_191958` accepted 300 guarded
+  uncertain-fragment edges.
+- It reduced high-entropy patches from 6,410 to 6,361 and isolated `10000+`
+  patches from 13 to 9.
+- Fine overlap top1000 `>=50%` increased from 3 to 4, so v7 is a visual QA
+  candidate, not a promoted baseline.

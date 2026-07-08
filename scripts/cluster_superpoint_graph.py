@@ -129,6 +129,113 @@ def build_near_bbox_candidates(stats: dict[int, object], existing_pairs: set[tup
     return out
 
 
+def is_stable_surface(stat) -> bool:
+    return stat.geometry_type in {"horizontal", "vertical"}
+
+
+def is_uncertain_fragment(stat) -> bool:
+    return stat.geometry_type in {"unknown", "mixed", "rough_mixed"}
+
+
+def linearized_cells(xyz: np.ndarray, cell_size: float) -> tuple[np.ndarray, tuple[int, int]]:
+    cells = np.floor(xyz.astype(np.float64, copy=False) / max(cell_size, 1e-9)).astype(np.int64, copy=False)
+    shifted = cells - cells.min(axis=0)[None, :]
+    spans = shifted.max(axis=0) + 1
+    stride_y = int(spans[2])
+    stride_x = int(spans[1] * spans[2])
+    return shifted[:, 0] * stride_x + shifted[:, 1] * stride_y + shifted[:, 2], (stride_x, stride_y)
+
+
+def uncertain_fragment_bridge(a, b, feature: dict[str, float], args: argparse.Namespace) -> bool:
+    if not getattr(args, "enable_uncertain_fragment_candidates", False):
+        return False
+    stable, uncertain = (a, b) if is_stable_surface(a) and is_uncertain_fragment(b) else (b, a)
+    if not is_stable_surface(stable) or not is_uncertain_fragment(uncertain):
+        return False
+    if stable.count < args.uncertain_min_stable_voxels or uncertain.count > args.uncertain_max_fragment_voxels:
+        return False
+    return (
+        float(feature.get("uncertain_contact_points", 0.0)) >= args.uncertain_min_contact_points
+        and float(feature.get("contact_color_distance", args.max_color_distance)) <= args.uncertain_max_color_distance
+        and float(feature.get("bbox_gap", 1e9)) <= args.uncertain_max_bbox_gap
+    )
+
+
+def build_uncertain_fragment_candidates(
+    arrays: dict[str, np.ndarray],
+    labels: np.ndarray,
+    stats: dict[int, object],
+    existing_pairs: set[tuple[int, int]],
+    args: argparse.Namespace,
+) -> dict[tuple[int, int], dict[str, float]]:
+    if not getattr(args, "enable_uncertain_fragment_candidates", False):
+        return {}
+    stable_ids = [
+        pid
+        for pid, stat in stats.items()
+        if is_stable_surface(stat) and stat.count >= args.uncertain_min_stable_voxels
+    ]
+    stable_ids.sort(key=lambda pid: stats[pid].count, reverse=True)
+    stable_ids = stable_ids[: args.uncertain_max_stable_patches]
+    if not stable_ids:
+        return {}
+
+    linear, (stride_x, stride_y) = linearized_cells(arrays["xyz"], args.uncertain_cell_size)
+    order = np.argsort(linear, kind="stable")
+    sorted_linear = linear[order]
+    sorted_labels = labels[order]
+    offsets = [
+        dx * stride_x + dy * stride_y + dz
+        for dx in range(-args.uncertain_radius, args.uncertain_radius + 1)
+        for dy in range(-args.uncertain_radius, args.uncertain_radius + 1)
+        for dz in range(-args.uncertain_radius, args.uncertain_radius + 1)
+    ]
+
+    out: dict[tuple[int, int], dict[str, float]] = {}
+    for stable_id in stable_ids:
+        stable = stats[stable_id]
+        patch_cells = np.unique(linear[labels == stable_id])
+        if len(patch_cells) > args.uncertain_max_cells_per_patch:
+            step = max(1, len(patch_cells) // args.uncertain_max_cells_per_patch)
+            patch_cells = patch_cells[::step][: args.uncertain_max_cells_per_patch]
+        neighbor_counts: dict[int, int] = {}
+        for offset in offsets:
+            query = np.unique(patch_cells + offset)
+            left = np.searchsorted(sorted_linear, query, side="left")
+            right = np.searchsorted(sorted_linear, query, side="right")
+            found = left < right
+            for lo, hi in zip(left[found].tolist(), right[found].tolist(), strict=True):
+                for label in sorted_labels[lo:hi].tolist():
+                    label = int(label)
+                    if label == stable_id:
+                        continue
+                    neighbor_counts[label] = neighbor_counts.get(label, 0) + 1
+        kept = 0
+        for uncertain_id, contact_points in sorted(neighbor_counts.items(), key=lambda row: row[1], reverse=True):
+            uncertain = stats.get(uncertain_id)
+            if uncertain is None:
+                continue
+            pair = (min(stable_id, uncertain_id), max(stable_id, uncertain_id))
+            if pair in existing_pairs or pair in out:
+                continue
+            color = float(np.linalg.norm(stable.mean_rgb - uncertain.mean_rgb))
+            feature = {
+                "bbox_gap": bbox_gap(stable, uncertain),
+                "contact_color_distance": color,
+                "contact_color_p90": color,
+                "contact_normal_score": normal_score(stable.mean_normal, uncertain.mean_normal),
+                "contact_support": min(1.0, float(contact_points) / max(float(min(stable.count, uncertain.count)), 1.0)),
+                "uncertain_contact_points": float(contact_points),
+                "uncertain_fragment_candidate": 1.0,
+            }
+            if uncertain_fragment_bridge(stable, uncertain, feature, args):
+                out[pair] = feature
+                kept += 1
+                if kept >= args.uncertain_max_candidates_per_stable:
+                    break
+    return out
+
+
 def remap_labels(labels: np.ndarray, dsu: DSU) -> np.ndarray:
     max_label = int(labels.max())
     remap = np.arange(max_label + 1, dtype=np.int32)
@@ -151,6 +258,9 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
     near_candidates = build_near_bbox_candidates(stats, set(edge_counts), args)
     for pair, feature in near_candidates.items():
         rows.append((edge_score(feature, args.max_color_distance), 0, pair, feature))
+    uncertain_candidates = build_uncertain_fragment_candidates(arrays, labels, stats, set(edge_counts) | set(near_candidates), args)
+    for pair, feature in uncertain_candidates.items():
+        rows.append((edge_score(feature, args.max_color_distance), 0, pair, feature))
     rows.sort(reverse=True)
 
     accepted = 0
@@ -163,12 +273,15 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
             continue
         sa = stats[a]
         sb = stats[b]
-        if min(sa.count, sb.count) < args.min_patch_voxels:
+        can_uncertain_bridge = uncertain_fragment_bridge(sa, sb, feature, args)
+        if min(sa.count, sb.count) < args.min_patch_voxels and not can_uncertain_bridge:
             rejects["small_patch"] = rejects.get("small_patch", 0) + 1
             continue
         accepted_reason = "score"
         if score < args.min_edge_score:
-            if near_bbox_bridge(sa, sb, feature, args):
+            if can_uncertain_bridge:
+                accepted_reason = "uncertain_fragment_bridge"
+            elif near_bbox_bridge(sa, sb, feature, args):
                 accepted_reason = "near_bbox_bridge"
             elif not contact_bridge(sa, sb, feature, args):
                 rejects["score"] = rejects.get("score", 0) + 1
@@ -203,6 +316,7 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
         "edge_count": int(len(rows)),
         "touch_edge_count": int(len(edge_counts)),
         "near_bbox_candidate_count": int(len(near_candidates)),
+        "uncertain_fragment_candidate_count": int(len(uncertain_candidates)),
         "accepted_edges": int(accepted),
         "accepted_reasons": accepted_reasons,
         "reject_counts": rejects,
@@ -232,6 +346,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--near-candidate-max-color-distance", type=float, default=70.0)
     parser.add_argument("--near-candidate-min-normal-score", type=float, default=0.65)
     parser.add_argument("--near-candidate-max-per-patch", type=int, default=8)
+    parser.add_argument("--enable-uncertain-fragment-candidates", action="store_true")
+    parser.add_argument("--uncertain-cell-size", type=float, default=0.05)
+    parser.add_argument("--uncertain-radius", type=int, default=1)
+    parser.add_argument("--uncertain-min-stable-voxels", type=int, default=10000)
+    parser.add_argument("--uncertain-max-fragment-voxels", type=int, default=5000)
+    parser.add_argument("--uncertain-min-contact-points", type=int, default=16)
+    parser.add_argument("--uncertain-max-color-distance", type=float, default=75.0)
+    parser.add_argument("--uncertain-max-bbox-gap", type=float, default=0.06)
+    parser.add_argument("--uncertain-max-cells-per-patch", type=int, default=30000)
+    parser.add_argument("--uncertain-max-stable-patches", type=int, default=200)
+    parser.add_argument("--uncertain-max-candidates-per-stable", type=int, default=8)
     parser.add_argument("--enable-structural-merge-veto", action="store_true")
     parser.add_argument("--structural-veto-min-bucket-ratio", type=float, default=0.20)
     parser.add_argument("--structural-veto-min-voxels", type=int, default=1000)
