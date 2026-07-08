@@ -4,7 +4,7 @@ from collections import Counter
 import numpy as np
 
 from scripts.optimize_geo_patch_merges import build_patch_edges
-from scripts.optimize_patch_graph_energy import PatchStats, build_edge_features, edge_weight_from_candidate, fh_threshold, merge_patch_stats
+from scripts.optimize_patch_graph_energy import PatchStats, attachment_merge_decision, build_edge_features, edge_weight_from_candidate, fh_threshold, merge_patch_stats
 
 
 def test_build_patch_edges_counts_unordered_pairs():
@@ -43,3 +43,45 @@ def test_build_edge_features_tracks_contact_shape_and_p90():
     assert round(f["contact_roughness_delta"], 6) == 0.45
     assert round(f["contact_planarity_delta"], 6) == 0.3
     assert round(f["contact_linearity_delta"], 6) == 0.45
+
+
+def test_attachment_score_uses_contact_shape_when_weighted():
+    args = Namespace(
+        enable_attachment_merge=True,
+        attachment_min_anchor_voxels=10,
+        attachment_max_fragment_voxels=10,
+        attachment_min_size_ratio=2.0,
+        attachment_min_score=0.75,
+        attachment_min_contact_ratio=0.1,
+        attachment_min_shared_edges=1,
+        attachment_max_color_distance=100.0,
+        attachment_min_normal_score=0.4,
+        attachment_max_bbox_gap=0.1,
+        attachment_contact_norm=0.5,
+        attachment_color_weight=0.25,
+        attachment_normal_weight=0.25,
+        attachment_bucket_weight=0.0,
+        attachment_contact_weight=0.25,
+        attachment_gap_weight=0.0,
+        attachment_shape_weight=0.25,
+        attachment_roughness_scale=0.35,
+        attachment_planarity_scale=0.35,
+        attachment_linearity_scale=0.35,
+        attachment_use_contact_evidence=True,
+    )
+    anchor = PatchStats(1, 20, np.zeros(3), np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 1.0]), np.zeros(3), np.ones(3), Counter({1: 20}), "rough_mixed", {1})
+    fragment = PatchStats(2, 5, np.zeros(3), np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 1.0]), np.zeros(3), np.ones(3), Counter({1: 5}), "mixed", {2})
+    good, _, good_detail = attachment_merge_decision(anchor, fragment, 2, 0.4, {"contact_color_distance": 0.0, "contact_normal_score": 1.0}, args)
+    bad, reason, bad_detail = attachment_merge_decision(
+        anchor,
+        fragment,
+        2,
+        0.4,
+        {"contact_color_distance": 0.0, "contact_normal_score": 1.0, "contact_roughness_delta": 1.0, "contact_planarity_delta": 1.0, "contact_linearity_delta": 1.0},
+        args,
+    )
+    assert good
+    assert good_detail["attachment_shape"] == 1.0
+    assert not bad
+    assert reason == "attachment_score"
+    assert bad_detail["attachment_shape"] == 0.0

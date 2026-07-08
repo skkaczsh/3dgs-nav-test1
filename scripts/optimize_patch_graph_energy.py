@@ -526,6 +526,18 @@ def attachment_merge_decision(
     gap = bbox_gap(anchor, fragment)
     gap_score = max(0.0, min(1.0, 1.0 - gap / max(max_bbox_gap, 1e-6)))
     contact = max(0.0, min(1.0, contact_ratio / max(args.attachment_contact_norm, 1e-6)))
+    roughness_delta = max(0.0, float(candidate.get("contact_roughness_delta", 0.0)))
+    planarity_delta = max(0.0, float(candidate.get("contact_planarity_delta", 0.0)))
+    linearity_delta = max(0.0, float(candidate.get("contact_linearity_delta", 0.0)))
+    shape = 1.0 - min(
+        1.0,
+        (
+            min(1.0, roughness_delta / max(args.attachment_roughness_scale, 1e-6))
+            + min(1.0, planarity_delta / max(args.attachment_planarity_scale, 1e-6))
+            + min(1.0, linearity_delta / max(args.attachment_linearity_scale, 1e-6))
+        )
+        / 3.0,
+    )
     support = max(float(candidate_support), contact_ratio)
     score = (
         args.attachment_color_weight * color
@@ -533,12 +545,14 @@ def attachment_merge_decision(
         + args.attachment_bucket_weight * bucket
         + args.attachment_contact_weight * contact
         + args.attachment_gap_weight * gap_score
+        + args.attachment_shape_weight * shape
     ) / max(
         args.attachment_color_weight
         + args.attachment_normal_weight
         + args.attachment_bucket_weight
         + args.attachment_contact_weight
-        + args.attachment_gap_weight,
+        + args.attachment_gap_weight
+        + args.attachment_shape_weight,
         1e-9,
     )
     detail = {
@@ -548,6 +562,10 @@ def attachment_merge_decision(
         "attachment_bucket": float(bucket),
         "attachment_contact": float(contact),
         "attachment_gap": float(gap_score),
+        "attachment_shape": float(shape),
+        "attachment_contact_roughness_delta": float(roughness_delta),
+        "attachment_contact_planarity_delta": float(planarity_delta),
+        "attachment_contact_linearity_delta": float(linearity_delta),
         "attachment_color_distance": float(color_dist),
         "attachment_patch_color_distance": float(patch_color_dist),
         "attachment_contact_color_distance": float(contact_color_dist),
@@ -787,7 +805,11 @@ def build_merge_candidates(
             "overlap_support": 0.0,
             "fine_overlap_support": 0.0,
             "contact_color_distance": float(features.get("contact_color_distance", -1.0)),
+            "contact_color_p90": float(features.get("contact_color_p90", -1.0)),
             "contact_normal_score": float(features.get("contact_normal_score", -1.0)),
+            "contact_roughness_delta": float(features.get("contact_roughness_delta", 0.0)),
+            "contact_planarity_delta": float(features.get("contact_planarity_delta", 0.0)),
+            "contact_linearity_delta": float(features.get("contact_linearity_delta", 0.0)),
         }
 
     overlap_scores = build_overlap_candidate_scores(stats, args)
@@ -805,7 +827,11 @@ def build_merge_candidates(
             "overlap_support": float(score),
             "fine_overlap_support": 0.0,
             "contact_color_distance": -1.0,
+            "contact_color_p90": -1.0,
             "contact_normal_score": -1.0,
+            "contact_roughness_delta": 0.0,
+            "contact_planarity_delta": 0.0,
+            "contact_linearity_delta": 0.0,
         }
 
     for pair, score in (fine_scores or {}).items():
@@ -824,7 +850,11 @@ def build_merge_candidates(
             "overlap_support": 0.0,
             "fine_overlap_support": float(score),
             "contact_color_distance": -1.0,
+            "contact_color_p90": -1.0,
             "contact_normal_score": -1.0,
+            "contact_roughness_delta": 0.0,
+            "contact_planarity_delta": 0.0,
+            "contact_linearity_delta": 0.0,
         }
 
     out = list(candidates.values())
@@ -1694,6 +1724,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--attachment-bucket-weight", type=float, default=0.14)
     parser.add_argument("--attachment-contact-weight", type=float, default=0.28)
     parser.add_argument("--attachment-gap-weight", type=float, default=0.10)
+    parser.add_argument("--attachment-shape-weight", type=float, default=0.0)
+    parser.add_argument("--attachment-roughness-scale", type=float, default=0.35)
+    parser.add_argument("--attachment-planarity-scale", type=float, default=0.35)
+    parser.add_argument("--attachment-linearity-scale", type=float, default=0.35)
     parser.add_argument("--attachment-use-contact-evidence", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--enable-split-provenance-attachment", action="store_true")
     parser.add_argument("--split-attachment-min-score", type=float, default=0.78)
