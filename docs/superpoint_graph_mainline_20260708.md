@@ -52,3 +52,13 @@ Move the dense patch mainline from chained post-passes to a single superpoint-gr
 - Default behavior preserves the last v4 run.
 - Set `FH_K>0` in `scripts/run_scan_train_superpoint_graph.sh` to test the
   adaptive threshold without creating another post-pass pipeline.
+
+## 2026-07-08 FH Threshold Run
+
+- `FH_K=120` was too strict: only 3 accepted edges, so it is rejected as a
+  useful clustering candidate.
+- `FH_K=120000` produced `superpoint_graph_v6_fh_k120000_20260708_185559`:
+  281 accepted edges, 45 FH-threshold rejects, and top1000 fine overlap stayed
+  at 3 pairs >= 50% and 0 pairs >= 95%.
+- v6 is a precision candidate against v4 over-merge, not a patch-count
+  reduction candidate. It requires visual QA before any promotion.
