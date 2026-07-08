@@ -51,6 +51,16 @@ The export report records a `sha256` for every crop PLY. Remote Pointcept/PTv3
 smoke runs must verify these hashes before inference so results stay comparable
 across 4090D, 5070Ti, and local runs.
 
+Remote sync and hash verification:
+
+```bash
+DRY_RUN=1 bash scripts/sync_supervised_smoke_crops_to_remote.sh
+bash scripts/sync_supervised_smoke_crops_to_remote.sh
+```
+
+Defaults are `SSH_HOST=scan-train` and
+`REMOTE_DIR=/root/epfs/SCAN/work_MT20260616-175807/pointcloud_supervised_baseline_smoke_crops_20260708`.
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure
