@@ -47,6 +47,10 @@ python3 scripts/export_pointcloud_supervised_smoke_crops.py
 python3 scripts/validate_pointcloud_supervised_smoke_crop_export.py
 ```
 
+The export report records a `sha256` for every crop PLY. Remote Pointcept/PTv3
+smoke runs must verify these hashes before inference so results stay comparable
+across 4090D, 5070Ti, and local runs.
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure

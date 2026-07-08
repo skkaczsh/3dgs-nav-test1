@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import struct
 from pathlib import Path
@@ -63,6 +64,14 @@ def write_crop(path: Path, rows: list[tuple[float, float, float, int, int, int]]
             fh.write(f"{x:.6f} {y:.6f} {z:.6f} {r} {g} {b}\n")
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def export_crops(manifest: dict[str, Any], output_dir: Path) -> dict[str, Any]:
     dense_ply = Path(manifest["dense_input"]["ply"])
     crops = manifest["crops"]
@@ -90,6 +99,7 @@ def export_crops(manifest: dict[str, Any], output_dir: Path) -> dict[str, Any]:
                 "id": crop["id"],
                 "geometry_type": crop["geometry_type"],
                 "output_ply": str(ply),
+                "sha256": sha256_file(ply),
                 "point_count": len(crop_rows),
                 "manifest_point_count": expected,
                 "count_matches_manifest": expected == len(crop_rows),

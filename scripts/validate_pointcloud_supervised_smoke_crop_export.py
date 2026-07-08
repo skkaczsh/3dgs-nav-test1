@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,14 @@ def load_json(path: Path) -> dict[str, Any]:
     return data
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def validate(path: Path) -> dict[str, Any]:
     data = load_json(path)
     errors: list[str] = []
@@ -32,10 +41,16 @@ def validate(path: Path) -> dict[str, Any]:
         ply = Path(str(crop.get("output_ply", "")))
         if not ply.exists():
             errors.append(f"missing_crop_ply={ply}")
+            continue
         if int(crop.get("point_count", 0)) <= 0:
             errors.append(f"empty_crop={crop.get('id')}")
         if crop.get("count_matches_manifest") is not True:
             errors.append(f"count_mismatch={crop.get('id')}")
+        expected_sha = str(crop.get("sha256", ""))
+        if not expected_sha:
+            errors.append(f"missing_sha256={crop.get('id')}")
+        elif sha256_file(ply) != expected_sha:
+            errors.append(f"sha256_mismatch={crop.get('id')}")
     return {
         "passed": not errors,
         "path": str(path),
