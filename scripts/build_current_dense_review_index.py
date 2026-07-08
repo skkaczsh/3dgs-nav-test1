@@ -46,22 +46,22 @@ ARTIFACTS = [
     {
         "id": "superpoint_graph_sonata_touch_edge_sample_v1_20260708",
         "title": "SPG Sonata touch-edge 0.15",
-        "role": "visual QA candidate",
+        "role": "primary visual QA candidate",
         "mode": "object",
         "point_size": 1.5,
         "ply": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1_stride10.ply",
         "objects": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1.jsonl",
-        "note": "Modest Sonata edge-evidence weight; review against v4.",
+        "note": "Passes SPG over-merge risk gate; review visually against v4.",
     },
     {
         "id": "superpoint_graph_sonata_touch_edge_w030_20260708",
         "title": "SPG Sonata touch-edge 0.30",
-        "role": "visual QA candidate",
+        "role": "diagnostic only",
         "mode": "object",
         "point_size": 1.5,
         "ply": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_w030_20260708/superpoint_graph_v1_stride10.ply",
         "objects": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_w030_20260708/superpoint_graph_v1.jsonl",
-        "note": "Stronger Sonata edge-evidence weight; review for over-merge.",
+        "note": "Fails SPG risk gate by accepted-edge growth; keep only as diagnostic contrast.",
     },
 ]
 
