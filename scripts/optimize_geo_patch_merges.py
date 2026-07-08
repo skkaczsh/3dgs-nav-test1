@@ -206,12 +206,11 @@ def build_patch_edges(labels: np.ndarray, src: np.ndarray, dst: np.ndarray) -> C
     a = labels[src]
     b = labels[dst]
     mask = a != b
-    edges: Counter[tuple[int, int]] = Counter()
-    for pa, pb in zip(a[mask].tolist(), b[mask].tolist(), strict=True):
-        if pa > pb:
-            pa, pb = pb, pa
-        edges[(int(pa), int(pb))] += 1
-    return edges
+    if not np.any(mask):
+        return Counter()
+    pairs = np.stack((np.minimum(a[mask], b[mask]), np.maximum(a[mask], b[mask])), axis=1)
+    pairs, counts = np.unique(pairs, axis=0, return_counts=True)
+    return Counter({(int(pa), int(pb)): int(count) for (pa, pb), count in zip(pairs, counts, strict=True)})
 
 
 def optimize(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, dst: np.ndarray, args: argparse.Namespace) -> tuple[np.ndarray, dict[str, Any], list[dict[str, Any]]]:

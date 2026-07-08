@@ -59,6 +59,7 @@ class PatchStats:
     status: str = "geo_patch"
     source_patch_count: int = 1
     merge_step: int = 0
+    internal_diff: float = 0.0
     conflict_flags: list[str] | None = None
 
 
@@ -238,9 +239,26 @@ def merge_patch_stats(a: PatchStats, b: PatchStats) -> PatchStats:
         source_patch_ids=set(a.source_patch_ids) | set(b.source_patch_ids),
         source_patch_count=a.source_patch_count + b.source_patch_count,
         merge_step=max(a.merge_step, b.merge_step) + 1,
+        internal_diff=max(a.internal_diff, b.internal_diff),
         conflict_flags=sorted(set((a.conflict_flags or []) + (b.conflict_flags or []))),
         status="merged",
     )
+
+
+def fh_threshold(stats: PatchStats, k: float) -> float:
+    return stats.internal_diff + k / max(float(stats.count), 1.0)
+
+
+def edge_weight_from_candidate(candidate: dict[str, Any], a: PatchStats, b: PatchStats, args: argparse.Namespace) -> float:
+    color_dist = float(candidate.get("contact_color_distance", -1.0))
+    if color_dist < 0:
+        color_dist = float(np.linalg.norm(a.mean_rgb - b.mean_rgb))
+    normal_score_value = float(candidate.get("contact_normal_score", -1.0))
+    if normal_score_value < 0:
+        normal_score_value = normal_score(a.mean_normal, b.mean_normal)
+    color_term = min(1.0, color_dist / max(args.max_color_distance, 1e-6))
+    normal_term = 1.0 - max(0.0, min(1.0, normal_score_value))
+    return args.fh_color_weight * color_term + args.fh_normal_weight * normal_term
 
 
 def compatible_bucket_score(a: str, b: str) -> float:
@@ -1297,6 +1315,28 @@ def merge_step(
                 and fine_overlap_support < args.fine_overlap_min_ratio
             ):
                 continue
+        edge_weight = edge_weight_from_candidate(candidate, anchor, src_stats, args)
+        fh_limit = min(fh_threshold(anchor, args.fh_k), fh_threshold(src_stats, args.fh_k))
+        if args.enable_fh_merge_guard and edge_weight > fh_limit:
+            rejects += 1
+            if len(logs) < args.max_log_rows:
+                logs.append(
+                    {
+                        "status": "reject",
+                        "a": int(anchor_id),
+                        "b": int(src_id),
+                        "shared_edges": int(shared),
+                        "neighbor_share": float(neighbor_share),
+                        "adjacency_share": float(adjacency_share),
+                        "overlap_support": float(overlap_support),
+                        "fine_overlap_support": float(fine_overlap_support),
+                        "candidate_source": candidate_source,
+                        "edge_weight": float(edge_weight),
+                        "fh_limit": float(fh_limit),
+                        "reason": "fh_merge_guard",
+                    }
+                )
+            continue
         gain, detail = merge_pair_gain(anchor, src_stats, shared, neighbor_share, args)
         accepted_decision = False
         if gain >= args.min_merge_gain:
@@ -1329,6 +1369,7 @@ def merge_step(
         # Accept merge.
         labels[labels == src_id] = anchor_id
         stats[anchor_id] = merge_patch_stats(anchor, src_stats)
+        stats[anchor_id].internal_diff = max(stats[anchor_id].internal_diff, edge_weight)
         del stats[src_id]
         if src_id in split_child_ids:
             split_child_ids.discard(src_id)
@@ -1347,6 +1388,8 @@ def merge_step(
                     "fine_overlap_support": float(fine_overlap_support),
                     "candidate_source": candidate_source,
                     "gain": float(gain),
+                    "edge_weight": float(edge_weight),
+                    "fh_limit": float(fh_limit),
                     **detail,
                 }
             )
@@ -1403,6 +1446,7 @@ def write_jsonl(path: Path, stats: dict[int, PatchStats], args: argparse.Namespa
                 "extent": (s.bbox_max - s.bbox_min).tolist(),
                 "mean_rgb": s.mean_rgb.tolist(),
                 "mean_normal": s.mean_normal.tolist(),
+                "internal_diff": s.internal_diff,
                 "source_patch_count": s.source_patch_count,
                 "source_patch_ids": sorted(int(v) for v in s.source_patch_ids)[: args.max_source_patch_ids],
                 "source_patch_ids_truncated": len(s.source_patch_ids) > args.max_source_patch_ids,
@@ -1572,6 +1616,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-shuffle-swaps", type=int, default=200)
 
     parser.add_argument("--min-merge-gain", type=float, default=0.35)
+    parser.add_argument("--enable-fh-merge-guard", action="store_true")
+    parser.add_argument("--fh-k", type=float, default=55.0)
+    parser.add_argument("--fh-color-weight", type=float, default=0.75)
+    parser.add_argument("--fh-normal-weight", type=float, default=0.25)
     parser.add_argument("--min-anchor-voxels", type=int, default=900)
     parser.add_argument("--merge-min-neighbor-support", type=float, default=0.08)
     parser.add_argument("--max-merge-candidates", type=int, default=180000)
