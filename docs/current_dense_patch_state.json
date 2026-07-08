@@ -162,9 +162,11 @@
     },
     "pending_remote_run": {
       "host": "scan-train",
+      "runner": "scripts/run_scan_train_patch_energy_contact_shape.sh",
       "input_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623",
-      "output_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_fh_contactrich_v1_20260708",
-      "reason_pending": "Local network reaches the SSH port, but ssh currently times out during banner exchange before authentication."
+      "output_dir_pattern": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attachment_shape_v1_<timestamp>",
+      "launch_command": "RUN=1 bash scripts/run_scan_train_patch_energy_contact_shape.sh",
+      "reason_pending": "scan-train SSH is currently timing out before authentication from this LAN."
     }
   },
   "current_promotion_candidate": {
