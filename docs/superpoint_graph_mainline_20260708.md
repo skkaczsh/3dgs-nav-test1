@@ -140,3 +140,5 @@ Implementation hook:
   with sampled Sonata descriptors. This is the first useful cheap proxy for
   full-source descriptors; next compare visual QA and a small weight sweep
   against v4 before any baseline promotion.
+- Weight sweep shows monotonic edge acceptance from `0.05` to `0.50`; do not
+  use `0.50` as a default before visual QA because it sharply increases merges.

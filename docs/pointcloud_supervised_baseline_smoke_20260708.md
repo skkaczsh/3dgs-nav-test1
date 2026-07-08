@@ -286,6 +286,19 @@ touch-edge table. This is a useful cheap proxy for full-source descriptors,
 but still sampled evidence; do not promote it before visual QA against the v4
 baseline and at least one weight sweep.
 
+Touch-edge Sonata weight sweep:
+
+| external weight | output patches | accepted edges | score accepts | merged entropy rejects |
+| ---: | ---: | ---: | ---: | ---: |
+| 0.05 | 197185 | 445 | 235 | 25 |
+| 0.15 | 197129 | 501 | 292 | 33 |
+| 0.30 | 196902 | 728 | 524 | 43 |
+| 0.50 | 196122 | 1508 | 1310 | 76 |
+
+Interpretation: Sonata evidence has a real monotonic effect on SPG edge
+acceptance. `0.50` is probably too aggressive without visual QA; the next
+review candidates should be `0.15` and `0.30` against the current v4 baseline.
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure
