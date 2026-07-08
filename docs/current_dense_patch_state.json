@@ -1,6 +1,6 @@
 {
   "schema": "current-dense-patch-state/v1",
-  "updated_at": "2026-06-24T19:45:00+08:00",
+  "updated_at": "2026-07-08T00:00:00+08:00",
   "dataset": "MT20260616-175807",
   "purpose": "Track the dense raw-data Patch/Object mainline separately from semantic experiments and viewer artifacts.",
   "authoritative_source": {
@@ -123,6 +123,42 @@
     "failure_repaired": "The first 20260702 run failed because the remote shell runner did not rsync scripts/geometry_input_contract.py. The runner and validator now require that dependency.",
     "interpretation": "This dependency-fixed run proves the approved remote runner executes end-to-end on dense Opt-LAS inputs, but it is more conservative than v8: accepted_candidate_rows dropped from 1235 to 96 and output_object_count increased from 196395 to 197534. Keep v8 as the current visual-promotion candidate; use this run only as a diagnostic execution proof.",
     "verification_command": "python3 scripts/verify_latest_remote_dense_run.py --ssh-host scan-train"
+  },
+  "latest_patch_graph_change": {
+    "id": "contact_rich_fh_merge_guard_20260708",
+    "status": "committed_local_waiting_remote_dense_run",
+    "commit": "9a37662",
+    "purpose": "Make the FH-style patch merge guard use richer contact evidence instead of mean color and mean normal only.",
+    "code_paths": [
+      "scripts/optimize_patch_graph_energy.py",
+      "tests/test_geo_patch_merge_math.py"
+    ],
+    "new_edge_terms": [
+      "contact_color_p90",
+      "contact_roughness_delta",
+      "contact_planarity_delta",
+      "contact_linearity_delta"
+    ],
+    "local_verification": [
+      "python3 -m py_compile scripts/optimize_patch_graph_energy.py",
+      "python3 -m pytest -q tests/test_geo_patch_merge_math.py"
+    ],
+    "local_smoke_result": {
+      "source": "server_parking_priority_s10/geo_patch_region_model_smoke_bridge_v2_20260707",
+      "output": "server_parking_priority_s10/geo_patch_region_model_smoke_bridge_v2_fh_contactrich_v1_20260708",
+      "input_patch_count": 13290,
+      "output_patch_count": 13241,
+      "merge_accept": 49,
+      "merge_reject": 3105,
+      "fh_merge_guard_reject": 12,
+      "interpretation": "The contact-rich terms are wired and tested, but the smoke run did not change output because anchor and fragment gates dominate before FH guard decisions."
+    },
+    "pending_remote_run": {
+      "host": "scan-train",
+      "input_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623",
+      "output_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_fh_contactrich_v1_20260708",
+      "reason_pending": "Local network reaches the SSH port, but ssh currently times out during banner exchange before authentication."
+    }
   },
   "current_promotion_candidate": {
     "id": "v8_object_refinement",
@@ -256,7 +292,7 @@
       "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap.jsonl",
       "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/object_merge_candidates_v2_high_recall/geo_patch_object_merge_candidates.jsonl"
     ],
-    "current_blocker": "The local checkout still lacks dense_las_voxel003_region_model_full_cpp_20260624/_cpp_region_grower_input.bin for the local v6 chain. Immediate execution should use remote_runner with the available scan-train r4 contact-evidence baseline, while semantic QA should use v17 surface-preserve guard only as a regression reference.",
+    "current_blocker": "The local checkout still lacks dense_las_voxel003_region_model_full_cpp_20260624/_cpp_region_grower_input.bin for the local v6 chain. Immediate execution should use remote_runner with the available scan-train r4 contact-evidence baseline. On 2026-07-08 scan-train port 31909 is reachable but ssh times out during banner exchange, so the dense contact-rich FH run is pending network/remote SSH recovery.",
     "success_criteria": [
       "Patch/object ownership remains exclusive.",
       "Fine occupied-cell overlap does not regress while object fragmentation decreases.",
