@@ -22,6 +22,8 @@
       "/home/zsh/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_20260624/dense_las_voxel003_binary.ply"
     ],
     "known_voxel_count": 14482557,
+    "local_rebuild_command": "python3 scripts/las_to_voxel_ascii_ply.py --input-las /Users/skkac/Work/SCAN/MT20260616-175807/3dgs_20260616_3dgs_0095fd8ebe7845f2b24820cb98de4abb_task_c967d04831bf45f0b9d7c3fac31b4103_output_pointcloud_CommandProcessLXOutput_MANIFOLD_MT20260616-175807-Opt.las --output-ply /Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply --report-json /Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/report.json --voxel-size 0.03 --output-format binary_little_endian",
+    "local_rebuild_note": "Converter is chunked by default, so it can rebuild from the 2.7G Opt LAS without reading the whole file at once.",
     "required": false
   },
   "current_patch_baseline": {
