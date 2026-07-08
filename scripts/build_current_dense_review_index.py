@@ -286,6 +286,18 @@ def artifact_cards() -> str:
     return "\n".join(cards)
 
 
+def evidence_links() -> str:
+    links = [
+        ("Sonata 0.15 delta queue", "/docs/superpoint_graph_sonata015_delta_20260708.md"),
+        ("Sonata touch-edge review notes", "/docs/superpoint_graph_sonata_touch_edge_review_20260708.md"),
+        ("SPG mainline decision", "/docs/superpoint_graph_mainline_20260708.md"),
+    ]
+    return "\n".join(
+        f'<li><a href="{html.escape(url)}" target="_blank">{html.escape(title)}</a></li>'
+        for title, url in links
+    )
+
+
 def build_html(qa: dict[str, Any], visual: dict[str, Any] | None = None) -> str:
     visual_status = visual.get("status", "missing") if visual else "missing"
     accepted_candidate = visual.get("accepted_candidate", visual.get("candidate", "unknown")) if visual else "unknown"
@@ -362,6 +374,12 @@ def build_html(qa: dict[str, Any], visual: dict[str, Any] | None = None) -> str:
 {label_rows(qa)}
         </tbody>
       </table>
+    </section>
+    <section>
+      <h2>Evidence Links</h2>
+      <ul>
+{evidence_links()}
+      </ul>
     </section>
     <section>
       <h2>Viewer Links</h2>
