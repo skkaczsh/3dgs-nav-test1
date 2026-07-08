@@ -85,6 +85,45 @@ Remote feature probe on 2026-07-08:
   useful test is a real supervised point model as patch/object evidence, not
   another local exception in v7.
 
+Real supervised model gate:
+
+```bash
+bash scripts/check_scan_train_supervised_point_runtime.sh
+RUN=1 bash scripts/sync_scan_train_supervised_point_repos.sh
+bash scripts/check_scan_train_supervised_point_runtime.sh
+```
+
+This only checks/clones the model repositories. It does not install a new
+environment and does not treat the KMeans feature probe as a supervised model.
+The next valid supervised smoke should run Sonata first, because its upstream
+repo is a smaller inference-oriented entrypoint; Pointcept remains the full
+framework path for PTv3/Sonata training-style experiments.
+
+Environment setup policy:
+
+```bash
+RUN=1 bash scripts/setup_scan_train_sonata_env.sh
+```
+
+Use a dedicated prefix, defaulting to `/root/epfs/conda_envs/sonata`. Do not
+install Sonata dependencies into `/opt/conda/envs/depth-anything-3`: the current
+available environment is PyTorch `2.7.1+cu118`, while upstream Sonata's
+standalone environment pins PyTorch `2.5.0` with CUDA `12.4`. Mixing those
+stacks would make smoke failures ambiguous.
+
+Remote repo/runtime status on 2026-07-08:
+
+- cloned Sonata to `/root/epfs/model_side_tracks/sonata`, commit `18c09ff`
+- cloned Pointcept to `/root/epfs/model_side_tracks/pointcept`, commit `2b97e6e`
+- existing smoke Python `/opt/conda/envs/depth-anything-3/bin/python` has
+  `torch`, `numpy`, `sklearn`, `open3d`, `huggingface_hub`, and CUDA available.
+- missing for real Sonata inference in that environment:
+  `fast_pytorch_kmeans`, `spconv`, `torch_scatter`, `timm`.
+- started dedicated Sonata env setup in tmux session `scan_sonata_env_setup`.
+  run dir: `/root/epfs/conda_envs/sonata_setup_20260708_123238`.
+  Current observed state: conda metadata collection still running; no smoke
+  inference result yet.
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure
