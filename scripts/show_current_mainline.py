@@ -77,19 +77,6 @@ def summarize(
 
     promotion_candidate = dense_patch.get("current_promotion_candidate", {})
     qa_report = dense_patch.get("current_qa_report", {})
-    if isinstance(promotion_candidate, dict) and str(promotion_candidate.get("id", "")).startswith("superpoint_graph_"):
-        qa_report = {
-            "id": "spg_visual_qa",
-            "markdown_path": "docs/superpoint_graph_v4_visual_qa.md",
-            "review_index_url": "/tools/semantic_viewer_index.html",
-            "promotion_gate_status": promotion_candidate.get("status"),
-            "visual_acceptance_expected_path": promotion_candidate.get("visual_acceptance_json"),
-            "promotion_gate_current_reasons": [
-                "SPG v4 remains pending explicit visual acceptance",
-                "v7 uncertain-fragment bridge rejected by user QA",
-                "Sonata 0.15/0.30 remain diagnostic candidates",
-            ],
-        }
 
     return {
         "dataset": architecture.get("dataset"),
@@ -185,7 +172,7 @@ def format_text(summary: dict[str, Any]) -> str:
         if qa.get("visual_acceptance_gate_command"):
             lines.append(f"  gate_command: {qa.get('visual_acceptance_gate_command')}")
         lines.append("  promotion_plan_command: python3 scripts/plan_current_dense_promotion.py")
-        for reason in qa.get("promotion_gate_current_reasons", []):
+        for reason in qa.get("promotion_gate_current_reasons", qa.get("blocked_by", [])):
             lines.append(f"  blocked_by: {reason}")
         allowlist = qa.get("review_artifact_allowlist", {})
         if allowlist:

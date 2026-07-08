@@ -429,18 +429,18 @@
       "stage": "qa_viewer_export",
       "scope": "QA-only viewer export after semantic validation; viewer PLY must not become production geometry input."
     },
-  {
-    "path": "scripts/cluster_superpoint_graph.py",
-    "stage": "object_building",
-    "contract": "spg_review",
-    "scope": "Geometry-first superpoint graph candidate builder for review artifacts. It is not a legacy dense-object production semantic runner."
-  },
-  {
-    "path": "scripts/run_scan_train_superpoint_graph.sh",
-    "stage": "object_building",
-    "contract": "spg_review",
-    "scope": "Remote launcher for SPG review candidates. It may create review outputs but must not be treated as the promoted semantic production writer."
-  }
+    {
+      "path": "scripts/cluster_superpoint_graph.py",
+      "stage": "object_building",
+      "contract": "spg_review",
+      "scope": "Geometry-first superpoint graph candidate builder for review artifacts. It is not a legacy dense-object production semantic runner."
+    },
+    {
+      "path": "scripts/run_scan_train_superpoint_graph.sh",
+      "stage": "object_building",
+      "contract": "spg_review",
+      "scope": "Remote launcher for SPG review candidates. It may create review outputs but must not be treated as the promoted semantic production writer."
+    }
   ],
   "operator_tools": [
     {
@@ -492,95 +492,26 @@
     "python_runner_healthcheck": "scripts/cluster_superpoint_graph.py is an spg_review runner; production promotion still requires python3 scripts/validate_current_mainline.py plus visual QA."
   },
   "current_qa_report": {
-    "id": "current_dense_mainline_qa",
-    "schema": "current-dense-mainline-qa/v1",
-    "json_path": "docs/current_dense_mainline_qa.json",
-    "markdown_path": "docs/current_dense_mainline_qa.md",
-    "purpose": "Single report comparing v7/v8 object refinement and v9/v17 surface guard behavior before promoting any new baseline.",
-    "key_findings": {
-      "v8_candidate_delta_vs_v7": 6417,
-      "v8_accepted_delta_vs_v7": 1139,
-      "v8_output_object_delta_vs_v7": -1139,
-      "v8_mixed_object_voxel_ratio_delta_vs_v7": -0.0004186838888514677,
-      "v17_label_point_delta_vs_v9_all_zero": true
-    },
-    "review_index_html": "docs/current_dense_review_index.html",
-    "review_index_url": "/docs/current_dense_review_index.html",
-    "review_index_purpose": "Small fixed viewer entrypoint for v7/v8 object and v9/v17 semantic guard comparison; excludes rejected diagnostic runs.",
-    "promotion_gate_json": "docs/current_dense_promotion_gate.json",
-    "promotion_gate_status": "awaiting_required_visual_checks",
-    "promotion_gate_command": "python3 scripts/gate_current_dense_mainline_promotion.py --qa-json docs/current_dense_mainline_qa.json --visual-acceptance docs/current_dense_visual_acceptance.json --output docs/current_dense_promotion_gate.json",
-    "visual_acceptance_expected_path": "docs/current_dense_visual_acceptance.json",
-    "visual_acceptance_requirement": "v8 can only be promoted after the fixed review index is manually inspected and required checks are recorded as accepted.",
-    "visual_acceptance_markdown": "docs/current_dense_visual_acceptance.md",
-    "promotion_gate_current_reasons": [
-      "visual_status_not_accepted=pending",
-      "visual_required_checks_not_accepted=['v8_fragmentation_improves', 'v8_no_obvious_overmerge', 'surface_guard_no_unknown_regression', 'semantic_not_promoted_from_object_view']"
+    "id": "spg_visual_qa",
+    "schema": "superpoint-graph-current-qa/v1",
+    "markdown_path": "docs/superpoint_graph_v4_visual_qa.md",
+    "review_index_url": "/tools/semantic_viewer_index.html",
+    "visual_acceptance_expected_path": "docs/superpoint_graph_v4_visual_acceptance.json",
+    "promotion_gate_status": "visual_qa_pending_not_promoted",
+    "purpose": "Current QA gate for SPG v4 object ownership baseline; legacy dense-object QA is historical only.",
+    "required_checks": [
+      "large_surfaces_not_cross_merged",
+      "vertical_surfaces_do_not_swallow_vegetation",
+      "rough_mixed_not_merged_into_facade",
+      "cars_separated_from_surfaces",
+      "fragmentation_better_without_giant_mixed_patch"
     ],
-    "visual_acceptance_update_command": "python3 scripts/update_current_dense_visual_acceptance.py --check-id <check_id> --status accepted --reviewer <name> --notes <brief_evidence>",
-    "visual_acceptance_gate_command": "python3 scripts/gate_current_dense_mainline_promotion.py --qa-json docs/current_dense_mainline_qa.json --visual-acceptance docs/current_dense_visual_acceptance.json --output docs/current_dense_promotion_gate.json",
-    "unknown_point_delta_v17_minus_v9": 0,
-    "promotion_gate_unknown_spike_policy": "max_unknown_point_delta=0; any floor/wall guard run that increases unknown points above v9 is blocked.",
-    "rejected_guard_diagnostics": {
-      "baseline": "objects_v9_teacher_v20_semantic",
-      "baseline_unknown_points": 73085,
-      "variants": [
-        {
-          "id": "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
-          "unknown_delta_vs_v9": 1006072,
-          "top_reasons": [
-            {
-              "reason": "kept_unchecked_label",
-              "count": 98413
-            },
-            {
-              "reason": "wall_fragment_too_small_without_teacher",
-              "count": 37037
-            },
-            {
-              "reason": "floor_fragment_too_small_without_teacher",
-              "count": 27477
-            }
-          ]
-        },
-        {
-          "id": "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
-          "unknown_delta_vs_v9": 957051,
-          "top_reasons": [
-            {
-              "reason": "kept_unchecked_label",
-              "count": 98413
-            },
-            {
-              "reason": "kept_wall_geometry_guard",
-              "count": 38507
-            },
-            {
-              "reason": "kept_floor_geometry_guard",
-              "count": 27674
-            }
-          ]
-        }
-      ]
-    },
-    "review_artifact_allowlist": {
-      "schema": "current-dense-review-artifact-allowlist/v1",
-      "passed": true,
-      "artifact_ids": [
-        "v7_object_refinement",
-        "v8_object_refinement",
-        "v9_teacher_semantic",
-        "v17_surface_preserve_guard"
-      ],
-      "forbidden_substrings": [
-        "objects_v12_teacher_v20_grid6_unknown_absorb",
-        "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
-        "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
-        "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall"
-      ]
-    },
-    "healthcheck_command": "python3 scripts/validate_current_mainline.py",
-    "healthcheck_status": "passed_with_visual_acceptance_warning"
+    "blocked_by": [
+      "SPG v4 required visual checks are pending",
+      "v7 uncertain-fragment bridge rejected by user QA",
+      "Sonata 0.15/0.30 remain diagnostic candidates"
+    ],
+    "healthcheck_command": "python3 scripts/validate_current_mainline.py"
   },
   "superpoint_graph_v4_candidate": {
     "id": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",

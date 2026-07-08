@@ -289,58 +289,76 @@ def validate(path: Path) -> dict[str, Any]:
 
     qa = data.get("current_qa_report", {})
     if isinstance(qa, dict):
-        qa_json_data: dict[str, Any] | None = None
-        for key in (
-            "json_path",
-            "markdown_path",
-            "review_index_html",
-            "promotion_gate_json",
-            "visual_acceptance_markdown",
-        ):
-            value = qa.get(key)
-            if not value:
-                errors.append(f"current_qa_report_missing_{key}")
-                continue
-            path_value = Path(str(value))
-            if not path_value.is_absolute():
-                path_value = path.parent / ".." / path_value
-            if not path_value.resolve().exists():
-                errors.append(f"current_qa_report_path_missing={value}")
-            elif key == "json_path":
-                qa_json_data = read_optional_json(path_value.resolve())
-        findings = qa.get("key_findings", {})
-        if isinstance(findings, dict):
-            if findings.get("v17_label_point_delta_vs_v9_all_zero") is not True:
-                errors.append("current_qa_report_surface_guard_not_stable")
-            if float(findings.get("v8_mixed_object_voxel_ratio_delta_vs_v7", 1.0)) > 0:
-                errors.append("current_qa_report_overlap_regressed")
-        gate_status = qa.get("promotion_gate_status")
-        if gate_status not in {
-            "awaiting_visual_acceptance",
-            "awaiting_required_visual_checks",
-            "accepted",
-            "rejected",
-        }:
-            errors.append(f"unexpected_promotion_gate_status={gate_status}")
-        if "update_current_dense_visual_acceptance.py" not in str(qa.get("visual_acceptance_update_command", "")):
-            errors.append("missing_visual_acceptance_update_command")
-        if "gate_current_dense_mainline_promotion.py" not in str(qa.get("visual_acceptance_gate_command", "")):
-            errors.append("missing_visual_acceptance_gate_command")
-        if isinstance(qa_json_data, dict) and isinstance(latest, dict):
-            v8_metrics = (
-                qa_json_data.get("object_refinement", {})
-                .get("metrics", {})
-                .get("v8", {})
-            )
-            latest_objects = latest.get("object_metrics", {})
-            if isinstance(v8_metrics, dict) and isinstance(latest_objects, dict):
-                latest_accepted = int(latest_objects.get("accepted_candidate_rows", 0))
-                v8_accepted = int(v8_metrics.get("accepted_candidate_rows", 0))
-                latest_output_objects = int(latest_objects.get("output_object_count", 0))
-                v8_output_objects = int(v8_metrics.get("output_object_count", 0))
-                latest_is_weaker = latest_accepted < v8_accepted or latest_output_objects > v8_output_objects
-                if latest_is_weaker and latest.get("promotion_status") != "diagnostic_not_promoted":
-                    errors.append("latest_weaker_than_v8_but_not_diagnostic")
+        if qa.get("schema") == "superpoint-graph-current-qa/v1":
+            for key in ("markdown_path", "visual_acceptance_expected_path"):
+                value = qa.get(key)
+                if not value:
+                    errors.append(f"current_qa_report_missing_{key}")
+                    continue
+                path_value = Path(str(value))
+                if not path_value.is_absolute():
+                    path_value = path.parent / ".." / path_value
+                if not path_value.resolve().exists():
+                    errors.append(f"current_qa_report_path_missing={value}")
+            if qa.get("promotion_gate_status") != "visual_qa_pending_not_promoted":
+                errors.append(f"unexpected_promotion_gate_status={qa.get('promotion_gate_status')}")
+            if not qa.get("required_checks"):
+                errors.append("current_qa_report_missing_required_checks")
+            if not qa.get("blocked_by"):
+                errors.append("current_qa_report_missing_blockers")
+        else:
+            qa_json_data: dict[str, Any] | None = None
+            for key in (
+                "json_path",
+                "markdown_path",
+                "review_index_html",
+                "promotion_gate_json",
+                "visual_acceptance_markdown",
+            ):
+                value = qa.get(key)
+                if not value:
+                    errors.append(f"current_qa_report_missing_{key}")
+                    continue
+                path_value = Path(str(value))
+                if not path_value.is_absolute():
+                    path_value = path.parent / ".." / path_value
+                if not path_value.resolve().exists():
+                    errors.append(f"current_qa_report_path_missing={value}")
+                elif key == "json_path":
+                    qa_json_data = read_optional_json(path_value.resolve())
+            findings = qa.get("key_findings", {})
+            if isinstance(findings, dict):
+                if findings.get("v17_label_point_delta_vs_v9_all_zero") is not True:
+                    errors.append("current_qa_report_surface_guard_not_stable")
+                if float(findings.get("v8_mixed_object_voxel_ratio_delta_vs_v7", 1.0)) > 0:
+                    errors.append("current_qa_report_overlap_regressed")
+            gate_status = qa.get("promotion_gate_status")
+            if gate_status not in {
+                "awaiting_visual_acceptance",
+                "awaiting_required_visual_checks",
+                "accepted",
+                "rejected",
+            }:
+                errors.append(f"unexpected_promotion_gate_status={gate_status}")
+            if "update_current_dense_visual_acceptance.py" not in str(qa.get("visual_acceptance_update_command", "")):
+                errors.append("missing_visual_acceptance_update_command")
+            if "gate_current_dense_mainline_promotion.py" not in str(qa.get("visual_acceptance_gate_command", "")):
+                errors.append("missing_visual_acceptance_gate_command")
+            if isinstance(qa_json_data, dict) and isinstance(latest, dict):
+                v8_metrics = (
+                    qa_json_data.get("object_refinement", {})
+                    .get("metrics", {})
+                    .get("v8", {})
+                )
+                latest_objects = latest.get("object_metrics", {})
+                if isinstance(v8_metrics, dict) and isinstance(latest_objects, dict):
+                    latest_accepted = int(latest_objects.get("accepted_candidate_rows", 0))
+                    v8_accepted = int(v8_metrics.get("accepted_candidate_rows", 0))
+                    latest_output_objects = int(latest_objects.get("output_object_count", 0))
+                    v8_output_objects = int(v8_metrics.get("output_object_count", 0))
+                    latest_is_weaker = latest_accepted < v8_accepted or latest_output_objects > v8_output_objects
+                    if latest_is_weaker and latest.get("promotion_status") != "diagnostic_not_promoted":
+                        errors.append("latest_weaker_than_v8_but_not_diagnostic")
 
     return {
         "passed": not errors,

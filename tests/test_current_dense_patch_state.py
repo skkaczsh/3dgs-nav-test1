@@ -109,19 +109,14 @@ def test_dense_patch_state_records_current_promotion_candidate() -> None:
 def test_dense_patch_state_records_current_qa_report() -> None:
     data = load_state()
     qa = data["current_qa_report"]
-    assert qa["schema"] == "current-dense-mainline-qa/v1"
-    assert qa["json_path"] == "docs/current_dense_mainline_qa.json"
-    assert qa["markdown_path"] == "docs/current_dense_mainline_qa.md"
-    assert qa["review_index_html"] == "docs/current_dense_review_index.html"
-    assert qa["review_index_url"] == "/docs/current_dense_review_index.html"
-    assert qa["promotion_gate_json"] == "docs/current_dense_promotion_gate.json"
-    assert qa["visual_acceptance_markdown"] == "docs/current_dense_visual_acceptance.md"
-    assert qa["promotion_gate_status"] == "awaiting_required_visual_checks"
-    assert qa["visual_acceptance_expected_path"] == "docs/current_dense_visual_acceptance.json"
-    assert "update_current_dense_visual_acceptance.py" in qa["visual_acceptance_update_command"]
-    assert "gate_current_dense_mainline_promotion.py" in qa["visual_acceptance_gate_command"]
-    assert qa["key_findings"]["v17_label_point_delta_vs_v9_all_zero"] is True
-    assert qa["key_findings"]["v8_mixed_object_voxel_ratio_delta_vs_v7"] < 0
+    assert qa["schema"] == "superpoint-graph-current-qa/v1"
+    assert qa["id"] == "spg_visual_qa"
+    assert qa["markdown_path"] == "docs/superpoint_graph_v4_visual_qa.md"
+    assert qa["review_index_url"] == "/tools/semantic_viewer_index.html"
+    assert qa["visual_acceptance_expected_path"] == "docs/superpoint_graph_v4_visual_acceptance.json"
+    assert qa["promotion_gate_status"] == "visual_qa_pending_not_promoted"
+    assert "large_surfaces_not_cross_merged" in qa["required_checks"]
+    assert "v7 uncertain-fragment bridge rejected by user QA" in qa["blocked_by"]
 
 
 def test_dense_patch_validator_passes() -> None:
@@ -156,6 +151,16 @@ def test_dense_patch_validator_rejects_weak_latest_run_without_diagnostic_status
         ),
         encoding="utf-8",
     )
+    state["current_qa_report"] = {
+        "schema": "current-dense-mainline-qa/v1",
+        "key_findings": {
+            "v17_label_point_delta_vs_v9_all_zero": True,
+            "v8_mixed_object_voxel_ratio_delta_vs_v7": -0.1,
+        },
+        "promotion_gate_status": "awaiting_required_visual_checks",
+        "visual_acceptance_update_command": "python3 scripts/update_current_dense_visual_acceptance.py",
+        "visual_acceptance_gate_command": "python3 scripts/gate_current_dense_mainline_promotion.py",
+    }
     for key in (
         "markdown_path",
         "review_index_html",
