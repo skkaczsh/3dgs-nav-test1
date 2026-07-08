@@ -24,49 +24,48 @@ DEFAULT_OUTPUT = REPO_ROOT / "docs" / "current_dense_review_index.html"
 
 ARTIFACTS = [
     {
-        "id": "v7_object_refinement",
-        "title": "v7 Object Refinement",
-        "role": "conservative object baseline",
+        "id": "energy_attach_v4_contact_evidence",
+        "title": "Energy Attach v4",
+        "role": "current dense patch baseline",
         "mode": "object",
         "point_size": 1.2,
-        "ply": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply",
-        "objects": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v7_r4_attach_v4_20260624_170126/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial.jsonl",
-        "note": "Lower recall; useful as over-merge guard.",
+        "ply": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_stride10.ply",
+        "objects": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence.jsonl",
+        "note": "Retained 0.03m dense patch baseline.",
     },
     {
-        "id": "v8_object_refinement",
-        "title": "v8 Object Refinement",
-        "role": "high-recall object candidate",
+        "id": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
+        "title": "SPG v4 near-bbox",
+        "role": "current trusted SPG visual baseline",
         "mode": "object",
-        "point_size": 1.2,
-        "ply": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial_stride10.ply",
-        "objects": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v8_tiny_attach_20260624_170619/objects_v7_structural_multimaterial/geo_patch_objects_v7_structural_multimaterial.jsonl",
-        "note": "More merges; requires visual QA before promotion.",
+        "point_size": 1.5,
+        "ply": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_stride10.ply",
+        "objects": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1.jsonl",
+        "note": "Trusted visual baseline after v7 uncertain-fragment rejection.",
     },
     {
-        "id": "v9_teacher_semantic",
-        "title": "v9 Teacher Semantic",
-        "role": "safe semantic diagnostic",
-        "mode": "semantic",
-        "point_size": 1.2,
-        "ply": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.ply",
-        "objects": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.jsonl",
-        "note": "Teacher transfer without the surface-preserve guard wrapper.",
+        "id": "superpoint_graph_sonata_touch_edge_sample_v1_20260708",
+        "title": "SPG Sonata touch-edge 0.15",
+        "role": "visual QA candidate",
+        "mode": "object",
+        "point_size": 1.5,
+        "ply": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1_stride10.ply",
+        "objects": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_sample_v1_20260708/superpoint_graph_v1.jsonl",
+        "note": "Modest Sonata edge-evidence weight; review against v4.",
     },
     {
-        "id": "v17_surface_preserve_guard",
-        "title": "v17 Surface Preserve Guard",
-        "role": "unknown-regression guard reference",
-        "mode": "semantic",
-        "point_size": 1.2,
-        "ply": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.ply",
-        "objects": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.jsonl",
-        "note": "Same point labels as v9; proves guard does not create unknown spike.",
+        "id": "superpoint_graph_sonata_touch_edge_w030_20260708",
+        "title": "SPG Sonata touch-edge 0.30",
+        "role": "visual QA candidate",
+        "mode": "object",
+        "point_size": 1.5,
+        "ply": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_w030_20260708/superpoint_graph_v1_stride10.ply",
+        "objects": "/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_sonata_touch_edge_w030_20260708/superpoint_graph_v1.jsonl",
+        "note": "Stronger Sonata edge-evidence weight; review for over-merge.",
     },
 ]
 
 OBJECT_SCHEMA_REQUIRED_KEYS = {
-    "object_id",
     "voxel_count",
     "geometry_type",
     "semantic_label",
@@ -135,6 +134,11 @@ def validate_object_jsonl_schema(
             if not isinstance(row, dict):
                 errors.append(f"artifact_objects_row_not_object={artifact_id}:line={line_number}:{objects_path}")
                 break
+            if not any(key in row for key in ("object_id", "object", "patch_id")):
+                errors.append(
+                    f"artifact_objects_missing_id_key={artifact_id}:line={line_number}:{objects_path}"
+                )
+                break
             missing = sorted(OBJECT_SCHEMA_REQUIRED_KEYS - set(row))
             if missing:
                 errors.append(
@@ -179,12 +183,7 @@ def validate_artifact_allowlist(
     artifact_ids = [str(item.get("id", "")) for item in artifacts]
     if len(artifact_ids) != len(set(artifact_ids)):
         errors.append("duplicate_artifact_ids")
-    expected_ids = {
-        "v7_object_refinement",
-        "v8_object_refinement",
-        "v9_teacher_semantic",
-        "v17_surface_preserve_guard",
-    }
+    expected_ids = {str(item.get("id", "")) for item in ARTIFACTS}
     extra_ids = sorted(set(artifact_ids) - expected_ids)
     missing_ids = sorted(expected_ids - set(artifact_ids))
     if extra_ids:

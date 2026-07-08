@@ -44,12 +44,12 @@ def test_dense_patch_state_stage_contract_is_geometry_first() -> None:
     semantic_stage = next(item for item in data["stage_contract"] if item["stage"] == "semantic_evidence")
     assert "evidence only" in semantic_stage["rule"]
     approved = {item["path"] for item in data["approved_runners"]}
-    assert data["next_action"]["runner"] == "scripts/run_dense_patch_object_refinement_v7.py"
-    assert data["next_action"]["remote_runner"] == "scripts/run_scan_train_dense_patch_object_refinement_v7.sh"
+    assert data["next_action"]["runner"] == "scripts/cluster_superpoint_graph.py"
+    assert data["next_action"]["remote_runner"] == "scripts/run_scan_train_superpoint_graph.sh"
     assert data["next_action"]["runner"] in approved
     assert data["next_action"]["remote_runner"] in approved
     assert "scripts/run_semantic_evidence_pipeline.py" in approved
-    assert "_cpp_region_grower_input.bin" in data["next_action"]["current_blocker"]
+    assert "Visual QA" in data["next_action"]["current_blocker"]
 
 
 def test_dense_patch_state_records_operator_tools() -> None:
@@ -88,19 +88,13 @@ def test_dense_patch_state_records_latest_remote_run() -> None:
 def test_dense_patch_state_records_current_promotion_candidate() -> None:
     data = load_state()
     candidate = data["current_promotion_candidate"]
-    assert candidate["id"] == "v8_object_refinement"
-    assert candidate["qa_candidate_id"] == "v8_tiny_attach"
-    assert candidate["status"] == "awaiting_required_visual_checks"
-    assert candidate["gate_json"] == "docs/current_dense_promotion_gate.json"
-    assert candidate["visual_acceptance_json"] == "docs/current_dense_visual_acceptance.json"
-    assert candidate["qa_json"] == "docs/current_dense_mainline_qa.json"
+    assert candidate["id"] == "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437"
+    assert candidate["qa_candidate_id"] == candidate["id"]
+    assert candidate["status"] == "visual_qa_pending_not_promoted"
+    assert candidate["visual_acceptance_json"] == "docs/superpoint_graph_v4_visual_acceptance.json"
 
-    gate = json.loads((ROOT / candidate["gate_json"]).read_text(encoding="utf-8"))
     visual = json.loads((ROOT / candidate["visual_acceptance_json"]).read_text(encoding="utf-8"))
-    qa = json.loads((ROOT / candidate["qa_json"]).read_text(encoding="utf-8"))
-    assert gate["candidate"] == candidate["id"]
-    assert visual["accepted_candidate"] == candidate["id"]
-    assert qa["object_refinement"]["candidate"] == candidate["qa_candidate_id"]
+    assert visual["candidate"] == candidate["id"]
 
 
 def test_dense_patch_state_records_current_qa_report() -> None:
@@ -185,10 +179,7 @@ def test_dense_patch_validator_rejects_promotion_candidate_mismatch(tmp_path: Pa
         encoding="utf-8",
     )
     gate.write_text(json.dumps({"candidate": "wrong_candidate", "status": "fail"}), encoding="utf-8")
-    visual.write_text(
-        json.dumps({"accepted_candidate": "v8_object_refinement", "status": "pending"}),
-        encoding="utf-8",
-    )
+    visual.write_text(json.dumps({"candidate": state["current_promotion_candidate"]["id"], "status": "pending"}), encoding="utf-8")
     state["current_promotion_candidate"]["qa_json"] = str(qa)
     state["current_promotion_candidate"]["gate_json"] = str(gate)
     state["current_promotion_candidate"]["visual_acceptance_json"] = str(visual)
@@ -198,7 +189,10 @@ def test_dense_patch_validator_rejects_promotion_candidate_mismatch(tmp_path: Pa
     report = validate(path)
 
     assert report["passed"] is False
-    assert "promotion_candidate_gate_mismatch=wrong_candidate!=v8_object_refinement" in report["errors"]
+    assert (
+        "promotion_candidate_gate_mismatch=wrong_candidate!="
+        "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437"
+    ) in report["errors"]
 
 
 def test_dense_patch_validator_rejects_wrong_authoritative_source_identity(tmp_path: Path) -> None:

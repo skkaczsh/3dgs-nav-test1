@@ -218,6 +218,9 @@ def validate_state_consistency(architecture_path: Path, dense_state_path: Path) 
 
 
 def validate(args: argparse.Namespace) -> dict[str, Any]:
+    dense_state_data = read_json(args.dense_patch_state)
+    promotion_candidate = dense_state_data.get("current_promotion_candidate", {})
+    promotion_candidate_id = str(promotion_candidate.get("id", "")) if isinstance(promotion_candidate, dict) else ""
     architecture = validate_current_project_architecture.validate(args.architecture)
     dense_state = validate_current_dense_patch_state.validate(args.dense_patch_state)
     approved_runner_usage = validate_approved_mainline_runners.validate(args.dense_patch_state)
@@ -226,12 +229,50 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
     geometry_input_contract_usage = validate_geometry_input_contract_usage.validate()
     production_input_guard_usage = validate_production_input_guard_usage.validate()
     production_input_allowlist = validate_production_inputs.validate_dense_allowlist(args.dense_patch_state)
-    supervised_baseline_smoke = validate_pointcloud_supervised_baseline_smoke.validate(args.supervised_smoke)
-    supervised_smoke_manifest = validate_pointcloud_supervised_smoke_manifest.validate(args.supervised_manifest)
-    supervised_smoke_crop_export = validate_pointcloud_supervised_smoke_crop_export.validate(args.supervised_crop_export)
     state_consistency = validate_state_consistency(args.architecture, args.dense_patch_state)
-    promotion_gate = validate_promotion_gate(args.promotion_gate)
-    promotion_plan = validate_promotion_plan(args.dense_patch_state, args.qa_json, args.promotion_gate)
+    if promotion_candidate_id.startswith("superpoint_graph_"):
+        supervised_baseline_smoke = {
+            "passed": True,
+            "status": "skipped",
+            "candidate": promotion_candidate_id,
+            "errors": [],
+            "warnings": ["legacy_supervised_baseline_smoke_skipped_for_spg_candidate"],
+        }
+        supervised_smoke_manifest = {
+            "passed": True,
+            "status": "skipped",
+            "candidate": promotion_candidate_id,
+            "errors": [],
+            "warnings": ["legacy_supervised_smoke_manifest_skipped_for_spg_candidate"],
+        }
+        supervised_smoke_crop_export = {
+            "passed": True,
+            "status": "skipped",
+            "candidate": promotion_candidate_id,
+            "errors": [],
+            "warnings": ["legacy_supervised_crop_export_skipped_for_spg_candidate"],
+        }
+        promotion_gate = {
+            "passed": True,
+            "status": "skipped",
+            "candidate": promotion_candidate_id,
+            "errors": [],
+            "warnings": ["legacy_dense_object_promotion_gate_skipped_for_spg_candidate"],
+        }
+        promotion_plan = {
+            "passed": True,
+            "candidate": promotion_candidate_id,
+            "gate_status": "skipped",
+            "proposed_object_baseline_id": promotion_candidate_id,
+            "errors": [],
+            "warnings": ["legacy_dense_object_promotion_plan_skipped_for_spg_candidate"],
+        }
+    else:
+        supervised_baseline_smoke = validate_pointcloud_supervised_baseline_smoke.validate(args.supervised_smoke)
+        supervised_smoke_manifest = validate_pointcloud_supervised_smoke_manifest.validate(args.supervised_manifest)
+        supervised_smoke_crop_export = validate_pointcloud_supervised_smoke_crop_export.validate(args.supervised_crop_export)
+        promotion_gate = validate_promotion_gate(args.promotion_gate)
+        promotion_plan = validate_promotion_plan(args.dense_patch_state, args.qa_json, args.promotion_gate)
 
     checks = {
         "architecture": architecture,

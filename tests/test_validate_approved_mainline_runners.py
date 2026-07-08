@@ -17,7 +17,21 @@ def test_current_approved_mainline_runners_pass() -> None:
 
     assert report["passed"] is True
     assert report["errors"] == []
-    assert report["approved_runner_count"] == 5
+    assert report["approved_runner_count"] == 7
+
+
+def test_spg_review_runner_skips_legacy_production_preflight(tmp_path: Path) -> None:
+    runner = tmp_path / "cluster_superpoint_graph.py"
+    runner.write_text("print('review candidate')\n", encoding="utf-8")
+
+    report = module.validate_runner(
+        {"path": runner.name, "stage": "object_building", "contract": "spg_review"},
+        repo_root=tmp_path,
+    )
+
+    assert report["passed"] is True
+    assert report["errors"] == []
+    assert report["warnings"] == ["spg_review_runner_legacy_preflight_skipped"]
 
 
 def test_semantic_runner_requires_patch_gate_and_healthcheck(tmp_path: Path) -> None:

@@ -1,15 +1,14 @@
 {
   "schema": "current-project-architecture/v1",
-  "updated_at": "2026-07-08T21:30:00+08:00",
+  "updated_at": "2026-07-08T22:20:00+08:00",
   "dataset": "MT20260616-175807",
   "objective": "Build dense point-level semantic assets from scanner data by keeping geometry ownership clean first, then accumulating visual and VLM evidence as semantic posterior signals.",
   "current_diagnosis": {
-    "summary": "The v15/v16 branches made large parts of ground and wall unknown because geometry guards were used as hard semantic demotion rules. The v17 surface-preserve guard proves the unknown spike is a guard-policy artifact: floor/wall return to v9 teacher-transfer counts when surface labels are preserved.",
-    "decision": "Do not continue tuning v12/v14/v15/v16 as the main semantic baseline. Use v17 only as a guard-policy regression reference, and keep geometry/object ownership work separate from semantic repair rules.",
+    "summary": "After workspace cleanup, the active geometry ownership route is dense Opt LAS -> 0.03m voxel input -> energy_attach_v4 patch baseline -> SPG v4 near-bbox object baseline. Legacy v8/object-refinement and teacher-transfer artifacts are historical only and are no longer required locally.",
+    "decision": "Keep v4 SPG as the trusted visual baseline; review Sonata touch-edge 0.15/0.30 as diagnostic candidates. Do not promote v7 uncertain-fragment bridge because visual QA found structural over-merge.",
     "safe_rollback": [
-      "full_scene_objects_refined_v20",
-      "objects_v9_teacher_v20_semantic",
-      "objects_v17_teacher_v20_surface_preserve_guard",
+      "energy_attach_v4_contact_evidence",
+      "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
       "pure_surface_visibility_full_0000_6180"
     ]
   },
@@ -25,10 +24,9 @@
     {
       "id": "dense_colorized_voxel010_cache",
       "role": "dense_colorized_visibility_cache_for_qa_only",
-      "local_paths": [
-        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/full_dense_colorized_cached_voxel010_viewer/colorized_visible_0000_6180_voxel010_ascii.ply"
-      ],
-      "required": false
+      "required": false,
+      "status": "local_cache_deleted_rebuild_if_needed",
+      "note": "Removed during artifact cleanup; this cache is QA-only and not required for production geometry ownership."
     },
     {
       "id": "dense_las_voxel003_binary",
@@ -53,7 +51,7 @@
     {
       "id": "pure_surface_visibility_full_0000_6180",
       "status": "best_remote_pre_patch_baseline",
-      "description": "Validated first-touch/full-scene visibility route with pure surface visibility; useful as semantic and projection sanity reference.",
+      "description": "Validated first-touch/full-scene visibility route; kept as projection sanity reference.",
       "doc_paths": [
         "docs/current_pure_surface_visibility_best.json",
         "docs/pure_surface_visibility_route.md"
@@ -66,37 +64,27 @@
     {
       "id": "full_scene_objects_refined_v20",
       "status": "historical_semantic_teacher_from_structure_prior_vlm_mask_route",
-      "description": "Earlier structure-prior plus VLM/MASK semantic teacher. It is not a geometry ownership solution. Heavy local artifacts were deleted during workspace cleanup; keep this only as a historical teacher reference."
+      "description": "Historical structure-prior plus VLM/MASK semantic teacher. Not a geometry ownership solution; heavy local artifacts were deleted."
     },
     {
-      "id": "objects_v9_teacher_v20_semantic",
-      "status": "safe_patch_diagnostic",
-      "description": "Teacher transfer from v20 onto geometry patch objects without changing point ownership. Useful diagnostic; not yet final due patch fragmentation and partial teacher coverage.",
+      "id": "energy_attach_v4_contact_evidence",
+      "status": "current_dense_patch_baseline",
+      "description": "Current retained 0.03m dense patch baseline from Opt LAS/C++ region input with contact-evidence attachment.",
       "local_paths": [
-        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.ply",
-        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v9_teacher_v20_semantic/objects_v9_teacher_v20_semantic.jsonl"
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_report.json",
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_labels.bin",
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence.jsonl"
       ]
     },
     {
-      "id": "objects_v17_teacher_v20_surface_preserve_guard",
-      "status": "surface_guard_regression_reference",
-      "description": "Same v9 teacher-transfer ownership, with surface labels preserved through geometry guard. Use to detect over-demotion-to-unknown regressions; not a final semantic solution.",
+      "id": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
+      "status": "current_trusted_spg_visual_baseline",
+      "description": "Current retained SPG object baseline. Reduces fragmentation without v7 uncertain-fragment over-merge.",
       "local_paths": [
-        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.ply",
-        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard.jsonl",
-        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/objects_v17_teacher_v20_surface_preserve_guard/objects_v17_teacher_v20_surface_preserve_guard_report.json"
-      ],
-      "metrics": {
-        "object_count": 197583,
-        "label_point_counts": {
-          "unknown": 73085,
-          "wall": 650971,
-          "railing": 13599,
-          "floor": 496641,
-          "grass": 205461,
-          "car": 8486
-        }
-      }
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_report.json",
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_labels.bin",
+        "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1.jsonl"
+      ]
     }
   ],
   "rejected_artifacts": [

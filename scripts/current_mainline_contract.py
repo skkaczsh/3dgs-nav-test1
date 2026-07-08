@@ -34,8 +34,8 @@ FORBIDDEN_ARTIFACT_SUBSTRINGS = REJECTED_ARTIFACT_SUBSTRINGS
 REQUIRED_ACTIVE_BASELINE_IDS: tuple[str, ...] = (
     "pure_surface_visibility_full_0000_6180",
     "full_scene_objects_refined_v20",
-    "objects_v9_teacher_v20_semantic",
-    "objects_v17_teacher_v20_surface_preserve_guard",
+    "energy_attach_v4_contact_evidence",
+    "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
 )
 
 REQUIRED_DENSE_SOURCE_IDS: tuple[str, ...] = (
@@ -59,8 +59,10 @@ REQUIRED_REJECTED_ARTIFACT_IDS: tuple[str, ...] = (
 )
 
 APPROVED_MAINLINE_RUNNER_PATHS: tuple[str, ...] = (
+    "scripts/cluster_superpoint_graph.py",
     "scripts/run_dense_patch_object_refinement_v7.py",
     "scripts/run_scan_train_dense_patch_object_refinement_v7.sh",
+    "scripts/run_scan_train_superpoint_graph.sh",
     "scripts/run_object_semantic_evidence_fusion.py",
     "scripts/run_semantic_evidence_pipeline.py",
     "scripts/run_validated_semantic_viewer_export.py",

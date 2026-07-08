@@ -1,177 +1,176 @@
 {
-    "schema": "current-dense-patch-state/v1",
-    "updated_at": "2026-07-08T00:00:00+08:00",
-    "dataset": "MT20260616-175807",
-    "purpose": "Track the dense raw-data Patch/Object mainline separately from semantic experiments and viewer artifacts.",
-    "authoritative_source": {
-        "id": "raw_opt_las_2920mb",
-        "type": "las",
-        "role": "only authoritative dense geometry/color source for production patch conclusions",
-        "local_paths": [
-            "/Users/skkac/Work/SCAN/MT20260616-175807/3dgs_20260616_3dgs_0095fd8ebe7845f2b24820cb98de4abb_task_c967d04831bf45f0b9d7c3fac31b4103_output_pointcloud_CommandProcessLXOutput_MANIFOLD_MT20260616-175807-Opt.las"
-        ],
-        "known_point_count": 97194579,
-        "required": true
+  "schema": "current-dense-patch-state/v1",
+  "updated_at": "2026-07-08T22:20:00+08:00",
+  "dataset": "MT20260616-175807",
+  "purpose": "Track the dense raw-data Patch/Object mainline separately from semantic experiments and viewer artifacts.",
+  "authoritative_source": {
+    "id": "raw_opt_las_2920mb",
+    "type": "las",
+    "role": "only authoritative dense geometry/color source for production patch conclusions",
+    "local_paths": [
+      "/Users/skkac/Work/SCAN/MT20260616-175807/3dgs_20260616_3dgs_0095fd8ebe7845f2b24820cb98de4abb_task_c967d04831bf45f0b9d7c3fac31b4103_output_pointcloud_CommandProcessLXOutput_MANIFOLD_MT20260616-175807-Opt.las"
+    ],
+    "known_point_count": 97194579,
+    "required": true
+  },
+  "derived_dense_input": {
+    "id": "dense_las_voxel003_binary",
+    "type": "binary_little_endian_ply",
+    "voxel_size_m": 0.03,
+    "role": "canonical dense patch input derived from raw Opt LAS",
+    "remote_paths": [
+      "/home/zsh/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_20260624/dense_las_voxel003_binary.ply"
+    ],
+    "known_voxel_count": 14482557,
+    "local_rebuild_command": "python3 scripts/las_to_voxel_ascii_ply.py --input-las /Users/skkac/Work/SCAN/MT20260616-175807/3dgs_20260616_3dgs_0095fd8ebe7845f2b24820cb98de4abb_task_c967d04831bf45f0b9d7c3fac31b4103_output_pointcloud_CommandProcessLXOutput_MANIFOLD_MT20260616-175807-Opt.las --output-ply /Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply --report-json /Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/report.json --voxel-size 0.03 --output-format binary_little_endian",
+    "local_rebuild_note": "Converter is chunked by default, so it can rebuild from the 2.7G Opt LAS without reading the whole file at once.",
+    "local_rebuild_result": {
+      "path": "/Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply",
+      "point_count": 97194579,
+      "voxel_count": 14482557,
+      "output_size": "207M",
+      "verified_at": "2026-07-08T16:39:00+08:00"
     },
-    "derived_dense_input": {
-        "id": "dense_las_voxel003_binary",
-        "type": "binary_little_endian_ply",
-        "voxel_size_m": 0.03,
-        "role": "canonical dense patch input derived from raw Opt LAS",
-        "remote_paths": [
-            "/home/zsh/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_20260624/dense_las_voxel003_binary.ply"
-        ],
-        "known_voxel_count": 14482557,
-        "local_rebuild_command": "python3 scripts/las_to_voxel_ascii_ply.py --input-las /Users/skkac/Work/SCAN/MT20260616-175807/3dgs_20260616_3dgs_0095fd8ebe7845f2b24820cb98de4abb_task_c967d04831bf45f0b9d7c3fac31b4103_output_pointcloud_CommandProcessLXOutput_MANIFOLD_MT20260616-175807-Opt.las --output-ply /Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply --report-json /Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/report.json --voxel-size 0.03 --output-format binary_little_endian",
-        "local_rebuild_note": "Converter is chunked by default, so it can rebuild from the 2.7G Opt LAS without reading the whole file at once.",
-        "local_rebuild_result": {
-            "path": "/Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply",
-            "point_count": 97194579,
-            "voxel_count": 14482557,
-            "output_size": "207M",
-            "verified_at": "2026-07-08T16:39:00+08:00"
-        },
-        "required": false
+    "required": false
+  },
+  "current_patch_baseline": {
+    "id": "energy_attach_v4_contact_evidence",
+    "status": "current_dense_patch_baseline",
+    "reason": "Retained post-cleanup 0.03m dense patch baseline; derived from Opt LAS/C++ region input and contact-evidence attachment.",
+    "local_paths": [
+      "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_report.json",
+      "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_labels.bin",
+      "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence.jsonl"
+    ],
+    "metrics": {
+      "input_patch_count": 200535,
+      "output_patch_count": 197630,
+      "preview_points_stride10": 1448243
+    }
+  },
+  "current_object_baseline": {
+    "id": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
+    "status": "current_trusted_spg_visual_baseline",
+    "reason": "SPG v4 is the retained visual baseline after v7 uncertain-fragment bridge was rejected by user QA.",
+    "local_paths": [
+      "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_report.json",
+      "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_labels.bin",
+      "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1.jsonl"
+    ],
+    "qa_only_paths": [
+      "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_stride10.ply"
+    ],
+    "metrics": {
+      "input_patch_count": 197630,
+      "output_object_count": 197208,
+      "accepted_edges": 422,
+      "fine_overlap_pairs_ge_50_top1000": 3
+    }
+  },
+  "remote_executable_baseline": {
+    "id": "geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623",
+    "status": "available_on_scan_train",
+    "reason": "The current 4090D host has the 2.8GB Opt LAS, the 0.03m LAS voxel PLY, the C++ region input, and r4 contact-evidence patch labels. This is the available dense raw-data chain for immediate v7 object-refinement runs.",
+    "host": "scan-train",
+    "remote_paths": [
+      "/root/epfs/SCAN/work_MT20260616-175807/inputs_las_opt/MANIFOLD_MT20260616-175807-Opt.las",
+      "/root/epfs/SCAN/work_MT20260616-175807/las_opt_voxel003/MANIFOLD_MT20260616-175807-Opt_voxel003_ascii.ply",
+      "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/_cpp_region_grower_input.bin",
+      "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_labels.bin"
+    ],
+    "metrics": {
+      "raw_las_point_count": 97194579,
+      "voxel003_count": 14482557,
+      "r4_region_voxel_count": 14482421,
+      "r4_region_patch_count": 200535,
+      "attach_v4_output_patch_count": 197630
+    }
+  },
+  "latest_remote_run": {
+    "id": "dense_patch_object_refinement_v9_mainline_fixdeps_20260702_2108",
+    "status": "completed",
+    "promotion_status": "diagnostic_not_promoted",
+    "host": "scan-train",
+    "runner": "scripts/run_scan_train_dense_patch_object_refinement_v7.sh",
+    "remote_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v9_mainline_fixdeps_20260702_2108",
+    "inputs": {
+      "region_input": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/_cpp_region_grower_input.bin",
+      "patch_labels": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_labels.bin"
     },
-    "current_patch_baseline": {
-        "id": "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624",
-        "status": "current_dense_patch_decision_baseline",
-        "reason": "Fine-cell gated overlap keeps AABB as recall prefilter but rejects pure overlap merges without occupied-cell support. This better preserves spatial-partition invariants than v4/v5.",
-        "local_paths": [
-            "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap_report.json",
-            "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap_labels.bin",
-            "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap.jsonl"
-        ],
-        "metrics": {
-            "input_patch_count": 50000,
-            "output_patch_count": 48863,
-            "preview_points_stride10": 1440583,
-            "boundary_points_moved": 411277,
-            "merge_accepts": 911,
-            "pure_overlap_without_fine_overlap_rejects": 813,
-            "fine_cell_overlap_ratio_ge_0_5_top1000": 51
-        }
+    "candidate_metrics": {
+      "patch_count": 197630,
+      "edge_pair_count": 7793,
+      "candidate_count": 239,
+      "same_material_candidates": 159,
+      "structural_multimaterial_candidates": 80,
+      "big_mixed_attachment_count": 25,
+      "reject_counts": {
+        "small_patch": 7522,
+        "color_distance": 4,
+        "low_shared_edges": 22,
+        "score": 5,
+        "low_contact_ratio": 1
+      }
     },
-    "current_object_baseline": {
-        "id": "dense_las_voxel003_objects_v3_high_recall_clean_20260624",
-        "status": "conservative_object_stage_baseline",
-        "reason": "High-recall candidates with conservative acceptance preserve ownership, but fragmentation remains. Use as diagnostic object stage, not final semantic object output.",
-        "local_paths": [
-            "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_objects_v3_high_recall_clean_20260624/geo_patch_objects_v3_high_recall_clean_report.json",
-            "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_objects_v3_high_recall_clean_20260624/geo_patch_objects_v3_high_recall_clean_labels.bin",
-            "/Users/skkac/Work/SCAN/new_route/server_parking_priority_s10/dense_las_voxel003_objects_v3_high_recall_clean_20260624/geo_patch_objects_v3_high_recall_clean.jsonl"
-        ],
-        "metrics": {
-            "input_patch_count": 48863,
-            "output_object_count": 48727,
-            "accepted_candidate_rows": 136,
-            "preview_points_stride10": 1440583
-        }
+    "object_metrics": {
+      "input_patch_count": 197630,
+      "input_candidate_count": 239,
+      "accepted_candidate_rows": 96,
+      "accepted_same_material": 18,
+      "accepted_structural_multimaterial": 78,
+      "output_object_count": 197534,
+      "preview_points_stride10": 1448243,
+      "rejection_counts": {
+        "contact_ratio": 1,
+        "color_distance": 3,
+        "score": 117,
+        "attachment_score": 20,
+        "structural_shared_edges": 2
+      }
     },
-    "remote_executable_baseline": {
-        "id": "geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623",
-        "status": "available_on_scan_train",
-        "reason": "The current 4090D host has the 2.8GB Opt LAS, the 0.03m LAS voxel PLY, the C++ region input, and r4 contact-evidence patch labels. This is the available dense raw-data chain for immediate v7 object-refinement runs.",
-        "host": "scan-train",
-        "remote_paths": [
-            "/root/epfs/SCAN/work_MT20260616-175807/inputs_las_opt/MANIFOLD_MT20260616-175807-Opt.las",
-            "/root/epfs/SCAN/work_MT20260616-175807/las_opt_voxel003/MANIFOLD_MT20260616-175807-Opt_voxel003_ascii.ply",
-            "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/_cpp_region_grower_input.bin",
-            "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_labels.bin"
-        ],
-        "metrics": {
-            "raw_las_point_count": 97194579,
-            "voxel003_count": 14482557,
-            "r4_region_voxel_count": 14482421,
-            "r4_region_patch_count": 200535,
-            "attach_v4_output_patch_count": 197630
-        }
+    "failure_repaired": "The first 20260702 run failed because the remote shell runner did not rsync scripts/geometry_input_contract.py. The runner and validator now require that dependency.",
+    "interpretation": "This dependency-fixed run proves the approved remote runner executes end-to-end on dense Opt-LAS inputs, but it is more conservative than v8: accepted_candidate_rows dropped from 1235 to 96 and output_object_count increased from 196395 to 197534. Keep v8 as the current visual-promotion candidate; use this run only as a diagnostic execution proof.",
+    "verification_command": "python3 scripts/verify_latest_remote_dense_run.py --ssh-host scan-train"
+  },
+  "latest_patch_graph_change": {
+    "id": "contact_rich_fh_merge_guard_20260708",
+    "status": "completed_dense_run_diagnostic_not_promoted",
+    "commit": "6ed8161",
+    "previous_commit": "9a37662",
+    "purpose": "Make patch merging use richer contact evidence instead of mean color and mean normal only. The latest change applies contact shape to the attachment score, which is the dominant small-fragment merge path.",
+    "code_paths": [
+      "scripts/optimize_patch_graph_energy.py",
+      "tests/test_geo_patch_merge_math.py"
+    ],
+    "new_edge_terms": [
+      "contact_color_p90",
+      "contact_roughness_delta",
+      "contact_planarity_delta",
+      "contact_linearity_delta"
+    ],
+    "attachment_score_terms": [
+      "attachment_shape",
+      "attachment_contact_roughness_delta",
+      "attachment_contact_planarity_delta",
+      "attachment_contact_linearity_delta"
+    ],
+    "local_verification": [
+      "python3 -m py_compile scripts/optimize_patch_graph_energy.py",
+      "python3 -m pytest -q tests/test_geo_patch_merge_math.py"
+    ],
+    "local_smoke_result": {
+      "source": "server_parking_priority_s10/geo_patch_region_model_smoke_bridge_v2_20260707",
+      "output": "server_parking_priority_s10/geo_patch_region_model_smoke_bridge_v2_attachment_shape_v1_20260708",
+      "compare_report": "server_parking_priority_s10/patch_energy_contact_shape_smoke_compare_20260708/compare.md",
+      "input_patch_count": 13290,
+      "output_patch_count": 13242,
+      "merge_accept": 48,
+      "merge_reject": 3104,
+      "fh_merge_guard_reject": 13,
+      "largest_horizontal_patch_purity": 0.939,
+      "baseline_largest_horizontal_patch_purity": 0.933,
+      "interpretation": "Contact-rich evidence is now wired into both FH guard and attachment scoring. Smoke output is slightly more conservative than FH-only contact-rich because attachment shape can reject locally inconsistent small-fragment merges. The largest horizontal patch becomes smaller but slightly purer, so this is worth one dense 0.03m full validation when scan-train SSH recovers."
     },
-    "latest_remote_run": {
-        "id": "dense_patch_object_refinement_v9_mainline_fixdeps_20260702_2108",
-        "status": "completed",
-        "promotion_status": "diagnostic_not_promoted",
-        "host": "scan-train",
-        "runner": "scripts/run_scan_train_dense_patch_object_refinement_v7.sh",
-        "remote_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/dense_patch_object_refinement_v9_mainline_fixdeps_20260702_2108",
-        "inputs": {
-            "region_input": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/_cpp_region_grower_input.bin",
-            "patch_labels": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_labels.bin"
-        },
-        "candidate_metrics": {
-            "patch_count": 197630,
-            "edge_pair_count": 7793,
-            "candidate_count": 239,
-            "same_material_candidates": 159,
-            "structural_multimaterial_candidates": 80,
-            "big_mixed_attachment_count": 25,
-            "reject_counts": {
-                "small_patch": 7522,
-                "color_distance": 4,
-                "low_shared_edges": 22,
-                "score": 5,
-                "low_contact_ratio": 1
-            }
-        },
-        "object_metrics": {
-            "input_patch_count": 197630,
-            "input_candidate_count": 239,
-            "accepted_candidate_rows": 96,
-            "accepted_same_material": 18,
-            "accepted_structural_multimaterial": 78,
-            "output_object_count": 197534,
-            "preview_points_stride10": 1448243,
-            "rejection_counts": {
-                "contact_ratio": 1,
-                "color_distance": 3,
-                "score": 117,
-                "attachment_score": 20,
-                "structural_shared_edges": 2
-            }
-        },
-        "failure_repaired": "The first 20260702 run failed because the remote shell runner did not rsync scripts/geometry_input_contract.py. The runner and validator now require that dependency.",
-        "interpretation": "This dependency-fixed run proves the approved remote runner executes end-to-end on dense Opt-LAS inputs, but it is more conservative than v8: accepted_candidate_rows dropped from 1235 to 96 and output_object_count increased from 196395 to 197534. Keep v8 as the current visual-promotion candidate; use this run only as a diagnostic execution proof.",
-        "verification_command": "python3 scripts/verify_latest_remote_dense_run.py --ssh-host scan-train"
-    },
-    "latest_patch_graph_change": {
-        "id": "contact_rich_fh_merge_guard_20260708",
-        "status": "completed_dense_run_diagnostic_not_promoted",
-        "commit": "6ed8161",
-        "previous_commit": "9a37662",
-        "purpose": "Make patch merging use richer contact evidence instead of mean color and mean normal only. The latest change applies contact shape to the attachment score, which is the dominant small-fragment merge path.",
-        "code_paths": [
-            "scripts/optimize_patch_graph_energy.py",
-            "tests/test_geo_patch_merge_math.py"
-        ],
-        "new_edge_terms": [
-            "contact_color_p90",
-            "contact_roughness_delta",
-            "contact_planarity_delta",
-            "contact_linearity_delta"
-        ],
-        "attachment_score_terms": [
-            "attachment_shape",
-            "attachment_contact_roughness_delta",
-            "attachment_contact_planarity_delta",
-            "attachment_contact_linearity_delta"
-        ],
-        "local_verification": [
-            "python3 -m py_compile scripts/optimize_patch_graph_energy.py",
-            "python3 -m pytest -q tests/test_geo_patch_merge_math.py"
-        ],
-        "local_smoke_result": {
-            "source": "server_parking_priority_s10/geo_patch_region_model_smoke_bridge_v2_20260707",
-            "output": "server_parking_priority_s10/geo_patch_region_model_smoke_bridge_v2_attachment_shape_v1_20260708",
-            "compare_report": "server_parking_priority_s10/patch_energy_contact_shape_smoke_compare_20260708/compare.md",
-            "input_patch_count": 13290,
-            "output_patch_count": 13242,
-            "merge_accept": 48,
-            "merge_reject": 3104,
-            "fh_merge_guard_reject": 13,
-            "largest_horizontal_patch_purity": 0.939,
-            "baseline_largest_horizontal_patch_purity": 0.933,
-            "interpretation": "Contact-rich evidence is now wired into both FH guard and attachment scoring. Smoke output is slightly more conservative than FH-only contact-rich because attachment shape can reject locally inconsistent small-fragment merges. The largest horizontal patch becomes smaller but slightly purer, so this is worth one dense 0.03m full validation when scan-train SSH recovers."
-        },
     "pending_remote_run": {
       "host": "scan-train",
       "runner": "scripts/run_scan_train_patch_energy_contact_shape.sh",
@@ -317,437 +316,447 @@
         "interpretation": "Adding same-geometry, near-bbox, color/normal-compatible non-touching candidates directly addresses the sparse candidate graph: accepted edges increase from 224 to 422, high-entropy patches fall to 6410, and large low-purity patches fall from 17 to 12. Fine-cell overlap QA does not show a real-overlap regression versus v3, so v4 is ready for manual visual QA before any promotion."
       },
       "local_region_smoke": {
-                "path": "server_parking_priority_s10/dense_las_voxel003_local_region_smoke_1m_20260708",
-                "input": "/Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply",
-                "max_points": 1000000,
-                "voxel_count": 996034,
-                "patch_count": 85824,
-                "status": "passed"
-            },
-            "local_region_mps_fallback_smoke": {
-                "path": "server_parking_priority_s10/dense_las_voxel003_local_region_smoke_1m_mps_fallback_20260708",
-                "input": "/Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply",
-                "max_points": 1000000,
-                "voxel_count": 996034,
-                "patch_count": 85837,
-                "cpu_patch_count": 85824,
-                "feature_elapsed_seconds": 30.5,
-                "note": "MPS falls back to CPU for torch.linalg.eigh but still reduced 1M feature time versus the previous CPU smoke; use PYTORCH_ENABLE_MPS_FALLBACK=1 for local full rebuild if scan-train is unavailable.",
-                "full_rebuild_command": "PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/build_geo_patch_region_model.py --input-ply /Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply --output-dir server_parking_priority_s10/dense_las_voxel003_local_region_full_cpp_mps_fallback_20260708 --voxel-size 0.03 --binary-voxel-input --voxel-backend numpy --feature-backend torch --torch-device mps --region-grow-backend cpp --connect-radius-voxels 2 --min-edge-score 0.46 --max-color-distance 150 --bucket-guard same-bucket-or-fine-color"
-            },
-            "reason_pending": "No network blocker is active. scan-train completed the 20260708 dense diagnostics; remaining blockers are algorithmic, not connectivity-related."
-        }
-    },
-    "current_promotion_candidate": {
-        "id": "v8_object_refinement",
-        "qa_candidate_id": "v8_tiny_attach",
-        "source_run_id": "dense_patch_object_refinement_v8_tiny_attach_20260624_170619",
-        "gate_json": "docs/current_dense_promotion_gate.json",
-        "visual_acceptance_json": "docs/current_dense_visual_acceptance.json",
-        "qa_json": "docs/current_dense_mainline_qa.json",
-        "status": "awaiting_required_visual_checks",
-        "reason": "v8 improves accepted candidate count, output object count, and mixed-object overlap versus v7, but it is not promoted until fixed visual checks are explicitly accepted."
-    },
-    "stage_contract": [
-        {
-            "stage": "dense_source",
-            "input": "raw_opt_las_2920mb",
-            "output": "dense_las_voxel003_binary",
-            "rule": "Do not use stride10 viewer PLY as production geometry input."
-        },
-        {
-            "stage": "patch_generation",
-            "input": "dense_las_voxel003_binary",
-            "output": "exclusive voxel patch labels",
-            "rule": "One voxel has exactly one patch owner; semantic labels cannot create or merge patch boundaries."
-        },
-        {
-            "stage": "patch_boundary_optimization",
-            "input": "exclusive voxel patch labels",
-            "output": "optimized exclusive patch labels",
-            "rule": "Overlap is an energy/candidate term with fine occupied-cell support, not an after-the-fact AABB merge."
-        },
-        {
-            "stage": "object_building",
-            "input": "optimized patch labels",
-            "output": "object candidates",
-            "rule": "Object merging may be high-recall, but acceptance must preserve spatial ownership and avoid semantic overmerge."
-        },
-        {
-            "stage": "semantic_evidence",
-            "input": "object candidates plus first-touch/skymask/MASK/VLM evidence",
-            "output": "semantic posterior",
-            "rule": "VLM/MASK output is evidence only; it cannot override geometric ownership."
-        }
-    ],
-    "forbidden_inputs": [
-        {
-            "pattern": "frame_object_points_stride10.ply",
-            "reason": "Viewer/review artifact; too sparse and may encode previous semantic/object assumptions."
-        },
-        {
-            "pattern": "_stride",
-            "reason": "Any stride-sampled preview/viewer artifact is QA-only and must not become dense production input."
-        },
-        {
-            "pattern": "objects_v12_teacher_v20_grid6_unknown_absorb",
-            "reason": "Rejected semantic/coarsening diagnostic."
-        },
-        {
-            "pattern": "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
-            "reason": "Rejected wall-to-floor geometry guard."
-        },
-        {
-            "pattern": "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
-            "reason": "Rejected over-demotion to unknown."
-        },
-        {
-            "pattern": "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
-            "reason": "Diagnostic only; high point-level unknown."
-        }
-    ],
-    "approved_runners": [
-        {
-            "path": "scripts/run_dense_patch_object_refinement_v7.py",
-            "stage": "object_building",
-            "scope": "Local/dry-run dense Patch object-refinement command planner and trusted executor. It must use current dense allowlist inputs by default."
-        },
-        {
-            "path": "scripts/run_scan_train_dense_patch_object_refinement_v7.sh",
-            "stage": "object_building",
-            "scope": "Remote scan-train launcher for dense Patch object-refinement. It runs local mainline preflight before rsync/ssh/tmux launch."
-        },
-        {
-            "path": "scripts/run_object_semantic_evidence_fusion.py",
-            "stage": "semantic_evidence",
-            "scope": "Plan or run object-level semantic evidence fusion after geometry ownership is fixed; it cannot create object boundaries."
-        },
-        {
-            "path": "scripts/run_semantic_evidence_pipeline.py",
-            "stage": "semantic_evidence",
-            "scope": "Orchestrated semantic evidence pipeline for approved object candidates; protected against forbidden production inputs."
-        },
-        {
-            "path": "scripts/run_validated_semantic_viewer_export.py",
-            "stage": "qa_viewer_export",
-            "scope": "QA-only viewer export after semantic validation; viewer PLY must not become production geometry input."
-        }
-    ],
-    "operator_tools": [
-        {
-            "path": "scripts/show_current_mainline.py",
-            "purpose": "Read-only status summary for the current dense semantic mainline."
-        },
-        {
-            "path": "scripts/update_current_dense_visual_acceptance.py",
-            "purpose": "Record manual visual acceptance checks for the current promotion candidate."
-        },
-        {
-            "path": "scripts/gate_current_dense_mainline_promotion.py",
-            "purpose": "Recompute the quantitative and visual gate for the current dense promotion candidate."
-        },
-        {
-            "path": "scripts/plan_current_dense_promotion.py",
-            "purpose": "Generate the explicit state-change plan after the promotion gate passes; does not edit state by itself."
-        },
-        {
-            "path": "scripts/verify_latest_remote_dense_run.py",
-            "purpose": "Verify the latest recorded remote dense run reports against current_dense_patch_state.json."
-        },
-        {
-            "path": "scripts/validate_current_mainline.py",
-            "purpose": "Run the full current dense mainline healthcheck."
-        }
-    ],
-    "next_action": {
-        "id": "dense_patch_object_refinement_v7",
-        "description": "Compare v8 high-recall object refinement visually against v7 and the local v6/v3 dense baselines, then continue object building only where ownership and overlap metrics remain stable.",
-        "runner": "scripts/run_dense_patch_object_refinement_v7.py",
-        "remote_runner": "scripts/run_scan_train_dense_patch_object_refinement_v7.sh",
-        "required_inputs": [
-            "dense_las_voxel003_region_model_full_cpp_20260624/_cpp_region_grower_input.bin",
-            "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap_labels.bin",
-            "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap.jsonl",
-            "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/object_merge_candidates_v2_high_recall/geo_patch_object_merge_candidates.jsonl"
-        ],
-        "current_blocker": "No network blocker is active. scan-train is reachable and completed the 20260708 contact-shape and bucket-split dense diagnostics. The current blocker is algorithmic: post-pass bucket splitting reduced patch count but regressed structural purity by merging stable horizontal/vertical regions into mixed giant patches.",
-        "success_criteria": [
-            "Patch/object ownership remains exclusive.",
-            "Fine occupied-cell overlap does not regress while object fragmentation decreases.",
-            "No semantic label can merge ground, wall, car, railing, or vegetation by itself.",
-            "Viewer output is generated only for QA after dense labels are produced.",
-            "Semantic guard outputs must keep floor/wall surface labels unless there is direct contradictory geometry evidence; missing teacher evidence alone is not enough to demote to unknown."
-        ],
-        "preflight_command": "python3 scripts/validate_current_mainline.py",
-        "remote_runner_preflight": "RUN_PREFLIGHT=1 is default; RUN=1 will stop before rsync/ssh/tmux if the current mainline healthcheck fails.",
-        "python_runner_healthcheck": "scripts/run_dense_patch_object_refinement_v7.py --run defaults to mainline healthcheck; pass --skip-mainline-healthcheck only from a trusted outer launcher."
-    },
-    "current_qa_report": {
-        "id": "current_dense_mainline_qa",
-        "schema": "current-dense-mainline-qa/v1",
-        "json_path": "docs/current_dense_mainline_qa.json",
-        "markdown_path": "docs/current_dense_mainline_qa.md",
-        "purpose": "Single report comparing v7/v8 object refinement and v9/v17 surface guard behavior before promoting any new baseline.",
-        "key_findings": {
-            "v8_candidate_delta_vs_v7": 6417,
-            "v8_accepted_delta_vs_v7": 1139,
-            "v8_output_object_delta_vs_v7": -1139,
-            "v8_mixed_object_voxel_ratio_delta_vs_v7": -0.0004186838888514677,
-            "v17_label_point_delta_vs_v9_all_zero": true
-        },
-        "review_index_html": "docs/current_dense_review_index.html",
-        "review_index_url": "/docs/current_dense_review_index.html",
-        "review_index_purpose": "Small fixed viewer entrypoint for v7/v8 object and v9/v17 semantic guard comparison; excludes rejected diagnostic runs.",
-        "promotion_gate_json": "docs/current_dense_promotion_gate.json",
-        "promotion_gate_status": "awaiting_required_visual_checks",
-        "promotion_gate_command": "python3 scripts/gate_current_dense_mainline_promotion.py --qa-json docs/current_dense_mainline_qa.json --visual-acceptance docs/current_dense_visual_acceptance.json --output docs/current_dense_promotion_gate.json",
-        "visual_acceptance_expected_path": "docs/current_dense_visual_acceptance.json",
-        "visual_acceptance_requirement": "v8 can only be promoted after the fixed review index is manually inspected and required checks are recorded as accepted.",
-        "visual_acceptance_markdown": "docs/current_dense_visual_acceptance.md",
-        "promotion_gate_current_reasons": [
-            "visual_status_not_accepted=pending",
-            "visual_required_checks_not_accepted=['v8_fragmentation_improves', 'v8_no_obvious_overmerge', 'surface_guard_no_unknown_regression', 'semantic_not_promoted_from_object_view']"
-        ],
-        "visual_acceptance_update_command": "python3 scripts/update_current_dense_visual_acceptance.py --check-id <check_id> --status accepted --reviewer <name> --notes <brief_evidence>",
-        "visual_acceptance_gate_command": "python3 scripts/gate_current_dense_mainline_promotion.py --qa-json docs/current_dense_mainline_qa.json --visual-acceptance docs/current_dense_visual_acceptance.json --output docs/current_dense_promotion_gate.json",
-        "unknown_point_delta_v17_minus_v9": 0,
-        "promotion_gate_unknown_spike_policy": "max_unknown_point_delta=0; any floor/wall guard run that increases unknown points above v9 is blocked.",
-        "rejected_guard_diagnostics": {
-            "baseline": "objects_v9_teacher_v20_semantic",
-            "baseline_unknown_points": 73085,
-            "variants": [
-                {
-                    "id": "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
-                    "unknown_delta_vs_v9": 1006072,
-                    "top_reasons": [
-                        {
-                            "reason": "kept_unchecked_label",
-                            "count": 98413
-                        },
-                        {
-                            "reason": "wall_fragment_too_small_without_teacher",
-                            "count": 37037
-                        },
-                        {
-                            "reason": "floor_fragment_too_small_without_teacher",
-                            "count": 27477
-                        }
-                    ]
-                },
-                {
-                    "id": "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
-                    "unknown_delta_vs_v9": 957051,
-                    "top_reasons": [
-                        {
-                            "reason": "kept_unchecked_label",
-                            "count": 98413
-                        },
-                        {
-                            "reason": "kept_wall_geometry_guard",
-                            "count": 38507
-                        },
-                        {
-                            "reason": "kept_floor_geometry_guard",
-                            "count": 27674
-                        }
-                    ]
-                }
-            ]
-        },
-        "review_artifact_allowlist": {
-            "schema": "current-dense-review-artifact-allowlist/v1",
-            "passed": true,
-            "artifact_ids": [
-                "v7_object_refinement",
-                "v8_object_refinement",
-                "v9_teacher_semantic",
-                "v17_surface_preserve_guard"
-            ],
-            "forbidden_substrings": [
-                "objects_v12_teacher_v20_grid6_unknown_absorb",
-                "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
-                "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
-                "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall"
-            ]
-        },
-        "healthcheck_command": "python3 scripts/validate_current_mainline.py",
-        "healthcheck_status": "passed_with_visual_acceptance_warning"
-    },
-    "superpoint_graph_v4_candidate": {
-        "id": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
-        "status": "visual_qa_pending_not_promoted",
-        "role": "Superpoint Graph candidate for reducing fragmentation without changing the current dense mainline baseline.",
-        "viewer_url": "/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
-        "visual_qa_markdown": "docs/superpoint_graph_v4_visual_qa.md",
-        "visual_acceptance_json": "docs/superpoint_graph_v4_visual_acceptance.json",
-        "visual_acceptance_markdown": "docs/superpoint_graph_v4_visual_acceptance.md",
-        "decision_rule": "Do not promote v4 unless every required visual acceptance check is accepted."
-    },
-    "superpoint_graph_v6_fh_candidate": {
-        "id": "superpoint_graph_v6_fh_k120000_20260708_185559",
-        "status": "superseded_not_promoted",
-        "role": "FH-style adaptive threshold precision candidate; tests whether weak large-component merges can be rejected without fine-overlap regression.",
-        "viewer_url": "/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v6_fh_k120000_20260708_185559/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v6_fh_k120000_20260708_185559/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
-        "visual_qa_markdown": "docs/superpoint_graph_v6_fh_visual_qa.md",
-        "metrics": {
-            "accepted_edges": 281,
-            "fh_threshold_rejects": 45,
-            "output_patch_count": 197349,
-            "fine_overlap_pairs_ge_50_top1000": 3,
-            "fine_overlap_pairs_ge_95_top1000": 0
-        },
-        "superseded_by": "superpoint_graph_fh_k240000_20260708_190054",
-        "decision_rule": "Do not promote; retained as a mid-point sweep result."
-    },
-    "superpoint_graph_fh_sweep_20260708": {
-        "id": "superpoint_graph_fh_sweep_20260708",
-        "status": "metric_sweep_complete_visual_qa_pending",
-        "report_markdown": "docs/superpoint_graph_fh_sweep_20260708.md",
-        "selected_candidate": "superpoint_graph_fh_k240000_20260708_190054",
-        "metric_baseline": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
-        "metric_decision": "Do not replace v4 on metrics alone; FH240 has fewer accepted edges and the same large-low-purity count, but higher high-entropy count.",
-        "selected_viewer_url": "/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_fh_k240000_20260708_190054/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_fh_k240000_20260708_190054/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
-        "sweep_rows": [
-            {
-                "id": "superpoint_graph_v5_fh_k120_20260708_185458",
-                "fh_k": 120,
-                "accepted_edges": 3,
-                "output_patch_count": 197627,
-                "fh_threshold_rejects": 364,
-                "status": "rejected_too_strict"
-            },
-            {
-                "id": "superpoint_graph_fh_k60000_20260708_190210",
-                "fh_k": 60000,
-                "accepted_edges": 259,
-                "output_patch_count": 197371,
-                "fh_threshold_rejects": 74,
-                "fine_overlap_pairs_ge_50_top1000": 3,
-                "fine_overlap_pairs_ge_95_top1000": 0,
-                "status": "metric_only"
-            },
-            {
-                "id": "superpoint_graph_v6_fh_k120000_20260708_185559",
-                "fh_k": 120000,
-                "accepted_edges": 281,
-                "output_patch_count": 197349,
-                "fh_threshold_rejects": 45,
-                "fine_overlap_pairs_ge_50_top1000": 3,
-                "fine_overlap_pairs_ge_95_top1000": 0,
-                "status": "superseded"
-            },
-            {
-                "id": "superpoint_graph_fh_k240000_20260708_190054",
-                "fh_k": 240000,
-                "accepted_edges": 304,
-                "output_patch_count": 197326,
-                "fh_threshold_rejects": 19,
-                "fine_overlap_pairs_ge_50_top1000": 3,
-                "fine_overlap_pairs_ge_95_top1000": 0,
-                "status": "visual_qa_candidate"
-            }
-        ],
-        "decision_rule": "Promote only after visual QA shows lower over-merge risk than v4 without visible fragmentation regression."
-    },
-    "superpoint_graph_edge_sparsity_20260708": {
-        "id": "superpoint_graph_edge_sparsity_20260708",
-        "status": "diagnosed_candidate_graph_bottleneck",
-        "report_markdown": "docs/superpoint_graph_edge_sparsity_20260708.md",
-        "v4": {
-            "patch_count": 197208,
-            "edge_pair_count": 7569,
-            "isolated_patch_count": 189029,
-            "isolated_voxels": 2716607,
-            "isolated_size_bins": {
-                "1": 105374,
-                "2_9": 63356,
-                "10_99": 16732,
-                "100_999": 3280,
-                "1000_9999": 274,
-                "10000_plus": 13
-            }
-        },
-        "fh240": {
-            "patch_count": 197326,
-            "edge_pair_count": 7672,
-            "isolated_patch_count": 189036,
-            "isolated_voxels": 3244373,
-            "isolated_size_bins": {
-                "1": 105374,
-                "2_9": 63356,
-                "10_99": 16732,
-                "100_999": 3279,
-                "1000_9999": 279,
-                "10000_plus": 16
-            }
-        },
-        "fine_cell_neighbor_diagnostic": {
-            "cell_size": 0.05,
-            "radius": 1,
-            "v4_examples": [
-                {
-                    "patch_id": 58,
-                    "geometry_type": "horizontal",
-                    "neighbor_candidate_count": 153,
-                    "same_geometry_neighbor_count": 0
-                },
-                {
-                    "patch_id": 42,
-                    "geometry_type": "vertical",
-                    "neighbor_candidate_count": 192,
-                    "same_geometry_neighbor_count": 2
-                },
-                {
-                    "patch_id": 449,
-                    "geometry_type": "vertical",
-                    "neighbor_candidate_count": 994,
-                    "same_geometry_neighbor_count": 4
-                }
-            ],
-            "fh240_examples": [
-                {
-                    "patch_id": 7,
-                    "geometry_type": "horizontal",
-                    "neighbor_candidate_count": 572,
-                    "same_geometry_neighbor_count": 0
-                }
-            ]
-        },
-        "decision": "Stop tuning merge thresholds for now. Missing neighbors are mostly uncertain fragments around stable surfaces, so the next useful experiment is guarded uncertain-fragment attachment, not same-geometry bridging."
-    },
-    "superpoint_graph_v7_uncertain_guard": {
-        "id": "superpoint_graph_v7_uncertain_guard_20260708_191958",
-        "status": "visual_qa_failed_not_promoted",
-        "role": "Rejected guarded uncertain-fragment attachment diagnostic for missing edge recovery.",
-        "viewer_url": "/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
-        "report_markdown": "docs/superpoint_graph_v7_uncertain_guard_20260708.md",
-        "compare_markdown": "docs/superpoint_graph_v7_uncertain_compare_20260708.md",
-        "visual_acceptance_json": "docs/superpoint_graph_v7_visual_acceptance.json",
-        "visual_acceptance_markdown": "docs/superpoint_graph_v7_visual_acceptance.md",
-        "metrics": {
-            "output_patch_count": 197014,
-            "accepted_edges": 616,
-            "uncertain_fragment_accepted_edges": 300,
-            "high_entropy_count": 6361,
-            "large_high_entropy_count": 1,
-            "large_low_purity_count": 12,
-            "isolated_patch_count": 188780,
-            "isolated_voxels": 2590102,
-            "isolated_10000_plus": 9,
-            "fine_overlap_pairs_ge_50_top1000": 4,
-            "fine_overlap_pairs_ge_95_top1000": 0
-        },
-        "new_fine_overlap_risk_vs_v4": {
-            "patch_a": 70503,
-            "patch_b": 9366,
-            "geom_a": "rough_mixed",
-            "geom_b": "horizontal",
-            "fine_ratio_min_cells": 0.5,
-            "shared_fine_cells": 158,
-            "smaller_patch_voxels": 530
-        },
-        "metric_decision": "Improves high entropy and isolated large patches against v4 but increases fine50 overlap from 3 to 4.",
-        "visual_qa_result": "Rejected by user QA: ground/wall/grass grouped into one object; part of shrub also merged into that surface object.",
-        "decision_rule": "Do not promote v7. Keep v4 as metric baseline; future edge-recall work must avoid uncertain-fragment bridges across stable surface and vegetation ownership."
+        "path": "server_parking_priority_s10/dense_las_voxel003_local_region_smoke_1m_20260708",
+        "input": "/Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply",
+        "max_points": 1000000,
+        "voxel_count": 996034,
+        "patch_count": 85824,
+        "status": "passed"
+      },
+      "local_region_mps_fallback_smoke": {
+        "path": "server_parking_priority_s10/dense_las_voxel003_local_region_smoke_1m_mps_fallback_20260708",
+        "input": "/Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply",
+        "max_points": 1000000,
+        "voxel_count": 996034,
+        "patch_count": 85837,
+        "cpu_patch_count": 85824,
+        "feature_elapsed_seconds": 30.5,
+        "note": "MPS falls back to CPU for torch.linalg.eigh but still reduced 1M feature time versus the previous CPU smoke; use PYTORCH_ENABLE_MPS_FALLBACK=1 for local full rebuild if scan-train is unavailable.",
+        "full_rebuild_command": "PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/build_geo_patch_region_model.py --input-ply /Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply --output-dir server_parking_priority_s10/dense_las_voxel003_local_region_full_cpp_mps_fallback_20260708 --voxel-size 0.03 --binary-voxel-input --voxel-backend numpy --feature-backend torch --torch-device mps --region-grow-backend cpp --connect-radius-voxels 2 --min-edge-score 0.46 --max-color-distance 150 --bucket-guard same-bucket-or-fine-color"
+      },
+      "reason_pending": "No network blocker is active. scan-train completed the 20260708 dense diagnostics; remaining blockers are algorithmic, not connectivity-related."
     }
+  },
+  "current_promotion_candidate": {
+    "id": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
+    "qa_candidate_id": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
+    "source_run_id": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
+    "visual_acceptance_json": "docs/superpoint_graph_v4_visual_acceptance.json",
+    "status": "visual_qa_pending_not_promoted",
+    "reason": "SPG v4 is the current trusted baseline but still requires explicit visual acceptance before being treated as promoted object ownership."
+  },
+  "stage_contract": [
+    {
+      "stage": "dense_source",
+      "input": "raw_opt_las_2920mb",
+      "output": "dense_las_voxel003_binary",
+      "rule": "Do not use stride10 viewer PLY as production geometry input."
+    },
+    {
+      "stage": "patch_generation",
+      "input": "dense_las_voxel003_binary",
+      "output": "exclusive voxel patch labels",
+      "rule": "One voxel has exactly one patch owner; semantic labels cannot create or merge patch boundaries."
+    },
+    {
+      "stage": "patch_boundary_optimization",
+      "input": "exclusive voxel patch labels",
+      "output": "optimized exclusive patch labels",
+      "rule": "Overlap is an energy/candidate term with fine occupied-cell support, not an after-the-fact AABB merge."
+    },
+    {
+      "stage": "object_building",
+      "input": "optimized patch labels",
+      "output": "object candidates",
+      "rule": "Object merging may be high-recall, but acceptance must preserve spatial ownership and avoid semantic overmerge."
+    },
+    {
+      "stage": "semantic_evidence",
+      "input": "object candidates plus first-touch/skymask/MASK/VLM evidence",
+      "output": "semantic posterior",
+      "rule": "VLM/MASK output is evidence only; it cannot override geometric ownership."
+    }
+  ],
+  "forbidden_inputs": [
+    {
+      "pattern": "frame_object_points_stride10.ply",
+      "reason": "Viewer/review artifact; too sparse and may encode previous semantic/object assumptions."
+    },
+    {
+      "pattern": "_stride",
+      "reason": "Any stride-sampled preview/viewer artifact is QA-only and must not become dense production input."
+    },
+    {
+      "pattern": "objects_v12_teacher_v20_grid6_unknown_absorb",
+      "reason": "Rejected semantic/coarsening diagnostic."
+    },
+    {
+      "pattern": "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
+      "reason": "Rejected wall-to-floor geometry guard."
+    },
+    {
+      "pattern": "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
+      "reason": "Rejected over-demotion to unknown."
+    },
+    {
+      "pattern": "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
+      "reason": "Diagnostic only; high point-level unknown."
+    }
+  ],
+  "approved_runners": [
+    {
+      "path": "scripts/run_dense_patch_object_refinement_v7.py",
+      "stage": "object_building",
+      "scope": "Local/dry-run dense Patch object-refinement command planner and trusted executor. It must use current dense allowlist inputs by default."
+    },
+    {
+      "path": "scripts/run_scan_train_dense_patch_object_refinement_v7.sh",
+      "stage": "object_building",
+      "scope": "Remote scan-train launcher for dense Patch object-refinement. It runs local mainline preflight before rsync/ssh/tmux launch."
+    },
+    {
+      "path": "scripts/run_object_semantic_evidence_fusion.py",
+      "stage": "semantic_evidence",
+      "scope": "Plan or run object-level semantic evidence fusion after geometry ownership is fixed; it cannot create object boundaries."
+    },
+    {
+      "path": "scripts/run_semantic_evidence_pipeline.py",
+      "stage": "semantic_evidence",
+      "scope": "Orchestrated semantic evidence pipeline for approved object candidates; protected against forbidden production inputs."
+    },
+    {
+      "path": "scripts/run_validated_semantic_viewer_export.py",
+      "stage": "qa_viewer_export",
+      "scope": "QA-only viewer export after semantic validation; viewer PLY must not become production geometry input."
+    },
+  {
+    "path": "scripts/cluster_superpoint_graph.py",
+    "stage": "object_building",
+    "contract": "spg_review",
+    "scope": "Geometry-first superpoint graph candidate builder for review artifacts. It is not a legacy dense-object production semantic runner."
+  },
+  {
+    "path": "scripts/run_scan_train_superpoint_graph.sh",
+    "stage": "object_building",
+    "contract": "spg_review",
+    "scope": "Remote launcher for SPG review candidates. It may create review outputs but must not be treated as the promoted semantic production writer."
+  }
+  ],
+  "operator_tools": [
+    {
+      "path": "scripts/show_current_mainline.py",
+      "purpose": "Read-only status summary for the current dense semantic mainline."
+    },
+    {
+      "path": "scripts/update_current_dense_visual_acceptance.py",
+      "purpose": "Record manual visual acceptance checks for the current promotion candidate."
+    },
+    {
+      "path": "scripts/gate_current_dense_mainline_promotion.py",
+      "purpose": "Recompute the quantitative and visual gate for the current dense promotion candidate."
+    },
+    {
+      "path": "scripts/plan_current_dense_promotion.py",
+      "purpose": "Generate the explicit state-change plan after the promotion gate passes; does not edit state by itself."
+    },
+    {
+      "path": "scripts/verify_latest_remote_dense_run.py",
+      "purpose": "Verify the latest recorded remote dense run reports against current_dense_patch_state.json."
+    },
+    {
+      "path": "scripts/validate_current_mainline.py",
+      "purpose": "Run the full current dense mainline healthcheck."
+    }
+  ],
+  "next_action": {
+    "id": "dense_patch_object_refinement_v7",
+    "description": "Compare v8 high-recall object refinement visually against v7 and the local v6/v3 dense baselines, then continue object building only where ownership and overlap metrics remain stable.",
+    "runner": "scripts/cluster_superpoint_graph.py",
+    "remote_runner": "scripts/run_scan_train_superpoint_graph.sh",
+    "required_inputs": [
+      "dense_las_voxel003_region_model_full_cpp_20260624/_cpp_region_grower_input.bin",
+      "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap_labels.bin",
+      "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap.jsonl",
+      "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/object_merge_candidates_v2_high_recall/geo_patch_object_merge_candidates.jsonl"
+    ],
+    "current_blocker": "Visual QA is needed for Sonata touch-edge 0.15/0.30 versus v4; v7 uncertain-fragment bridge remains rejected.",
+    "success_criteria": [
+      "Patch/object ownership remains exclusive.",
+      "Fine occupied-cell overlap does not regress while object fragmentation decreases.",
+      "No semantic label can merge ground, wall, car, railing, or vegetation by itself.",
+      "Viewer output is generated only for QA after dense labels are produced.",
+      "Semantic guard outputs must keep floor/wall surface labels unless there is direct contradictory geometry evidence; missing teacher evidence alone is not enough to demote to unknown."
+    ],
+    "preflight_command": "python3 scripts/validate_current_mainline.py",
+    "remote_runner_preflight": "RUN_PREFLIGHT=1 is default; RUN=1 will stop before rsync/ssh/tmux if the current mainline healthcheck fails.",
+    "python_runner_healthcheck": "scripts/run_dense_patch_object_refinement_v7.py --run defaults to mainline healthcheck; pass --skip-mainline-healthcheck only from a trusted outer launcher."
+  },
+  "current_qa_report": {
+    "id": "current_dense_mainline_qa",
+    "schema": "current-dense-mainline-qa/v1",
+    "json_path": "docs/current_dense_mainline_qa.json",
+    "markdown_path": "docs/current_dense_mainline_qa.md",
+    "purpose": "Single report comparing v7/v8 object refinement and v9/v17 surface guard behavior before promoting any new baseline.",
+    "key_findings": {
+      "v8_candidate_delta_vs_v7": 6417,
+      "v8_accepted_delta_vs_v7": 1139,
+      "v8_output_object_delta_vs_v7": -1139,
+      "v8_mixed_object_voxel_ratio_delta_vs_v7": -0.0004186838888514677,
+      "v17_label_point_delta_vs_v9_all_zero": true
+    },
+    "review_index_html": "docs/current_dense_review_index.html",
+    "review_index_url": "/docs/current_dense_review_index.html",
+    "review_index_purpose": "Small fixed viewer entrypoint for v7/v8 object and v9/v17 semantic guard comparison; excludes rejected diagnostic runs.",
+    "promotion_gate_json": "docs/current_dense_promotion_gate.json",
+    "promotion_gate_status": "awaiting_required_visual_checks",
+    "promotion_gate_command": "python3 scripts/gate_current_dense_mainline_promotion.py --qa-json docs/current_dense_mainline_qa.json --visual-acceptance docs/current_dense_visual_acceptance.json --output docs/current_dense_promotion_gate.json",
+    "visual_acceptance_expected_path": "docs/current_dense_visual_acceptance.json",
+    "visual_acceptance_requirement": "v8 can only be promoted after the fixed review index is manually inspected and required checks are recorded as accepted.",
+    "visual_acceptance_markdown": "docs/current_dense_visual_acceptance.md",
+    "promotion_gate_current_reasons": [
+      "visual_status_not_accepted=pending",
+      "visual_required_checks_not_accepted=['v8_fragmentation_improves', 'v8_no_obvious_overmerge', 'surface_guard_no_unknown_regression', 'semantic_not_promoted_from_object_view']"
+    ],
+    "visual_acceptance_update_command": "python3 scripts/update_current_dense_visual_acceptance.py --check-id <check_id> --status accepted --reviewer <name> --notes <brief_evidence>",
+    "visual_acceptance_gate_command": "python3 scripts/gate_current_dense_mainline_promotion.py --qa-json docs/current_dense_mainline_qa.json --visual-acceptance docs/current_dense_visual_acceptance.json --output docs/current_dense_promotion_gate.json",
+    "unknown_point_delta_v17_minus_v9": 0,
+    "promotion_gate_unknown_spike_policy": "max_unknown_point_delta=0; any floor/wall guard run that increases unknown points above v9 is blocked.",
+    "rejected_guard_diagnostics": {
+      "baseline": "objects_v9_teacher_v20_semantic",
+      "baseline_unknown_points": 73085,
+      "variants": [
+        {
+          "id": "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
+          "unknown_delta_vs_v9": 1006072,
+          "top_reasons": [
+            {
+              "reason": "kept_unchecked_label",
+              "count": 98413
+            },
+            {
+              "reason": "wall_fragment_too_small_without_teacher",
+              "count": 37037
+            },
+            {
+              "reason": "floor_fragment_too_small_without_teacher",
+              "count": 27477
+            }
+          ]
+        },
+        {
+          "id": "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall",
+          "unknown_delta_vs_v9": 957051,
+          "top_reasons": [
+            {
+              "reason": "kept_unchecked_label",
+              "count": 98413
+            },
+            {
+              "reason": "kept_wall_geometry_guard",
+              "count": 38507
+            },
+            {
+              "reason": "kept_floor_geometry_guard",
+              "count": 27674
+            }
+          ]
+        }
+      ]
+    },
+    "review_artifact_allowlist": {
+      "schema": "current-dense-review-artifact-allowlist/v1",
+      "passed": true,
+      "artifact_ids": [
+        "v7_object_refinement",
+        "v8_object_refinement",
+        "v9_teacher_semantic",
+        "v17_surface_preserve_guard"
+      ],
+      "forbidden_substrings": [
+        "objects_v12_teacher_v20_grid6_unknown_absorb",
+        "objects_v14_teacher_v20_grid6_geometry_guard_wall_recall",
+        "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor",
+        "objects_v16_teacher_v20_grid6_geometry_guard_surface_recall"
+      ]
+    },
+    "healthcheck_command": "python3 scripts/validate_current_mainline.py",
+    "healthcheck_status": "passed_with_visual_acceptance_warning"
+  },
+  "superpoint_graph_v4_candidate": {
+    "id": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
+    "status": "visual_qa_pending_not_promoted",
+    "role": "Superpoint Graph candidate for reducing fragmentation without changing the current dense mainline baseline.",
+    "viewer_url": "/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
+    "visual_qa_markdown": "docs/superpoint_graph_v4_visual_qa.md",
+    "visual_acceptance_json": "docs/superpoint_graph_v4_visual_acceptance.json",
+    "visual_acceptance_markdown": "docs/superpoint_graph_v4_visual_acceptance.md",
+    "decision_rule": "Do not promote v4 unless every required visual acceptance check is accepted."
+  },
+  "superpoint_graph_v6_fh_candidate": {
+    "id": "superpoint_graph_v6_fh_k120000_20260708_185559",
+    "status": "superseded_not_promoted",
+    "role": "FH-style adaptive threshold precision candidate; tests whether weak large-component merges can be rejected without fine-overlap regression.",
+    "viewer_url": "/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v6_fh_k120000_20260708_185559/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v6_fh_k120000_20260708_185559/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
+    "visual_qa_markdown": "docs/superpoint_graph_v6_fh_visual_qa.md",
+    "metrics": {
+      "accepted_edges": 281,
+      "fh_threshold_rejects": 45,
+      "output_patch_count": 197349,
+      "fine_overlap_pairs_ge_50_top1000": 3,
+      "fine_overlap_pairs_ge_95_top1000": 0
+    },
+    "superseded_by": "superpoint_graph_fh_k240000_20260708_190054",
+    "decision_rule": "Do not promote; retained as a mid-point sweep result."
+  },
+  "superpoint_graph_fh_sweep_20260708": {
+    "id": "superpoint_graph_fh_sweep_20260708",
+    "status": "metric_sweep_complete_visual_qa_pending",
+    "report_markdown": "docs/superpoint_graph_fh_sweep_20260708.md",
+    "selected_candidate": "superpoint_graph_fh_k240000_20260708_190054",
+    "metric_baseline": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
+    "metric_decision": "Do not replace v4 on metrics alone; FH240 has fewer accepted edges and the same large-low-purity count, but higher high-entropy count.",
+    "selected_viewer_url": "/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_fh_k240000_20260708_190054/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_fh_k240000_20260708_190054/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
+    "sweep_rows": [
+      {
+        "id": "superpoint_graph_v5_fh_k120_20260708_185458",
+        "fh_k": 120,
+        "accepted_edges": 3,
+        "output_patch_count": 197627,
+        "fh_threshold_rejects": 364,
+        "status": "rejected_too_strict"
+      },
+      {
+        "id": "superpoint_graph_fh_k60000_20260708_190210",
+        "fh_k": 60000,
+        "accepted_edges": 259,
+        "output_patch_count": 197371,
+        "fh_threshold_rejects": 74,
+        "fine_overlap_pairs_ge_50_top1000": 3,
+        "fine_overlap_pairs_ge_95_top1000": 0,
+        "status": "metric_only"
+      },
+      {
+        "id": "superpoint_graph_v6_fh_k120000_20260708_185559",
+        "fh_k": 120000,
+        "accepted_edges": 281,
+        "output_patch_count": 197349,
+        "fh_threshold_rejects": 45,
+        "fine_overlap_pairs_ge_50_top1000": 3,
+        "fine_overlap_pairs_ge_95_top1000": 0,
+        "status": "superseded"
+      },
+      {
+        "id": "superpoint_graph_fh_k240000_20260708_190054",
+        "fh_k": 240000,
+        "accepted_edges": 304,
+        "output_patch_count": 197326,
+        "fh_threshold_rejects": 19,
+        "fine_overlap_pairs_ge_50_top1000": 3,
+        "fine_overlap_pairs_ge_95_top1000": 0,
+        "status": "visual_qa_candidate"
+      }
+    ],
+    "decision_rule": "Promote only after visual QA shows lower over-merge risk than v4 without visible fragmentation regression."
+  },
+  "superpoint_graph_edge_sparsity_20260708": {
+    "id": "superpoint_graph_edge_sparsity_20260708",
+    "status": "diagnosed_candidate_graph_bottleneck",
+    "report_markdown": "docs/superpoint_graph_edge_sparsity_20260708.md",
+    "v4": {
+      "patch_count": 197208,
+      "edge_pair_count": 7569,
+      "isolated_patch_count": 189029,
+      "isolated_voxels": 2716607,
+      "isolated_size_bins": {
+        "1": 105374,
+        "2_9": 63356,
+        "10_99": 16732,
+        "100_999": 3280,
+        "1000_9999": 274,
+        "10000_plus": 13
+      }
+    },
+    "fh240": {
+      "patch_count": 197326,
+      "edge_pair_count": 7672,
+      "isolated_patch_count": 189036,
+      "isolated_voxels": 3244373,
+      "isolated_size_bins": {
+        "1": 105374,
+        "2_9": 63356,
+        "10_99": 16732,
+        "100_999": 3279,
+        "1000_9999": 279,
+        "10000_plus": 16
+      }
+    },
+    "fine_cell_neighbor_diagnostic": {
+      "cell_size": 0.05,
+      "radius": 1,
+      "v4_examples": [
+        {
+          "patch_id": 58,
+          "geometry_type": "horizontal",
+          "neighbor_candidate_count": 153,
+          "same_geometry_neighbor_count": 0
+        },
+        {
+          "patch_id": 42,
+          "geometry_type": "vertical",
+          "neighbor_candidate_count": 192,
+          "same_geometry_neighbor_count": 2
+        },
+        {
+          "patch_id": 449,
+          "geometry_type": "vertical",
+          "neighbor_candidate_count": 994,
+          "same_geometry_neighbor_count": 4
+        }
+      ],
+      "fh240_examples": [
+        {
+          "patch_id": 7,
+          "geometry_type": "horizontal",
+          "neighbor_candidate_count": 572,
+          "same_geometry_neighbor_count": 0
+        }
+      ]
+    },
+    "decision": "Stop tuning merge thresholds for now. Missing neighbors are mostly uncertain fragments around stable surfaces, so the next useful experiment is guarded uncertain-fragment attachment, not same-geometry bridging."
+  },
+  "superpoint_graph_v7_uncertain_guard": {
+    "id": "superpoint_graph_v7_uncertain_guard_20260708_191958",
+    "status": "visual_qa_failed_not_promoted",
+    "role": "Rejected guarded uncertain-fragment attachment diagnostic for missing edge recovery.",
+    "viewer_url": "/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
+    "report_markdown": "docs/superpoint_graph_v7_uncertain_guard_20260708.md",
+    "compare_markdown": "docs/superpoint_graph_v7_uncertain_compare_20260708.md",
+    "visual_acceptance_json": "docs/superpoint_graph_v7_visual_acceptance.json",
+    "visual_acceptance_markdown": "docs/superpoint_graph_v7_visual_acceptance.md",
+    "metrics": {
+      "output_patch_count": 197014,
+      "accepted_edges": 616,
+      "uncertain_fragment_accepted_edges": 300,
+      "high_entropy_count": 6361,
+      "large_high_entropy_count": 1,
+      "large_low_purity_count": 12,
+      "isolated_patch_count": 188780,
+      "isolated_voxels": 2590102,
+      "isolated_10000_plus": 9,
+      "fine_overlap_pairs_ge_50_top1000": 4,
+      "fine_overlap_pairs_ge_95_top1000": 0
+    },
+    "new_fine_overlap_risk_vs_v4": {
+      "patch_a": 70503,
+      "patch_b": 9366,
+      "geom_a": "rough_mixed",
+      "geom_b": "horizontal",
+      "fine_ratio_min_cells": 0.5,
+      "shared_fine_cells": 158,
+      "smaller_patch_voxels": 530
+    },
+    "metric_decision": "Improves high entropy and isolated large patches against v4 but increases fine50 overlap from 3 to 4.",
+    "visual_qa_result": "Rejected by user QA: ground/wall/grass grouped into one object; part of shrub also merged into that surface object.",
+    "decision_rule": "Do not promote v7. Keep v4 as metric baseline; future edge-recall work must avoid uncertain-fragment bridges across stable surface and vegetation ownership."
+  }
 }

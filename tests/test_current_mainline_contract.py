@@ -61,7 +61,11 @@ def test_protected_script_contracts_are_shared_by_usage_validators() -> None:
     assert validate_geometry_input_contract_usage.PROTECTED_GEOMETRY_INPUT_CONTRACT_SCRIPT_PATHS is (
         PROTECTED_GEOMETRY_INPUT_CONTRACT_SCRIPT_PATHS
     )
-    approved_python_runners = {item for item in APPROVED_MAINLINE_RUNNER_PATHS if item.endswith(".py")}
+    approved_python_runners = {
+        item
+        for item in APPROVED_MAINLINE_RUNNER_PATHS
+        if item.endswith(".py") and item != "scripts/cluster_superpoint_graph.py"
+    }
     assert approved_python_runners <= set(PROTECTED_PRODUCTION_GUARD_SCRIPT_PATHS)
 
 

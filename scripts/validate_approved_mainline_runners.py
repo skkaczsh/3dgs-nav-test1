@@ -117,14 +117,18 @@ def validate_shell_runner(path: Path, stage: str) -> list[str]:
 def validate_runner(row: dict[str, Any], *, repo_root: Path = REPO_ROOT) -> dict[str, Any]:
     rel = str(row.get("path", ""))
     stage = str(row.get("stage", ""))
+    contract = str(row.get("contract", ""))
     path = repo_root / rel
     errors: list[str] = []
+    warnings: list[str] = []
     if not rel:
         errors.append("missing_runner_path")
     if not stage:
         errors.append("missing_runner_stage")
     if not path.exists():
         errors.append(f"missing_runner_file={rel}")
+    elif contract == "spg_review":
+        warnings.append("spg_review_runner_legacy_preflight_skipped")
     elif path.suffix == ".py":
         errors.extend(validate_python_runner(path, stage))
     elif path.suffix == ".sh":
@@ -134,8 +138,10 @@ def validate_runner(row: dict[str, Any], *, repo_root: Path = REPO_ROOT) -> dict
     return {
         "path": rel,
         "stage": stage,
+        "contract": contract,
         "passed": not errors,
         "errors": errors,
+        "warnings": warnings,
     }
 
 

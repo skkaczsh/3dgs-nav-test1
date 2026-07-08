@@ -75,10 +75,10 @@ def visual_fixture() -> dict:
 def test_build_html_links_only_current_review_artifacts() -> None:
     html = module.build_html(qa_fixture(), visual_fixture())
 
-    assert "v7 Object Refinement" in html
-    assert "v8 Object Refinement" in html
-    assert "v9 Teacher Semantic" in html
-    assert "v17 Surface Preserve Guard" in html
+    assert "Energy Attach v4" in html
+    assert "SPG v4 near-bbox" in html
+    assert "SPG Sonata touch-edge 0.15" in html
+    assert "SPG Sonata touch-edge 0.30" in html
     assert "Promotion Review Checklist" in html
     assert "v8_fragmentation_improves" in html
     assert "update_current_dense_visual_acceptance.py" in html
@@ -95,10 +95,10 @@ def test_artifact_allowlist_accepts_current_review_set() -> None:
     assert result["passed"] is True
     assert result["errors"] == []
     assert result["artifact_ids"] == [
-        "v7_object_refinement",
-        "v8_object_refinement",
-        "v9_teacher_semantic",
-        "v17_surface_preserve_guard",
+        "energy_attach_v4_contact_evidence",
+        "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
+        "superpoint_graph_sonata_touch_edge_sample_v1_20260708",
+        "superpoint_graph_sonata_touch_edge_w030_20260708",
     ]
 
 
@@ -194,5 +194,5 @@ def test_cli_writes_review_index(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
     text = out.read_text(encoding="utf-8")
     assert "Current Dense Mainline Review" in text
-    assert "v8 Object Refinement" in text
+    assert "SPG v4 near-bbox" in text
     assert "Promotion Review Checklist" in text

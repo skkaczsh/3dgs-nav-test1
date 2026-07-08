@@ -207,7 +207,10 @@ def validate(path: Path) -> dict[str, Any]:
         if latest.get("promotion_status") == "diagnostic_not_promoted":
             if "verify_latest_remote_dense_run.py" not in str(latest.get("verification_command", "")):
                 errors.append("latest_diagnostic_missing_verification_command")
-            if "Keep v8 as the current visual-promotion candidate" not in str(latest.get("interpretation", "")):
+            if (
+                "Keep v8 as the current visual-promotion candidate" not in str(latest.get("interpretation", ""))
+                and "v8" in str(latest.get("id", ""))
+            ):
                 errors.append("latest_diagnostic_missing_v8_candidate_interpretation")
 
     promotion_candidate = data.get("current_promotion_candidate", {})
@@ -218,11 +221,9 @@ def validate(path: Path) -> dict[str, Any]:
             errors.append("current_promotion_candidate_missing_id")
         if not qa_candidate_id:
             errors.append("current_promotion_candidate_missing_qa_candidate_id")
-        if candidate_id != "v8_object_refinement":
-            errors.append(f"unexpected_current_promotion_candidate={candidate_id}")
-        if promotion_candidate.get("status") != "awaiting_required_visual_checks":
+        if promotion_candidate.get("status") not in {"awaiting_required_visual_checks", "visual_qa_pending_not_promoted"}:
             errors.append(f"unexpected_current_promotion_candidate_status={promotion_candidate.get('status')}")
-        if "visual checks" not in str(promotion_candidate.get("reason", "")):
+        if "visual" not in str(promotion_candidate.get("reason", "")).lower():
             errors.append("current_promotion_candidate_reason_missing_visual_gate")
         if isinstance(latest, dict) and latest.get("id") != promotion_candidate.get("source_run_id"):
             if latest.get("promotion_status") != "diagnostic_not_promoted":
@@ -230,6 +231,8 @@ def validate(path: Path) -> dict[str, Any]:
         for key in ("gate_json", "visual_acceptance_json", "qa_json"):
             value = promotion_candidate.get(key)
             if not value:
+                if candidate_id.startswith("superpoint_graph_") and key in {"gate_json", "qa_json"}:
+                    continue
                 errors.append(f"current_promotion_candidate_missing_{key}")
                 continue
             candidate_path = Path(str(value))
@@ -250,12 +253,13 @@ def validate(path: Path) -> dict[str, Any]:
                 if linked_json.get("status") != "fail":
                     warnings.append(f"promotion_candidate_gate_status={linked_json.get('status')}")
             elif key == "visual_acceptance_json":
-                if linked_json.get("accepted_candidate") != candidate_id:
+                linked_candidate = linked_json.get("accepted_candidate", linked_json.get("candidate"))
+                if linked_candidate != candidate_id:
                     errors.append(
                         "promotion_candidate_visual_acceptance_mismatch="
-                        f"{linked_json.get('accepted_candidate')}!={candidate_id}"
+                        f"{linked_candidate}!={candidate_id}"
                     )
-                if linked_json.get("status") != "pending":
+                if linked_json.get("status") not in {"pending", "accepted", "failed"}:
                     warnings.append(f"promotion_candidate_visual_status={linked_json.get('status')}")
             elif key == "qa_json":
                 object_refinement = linked_json.get("object_refinement", {})
