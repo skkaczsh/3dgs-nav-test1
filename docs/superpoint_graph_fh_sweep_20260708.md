@@ -13,6 +13,8 @@ large-component merges without reintroducing post-pass patch logic.
 Selected viewer:
 http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_fh_k240000_20260708_190054/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_fh_k240000_20260708_190054/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5
 
-Conclusion: `FH_K=240000` is the best current FH candidate. It keeps the same
-fine-cell overlap risk as stricter FH runs while recovering more merge recall.
-It still needs visual QA against v4 before promotion.
+Conclusion: `FH_K=240000` is only a precision candidate. It keeps the same
+fine-cell overlap risk as stricter FH runs while recovering more merge recall,
+but the same-run comparison does not improve high-entropy count over v4. Keep
+v4 as the stronger metric baseline unless visual QA shows a concrete v4
+over-merge that FH240 fixes.

@@ -1,0 +1,1025 @@
+{
+  "schema": "geo-patch-run-comparison/v1",
+  "large_voxels": 10000,
+  "entropy_threshold": 1.1,
+  "runs": [
+    {
+      "jsonl": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1.jsonl",
+      "patch_count": 197208,
+      "total_voxels": 14482421,
+      "high_entropy_count": 6410,
+      "large_patch_count": 63,
+      "large_high_entropy_count": 1,
+      "large_low_purity_count": 12,
+      "large_extreme_aspect_count": 0,
+      "voxel_count_p50": 1.0,
+      "voxel_count_p90": 11.0,
+      "voxel_count_p99": 255.0,
+      "voxel_count_max": 2850203.0,
+      "bucket_entropy_p50": -0.0,
+      "bucket_entropy_p90": 0.9182958340544896,
+      "bucket_entropy_p99": 1.4854752972273344,
+      "geometry_counts": {
+        "horizontal": 28305,
+        "vertical": 41913,
+        "unknown": 41355,
+        "mixed": 11819,
+        "rough_mixed": 46634,
+        "thin_linear": 27182
+      },
+      "conflict_counts": {
+        "high_entropy": 6410
+      },
+      "top_patches": [
+        {
+          "patch_id": 4,
+          "voxel_count": 2850203,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            73.94800090789795,
+            89.73399925231934,
+            2.9908000230789185
+          ],
+          "extent_ratio": 30.003343105481687
+        },
+        {
+          "patch_id": 2,
+          "voxel_count": 2666723,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            60.53699779510498,
+            37.35100078582764,
+            22.370999813079834
+          ],
+          "extent_ratio": 2.706047932632422
+        },
+        {
+          "patch_id": 31,
+          "voxel_count": 1156414,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            39.76499938964844,
+            78.69600105285645,
+            28.621999859809875
+          ],
+          "extent_ratio": 2.7494934469397063
+        },
+        {
+          "patch_id": 70448,
+          "voxel_count": 1037993,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.7994927247051791,
+          "bucket_purity": 0.7990294732238079,
+          "extent": [
+            57.36849957704544,
+            45.242000579833984,
+            14.140000104904175
+          ],
+          "extent_ratio": 4.057178157809796
+        },
+        {
+          "patch_id": 7,
+          "voxel_count": 724650,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            33.40983200073242,
+            30.947000682353973,
+            7.131000518798828
+          ],
+          "extent_ratio": 4.685153494612296
+        },
+        {
+          "patch_id": 70415,
+          "voxel_count": 663970,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 1.0768374838608425,
+          "bucket_purity": 0.6925945449342591,
+          "extent": [
+            35.970998764038086,
+            33.2620005607605,
+            19.998749554157257
+          ],
+          "extent_ratio": 1.7986623946976017
+        },
+        {
+          "patch_id": 3,
+          "voxel_count": 295651,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            23.20272731781006,
+            23.079970240592957,
+            3.802800178527832
+          ],
+          "extent_ratio": 6.1014847555814695
+        },
+        {
+          "patch_id": 1,
+          "voxel_count": 266376,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            23.656928062438965,
+            20.238499641418457,
+            3.9065240621566772
+          ],
+          "extent_ratio": 6.055748713186901
+        },
+        {
+          "patch_id": 70503,
+          "voxel_count": 158786,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.6623370616941847,
+          "bucket_purity": 0.8490106180645649,
+          "extent": [
+            6.691997528076172,
+            16.297000408172607,
+            5.618999898433685
+          ],
+          "extent_ratio": 2.9003382635254096
+        },
+        {
+          "patch_id": 70594,
+          "voxel_count": 138092,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.783219100682185,
+          "bucket_purity": 0.7987283839759001,
+          "extent": [
+            9.624500274658203,
+            15.751999855041504,
+            5.553999900817871
+          ],
+          "extent_ratio": 2.8361541477020724
+        },
+        {
+          "patch_id": 70450,
+          "voxel_count": 121904,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.6482656167774197,
+          "bucket_purity": 0.8458869274182964,
+          "extent": [
+            9.443000793457031,
+            7.508666038513184,
+            6.49099999666214
+          ],
+          "extent_ratio": 1.4547836694365885
+        },
+        {
+          "patch_id": 337,
+          "voxel_count": 113109,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            24.278000831604004,
+            6.845001220703125,
+            11.175000101327896
+          ],
+          "extent_ratio": 3.546821987142048
+        },
+        {
+          "patch_id": 87,
+          "voxel_count": 85909,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            15.556999206542969,
+            33.638999938964844,
+            6.35099983215332
+          ],
+          "extent_ratio": 5.296646327820712
+        },
+        {
+          "patch_id": 75216,
+          "voxel_count": 73820,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.24305703314641253,
+          "bucket_purity": 0.9618531563261988,
+          "extent": [
+            4.114999771118164,
+            4.207000732421875,
+            3.1329999193549156
+          ],
+          "extent_ratio": 1.3428026941309645
+        },
+        {
+          "patch_id": 17,
+          "voxel_count": 66099,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            11.916000127792358,
+            18.128997802734375,
+            6.006249964237213
+          ],
+          "extent_ratio": 3.018355531434619
+        },
+        {
+          "patch_id": 70433,
+          "voxel_count": 60268,
+          "geometry_type": "unknown",
+          "bucket_entropy": 1.0346235763809934,
+          "bucket_purity": 0.6775900975642132,
+          "extent": [
+            15.465999603271484,
+            32.66900062561035,
+            4.320000410079956
+          ],
+          "extent_ratio": 7.56226794548052
+        },
+        {
+          "patch_id": 70574,
+          "voxel_count": 56411,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.5249447345734737,
+          "bucket_purity": 0.8889755544131464,
+          "extent": [
+            4.005999565124512,
+            3.921998977661133,
+            3.4295000433921814
+          ],
+          "extent_ratio": 1.1681001645832039
+        },
+        {
+          "patch_id": 58,
+          "voxel_count": 43885,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            9.67449951171875,
+            11.839500427246094,
+            0.37400007247924805
+          ],
+          "extent_ratio": 31.65641211982125
+        },
+        {
+          "patch_id": 42,
+          "voxel_count": 38899,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            6.161998748779297,
+            12.6069997549057,
+            4.677999831736088
+          ],
+          "extent_ratio": 2.69495515356336
+        },
+        {
+          "patch_id": 449,
+          "voxel_count": 38747,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            3.572999954223633,
+            1.5239982604980469,
+            28.957000732421875
+          ],
+          "extent_ratio": 19.00067833604918
+        }
+      ],
+      "name": "v4_spg",
+      "source_report": {
+        "schema": "superpoint-graph-cluster/v1",
+        "input_patch_count": 197630,
+        "output_patch_count": 197208,
+        "edge_count": 8027,
+        "touch_edge_count": 7793,
+        "near_bbox_candidate_count": 234,
+        "accepted_edges": 422,
+        "accepted_reasons": {
+          "score": 211,
+          "contact_bridge": 13,
+          "near_bbox_bridge": 198
+        },
+        "reject_counts": {
+          "small_patch": 5914,
+          "merged_entropy": 24,
+          "score": 1631
+        },
+        "params": {
+          "region_input": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/_cpp_region_grower_input.bin",
+          "labels": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_labels.bin",
+          "output_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
+          "output_stem": "superpoint_graph_v1",
+          "min_edge_score": 0.7,
+          "max_color_distance": 90.0,
+          "max_merged_entropy": 1.2,
+          "min_patch_voxels": 4,
+          "disable_contact_bridge": false,
+          "contact_bridge_min_support": 0.25,
+          "contact_bridge_max_color_distance": 65.0,
+          "contact_bridge_max_color_p90": 80.0,
+          "disable_near_bbox_candidates": false,
+          "near_candidate_min_voxels": 1000,
+          "near_candidate_max_gap": 0.15,
+          "near_candidate_max_color_distance": 70.0,
+          "near_candidate_min_normal_score": 0.65,
+          "near_candidate_max_per_patch": 8,
+          "enable_structural_merge_veto": true,
+          "structural_veto_min_bucket_ratio": 0.2,
+          "structural_veto_min_voxels": 1000,
+          "preview_stride": 10,
+          "max_source_patch_ids": 24
+        },
+        "preview_points": 1448243,
+        "jsonl_patch_count": 197208
+      },
+      "merge_log_summary": {}
+    },
+    {
+      "jsonl": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v6_fh_k120000_20260708_185559/superpoint_graph_v1.jsonl",
+      "patch_count": 197349,
+      "total_voxels": 14482421,
+      "high_entropy_count": 6415,
+      "large_patch_count": 75,
+      "large_high_entropy_count": 1,
+      "large_low_purity_count": 14,
+      "large_extreme_aspect_count": 0,
+      "voxel_count_p50": 1.0,
+      "voxel_count_p90": 11.0,
+      "voxel_count_p99": 261.0,
+      "voxel_count_max": 2786013.0,
+      "bucket_entropy_p50": -0.0,
+      "bucket_entropy_p90": 0.9182958340544896,
+      "bucket_entropy_p99": 1.4854752972273344,
+      "geometry_counts": {
+        "horizontal": 28318,
+        "vertical": 41941,
+        "unknown": 41378,
+        "mixed": 11832,
+        "rough_mixed": 46661,
+        "thin_linear": 27219
+      },
+      "conflict_counts": {
+        "high_entropy": 6415
+      },
+      "top_patches": [
+        {
+          "patch_id": 4,
+          "voxel_count": 2786013,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            73.94800090789795,
+            89.73399925231934,
+            1.5205000042915344
+          ],
+          "extent_ratio": 59.01611246238057
+        },
+        {
+          "patch_id": 2,
+          "voxel_count": 2442344,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            60.53699779510498,
+            29.286000728607178,
+            22.370999813079834
+          ],
+          "extent_ratio": 2.706047932632422
+        },
+        {
+          "patch_id": 31,
+          "voxel_count": 1118007,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            34.564998626708984,
+            78.69600105285645,
+            28.621999859809875
+          ],
+          "extent_ratio": 2.7494934469397063
+        },
+        {
+          "patch_id": 70415,
+          "voxel_count": 660617,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 1.0669947273340215,
+          "bucket_purity": 0.6956754064760671,
+          "extent": [
+            35.970998764038086,
+            33.2620005607605,
+            19.998749554157257
+          ],
+          "extent_ratio": 1.7986623946976017
+        },
+        {
+          "patch_id": 7,
+          "voxel_count": 470534,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            31.18799877166748,
+            30.494000673294067,
+            1.0270004272460938
+          ],
+          "extent_ratio": 30.368048487865032
+        },
+        {
+          "patch_id": 70448,
+          "voxel_count": 418576,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.7302645646292419,
+          "bucket_purity": 0.8251882573296128,
+          "extent": [
+            24.244498252868652,
+            9.147998809814453,
+            12.669999837875366
+          ],
+          "extent_ratio": 2.6502515748972204
+        },
+        {
+          "patch_id": 70453,
+          "voxel_count": 352973,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.9299643510672873,
+          "bucket_purity": 0.7387278913684616,
+          "extent": [
+            30.37849998474121,
+            34.983001708984375,
+            14.140000104904175
+          ],
+          "extent_ratio": 2.4740453641758617
+        },
+        {
+          "patch_id": 3,
+          "voxel_count": 295651,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            23.20272731781006,
+            23.079970240592957,
+            3.802800178527832
+          ],
+          "extent_ratio": 6.1014847555814695
+        },
+        {
+          "patch_id": 16,
+          "voxel_count": 254116,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            22.466833114624023,
+            23.236499965190887,
+            6.329000473022461
+          ],
+          "extent_ratio": 3.6714328058967776
+        },
+        {
+          "patch_id": 70420,
+          "voxel_count": 237019,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.6574621205928081,
+          "bucket_purity": 0.8544758015180217,
+          "extent": [
+            12.0414999127388,
+            25.792999267578125,
+            7.3260000348091125
+          ],
+          "extent_ratio": 3.520747904043682
+        },
+        {
+          "patch_id": 1,
+          "voxel_count": 220587,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            20.66366672515869,
+            16.94600009918213,
+            0.4249999523162842
+          ],
+          "extent_ratio": 48.62039774955276
+        },
+        {
+          "patch_id": 70503,
+          "voxel_count": 158736,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.6609846816136663,
+          "bucket_purity": 0.8492780465678863,
+          "extent": [
+            6.691997528076172,
+            16.297000408172607,
+            5.618999898433685
+          ],
+          "extent_ratio": 2.9003382635254096
+        },
+        {
+          "patch_id": 70594,
+          "voxel_count": 138053,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.7821222429215031,
+          "bucket_purity": 0.7989250505240741,
+          "extent": [
+            9.624500274658203,
+            15.751999855041504,
+            5.553999900817871
+          ],
+          "extent_ratio": 2.8361541477020724
+        },
+        {
+          "patch_id": 70450,
+          "voxel_count": 121904,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.6482656167774197,
+          "bucket_purity": 0.8458869274182964,
+          "extent": [
+            9.443000793457031,
+            7.508666038513184,
+            6.49099999666214
+          ],
+          "extent_ratio": 1.4547836694365885
+        },
+        {
+          "patch_id": 337,
+          "voxel_count": 113109,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            24.278000831604004,
+            6.845001220703125,
+            11.175000101327896
+          ],
+          "extent_ratio": 3.546821987142048
+        },
+        {
+          "patch_id": 36,
+          "voxel_count": 105880,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            8.687999963760376,
+            9.007999658584595,
+            3.1030006408691406
+          ],
+          "extent_ratio": 2.9029963899915545
+        },
+        {
+          "patch_id": 87,
+          "voxel_count": 85909,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            15.556999206542969,
+            33.638999938964844,
+            6.35099983215332
+          ],
+          "extent_ratio": 5.296646327820712
+        },
+        {
+          "patch_id": 34,
+          "voxel_count": 83091,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            7.613000154495239,
+            14.145999908447266,
+            4.768999993801117
+          ],
+          "extent_ratio": 2.9662402866082287
+        },
+        {
+          "patch_id": 75216,
+          "voxel_count": 73820,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.24305703314641253,
+          "bucket_purity": 0.9618531563261988,
+          "extent": [
+            4.114999771118164,
+            4.207000732421875,
+            3.1329999193549156
+          ],
+          "extent_ratio": 1.3428026941309645
+        },
+        {
+          "patch_id": 17,
+          "voxel_count": 66099,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            11.916000127792358,
+            18.128997802734375,
+            6.006249964237213
+          ],
+          "extent_ratio": 3.018355531434619
+        }
+      ],
+      "name": "fh120k",
+      "source_report": {
+        "schema": "superpoint-graph-cluster/v1",
+        "input_patch_count": 197630,
+        "output_patch_count": 197349,
+        "edge_count": 8027,
+        "touch_edge_count": 7793,
+        "near_bbox_candidate_count": 234,
+        "accepted_edges": 281,
+        "accepted_reasons": {
+          "score": 99,
+          "contact_bridge": 11,
+          "near_bbox_bridge": 171
+        },
+        "reject_counts": {
+          "small_patch": 5914,
+          "merged_entropy": 13,
+          "fh_threshold": 45,
+          "score": 1745
+        },
+        "params": {
+          "region_input": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/_cpp_region_grower_input.bin",
+          "labels": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_labels.bin",
+          "output_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v6_fh_k120000_20260708_185559",
+          "output_stem": "superpoint_graph_v1",
+          "min_edge_score": 0.78,
+          "max_color_distance": 90.0,
+          "max_merged_entropy": 1.2,
+          "fh_k": 120000.0,
+          "min_patch_voxels": 4,
+          "disable_contact_bridge": false,
+          "contact_bridge_min_support": 0.25,
+          "contact_bridge_max_color_distance": 65.0,
+          "contact_bridge_max_color_p90": 80.0,
+          "disable_near_bbox_candidates": false,
+          "near_candidate_min_voxels": 1000,
+          "near_candidate_max_gap": 0.15,
+          "near_candidate_max_color_distance": 70.0,
+          "near_candidate_min_normal_score": 0.65,
+          "near_candidate_max_per_patch": 8,
+          "enable_structural_merge_veto": true,
+          "structural_veto_min_bucket_ratio": 0.2,
+          "structural_veto_min_voxels": 1000,
+          "preview_stride": 10,
+          "max_source_patch_ids": 24
+        },
+        "preview_points": 1448243,
+        "jsonl_patch_count": 197349
+      },
+      "merge_log_summary": {}
+    },
+    {
+      "jsonl": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_fh_k240000_20260708_190054/superpoint_graph_v1.jsonl",
+      "patch_count": 197326,
+      "total_voxels": 14482421,
+      "high_entropy_count": 6415,
+      "large_patch_count": 69,
+      "large_high_entropy_count": 1,
+      "large_low_purity_count": 12,
+      "large_extreme_aspect_count": 0,
+      "voxel_count_p50": 1.0,
+      "voxel_count_p90": 11.0,
+      "voxel_count_p99": 259.0,
+      "voxel_count_max": 2786013.0,
+      "bucket_entropy_p50": -0.0,
+      "bucket_entropy_p90": 0.9182958340544896,
+      "bucket_entropy_p99": 1.4854752972273344,
+      "geometry_counts": {
+        "horizontal": 28314,
+        "vertical": 41925,
+        "unknown": 41378,
+        "mixed": 11832,
+        "rough_mixed": 46658,
+        "thin_linear": 27219
+      },
+      "conflict_counts": {
+        "high_entropy": 6415
+      },
+      "top_patches": [
+        {
+          "patch_id": 4,
+          "voxel_count": 2786013,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            73.94800090789795,
+            89.73399925231934,
+            1.5205000042915344
+          ],
+          "extent_ratio": 59.01611246238057
+        },
+        {
+          "patch_id": 2,
+          "voxel_count": 2442448,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            60.53699779510498,
+            29.286000728607178,
+            22.370999813079834
+          ],
+          "extent_ratio": 2.706047932632422
+        },
+        {
+          "patch_id": 31,
+          "voxel_count": 1156405,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            39.76499938964844,
+            78.69600105285645,
+            28.621999859809875
+          ],
+          "extent_ratio": 2.7494934469397063
+        },
+        {
+          "patch_id": 70448,
+          "voxel_count": 1037475,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.7988622901225135,
+          "bucket_purity": 0.7992529940480494,
+          "extent": [
+            57.36849957704544,
+            45.242000579833984,
+            14.140000104904175
+          ],
+          "extent_ratio": 4.057178157809796
+        },
+        {
+          "patch_id": 70415,
+          "voxel_count": 660617,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 1.0669947273340215,
+          "bucket_purity": 0.6956754064760671,
+          "extent": [
+            35.970998764038086,
+            33.2620005607605,
+            19.998749554157257
+          ],
+          "extent_ratio": 1.7986623946976017
+        },
+        {
+          "patch_id": 7,
+          "voxel_count": 470534,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            31.18799877166748,
+            30.494000673294067,
+            1.0270004272460938
+          ],
+          "extent_ratio": 30.368048487865032
+        },
+        {
+          "patch_id": 3,
+          "voxel_count": 295651,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            23.20272731781006,
+            23.079970240592957,
+            3.802800178527832
+          ],
+          "extent_ratio": 6.1014847555814695
+        },
+        {
+          "patch_id": 1,
+          "voxel_count": 266376,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            23.656928062438965,
+            20.238499641418457,
+            3.9065240621566772
+          ],
+          "extent_ratio": 6.055748713186901
+        },
+        {
+          "patch_id": 16,
+          "voxel_count": 254116,
+          "geometry_type": "horizontal",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            22.466833114624023,
+            23.236499965190887,
+            6.329000473022461
+          ],
+          "extent_ratio": 3.6714328058967776
+        },
+        {
+          "patch_id": 70503,
+          "voxel_count": 158736,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.6609846816136663,
+          "bucket_purity": 0.8492780465678863,
+          "extent": [
+            6.691997528076172,
+            16.297000408172607,
+            5.618999898433685
+          ],
+          "extent_ratio": 2.9003382635254096
+        },
+        {
+          "patch_id": 70594,
+          "voxel_count": 138053,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.7821222429215031,
+          "bucket_purity": 0.7989250505240741,
+          "extent": [
+            9.624500274658203,
+            15.751999855041504,
+            5.553999900817871
+          ],
+          "extent_ratio": 2.8361541477020724
+        },
+        {
+          "patch_id": 70450,
+          "voxel_count": 121904,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.6482656167774197,
+          "bucket_purity": 0.8458869274182964,
+          "extent": [
+            9.443000793457031,
+            7.508666038513184,
+            6.49099999666214
+          ],
+          "extent_ratio": 1.4547836694365885
+        },
+        {
+          "patch_id": 337,
+          "voxel_count": 113109,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            24.278000831604004,
+            6.845001220703125,
+            11.175000101327896
+          ],
+          "extent_ratio": 3.546821987142048
+        },
+        {
+          "patch_id": 36,
+          "voxel_count": 105880,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            8.687999963760376,
+            9.007999658584595,
+            3.1030006408691406
+          ],
+          "extent_ratio": 2.9029963899915545
+        },
+        {
+          "patch_id": 87,
+          "voxel_count": 85909,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            15.556999206542969,
+            33.638999938964844,
+            6.35099983215332
+          ],
+          "extent_ratio": 5.296646327820712
+        },
+        {
+          "patch_id": 34,
+          "voxel_count": 83091,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            7.613000154495239,
+            14.145999908447266,
+            4.768999993801117
+          ],
+          "extent_ratio": 2.9662402866082287
+        },
+        {
+          "patch_id": 75216,
+          "voxel_count": 73820,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.24305703314641253,
+          "bucket_purity": 0.9618531563261988,
+          "extent": [
+            4.114999771118164,
+            4.207000732421875,
+            3.1329999193549156
+          ],
+          "extent_ratio": 1.3428026941309645
+        },
+        {
+          "patch_id": 17,
+          "voxel_count": 66099,
+          "geometry_type": "vertical",
+          "bucket_entropy": -0.0,
+          "bucket_purity": 1.0,
+          "extent": [
+            11.916000127792358,
+            18.128997802734375,
+            6.006249964237213
+          ],
+          "extent_ratio": 3.018355531434619
+        },
+        {
+          "patch_id": 70433,
+          "voxel_count": 60226,
+          "geometry_type": "unknown",
+          "bucket_entropy": 1.0334336341252741,
+          "bucket_purity": 0.6780460266330156,
+          "extent": [
+            15.465999603271484,
+            32.66900062561035,
+            4.320000410079956
+          ],
+          "extent_ratio": 7.56226794548052
+        },
+        {
+          "patch_id": 70574,
+          "voxel_count": 56359,
+          "geometry_type": "rough_mixed",
+          "bucket_entropy": 0.5229449749041576,
+          "bucket_purity": 0.8896360829681151,
+          "extent": [
+            4.005999565124512,
+            3.921998977661133,
+            3.4295000433921814
+          ],
+          "extent_ratio": 1.1681001645832039
+        }
+      ],
+      "name": "fh240k",
+      "source_report": {
+        "schema": "superpoint-graph-cluster/v1",
+        "input_patch_count": 197630,
+        "output_patch_count": 197326,
+        "edge_count": 8027,
+        "touch_edge_count": 7793,
+        "near_bbox_candidate_count": 234,
+        "accepted_edges": 304,
+        "accepted_reasons": {
+          "score": 104,
+          "contact_bridge": 16,
+          "near_bbox_bridge": 184
+        },
+        "reject_counts": {
+          "small_patch": 5914,
+          "merged_entropy": 13,
+          "fh_threshold": 19,
+          "score": 1745
+        },
+        "params": {
+          "region_input": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/_cpp_region_grower_input.bin",
+          "labels": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attach_v4_contact_evidence/geo_patches_energy_attach_v4_contact_evidence_labels.bin",
+          "output_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_fh_k240000_20260708_190054",
+          "output_stem": "superpoint_graph_v1",
+          "min_edge_score": 0.78,
+          "max_color_distance": 90.0,
+          "max_merged_entropy": 1.2,
+          "fh_k": 240000.0,
+          "min_patch_voxels": 4,
+          "disable_contact_bridge": false,
+          "contact_bridge_min_support": 0.25,
+          "contact_bridge_max_color_distance": 65.0,
+          "contact_bridge_max_color_p90": 80.0,
+          "disable_near_bbox_candidates": false,
+          "near_candidate_min_voxels": 1000,
+          "near_candidate_max_gap": 0.15,
+          "near_candidate_max_color_distance": 70.0,
+          "near_candidate_min_normal_score": 0.65,
+          "near_candidate_max_per_patch": 8,
+          "enable_structural_merge_veto": true,
+          "structural_veto_min_bucket_ratio": 0.2,
+          "structural_veto_min_voxels": 1000,
+          "preview_stride": 10,
+          "max_source_patch_ids": 24
+        },
+        "preview_points": 1448243,
+        "jsonl_patch_count": 197326
+      },
+      "merge_log_summary": {}
+    }
+  ]
+}

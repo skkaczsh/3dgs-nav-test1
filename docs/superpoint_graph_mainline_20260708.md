@@ -62,4 +62,5 @@ Move the dense patch mainline from chained post-passes to a single superpoint-gr
   at 3 pairs >= 50% and 0 pairs >= 95%.
 - `FH_K=240000` produced `superpoint_graph_fh_k240000_20260708_190054`:
   304 accepted edges, 19 FH-threshold rejects, and the same fine overlap
-  result. It supersedes the 120000 run as the current FH visual QA candidate.
+  result. It supersedes the 120000 run as the FH visual QA candidate, but not
+  as the main metric baseline: v4 still has fewer high-entropy patches.
