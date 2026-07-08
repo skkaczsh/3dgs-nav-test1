@@ -26,6 +26,7 @@ from scripts import validate_current_dense_patch_state
 from scripts import validate_current_project_architecture
 from scripts import validate_geometry_input_contract_usage
 from scripts import validate_pointcloud_supervised_baseline_smoke
+from scripts import validate_pointcloud_supervised_smoke_crop_export
 from scripts import validate_pointcloud_supervised_smoke_manifest
 from scripts import validate_production_input_guard_usage
 from scripts import validate_production_inputs
@@ -39,6 +40,7 @@ DEFAULT_PROMOTION_GATE = REPO_ROOT / "docs" / "current_dense_promotion_gate.json
 DEFAULT_QA = REPO_ROOT / "docs" / "current_dense_mainline_qa.json"
 DEFAULT_SUPERVISED_SMOKE = REPO_ROOT / "docs" / "pointcloud_supervised_baseline_smoke_20260708.json"
 DEFAULT_SUPERVISED_MANIFEST = REPO_ROOT / "docs" / "pointcloud_supervised_baseline_smoke_manifest_20260708.json"
+DEFAULT_SUPERVISED_CROP_EXPORT = REPO_ROOT / "server_parking_priority_s10" / "pointcloud_supervised_baseline_smoke_crops_20260708" / "crop_export_report.json"
 
 ALLOWED_VISUAL_PENDING_REASONS = (
     "visual_status_not_accepted=",
@@ -226,6 +228,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
     production_input_allowlist = validate_production_inputs.validate_dense_allowlist(args.dense_patch_state)
     supervised_baseline_smoke = validate_pointcloud_supervised_baseline_smoke.validate(args.supervised_smoke)
     supervised_smoke_manifest = validate_pointcloud_supervised_smoke_manifest.validate(args.supervised_manifest)
+    supervised_smoke_crop_export = validate_pointcloud_supervised_smoke_crop_export.validate(args.supervised_crop_export)
     state_consistency = validate_state_consistency(args.architecture, args.dense_patch_state)
     promotion_gate = validate_promotion_gate(args.promotion_gate)
     promotion_plan = validate_promotion_plan(args.dense_patch_state, args.qa_json, args.promotion_gate)
@@ -241,6 +244,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
         "production_input_allowlist": production_input_allowlist,
         "supervised_baseline_smoke": supervised_baseline_smoke,
         "supervised_smoke_manifest": supervised_smoke_manifest,
+        "supervised_smoke_crop_export": supervised_smoke_crop_export,
         "state_consistency": state_consistency,
         "promotion_gate_health": promotion_gate,
         "promotion_plan_health": promotion_plan,
@@ -269,6 +273,7 @@ def main() -> int:
     parser.add_argument("--promotion-gate", type=Path, default=DEFAULT_PROMOTION_GATE)
     parser.add_argument("--supervised-smoke", type=Path, default=DEFAULT_SUPERVISED_SMOKE)
     parser.add_argument("--supervised-manifest", type=Path, default=DEFAULT_SUPERVISED_MANIFEST)
+    parser.add_argument("--supervised-crop-export", type=Path, default=DEFAULT_SUPERVISED_CROP_EXPORT)
     args = parser.parse_args()
     report = validate(args)
     print(json.dumps(report, ensure_ascii=False, indent=2))

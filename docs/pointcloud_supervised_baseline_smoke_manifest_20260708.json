@@ -137,6 +137,8 @@
   ],
   "runner_contract": {
     "crop_input": "read dense_input.ply and keep xyz within crop.bbox_3d",
+    "export_command": "python3 scripts/export_pointcloud_supervised_smoke_crops.py",
+    "export_report": "server_parking_priority_s10/pointcloud_supervised_baseline_smoke_crops_20260708/crop_export_report.json",
     "allowed_outputs": [
       "per_crop_predictions",
       "per_voxel_logits_or_labels",

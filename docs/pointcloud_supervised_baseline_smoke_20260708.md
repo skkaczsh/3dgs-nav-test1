@@ -34,6 +34,19 @@ source: largest horizontal, vertical, rough, thin-linear patches, plus the
 known v7 `70503/9366` risk area. These crops are small enough for a smoke test
 and large enough to expose the current surface/object failure modes.
 
+Exported crop PLYs:
+`server_parking_priority_s10/pointcloud_supervised_baseline_smoke_crops_20260708/`.
+
+Export report:
+`server_parking_priority_s10/pointcloud_supervised_baseline_smoke_crops_20260708/crop_export_report.json`.
+
+The export is reproducible with:
+
+```bash
+python3 scripts/export_pointcloud_supervised_smoke_crops.py
+python3 scripts/validate_pointcloud_supervised_smoke_crop_export.py
+```
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure
