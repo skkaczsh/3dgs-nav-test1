@@ -16,11 +16,20 @@ OUTPUT_DIR="${OUTPUT_DIR:-${BASE}/${OUT_NAME}}"
 TMUX_SESSION="${TMUX_SESSION:-scan_patch_bucket_attach_eval}"
 RUN="${RUN:-0}"
 PYTHON="${PYTHON:-python3}"
+ENABLE_STRUCTURAL_VETO="${ENABLE_STRUCTURAL_VETO:-0}"
+STRUCTURAL_VETO_MIN_BUCKET_RATIO="${STRUCTURAL_VETO_MIN_BUCKET_RATIO:-0.20}"
+STRUCTURAL_VETO_MIN_VOXELS="${STRUCTURAL_VETO_MIN_VOXELS:-1000}"
 
 echo "remote=${REMOTE_HOST}"
 echo "region_input=${REGION_INPUT}"
 echo "patch_labels=${PATCH_LABELS}"
 echo "output_dir=${OUTPUT_DIR}"
+echo "enable_structural_veto=${ENABLE_STRUCTURAL_VETO}"
+
+STRUCTURAL_ARGS_TEXT=""
+if [[ "${ENABLE_STRUCTURAL_VETO}" == "1" ]]; then
+  STRUCTURAL_ARGS_TEXT="--enable-structural-merge-veto --structural-veto-min-bucket-ratio ${STRUCTURAL_VETO_MIN_BUCKET_RATIO} --structural-veto-min-voxels ${STRUCTURAL_VETO_MIN_VOXELS}"
+fi
 
 if [[ "${RUN}" != "1" ]]; then
   echo "dry_run=1"
@@ -72,6 +81,7 @@ mkdir -p "${OUTPUT_DIR}"
   --min-merge-gain 0.30 \
   --merge-min-neighbor-support 0.05 \
   --max-merge-candidates 240000 \
+  ${STRUCTURAL_ARGS_TEXT} \
   > "${OUTPUT_DIR}/optimize.log" 2>&1
 date -Is > "${OUTPUT_DIR}/DONE"
 SCRIPT

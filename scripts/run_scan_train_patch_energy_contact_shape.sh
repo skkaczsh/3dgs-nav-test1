@@ -17,11 +17,20 @@ TMUX_SESSION="${TMUX_SESSION:-scan_patch_energy_contact_shape}"
 PYTHON="${PYTHON:-python3}"
 RUN="${RUN:-0}"
 RUN_PREFLIGHT="${RUN_PREFLIGHT:-1}"
+ENABLE_STRUCTURAL_VETO="${ENABLE_STRUCTURAL_VETO:-0}"
+STRUCTURAL_VETO_MIN_BUCKET_RATIO="${STRUCTURAL_VETO_MIN_BUCKET_RATIO:-0.20}"
+STRUCTURAL_VETO_MIN_VOXELS="${STRUCTURAL_VETO_MIN_VOXELS:-1000}"
 
 echo "remote=${REMOTE_HOST}"
 echo "region_input=${REGION_INPUT}"
 echo "patch_labels=${PATCH_LABELS}"
 echo "output_dir=${OUTPUT_DIR}"
+echo "enable_structural_veto=${ENABLE_STRUCTURAL_VETO}"
+
+STRUCTURAL_ARGS_TEXT=""
+if [[ "${ENABLE_STRUCTURAL_VETO}" == "1" ]]; then
+  STRUCTURAL_ARGS_TEXT="--enable-structural-merge-veto --structural-veto-min-bucket-ratio ${STRUCTURAL_VETO_MIN_BUCKET_RATIO} --structural-veto-min-voxels ${STRUCTURAL_VETO_MIN_VOXELS}"
+fi
 
 if [[ "${RUN_PREFLIGHT}" == "1" ]]; then
   "${PYTHON}" "${LOCAL_REPO}/scripts/validate_current_mainline.py" >/dev/null
@@ -66,6 +75,7 @@ cd "${REMOTE_REPO}"
   --attachment-shape-weight 0.15 \
   --min-merge-gain 0.35 \
   --preview-stride 10 \
+  ${STRUCTURAL_ARGS_TEXT} \
   > "${OUTPUT_DIR}/optimize.log" 2>&1
 date -Is > "${OUTPUT_DIR}/DONE"
 SCRIPT

@@ -287,6 +287,48 @@ def compatible_bucket_score(a: str, b: str) -> float:
     return 0.09
 
 
+def bucket_ratio(stats: PatchStats, bucket_id: int) -> float:
+    total = max(sum(stats.bucket_counts.values()), 1)
+    return float(stats.bucket_counts.get(bucket_id, 0)) / float(total)
+
+
+def structural_merge_veto(
+    a: PatchStats,
+    b: PatchStats,
+    args: argparse.Namespace,
+) -> tuple[bool, str, dict[str, float]]:
+    if not getattr(args, "enable_structural_merge_veto", False):
+        return False, "", {}
+    min_voxels = int(getattr(args, "structural_veto_min_voxels", 0))
+    if min(a.count, b.count) < min_voxels:
+        return False, "", {}
+
+    min_ratio = float(getattr(args, "structural_veto_min_bucket_ratio", 0.0))
+    horizontal_id = BUCKET_IDS_BY_NAME["horizontal"]
+    vertical_id = BUCKET_IDS_BY_NAME["vertical"]
+    a_horizontal = bucket_ratio(a, horizontal_id)
+    a_vertical = bucket_ratio(a, vertical_id)
+    b_horizontal = bucket_ratio(b, horizontal_id)
+    b_vertical = bucket_ratio(b, vertical_id)
+
+    crosses_stable_surface = (
+        a_horizontal >= min_ratio
+        and b_vertical >= min_ratio
+        or a_vertical >= min_ratio
+        and b_horizontal >= min_ratio
+    )
+    detail = {
+        "structural_veto_a_horizontal": a_horizontal,
+        "structural_veto_a_vertical": a_vertical,
+        "structural_veto_b_horizontal": b_horizontal,
+        "structural_veto_b_vertical": b_vertical,
+        "structural_veto_min_ratio": min_ratio,
+    }
+    if crosses_stable_surface:
+        return True, "structural_horizontal_vertical_veto", detail
+    return False, "", detail
+
+
 def normal_score(a: np.ndarray, b: np.ndarray) -> float:
     an = float(np.linalg.norm(a))
     bn = float(np.linalg.norm(b))
@@ -578,6 +620,10 @@ def attachment_merge_decision(
         "attachment_provenance_relaxed": float(1.0 if provenance_relaxed else 0.0),
         "attachment_fragment_relaxed": float(1.0 if fragment_relaxed else 0.0),
     }
+    vetoed, veto_reason, veto_detail = structural_merge_veto(anchor, fragment, args)
+    detail.update(veto_detail)
+    if vetoed:
+        return False, reason(veto_reason), detail
     if shared_edges < min_shared_edges:
         return False, reason("attachment_shared_edges"), detail
     if contact_ratio < min_contact_ratio:
@@ -1389,6 +1435,26 @@ def merge_step(
                 and fine_overlap_support < args.fine_overlap_min_ratio
             ):
                 continue
+        vetoed, veto_reason, veto_detail = structural_merge_veto(anchor, src_stats, args)
+        if vetoed:
+            rejects += 1
+            if len(logs) < args.max_log_rows:
+                logs.append(
+                    {
+                        "status": "reject",
+                        "a": int(anchor_id),
+                        "b": int(src_id),
+                        "shared_edges": int(shared),
+                        "neighbor_share": float(neighbor_share),
+                        "adjacency_share": float(adjacency_share),
+                        "overlap_support": float(overlap_support),
+                        "fine_overlap_support": float(fine_overlap_support),
+                        "candidate_source": candidate_source,
+                        "reason": veto_reason,
+                        **veto_detail,
+                    }
+                )
+            continue
         edge_weight = edge_weight_from_candidate(candidate, anchor, src_stats, args)
         fh_limit = min(fh_threshold(anchor, args.fh_k), fh_threshold(src_stats, args.fh_k))
         if args.enable_fh_merge_guard and edge_weight > fh_limit:
@@ -1703,6 +1769,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--merge-min-neighbor-support", type=float, default=0.08)
     parser.add_argument("--max-merge-candidates", type=int, default=180000)
     parser.add_argument("--surface-merge-penalty", type=float, default=0.06)
+    parser.add_argument("--enable-structural-merge-veto", action="store_true")
+    parser.add_argument("--structural-veto-min-bucket-ratio", type=float, default=0.20)
+    parser.add_argument("--structural-veto-min-voxels", type=int, default=1000)
     parser.add_argument("--max-bbox-gap", type=float, default=0.55)
     parser.add_argument("--max-color-distance", type=float, default=130.0)
     parser.add_argument("--pair-share-norm", type=float, default=5000.0)

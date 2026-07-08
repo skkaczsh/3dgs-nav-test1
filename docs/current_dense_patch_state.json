@@ -135,7 +135,7 @@
     },
     "latest_patch_graph_change": {
         "id": "contact_rich_fh_merge_guard_20260708",
-        "status": "committed_local_waiting_remote_dense_run",
+        "status": "completed_dense_run_diagnostic_not_promoted",
         "commit": "6ed8161",
         "previous_commit": "9a37662",
         "purpose": "Make patch merging use richer contact evidence instead of mean color and mean normal only. The latest change applies contact shape to the attachment score, which is the dominant small-fragment merge path.",
@@ -189,6 +189,38 @@
         "output_high_entropy_count": 6421,
         "compare_to_input": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attachment_shape_vs_input_20260708/compare.md",
         "interpretation": "Contact-shape attachment is a conservative post-pass over attach_v4: it removes 268 patches and slightly lowers high-entropy count from 6424 to 6421, but large low-purity count is unchanged and large high-entropy increases from 1 to 2. Keep as diagnostic candidate; do not promote without visual QA."
+      },
+      "bucket_split_followup": {
+        "id": "energy_attachment_shape_bucket_split_v1_20260708_173000",
+        "status": "blocked_not_promoted",
+        "runner": "scripts/run_scan_train_patch_bucket_split_attach_eval.sh",
+        "remote_dir": "/root/epfs/SCAN/work_MT20260616-175807/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attachment_shape_bucket_split_v1_20260708_173000",
+        "local_dir": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_attachment_shape_bucket_split_v1_20260708_173000",
+        "compare_report": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_bucket_split_followup_compare_20260708/compare.md",
+        "input_patch_count": 197362,
+        "output_patch_count": 188481,
+        "merge_accept": 7907,
+        "output_high_entropy_count": 8406,
+        "large_high_entropy_count": 20,
+        "large_low_purity_count": 19,
+        "worst_regression": "Largest bucket-split patch merged vertical, horizontal, unknown, thin_linear, and rough_mixed buckets into one mixed patch with 5,057,610 voxels, entropy 1.678, and purity 0.505.",
+        "interpretation": "Bucket connectivity split plus attachment merge reduces patch count but violates structural ownership. Do not continue this as another post-pass. The next patch optimizer must put horizontal/vertical/rough_mixed structural incompatibility into the boundary/merge energy itself, so crossing a stable structure boundary is expensive even when contact is high."
+      },
+      "structural_veto_followup": {
+        "id": "energy_bucket_split_structural_veto_v1_20260708_174500",
+        "status": "blocked_not_promoted",
+        "runner": "scripts/run_scan_train_patch_bucket_split_attach_eval.sh",
+        "local_dir": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_bucket_split_structural_veto_v1_20260708_174500",
+        "compare_report": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_bucket_structural_veto_compare_20260708/compare.md",
+        "input_patch_count": 197630,
+        "output_patch_count": 190617,
+        "merge_accept": 6134,
+        "structural_veto_rejects": 505,
+        "output_high_entropy_count": 8687,
+        "large_high_entropy_count": 29,
+        "large_low_purity_count": 31,
+        "worst_patch": "Largest patch improved from bucket_split's 5,057,610 mixed voxels to 3,276,190 vertical-dominant voxels, but entropy remains 1.142 and purity 0.762.",
+        "interpretation": "Merge-time structural veto is directionally useful but insufficient. It blocks some horizontal/vertical merges, yet boundary transfer and bucket-connectivity split have already changed ownership before the veto can help. The structural compatibility term must move upstream into split internal-edge retention and boundary owner scoring, not remain a final merge-only guard."
       },
       "local_region_smoke": {
                 "path": "server_parking_priority_s10/dense_las_voxel003_local_region_smoke_1m_20260708",
@@ -344,7 +376,7 @@
             "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/geo_patches_energy_v6_fine_gated_overlap.jsonl",
             "dense_las_voxel003_energy_v6_fine_gated_overlap_20260624/object_merge_candidates_v2_high_recall/geo_patch_object_merge_candidates.jsonl"
         ],
-        "current_blocker": "The local checkout still lacks dense_las_voxel003_region_model_full_cpp_20260624/_cpp_region_grower_input.bin for the local v6 chain. Immediate execution should use remote_runner with the available scan-train r4 contact-evidence baseline. On 2026-07-08 scan-train port 31909 is reachable but ssh times out during banner exchange, so the dense contact-rich FH run is pending network/remote SSH recovery.",
+        "current_blocker": "No network blocker is active. scan-train is reachable and completed the 20260708 contact-shape and bucket-split dense diagnostics. The current blocker is algorithmic: post-pass bucket splitting reduced patch count but regressed structural purity by merging stable horizontal/vertical regions into mixed giant patches.",
         "success_criteria": [
             "Patch/object ownership remains exclusive.",
             "Fine occupied-cell overlap does not regress while object fragmentation decreases.",

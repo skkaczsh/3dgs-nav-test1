@@ -4,7 +4,7 @@ from collections import Counter
 import numpy as np
 
 from scripts.optimize_geo_patch_merges import build_patch_edges
-from scripts.optimize_patch_graph_energy import PatchStats, attachment_merge_decision, build_edge_features, edge_weight_from_candidate, fh_threshold, merge_patch_stats
+from scripts.optimize_patch_graph_energy import PatchStats, attachment_merge_decision, build_edge_features, edge_weight_from_candidate, fh_threshold, merge_patch_stats, structural_merge_veto
 
 
 def test_build_patch_edges_counts_unordered_pairs():
@@ -85,3 +85,27 @@ def test_attachment_score_uses_contact_shape_when_weighted():
     assert not bad
     assert reason == "attachment_score"
     assert bad_detail["attachment_shape"] == 0.0
+
+
+def test_structural_veto_blocks_stable_horizontal_vertical_merge():
+    args = Namespace(enable_structural_merge_veto=True, structural_veto_min_bucket_ratio=0.2, structural_veto_min_voxels=100)
+    horizontal = PatchStats(1, 200, np.zeros(3), np.zeros(3), np.array([0.0, 0.0, 1.0]), np.zeros(3), np.ones(3), Counter({1: 200}), "horizontal", {1})
+    vertical = PatchStats(2, 180, np.zeros(3), np.zeros(3), np.array([1.0, 0.0, 0.0]), np.zeros(3), np.ones(3), Counter({2: 180}), "vertical", {2})
+
+    vetoed, reason, detail = structural_merge_veto(horizontal, vertical, args)
+
+    assert vetoed
+    assert reason == "structural_horizontal_vertical_veto"
+    assert detail["structural_veto_a_horizontal"] == 1.0
+    assert detail["structural_veto_b_vertical"] == 1.0
+
+
+def test_structural_veto_allows_same_surface_family():
+    args = Namespace(enable_structural_merge_veto=True, structural_veto_min_bucket_ratio=0.2, structural_veto_min_voxels=100)
+    a = PatchStats(1, 200, np.zeros(3), np.zeros(3), np.array([0.0, 0.0, 1.0]), np.zeros(3), np.ones(3), Counter({1: 180, 0: 20}), "horizontal", {1})
+    b = PatchStats(2, 180, np.zeros(3), np.zeros(3), np.array([0.0, 0.0, 1.0]), np.zeros(3), np.ones(3), Counter({1: 160, 0: 20}), "horizontal", {2})
+
+    vetoed, reason, _ = structural_merge_veto(a, b, args)
+
+    assert not vetoed
+    assert reason == ""
