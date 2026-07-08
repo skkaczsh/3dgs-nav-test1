@@ -113,6 +113,25 @@ def test_build_index_discovers_generic_stride_patch_outputs(tmp_path: Path) -> N
     assert entry["reports"]["generic"]["schema"] == "geo-patch-energy-graph-v4"
 
 
+def test_build_index_discovers_superpoint_graph_outputs(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "server_parking_priority_s10"
+    run_dir = artifact_root / "geo_patch_las_opt" / "superpoint_graph_v4_nearbbox"
+    write(run_dir / "superpoint_graph_v1_stride10.ply", "ply\n")
+    write(run_dir / "superpoint_graph_v1.jsonl", "{}\n")
+    write(
+        run_dir / "superpoint_graph_v1_report.json",
+        json.dumps({"preview_points": 123, "output_patch_count": 45, "schema": "superpoint-graph-cluster/v1"}),
+    )
+
+    index = build_index(web_root=tmp_path, artifact_root=artifact_root)
+
+    assert index["artifact_count"] == 1
+    entry = index["entries"][0]
+    assert entry["ply"].endswith("/superpoint_graph_v1_stride10.ply")
+    assert entry["objects"].endswith("/superpoint_graph_v1.jsonl")
+    assert entry["reports"]["generic"]["schema"] == "superpoint-graph-cluster/v1"
+
+
 def test_build_index_skips_rejected_generic_stride_outputs(tmp_path: Path) -> None:
     artifact_root = tmp_path / "server_parking_priority_s10"
     run_dir = artifact_root / "objects_v15_teacher_v20_grid6_geometry_guard_no_wall_to_floor"

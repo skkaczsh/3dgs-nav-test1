@@ -33,6 +33,7 @@ PLY_NAMES = (
 )
 PLY_GLOB_PATTERNS = (
     "*_stride10.ply",
+    "superpoint_graph_*.ply",
     "geo_patches_*.ply",
     "geo_patch_objects_*.ply",
     "objects_v*.ply",
