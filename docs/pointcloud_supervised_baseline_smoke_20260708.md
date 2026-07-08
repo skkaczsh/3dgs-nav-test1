@@ -124,6 +124,19 @@ Remote repo/runtime status on 2026-07-08:
   Current observed state: conda metadata collection still running; no smoke
   inference result yet.
 
+Prepared Sonata crop smoke:
+
+```bash
+RUN=1 bash scripts/run_scan_train_sonata_crop_smoke.sh
+```
+
+Default input is the known mixed-risk crop:
+`/root/epfs/SCAN/work_MT20260616-175807/pointcloud_supervised_baseline_smoke_crops_20260708/risk_70503_9366_local.ply`.
+The script writes a Sonata encoder PCA-colored PLY and a small JSON report.
+Run it only after `/root/epfs/conda_envs/sonata/bin/python` exists and imports
+`torch`, `sonata`, `spconv`, `torch_scatter`, `timm`, `open3d`, and
+`fast_pytorch_kmeans`.
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure
