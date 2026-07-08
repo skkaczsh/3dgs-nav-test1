@@ -60,5 +60,6 @@ Move the dense patch mainline from chained post-passes to a single superpoint-gr
 - `FH_K=120000` produced `superpoint_graph_v6_fh_k120000_20260708_185559`:
   281 accepted edges, 45 FH-threshold rejects, and top1000 fine overlap stayed
   at 3 pairs >= 50% and 0 pairs >= 95%.
-- v6 is a precision candidate against v4 over-merge, not a patch-count
-  reduction candidate. It requires visual QA before any promotion.
+- `FH_K=240000` produced `superpoint_graph_fh_k240000_20260708_190054`:
+  304 accepted edges, 19 FH-threshold rejects, and the same fine overlap
+  result. It supersedes the 120000 run as the current FH visual QA candidate.

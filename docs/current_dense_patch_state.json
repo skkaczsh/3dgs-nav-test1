@@ -585,7 +585,7 @@
     },
     "superpoint_graph_v6_fh_candidate": {
         "id": "superpoint_graph_v6_fh_k120000_20260708_185559",
-        "status": "visual_qa_pending_not_promoted",
+        "status": "superseded_not_promoted",
         "role": "FH-style adaptive threshold precision candidate; tests whether weak large-component merges can be rejected without fine-overlap regression.",
         "viewer_url": "/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v6_fh_k120000_20260708_185559/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v6_fh_k120000_20260708_185559/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
         "visual_qa_markdown": "docs/superpoint_graph_v6_fh_visual_qa.md",
@@ -596,6 +596,55 @@
             "fine_overlap_pairs_ge_50_top1000": 3,
             "fine_overlap_pairs_ge_95_top1000": 0
         },
-        "decision_rule": "Compare visually against v4; promote only if over-merge decreases without visible fragmentation regression."
+        "superseded_by": "superpoint_graph_fh_k240000_20260708_190054",
+        "decision_rule": "Do not promote; retained as a mid-point sweep result."
+    },
+    "superpoint_graph_fh_sweep_20260708": {
+        "id": "superpoint_graph_fh_sweep_20260708",
+        "status": "metric_sweep_complete_visual_qa_pending",
+        "report_markdown": "docs/superpoint_graph_fh_sweep_20260708.md",
+        "selected_candidate": "superpoint_graph_fh_k240000_20260708_190054",
+        "selected_viewer_url": "/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_fh_k240000_20260708_190054/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_fh_k240000_20260708_190054/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
+        "sweep_rows": [
+            {
+                "id": "superpoint_graph_v5_fh_k120_20260708_185458",
+                "fh_k": 120,
+                "accepted_edges": 3,
+                "output_patch_count": 197627,
+                "fh_threshold_rejects": 364,
+                "status": "rejected_too_strict"
+            },
+            {
+                "id": "superpoint_graph_fh_k60000_20260708_190210",
+                "fh_k": 60000,
+                "accepted_edges": 259,
+                "output_patch_count": 197371,
+                "fh_threshold_rejects": 74,
+                "fine_overlap_pairs_ge_50_top1000": 3,
+                "fine_overlap_pairs_ge_95_top1000": 0,
+                "status": "metric_only"
+            },
+            {
+                "id": "superpoint_graph_v6_fh_k120000_20260708_185559",
+                "fh_k": 120000,
+                "accepted_edges": 281,
+                "output_patch_count": 197349,
+                "fh_threshold_rejects": 45,
+                "fine_overlap_pairs_ge_50_top1000": 3,
+                "fine_overlap_pairs_ge_95_top1000": 0,
+                "status": "superseded"
+            },
+            {
+                "id": "superpoint_graph_fh_k240000_20260708_190054",
+                "fh_k": 240000,
+                "accepted_edges": 304,
+                "output_patch_count": 197326,
+                "fh_threshold_rejects": 19,
+                "fine_overlap_pairs_ge_50_top1000": 3,
+                "fine_overlap_pairs_ge_95_top1000": 0,
+                "status": "visual_qa_candidate"
+            }
+        ],
+        "decision_rule": "Promote only after visual QA shows lower over-merge risk than v4 without visible fragmentation regression."
     }
 }
