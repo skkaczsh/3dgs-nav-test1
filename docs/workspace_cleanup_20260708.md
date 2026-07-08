@@ -11,6 +11,7 @@ Cleaned local generated artifacts under `server_parking_priority_s10/`.
 - Smoke/QA/transient outputs from earlier sync, DINO, Mimo, Potree temp, and reverse-depth experiments.
 - Old object/energy/SPG branches inside `geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623` that were superseded or visually rejected.
 - Follow-up cleanup removed all top-level `server_parking_priority_s10/*` generated directories except the active SPG artifact root and `pure_surface_visibility_full_0000_6180`.
+- SPG hygiene cleanup removed 20 stale, unindexed compare/QA/object-merge intermediate directories while keeping all current review-index artifacts.
 
 ## Kept
 
@@ -24,5 +25,6 @@ Cleaned local generated artifacts under `server_parking_priority_s10/`.
 
 - First cleanup: `server_parking_priority_s10` reduced to about `5.6G`; `geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623` reduced to about `815M`.
 - Follow-up cleanup: `server_parking_priority_s10` reduced from about `6.0G` to about `1.3G`.
+- SPG hygiene cleanup: active artifact directory still about `1.3G`; remaining large directories are all current baseline, rejected-risk review, Sonata diagnostic, or first-touch baseline assets.
 - Rebuilt `tools/semantic_viewer_index.json`; it now exposes only 9 current review artifacts.
 - `scripts/validate_current_mainline.py` passes after marking SPG runners as `spg_review` contract and skipping legacy supervised/promotion gates for SPG candidates.
