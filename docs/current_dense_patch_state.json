@@ -572,5 +572,15 @@
         },
         "healthcheck_command": "python3 scripts/validate_current_mainline.py",
         "healthcheck_status": "passed_with_visual_acceptance_warning"
+    },
+    "superpoint_graph_v4_candidate": {
+        "id": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
+        "status": "visual_qa_pending_not_promoted",
+        "role": "Superpoint Graph candidate for reducing fragmentation without changing the current dense mainline baseline.",
+        "viewer_url": "/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
+        "visual_qa_markdown": "docs/superpoint_graph_v4_visual_qa.md",
+        "visual_acceptance_json": "docs/superpoint_graph_v4_visual_acceptance.json",
+        "visual_acceptance_markdown": "docs/superpoint_graph_v4_visual_acceptance.md",
+        "decision_rule": "Do not promote v4 unless every required visual acceptance check is accepted."
     }
 }

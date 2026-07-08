@@ -1,0 +1,56 @@
+{
+  "schema": "superpoint-graph-visual-acceptance/v1",
+  "status": "pending",
+  "candidate": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
+  "review_doc": "docs/superpoint_graph_v4_visual_qa.md",
+  "viewer_url": "http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
+  "quantitative_summary": {
+    "accepted_edges_v3": 224,
+    "accepted_edges_v4": 422,
+    "high_entropy_patches_v3": 6415,
+    "high_entropy_patches_v4": 6410,
+    "large_low_purity_patches_v3": 17,
+    "large_low_purity_patches_v4": 12,
+    "fine_overlap_pairs_ge_50_top1000_v3": 4,
+    "fine_overlap_pairs_ge_50_top1000_v4": 3,
+    "fine_overlap_pairs_ge_95_top1000_v4": 0
+  },
+  "checks": [
+    {
+      "id": "large_surfaces_not_cross_merged",
+      "required": true,
+      "status": "pending",
+      "question": "Large horizontal surfaces remain separated from vertical building/wall surfaces.",
+      "notes": ""
+    },
+    {
+      "id": "vertical_surfaces_do_not_swallow_vegetation",
+      "required": true,
+      "status": "pending",
+      "question": "Large vertical surfaces do not swallow trees or rough vegetation.",
+      "notes": ""
+    },
+    {
+      "id": "rough_mixed_not_merged_into_facade",
+      "required": true,
+      "status": "pending",
+      "question": "rough_mixed patches around trees/shrubs are not merged into building facades.",
+      "notes": ""
+    },
+    {
+      "id": "cars_separated_from_surfaces",
+      "required": true,
+      "status": "pending",
+      "question": "Cars remain visually separated from ground and building surfaces where visible.",
+      "notes": ""
+    },
+    {
+      "id": "fragmentation_better_without_giant_mixed_patch",
+      "required": true,
+      "status": "pending",
+      "question": "Patch fragmentation is visibly better than v3/v1 without creating giant mixed patches.",
+      "notes": ""
+    }
+  ],
+  "decision_rule": "Do not promote v4 unless every required check is accepted after visual QA."
+}
