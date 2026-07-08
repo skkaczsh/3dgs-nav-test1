@@ -25,6 +25,7 @@ from scripts import validate_approved_mainline_runners
 from scripts import validate_current_dense_patch_state
 from scripts import validate_current_project_architecture
 from scripts import validate_geometry_input_contract_usage
+from scripts import validate_pointcloud_supervised_baseline_smoke
 from scripts import validate_production_input_guard_usage
 from scripts import validate_production_inputs
 from scripts import validate_semantic_contract_usage
@@ -35,6 +36,7 @@ DEFAULT_ARCHITECTURE = REPO_ROOT / "docs" / "current_project_architecture.json"
 DEFAULT_DENSE_STATE = REPO_ROOT / "docs" / "current_dense_patch_state.json"
 DEFAULT_PROMOTION_GATE = REPO_ROOT / "docs" / "current_dense_promotion_gate.json"
 DEFAULT_QA = REPO_ROOT / "docs" / "current_dense_mainline_qa.json"
+DEFAULT_SUPERVISED_SMOKE = REPO_ROOT / "docs" / "pointcloud_supervised_baseline_smoke_20260708.json"
 
 ALLOWED_VISUAL_PENDING_REASONS = (
     "visual_status_not_accepted=",
@@ -220,6 +222,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
     geometry_input_contract_usage = validate_geometry_input_contract_usage.validate()
     production_input_guard_usage = validate_production_input_guard_usage.validate()
     production_input_allowlist = validate_production_inputs.validate_dense_allowlist(args.dense_patch_state)
+    supervised_baseline_smoke = validate_pointcloud_supervised_baseline_smoke.validate(args.supervised_smoke)
     state_consistency = validate_state_consistency(args.architecture, args.dense_patch_state)
     promotion_gate = validate_promotion_gate(args.promotion_gate)
     promotion_plan = validate_promotion_plan(args.dense_patch_state, args.qa_json, args.promotion_gate)
@@ -233,6 +236,7 @@ def validate(args: argparse.Namespace) -> dict[str, Any]:
         "geometry_input_contract_usage": geometry_input_contract_usage,
         "production_input_guard_usage": production_input_guard_usage,
         "production_input_allowlist": production_input_allowlist,
+        "supervised_baseline_smoke": supervised_baseline_smoke,
         "state_consistency": state_consistency,
         "promotion_gate_health": promotion_gate,
         "promotion_plan_health": promotion_plan,
@@ -259,6 +263,7 @@ def main() -> int:
     parser.add_argument("--dense-patch-state", type=Path, default=DEFAULT_DENSE_STATE)
     parser.add_argument("--qa-json", type=Path, default=DEFAULT_QA)
     parser.add_argument("--promotion-gate", type=Path, default=DEFAULT_PROMOTION_GATE)
+    parser.add_argument("--supervised-smoke", type=Path, default=DEFAULT_SUPERVISED_SMOKE)
     args = parser.parse_args()
     report = validate(args)
     print(json.dumps(report, ensure_ascii=False, indent=2))

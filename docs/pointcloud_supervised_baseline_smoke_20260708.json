@@ -1,0 +1,79 @@
+{
+  "schema": "pointcloud-supervised-baseline-smoke/v1",
+  "status": "planned",
+  "role": "domain_gap_and_semantic_evidence_baseline",
+  "model_candidates": [
+    "Pointcept/PTv3",
+    "Pointcept/Sonata"
+  ],
+  "input_source": {
+    "id": "dense_las_voxel003_binary",
+    "path_role": "canonical_0.03m_dense_voxel_source_for_production_patch_logic",
+    "required_voxel_size_m": 0.03,
+    "required_voxel_count": 14482557
+  },
+  "feature_ablations": [
+    {
+      "id": "xyz",
+      "features": [
+        "xyz"
+      ]
+    },
+    {
+      "id": "xyz_rgb",
+      "features": [
+        "xyz",
+        "rgb"
+      ]
+    },
+    {
+      "id": "xyz_normal",
+      "features": [
+        "xyz",
+        "normal"
+      ]
+    },
+    {
+      "id": "xyz_rgb_normal_height",
+      "features": [
+        "xyz",
+        "rgb",
+        "normal",
+        "height"
+      ]
+    }
+  ],
+  "expected_outputs": [
+    "per_voxel_semantic_logits_or_labels",
+    "per_patch_vote_summary",
+    "domain_gap_report",
+    "viewer_preview_for_qa"
+  ],
+  "hard_constraints": {
+    "may_create_patch_boundaries": false,
+    "may_merge_or_split_objects": false,
+    "may_override_geometry_owner": false,
+    "may_write_canonical_label_without_evidence_fusion": false,
+    "must_map_outputs_to_existing_patch_or_voxel_ids": true
+  },
+  "comparison_baselines": [
+    "full_scene_objects_refined_v20",
+    "objects_v17_teacher_v20_surface_preserve_guard",
+    "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
+    "superpoint_graph_v7_uncertain_guard_20260708_191958"
+  ],
+  "minimum_report_metrics": [
+    "label_histogram",
+    "unknown_ratio",
+    "surface_label_ratio",
+    "patch_vote_entropy",
+    "large_surface_conflict_count",
+    "feature_ablation_delta"
+  ],
+  "acceptance_rule": "Treat pretrained supervised output as useful only if it explains at least one current failure mode without violating exclusive voxel ownership. Promotion to teacher evidence still requires visual QA.",
+  "forbidden_use": [
+    "Do not use supervised model logits as a direct replacement for geometry ownership.",
+    "Do not use stride viewer PLY as the supervised model input.",
+    "Do not promote public-dataset labels without taxonomy remapping."
+  ]
+}
