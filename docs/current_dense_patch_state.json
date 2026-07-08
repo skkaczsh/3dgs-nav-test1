@@ -296,10 +296,12 @@
       },
       "superpoint_graph_near_bbox_followup": {
         "id": "superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
-        "status": "diagnostic_candidate_not_promoted",
+        "status": "visual_qa_candidate_not_promoted",
         "runner": "scripts/run_scan_train_superpoint_graph.sh",
         "local_dir": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437",
         "compare_report": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_nearbbox_compare_20260708/compare.md",
+        "bbox_overlap_report": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/bbox_overlap_top1000/bbox_overlap_top1000_report.json",
+        "viewer_url": "http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v4_nearbbox_s070_e120_20260708_183437/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
         "input_patch_count": 197630,
         "output_patch_count": 197208,
         "touch_edge_count": 7793,
@@ -309,7 +311,9 @@
         "output_high_entropy_count": 6410,
         "large_high_entropy_count": 1,
         "large_low_purity_count": 12,
-        "interpretation": "Adding same-geometry, near-bbox, color/normal-compatible non-touching candidates directly addresses the sparse candidate graph: accepted edges increase from 224 to 422, high-entropy patches fall to 6410, and large low-purity patches fall from 17 to 12. This is the first SPG change with measurable quality gain; next step is visual QA before promotion."
+        "fine_high_pairs_50_top1000": 3,
+        "fine_high_pairs_95_top1000": 0,
+        "interpretation": "Adding same-geometry, near-bbox, color/normal-compatible non-touching candidates directly addresses the sparse candidate graph: accepted edges increase from 224 to 422, high-entropy patches fall to 6410, and large low-purity patches fall from 17 to 12. Fine-cell overlap QA does not show a real-overlap regression versus v3, so v4 is ready for manual visual QA before any promotion."
       },
       "local_region_smoke": {
                 "path": "server_parking_priority_s10/dense_las_voxel003_local_region_smoke_1m_20260708",
