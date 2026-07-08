@@ -51,11 +51,12 @@ class DSU:
 def edge_score(feature: dict[str, float], max_color_distance: float) -> float:
     color = 1.0 - min(1.0, max(0.0, feature.get("contact_color_distance", max_color_distance)) / max(max_color_distance, 1e-6))
     color_p90 = 1.0 - min(1.0, max(0.0, feature.get("contact_color_p90", max_color_distance)) / max(max_color_distance, 1e-6))
+    support = max(0.0, min(1.0, feature.get("contact_support", 0.0)))
     normal = max(0.0, min(1.0, feature.get("contact_normal_score", 0.0)))
     rough = 1.0 - min(1.0, max(0.0, feature.get("contact_roughness_delta", 1.0)) / 0.35)
     planar = 1.0 - min(1.0, max(0.0, feature.get("contact_planarity_delta", 1.0)) / 0.35)
     linear = 1.0 - min(1.0, max(0.0, feature.get("contact_linearity_delta", 1.0)) / 0.35)
-    return 0.30 * color + 0.18 * color_p90 + 0.20 * normal + 0.12 * rough + 0.10 * planar + 0.10 * linear
+    return 0.28 * color + 0.16 * color_p90 + 0.18 * support + 0.14 * normal + 0.10 * rough + 0.07 * planar + 0.07 * linear
 
 
 def remap_labels(labels: np.ndarray, dsu: DSU) -> np.ndarray:
@@ -73,7 +74,9 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
     edge_features = build_edge_features(labels, src, dst, arrays)
     rows = []
     for pair, shared in edge_counts.items():
-        feature = edge_features.get(pair, {})
+        a, b = pair
+        feature = dict(edge_features.get(pair, {}))
+        feature["contact_support"] = float(shared) / max(float(min(stats[a].count, stats[b].count)), 1.0)
         rows.append((edge_score(feature, args.max_color_distance), int(shared), pair, feature))
     rows.sort(reverse=True)
 

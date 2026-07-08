@@ -2,7 +2,7 @@ from argparse import Namespace
 
 import numpy as np
 
-from scripts.cluster_superpoint_graph import cluster
+from scripts.cluster_superpoint_graph import cluster, edge_score
 
 
 def args(**overrides):
@@ -17,6 +17,22 @@ def args(**overrides):
     )
     base.update(overrides)
     return Namespace(**base)
+
+
+def test_edge_score_rewards_contact_support():
+    feature = {
+        "contact_color_distance": 40.0,
+        "contact_color_p90": 50.0,
+        "contact_normal_score": 0.4,
+        "contact_roughness_delta": 0.2,
+        "contact_planarity_delta": 0.2,
+        "contact_linearity_delta": 0.2,
+    }
+
+    weak = edge_score({**feature, "contact_support": 0.05}, 100.0)
+    strong = edge_score({**feature, "contact_support": 0.90}, 100.0)
+
+    assert strong > weak + 0.10
 
 
 def test_superpoint_graph_merges_similar_neighbors():
