@@ -29,11 +29,12 @@ def pca_color(feat: torch.Tensor) -> np.ndarray:
     return rgb.cpu().numpy()
 
 
-def load_point(path: Path, max_points: int) -> tuple[dict[str, np.ndarray], np.ndarray]:
+def load_point(path: Path, max_points: int) -> tuple[dict[str, np.ndarray], np.ndarray, np.ndarray]:
     pcd = o3d.io.read_point_cloud(str(path))
     coord = np.asarray(pcd.points, dtype=np.float32)
     if len(coord) == 0:
         raise ValueError(f"empty point cloud: {path}")
+    point_indices = np.arange(len(coord), dtype=np.int64)
     color = np.asarray(pcd.colors, dtype=np.float32)
     if len(color) != len(coord):
         color = np.zeros_like(coord)
@@ -44,8 +45,9 @@ def load_point(path: Path, max_points: int) -> tuple[dict[str, np.ndarray], np.n
     if len(coord) > max_points:
         idx = np.linspace(0, len(coord) - 1, max_points, dtype=np.int64)
         coord, color, normal = coord[idx], color[idx], normal[idx]
+        point_indices = point_indices[idx]
     original = coord.copy()
-    return {"coord": coord, "color": color, "normal": normal}, original
+    return {"coord": coord, "color": color, "normal": normal}, original, point_indices
 
 
 def upcast_point(point):
@@ -68,7 +70,7 @@ def main() -> int:
 
     sonata.utils.set_seed(53124)
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    point, original_coord = load_point(args.input, args.max_points)
+    point, original_coord, point_indices = load_point(args.input, args.max_points)
     transform = sonata.transform.default()
     point = transform(point)
 
@@ -111,7 +113,7 @@ def main() -> int:
     }
     if args.save_feature_npz:
         feature_path = args.output_dir / f"{args.input.stem}_sonata_features.npz"
-        np.savez_compressed(feature_path, features=original_features)
+        np.savez_compressed(feature_path, features=original_features, point_indices=point_indices)
         report["feature_npz"] = str(feature_path)
     report_path = args.output_dir / f"{args.input.stem}_sonata_report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

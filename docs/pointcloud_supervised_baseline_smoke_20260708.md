@@ -224,6 +224,24 @@ is approved only as a weighted edge/similarity evidence source after
 patch-level descriptors are generated; it is not approved as a standalone
 segmenter or hard ownership veto.
 
+Patch-feature edge smoke on 2026-07-08:
+
+- region-aligned crop dir:
+  `/root/epfs/SCAN/work_MT20260616-175807/pointcloud_supervised_baseline_smoke_crops_region_labels_20260708`
+- risk crop Sonata feature dir:
+  `/root/epfs/SCAN/work_MT20260616-175807/sonata_patch_edge_smoke_risk_20260708`
+- patch descriptors pooled from `120000` sampled Sonata points into `1884`
+  patch descriptors.
+- edge evidence CSV wrote `133` touch edges with both endpoint descriptors.
+- SPG smoke consumed those `133` external evidence rows:
+  `superpoint_graph_sonata_risk_evidence_smoke_20260708`
+  output `197203` patches from `197630` input patches.
+
+Interpretation: the supervised descriptor path is wired end-to-end:
+point descriptor -> patch descriptor -> edge evidence -> SPG. This is still a
+local evidence smoke, not a promoted baseline; full-source patch descriptors
+are required before visual QA or promotion.
+
 ## Acceptance
 
 A supervised smoke is useful only if it explains at least one current failure

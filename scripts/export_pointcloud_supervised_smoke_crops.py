@@ -7,8 +7,17 @@ import argparse
 import hashlib
 import json
 import struct
+import sys
 from pathlib import Path
 from typing import Any
+
+import numpy as np
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.optimize_patch_graph_energy import read_labels, read_region_input, write_labels
 
 
 DEFAULT_MANIFEST = Path("docs/pointcloud_supervised_baseline_smoke_manifest_20260708.json")
@@ -72,11 +81,8 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def export_crops(manifest: dict[str, Any], output_dir: Path) -> dict[str, Any]:
-    dense_ply = Path(manifest["dense_input"]["ply"])
-    crops = manifest["crops"]
-    bboxes = [(crop["bbox_3d"]["min"], crop["bbox_3d"]["max"]) for crop in crops]
-    rows: list[list[tuple[float, float, float, int, int, int]]] = [[] for _ in crops]
+def collect_from_dense_ply(dense_ply: Path, bboxes: list[tuple[list[float], list[float]]]) -> list[list[tuple[float, float, float, int, int, int]]]:
+    rows: list[list[tuple[float, float, float, int, int, int]]] = [[] for _ in bboxes]
     vertex_count, header_bytes, row_size = parse_binary_xyzrgb_header(dense_ply)
     with dense_ply.open("rb") as fh:
         fh.seek(header_bytes)
@@ -88,27 +94,71 @@ def export_crops(manifest: dict[str, Any], output_dir: Path) -> dict[str, Any]:
             for idx, (mn, mx) in enumerate(bboxes):
                 if mn[0] <= x <= mx[0] and mn[1] <= y <= mx[1] and mn[2] <= z <= mx[2]:
                     rows[idx].append((x, y, z, r, g, b))
+    return rows
+
+
+def collect_from_region_input(
+    region_input: Path,
+    bboxes: list[tuple[list[float], list[float]]],
+    labels_path: Path | None,
+) -> tuple[list[list[tuple[float, float, float, int, int, int]]], list[list[int]] | None]:
+    arrays, _, _ = read_region_input(region_input)
+    xyz = arrays["xyz"]
+    rgb = np.clip(arrays["rgb"], 0, 255).astype(np.uint8, copy=False)
+    labels = read_labels(labels_path) if labels_path else None
+    if labels is not None and len(labels) != len(xyz):
+        raise ValueError(f"label count {len(labels)} != region point count {len(xyz)}")
+    rows: list[list[tuple[float, float, float, int, int, int]]] = [[] for _ in bboxes]
+    crop_labels: list[list[int]] | None = [[] for _ in bboxes] if labels is not None else None
+    for point_idx, ((x, y, z), (r, g, b)) in enumerate(zip(xyz, rgb, strict=True)):
+        for crop_idx, (mn, mx) in enumerate(bboxes):
+            if mn[0] <= x <= mx[0] and mn[1] <= y <= mx[1] and mn[2] <= z <= mx[2]:
+                rows[crop_idx].append((float(x), float(y), float(z), int(r), int(g), int(b)))
+                if crop_labels is not None:
+                    crop_labels[crop_idx].append(int(labels[point_idx]))
+    return rows, crop_labels
+
+
+def export_crops(
+    manifest: dict[str, Any],
+    output_dir: Path,
+    labels_path: Path | None = None,
+    region_input: Path | None = None,
+) -> dict[str, Any]:
+    dense_ply = Path(manifest["dense_input"]["ply"])
+    crops = manifest["crops"]
+    bboxes = [(crop["bbox_3d"]["min"], crop["bbox_3d"]["max"]) for crop in crops]
+    if region_input:
+        rows, crop_labels = collect_from_region_input(region_input, bboxes, labels_path)
+    else:
+        rows = collect_from_dense_ply(dense_ply, bboxes)
+        crop_labels = None
 
     crop_reports: list[dict[str, Any]] = []
     for crop, crop_rows in zip(crops, rows):
         ply = output_dir / f"{crop['id']}.ply"
         write_crop(ply, crop_rows)
         expected = int(crop.get("dense_voxel_count_in_crop", -1))
-        crop_reports.append(
-            {
-                "id": crop["id"],
-                "geometry_type": crop["geometry_type"],
-                "output_ply": str(ply),
-                "sha256": sha256_file(ply),
-                "point_count": len(crop_rows),
-                "manifest_point_count": expected,
-                "count_matches_manifest": expected == len(crop_rows),
-            }
-        )
+        item = {
+            "id": crop["id"],
+            "geometry_type": crop["geometry_type"],
+            "output_ply": str(ply),
+            "sha256": sha256_file(ply),
+            "point_count": len(crop_rows),
+            "manifest_point_count": expected,
+            "count_matches_manifest": expected == len(crop_rows),
+        }
+        if crop_labels is not None:
+            label_path = output_dir / f"{crop['id']}_labels.bin"
+            write_labels(label_path, np.array(crop_labels[len(crop_reports)], dtype=np.int32))
+            item["output_labels"] = str(label_path)
+        crop_reports.append(item)
     return {
         "schema": "pointcloud-supervised-smoke-crop-export/v1",
         "manifest": manifest.get("schema"),
         "dense_ply": str(dense_ply),
+        "labels": str(labels_path) if labels_path else None,
+        "region_input": str(region_input) if region_input else None,
         "output_dir": str(output_dir),
         "crop_count": len(crop_reports),
         "crops": crop_reports,
@@ -119,8 +169,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--labels", type=Path)
+    parser.add_argument("--region-input", type=Path)
     args = parser.parse_args()
-    report = export_crops(load_json(args.manifest), args.output_dir)
+    report = export_crops(load_json(args.manifest), args.output_dir, args.labels, args.region_input)
     report_path = args.output_dir / "crop_export_report.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
