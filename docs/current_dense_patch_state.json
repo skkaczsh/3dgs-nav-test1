@@ -222,6 +222,19 @@
         "worst_patch": "Largest patch improved from bucket_split's 5,057,610 mixed voxels to 3,276,190 vertical-dominant voxels, but entropy remains 1.142 and purity 0.762.",
         "interpretation": "Merge-time structural veto is directionally useful but insufficient. It blocks some horizontal/vertical merges, yet boundary transfer and bucket-connectivity split have already changed ownership before the veto can help. The structural compatibility term must move upstream into split internal-edge retention and boundary owner scoring, not remain a final merge-only guard."
       },
+      "structural_upstream_followup": {
+        "id": "energy_bucket_split_structural_upstream_v1_20260708_175100",
+        "status": "blocked_not_promoted",
+        "runner": "scripts/run_scan_train_patch_bucket_split_attach_eval.sh",
+        "local_dir": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_bucket_split_structural_upstream_v1_20260708_175100",
+        "compare_report": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/energy_structural_upstream_compare_20260708/compare.md",
+        "output_patch_count": 190617,
+        "merge_accept": 6134,
+        "output_high_entropy_count": 8688,
+        "large_high_entropy_count": 29,
+        "large_low_purity_count": 31,
+        "interpretation": "Adding an upstream structural split/boundary guard on top of bucket split produced no useful improvement versus merge-time structural veto: patch count and large-mixed counts are unchanged, high entropy increases by one. Do not keep this code path. The next mainline should replace bucket split post-processing with a single superpoint-graph clustering objective instead of adding more local guards."
+      },
       "local_region_smoke": {
                 "path": "server_parking_priority_s10/dense_las_voxel003_local_region_smoke_1m_20260708",
                 "input": "/Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply",
@@ -241,7 +254,7 @@
                 "note": "MPS falls back to CPU for torch.linalg.eigh but still reduced 1M feature time versus the previous CPU smoke; use PYTORCH_ENABLE_MPS_FALLBACK=1 for local full rebuild if scan-train is unavailable.",
                 "full_rebuild_command": "PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/build_geo_patch_region_model.py --input-ply /Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply --output-dir server_parking_priority_s10/dense_las_voxel003_local_region_full_cpp_mps_fallback_20260708 --voxel-size 0.03 --binary-voxel-input --voxel-backend numpy --feature-backend torch --torch-device mps --region-grow-backend cpp --connect-radius-voxels 2 --min-edge-score 0.46 --max-color-distance 150 --bucket-guard same-bucket-or-fine-color"
             },
-            "reason_pending": "scan-train SSH is currently timing out before authentication from this LAN; local dense rebuild and 1M C++ region smoke are now available."
+            "reason_pending": "No network blocker is active. scan-train completed the 20260708 dense diagnostics; remaining blockers are algorithmic, not connectivity-related."
         }
     },
     "current_promotion_candidate": {
