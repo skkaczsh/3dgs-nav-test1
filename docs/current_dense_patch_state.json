@@ -717,8 +717,8 @@
     },
     "superpoint_graph_v7_uncertain_guard": {
         "id": "superpoint_graph_v7_uncertain_guard_20260708_191958",
-        "status": "visual_qa_candidate_not_promoted",
-        "role": "Guarded uncertain-fragment attachment candidate for missing edge recovery.",
+        "status": "visual_qa_failed_not_promoted",
+        "role": "Rejected guarded uncertain-fragment attachment diagnostic for missing edge recovery.",
         "viewer_url": "/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
         "report_markdown": "docs/superpoint_graph_v7_uncertain_guard_20260708.md",
         "compare_markdown": "docs/superpoint_graph_v7_uncertain_compare_20260708.md",
@@ -747,6 +747,7 @@
             "smaller_patch_voxels": 530
         },
         "metric_decision": "Improves high entropy and isolated large patches against v4 but increases fine50 overlap from 3 to 4.",
-        "decision_rule": "Promote only if visual QA shows uncertain fragments clean up surfaces without visible over-merge."
+        "visual_qa_result": "Rejected by user QA: ground/wall/grass grouped into one object; part of shrub also merged into that surface object.",
+        "decision_rule": "Do not promote v7. Keep v4 as metric baseline; future edge-recall work must avoid uncertain-fragment bridges across stable surface and vegetation ownership."
     }
 }

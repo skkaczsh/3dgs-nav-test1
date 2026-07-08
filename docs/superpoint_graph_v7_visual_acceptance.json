@@ -1,6 +1,6 @@
 {
   "schema": "superpoint-graph-visual-acceptance/v1",
-  "status": "pending",
+  "status": "failed",
   "candidate": "superpoint_graph_v7_uncertain_guard_20260708_191958",
   "review_doc": "docs/superpoint_graph_v7_uncertain_guard_20260708.md",
   "viewer_url": "http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/superpoint_graph_v1_stride10.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/superpoint_graph_v1.jsonl&mode=object&stride=1&pointSize=1.5",
@@ -47,45 +47,48 @@
         "9366": "cyan",
         "context": "gray"
       },
-      "status": "pending_visual_review"
+      "status": "reviewed_failed",
+      "visual_review_note": "User QA: ground, wall, and grass are grouped into one object; shrub is mostly separate, but part of the shrub is also merged into the ground object."
     }
   ],
   "checks": [
     {
       "id": "fragment_noise_reduced_on_stable_surfaces",
       "required": true,
-      "status": "pending",
+      "status": "failed",
       "question": "Small isolated fragments around stable ground, wall, roof, and facade surfaces are visibly reduced versus v4.",
-      "notes": ""
+      "notes": "Rejected because the local review shows structural over-merge; any fragment cleanup is not safe enough to promote."
     },
     {
       "id": "no_ground_building_tree_car_overmerge",
       "required": true,
-      "status": "pending",
+      "status": "failed",
       "question": "The extra uncertain-fragment edges do not visibly over-merge ground, building, tree, shrub, or car regions.",
-      "notes": ""
+      "notes": "Failed user QA: ground/wall/grass are merged into one object, and part of shrub is merged into the ground object."
     },
     {
       "id": "new_overlap_pair_70503_9366_safe",
       "required": true,
-      "status": "pending",
+      "status": "failed",
       "question": "The new fine-overlap pair 70503/9366 is acceptable or visually irrelevant.",
-      "notes": ""
+      "notes": "Failed user QA: the reviewed risk area is not visually harmless because it participates in mixed surface/vegetation ownership."
     },
     {
       "id": "large_surfaces_remain_structurally_separated",
       "required": true,
-      "status": "pending",
+      "status": "failed",
       "question": "Large horizontal surfaces remain separated from vertical walls/facades and rough vegetation.",
-      "notes": ""
+      "notes": "Failed user QA: ground and wall are in the same object; grass and some shrub points are also mixed into that ownership."
     },
     {
       "id": "spg_direction_still_valid",
       "required": true,
-      "status": "pending",
+      "status": "accepted",
       "question": "The result supports the Superpoint Graph direction: merge only adjacent regions with geometry/contact/visual evidence, not post-hoc object relabeling.",
-      "notes": ""
+      "notes": "The SPG direction remains valid, but this v7 uncertain-fragment attachment rule is rejected."
     }
   ],
-  "decision_rule": "Do not promote v7 unless every required check is accepted after visual QA; if any required check fails, keep v4 as the metric baseline and treat v7 only as a diagnostic edge-recall experiment."
+  "decision": "rejected_not_promoted",
+  "decision_reason": "User visual QA found structural over-merge: ground/wall/grass share one object, and part of shrub is merged into that object.",
+  "decision_rule": "Do not promote v7 unless every required check is accepted after visual QA; v7 failed required visual checks, so keep v4 as the metric baseline and treat v7 only as a diagnostic edge-recall experiment."
 }

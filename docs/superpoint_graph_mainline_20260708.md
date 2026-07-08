@@ -90,5 +90,9 @@ Move the dense patch mainline from chained post-passes to a single superpoint-gr
   uncertain-fragment edges.
 - It reduced high-entropy patches from 6,410 to 6,361 and isolated `10000+`
   patches from 13 to 9.
-- Fine overlap top1000 `>=50%` increased from 3 to 4, so v7 is a visual QA
-  candidate, not a promoted baseline.
+- Fine overlap top1000 `>=50%` increased from 3 to 4.
+- User visual QA rejected v7: ground, wall, and grass were grouped into one
+  object, and part of shrub was merged into that object.
+- Keep v4 as the metric baseline. The next edge-recall experiment must improve
+  graph candidate coverage without using uncertain fragments as bridges across
+  stable surface / vegetation ownership.

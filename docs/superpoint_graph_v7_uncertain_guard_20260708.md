@@ -25,8 +25,8 @@ http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priori
 
 The guarded uncertain-fragment attachment is the first SPG variant that improves
 high-entropy count and large isolated surface count against v4. It also slightly
-increases fine-cell overlap risk, so it is a visual QA candidate, not a promoted
-baseline.
+increases fine-cell overlap risk. Visual QA rejected it, so it is a diagnostic
+edge-recall experiment, not a promoted baseline.
 
 The new fine-overlap risk is localized:
 
@@ -48,3 +48,15 @@ Local QA pack for the new `70503/9366` overlap risk:
 
 - `server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/risk_70503_9366_local_qa/risk_70503_9366_report.json`
 - viewer: `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/risk_70503_9366_local_qa/risk_70503_9366_context_rgb.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/risk_70503_9366_local_qa/risk_70503_9366_objects.jsonl&mode=rgb&stride=1&pointSize=2`
+
+## User QA Result
+
+Status: `rejected_not_promoted`
+
+Observed failure: ground, wall, and grass are grouped into one object. Shrub is
+mostly separate, but part of the shrub is also merged into the ground/surface
+object.
+
+Implication: do not add more local exceptions to v7. The next edge-recall
+experiment must improve candidate coverage without allowing uncertain fragments
+to bridge stable surface and rough vegetation ownership.

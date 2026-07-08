@@ -1,6 +1,6 @@
 # Superpoint Graph v7 Visual Acceptance
 
-Status: `pending`
+Status: `failed`
 
 Candidate: `superpoint_graph_v7_uncertain_guard_20260708_191958`
 
@@ -11,11 +11,11 @@ Review doc: `docs/superpoint_graph_v7_uncertain_guard_20260708.md`
 
 ## Required Checks
 
-- `fragment_noise_reduced_on_stable_surfaces` [required] `pending`: Small isolated fragments around stable ground, wall, roof, and facade surfaces are visibly reduced versus v4.
-- `no_ground_building_tree_car_overmerge` [required] `pending`: The extra uncertain-fragment edges do not visibly over-merge ground, building, tree, shrub, or car regions.
-- `new_overlap_pair_70503_9366_safe` [required] `pending`: The new fine-overlap pair `70503/9366` is acceptable or visually irrelevant.
-- `large_surfaces_remain_structurally_separated` [required] `pending`: Large horizontal surfaces remain separated from vertical walls/facades and rough vegetation.
-- `spg_direction_still_valid` [required] `pending`: The result supports the Superpoint Graph direction: merge only adjacent regions with geometry/contact/visual evidence, not post-hoc object relabeling.
+- `fragment_noise_reduced_on_stable_surfaces` [required] `failed`: Structural over-merge makes the fragment cleanup unsafe.
+- `no_ground_building_tree_car_overmerge` [required] `failed`: User QA found ground, wall, and grass grouped into one object, with part of shrub also merged into that object.
+- `new_overlap_pair_70503_9366_safe` [required] `failed`: The local risk area is not visually harmless.
+- `large_surfaces_remain_structurally_separated` [required] `failed`: Large surface and vegetation ownership is mixed.
+- `spg_direction_still_valid` [required] `accepted`: The SPG direction remains valid, but v7's uncertain-fragment attachment rule is rejected.
 
 Known risk: v7 adds one top1000 fine-overlap pair versus v4, patch `70503` (`rough_mixed`) with patch `9366` (`horizontal`), fine ratio `0.500`.
 
@@ -27,3 +27,15 @@ The local pack contains `37,547` stride10 points: `15,983` from patch `70503`,
 `54` from patch `9366`, and `21,510` context points.
 
 Decision rule: do not promote v7 unless every required check is accepted after visual QA. If any required check fails, keep v4 as the metric baseline and treat v7 only as a diagnostic edge-recall experiment.
+
+## User QA Result
+
+Decision: `rejected_not_promoted`
+
+Observed failure: ground, wall, and grass are assigned to the same object. Shrub
+is mostly a separate object, but part of shrub is also merged into the
+ground/surface object.
+
+Conclusion: v7 improves some metrics, but its guarded uncertain-fragment
+attachment creates visible structural ownership errors. Keep v4 as the metric
+baseline and do not continue tuning v7 by adding more local exceptions.
