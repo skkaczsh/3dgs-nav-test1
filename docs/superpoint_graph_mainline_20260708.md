@@ -17,7 +17,13 @@ Move the dense patch mainline from chained post-passes to a single superpoint-gr
 ## Mainstream Reference Model
 
 - Superpoint Graph: over-segment into geometrically pure superpoints, then reason on a graph.
+- Superpoint Transformer: keep the same region-token premise, but replace fixed
+  graph message passing with stronger region-level attention. This is a future
+  model baseline, not a reason to abandon deterministic patch ownership now.
 - KPConv / RandLA-Net: learn local geometric features for large point clouds, but still need clean ownership if we want inspectable objects.
+- Pointcept / PTv3 / Sonata: useful supervised point-level baselines for domain
+  gap measurement. Their logits can become semantic evidence on patches, but
+  they do not replace the one-voxel-one-owner invariant.
 - Practical local route: keep our deterministic dense 0.03m voxel features, but restructure optimization like Superpoint Graph.
 
 ## Next Implementation Shape

@@ -149,6 +149,7 @@
     "Geometry ownership first: each voxel belongs to exactly one patch/object before semantic labeling.",
     "Semantic evidence cannot define object boundaries by itself.",
     "VLM, SAM, DINO, scene prior, and structural region fields are evidence sources, not truth sources.",
+    "Supervised point-cloud models such as Pointcept/PTv3 may be added as semantic teachers or domain-gap baselines, but they must not bypass exclusive voxel ownership.",
     "drivability_cpp output is a structural compatibility prior only; it cannot prove floor, wall, or ceiling semantics.",
     "Use dense raw LAS or dense voxel stores for production logic; stride10 viewer exports are QA artifacts only.",
     "Rejected diagnostic artifacts must not become implicit defaults in scripts or viewer links.",
@@ -171,6 +172,25 @@
     {
       "step": "Classify objects from evidence posterior",
       "purpose": "Assign canonical labels only when geometry, structure prior, visual evidence, and VLM description converge; otherwise keep ambiguous/unknown."
+    },
+    {
+      "step": "Run supervised point-cloud baseline smoke as an evidence teacher",
+      "purpose": "Use Pointcept/PTv3-style predictions to measure domain gap and provide region-level evidence, not to replace patch ownership."
     }
-  ]
+  ],
+  "external_advice_alignment": {
+    "source_doc": "docs/external_dense_scene_segmentation_advice_20260708.md",
+    "accepted": [
+      "Complete dense colored scene segmentation should be treated as offline 3D scene understanding, not online single-frame LiDAR segmentation.",
+      "Superpoint/region tokens are the right abstraction for complete-scene semantic maps.",
+      "VLM should operate on regions and multi-view evidence, not direct dense masks.",
+      "A supervised Pointcept/PTv3-style baseline is useful for domain-gap measurement."
+    ],
+    "not_mainline_yet": [
+      "Full public-dataset fine-tuning",
+      "Superpoint Transformer replacement",
+      "3DGS semantic distillation"
+    ],
+    "hard_boundary": "Semantic teachers can provide evidence only after geometry ownership has assigned exclusive voxel owners."
+  }
 }
