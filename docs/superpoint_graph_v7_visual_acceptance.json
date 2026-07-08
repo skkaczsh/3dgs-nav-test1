@@ -31,6 +31,25 @@
       "required_review": "Confirm this is not a visible wrong merge between rough vegetation/object fragments and a stable horizontal surface."
     }
   ],
+  "local_qa_artifacts": [
+    {
+      "id": "risk_70503_9366_local_rgb_context",
+      "report_json": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/risk_70503_9366_local_qa/risk_70503_9366_report.json",
+      "viewer_url": "http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/risk_70503_9366_local_qa/risk_70503_9366_context_rgb.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/risk_70503_9366_local_qa/risk_70503_9366_objects.jsonl&mode=rgb&stride=1&pointSize=2",
+      "output_points": 37547,
+      "target_stride10_points": {
+        "70503": 15983,
+        "9366": 54
+      },
+      "context_points": 21510,
+      "color_code": {
+        "70503": "red",
+        "9366": "cyan",
+        "context": "gray"
+      },
+      "status": "pending_visual_review"
+    }
+  ],
   "checks": [
     {
       "id": "fragment_noise_reduced_on_stable_surfaces",

@@ -43,3 +43,8 @@ Visual acceptance gate:
 
 - `docs/superpoint_graph_v7_visual_acceptance.json`
 - `docs/superpoint_graph_v7_visual_acceptance.md`
+
+Local QA pack for the new `70503/9366` overlap risk:
+
+- `server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/risk_70503_9366_local_qa/risk_70503_9366_report.json`
+- viewer: `http://127.0.0.1:8765/tools/semantic_ply_viewer.html?file=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/risk_70503_9366_local_qa/risk_70503_9366_context_rgb.ply&objects=/server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_v7_uncertain_guard_20260708_191958/risk_70503_9366_local_qa/risk_70503_9366_objects.jsonl&mode=rgb&stride=1&pointSize=2`
