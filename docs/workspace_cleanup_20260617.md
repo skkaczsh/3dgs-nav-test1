@@ -47,3 +47,35 @@ Compact reports from deleted local result folders are archived under:
 This archive is intended for text-level traceability only. Heavy point clouds,
 rendered panels, intermediate masks, and rerunnable predictions are deliberately
 not kept.
+
+## Cleanup Update - 2026-07-08
+
+Deleted locally after the patch/Sonata branch moved to
+`geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623`:
+
+- old failed semantic relabel outputs:
+  `full_scene_objects_refined_v20..v23`,
+  `full_scene_objects_s10_full_v1..v13`, and the matching Mimo review cache
+- rejected or superseded patch experiments:
+  `full_graph_cached_voxel010_r2_s046_samebucket_torch`,
+  `geo_patch_coarse_budget1000_voxel003_r4_v6/v8/v9`,
+  old `geo_patch_full_cpp_v1_4090d*`,
+  old `geo_patch_objects_window_3000_3600_*`,
+  old `full_region_model_voxel010_*`
+- rerunnable depth-review panels:
+  `fullcloud_reverse_triptych_*`
+- local-only failed MPS fallback smoke caches
+- Python cache folders
+- large derived `drivability_cpp/output/*.pcd` full-point visualizations and
+  intermediate point exports
+
+Preserved:
+
+- raw scan data and the 2.7GB optimized LAS source
+- current mainline patch result directory
+  `server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623`
+- compact drivability reports and small `drivable_voxels*.pcd` structure outputs
+- Sonata smoke outputs and route documentation
+
+Freed approximately 13.7GB locally. Generated result directories remain
+untracked; do not commit or rely on deleted historical artifacts as baselines.
