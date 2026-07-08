@@ -45,6 +45,27 @@ def test_summarize_jsonl_flags_large_mixed_patches(tmp_path: Path) -> None:
     assert report["top_patches"][0]["patch_id"] == 1
 
 
+def test_summarize_jsonl_computes_missing_bucket_entropy(tmp_path: Path) -> None:
+    jsonl = tmp_path / "patches.jsonl"
+    write_jsonl(
+        jsonl,
+        [
+            {
+                "patch_id": 1,
+                "voxel_count": 10,
+                "geometry_type": "mixed",
+                "bucket_counts": {"horizontal": 5, "vertical": 5},
+                "extent": [1.0, 1.0, 1.0],
+            }
+        ],
+    )
+
+    report = module.summarize_jsonl(jsonl, large_voxels=100, entropy_threshold=0.9)
+
+    assert report["high_entropy_count"] == 1
+    assert report["top_patches"][0]["bucket_entropy"] == 1.0
+
+
 def test_summarize_merge_log_counts_profiles(tmp_path: Path) -> None:
     merge_log = tmp_path / "merge.jsonl"
     write_jsonl(
@@ -61,3 +82,31 @@ def test_summarize_merge_log_counts_profiles(tmp_path: Path) -> None:
     assert summary["status_counts"] == {"accept": 2, "reject": 1}
     assert summary["accepted_profiles"]["accepted_fragment_attachment"] == 1
     assert summary["reason_counts"]["fragment_attachment_score"] == 1
+
+
+def test_build_markdown_uses_report_accepted_edges_without_merge_log() -> None:
+    markdown = module.build_markdown(
+        {
+            "runs": [
+                {
+                    "name": "spg",
+                    "patch_count": 2,
+                    "high_entropy_count": 0,
+                    "large_high_entropy_count": 0,
+                    "large_low_purity_count": 0,
+                    "source_report": {"accepted_edges": 7},
+                    "merge_log_summary": {},
+                    "voxel_count_p50": 1,
+                    "voxel_count_p90": 1,
+                    "voxel_count_p99": 1,
+                    "voxel_count_max": 1,
+                    "bucket_entropy_p50": 0,
+                    "bucket_entropy_p90": 0,
+                    "bucket_entropy_p99": 0,
+                    "top_patches": [],
+                }
+            ]
+        }
+    )
+
+    assert "| spg | 2 | 0 | 0 | 0 | 7 | - |" in markdown

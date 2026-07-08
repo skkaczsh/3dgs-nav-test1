@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,18 @@ def bucket_purity(bucket_counts: dict[str, int]) -> float:
     if total <= 0:
         return 0.0
     return max(int(v) for v in bucket_counts.values()) / float(total)
+
+
+def bucket_entropy(bucket_counts: dict[str, int]) -> float:
+    total = sum(int(v) for v in bucket_counts.values())
+    if total <= 0:
+        return 0.0
+    out = 0.0
+    for count in bucket_counts.values():
+        p = int(count) / float(total)
+        if p > 0:
+            out -= p * math.log2(p)
+    return out
 
 
 def extent_ratio(extent: list[float]) -> float:
@@ -48,8 +61,9 @@ def summarize_jsonl(path: Path, large_voxels: int, entropy_threshold: float) -> 
                 continue
             row = json.loads(line)
             count = int(row.get("voxel_count") or 0)
-            ent = float(row.get("bucket_entropy") or 0.0)
-            purity = bucket_purity(row.get("bucket_counts") or {})
+            bucket_counts = row.get("bucket_counts") or {}
+            ent = float(row.get("bucket_entropy") if row.get("bucket_entropy") is not None else bucket_entropy(bucket_counts))
+            purity = bucket_purity(bucket_counts)
             ext = [float(v) for v in (row.get("extent") or [])[:3]]
             ratio = extent_ratio(ext)
 
@@ -146,12 +160,15 @@ def build_markdown(report: dict[str, Any]) -> str:
     for run in report["runs"]:
         merge = run.get("merge_log_summary") or {}
         status = merge.get("status_counts") or {}
+        accepts = status.get("accept")
+        if accepts is None:
+            accepts = (run.get("source_report") or {}).get("accepted_edges", 0)
         profiles = merge.get("accepted_profiles") or {}
         profile_text = ", ".join(f"{k}:{v}" for k, v in sorted(profiles.items()) if k != "None") or "-"
         lines.append(
             f"| {run['name']} | {run['patch_count']} | {run['high_entropy_count']} | "
             f"{run['large_high_entropy_count']} | {run['large_low_purity_count']} | "
-            f"{status.get('accept', 0)} | {profile_text} |"
+            f"{accepts} | {profile_text} |"
         )
     lines.append("")
     for run in report["runs"]:
