@@ -253,12 +253,26 @@ def edge_weight_from_candidate(candidate: dict[str, Any], a: PatchStats, b: Patc
     color_dist = float(candidate.get("contact_color_distance", -1.0))
     if color_dist < 0:
         color_dist = float(np.linalg.norm(a.mean_rgb - b.mean_rgb))
+    color_p90 = float(candidate.get("contact_color_p90", color_dist))
     normal_score_value = float(candidate.get("contact_normal_score", -1.0))
     if normal_score_value < 0:
         normal_score_value = normal_score(a.mean_normal, b.mean_normal)
+    roughness_delta = max(0.0, float(candidate.get("contact_roughness_delta", 0.0)))
+    planarity_delta = max(0.0, float(candidate.get("contact_planarity_delta", 0.0)))
+    linearity_delta = max(0.0, float(candidate.get("contact_linearity_delta", 0.0)))
     color_term = min(1.0, color_dist / max(args.max_color_distance, 1e-6))
+    color_p90_term = min(1.0, color_p90 / max(args.max_color_distance, 1e-6))
     normal_term = 1.0 - max(0.0, min(1.0, normal_score_value))
-    return args.fh_color_weight * color_term + args.fh_normal_weight * normal_term
+    shape_term = min(1.0, roughness_delta / max(args.fh_roughness_scale, 1e-6))
+    shape_term += min(1.0, planarity_delta / max(args.fh_planarity_scale, 1e-6))
+    shape_term += min(1.0, linearity_delta / max(args.fh_linearity_scale, 1e-6))
+    shape_term /= 3.0
+    return (
+        args.fh_color_weight * color_term
+        + args.fh_color_p90_weight * color_p90_term
+        + args.fh_normal_weight * normal_term
+        + args.fh_shape_weight * shape_term
+    )
 
 
 def compatible_bucket_score(a: str, b: str) -> float:
@@ -615,18 +629,44 @@ def build_edge_features(
 
     rgb = arrays["rgb"].astype(np.float64, copy=False)
     normal = normalize_rows(arrays["normal"].astype(np.float64, copy=False))
+    roughness = arrays["roughness"].astype(np.float64, copy=False)
+    planarity = arrays["planarity"].astype(np.float64, copy=False)
+    linearity = arrays["linearity"].astype(np.float64, copy=False)
     rgb_a_sum = np.zeros((len(uk), 3), dtype=np.float64)
     rgb_b_sum = np.zeros((len(uk), 3), dtype=np.float64)
     normal_a_sum = np.zeros((len(uk), 3), dtype=np.float64)
     normal_b_sum = np.zeros((len(uk), 3), dtype=np.float64)
+    rough_a_sum = np.zeros(len(uk), dtype=np.float64)
+    rough_b_sum = np.zeros(len(uk), dtype=np.float64)
+    plan_a_sum = np.zeros(len(uk), dtype=np.float64)
+    plan_b_sum = np.zeros(len(uk), dtype=np.float64)
+    lin_a_sum = np.zeros(len(uk), dtype=np.float64)
+    lin_b_sum = np.zeros(len(uk), dtype=np.float64)
     np.add.at(rgb_a_sum, inv, rgb[idx_a])
     np.add.at(rgb_b_sum, inv, rgb[idx_b])
     np.add.at(normal_a_sum, inv, normal[idx_a])
     np.add.at(normal_b_sum, inv, normal[idx_b])
+    np.add.at(rough_a_sum, inv, roughness[idx_a])
+    np.add.at(rough_b_sum, inv, roughness[idx_b])
+    np.add.at(plan_a_sum, inv, planarity[idx_a])
+    np.add.at(plan_b_sum, inv, planarity[idx_b])
+    np.add.at(lin_a_sum, inv, linearity[idx_a])
+    np.add.at(lin_b_sum, inv, linearity[idx_b])
 
     rgb_a_mean = rgb_a_sum / counts[:, None]
     rgb_b_mean = rgb_b_sum / counts[:, None]
     color_distance = np.linalg.norm(rgb_a_mean - rgb_b_mean, axis=1)
+    contact_color = np.linalg.norm(rgb[idx_a] - rgb[idx_b], axis=1)
+    order = np.lexsort((contact_color, inv))
+    sorted_inv = inv[order]
+    sorted_color = contact_color[order]
+    starts = np.r_[0, np.flatnonzero(np.diff(sorted_inv)) + 1]
+    color_p90 = np.zeros(len(uk), dtype=np.float64)
+    for start, count in zip(starts.tolist(), counts[sorted_inv[starts]].tolist(), strict=True):
+        color_p90[int(sorted_inv[start])] = float(sorted_color[start + int(math.ceil(0.9 * count)) - 1])
+    roughness_delta = np.abs(rough_a_sum / counts - rough_b_sum / counts)
+    planarity_delta = np.abs(plan_a_sum / counts - plan_b_sum / counts)
+    linearity_delta = np.abs(lin_a_sum / counts - lin_b_sum / counts)
     nrm_a = np.linalg.norm(normal_a_sum, axis=1)
     nrm_b = np.linalg.norm(normal_b_sum, axis=1)
     dot = np.sum(normal_a_sum * normal_b_sum, axis=1)
@@ -640,7 +680,11 @@ def build_edge_features(
         out[pair] = {
             "shared_edges": int(counts[i]),
             "contact_color_distance": float(color_distance[i]),
+            "contact_color_p90": float(color_p90[i]),
             "contact_normal_score": float(normal_sim[i]),
+            "contact_roughness_delta": float(roughness_delta[i]),
+            "contact_planarity_delta": float(planarity_delta[i]),
+            "contact_linearity_delta": float(linearity_delta[i]),
         }
     return out
 
@@ -1619,7 +1663,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--enable-fh-merge-guard", action="store_true")
     parser.add_argument("--fh-k", type=float, default=55.0)
     parser.add_argument("--fh-color-weight", type=float, default=0.75)
+    parser.add_argument("--fh-color-p90-weight", type=float, default=0.0)
     parser.add_argument("--fh-normal-weight", type=float, default=0.25)
+    parser.add_argument("--fh-shape-weight", type=float, default=0.0)
+    parser.add_argument("--fh-roughness-scale", type=float, default=0.35)
+    parser.add_argument("--fh-planarity-scale", type=float, default=0.35)
+    parser.add_argument("--fh-linearity-scale", type=float, default=0.35)
     parser.add_argument("--min-anchor-voxels", type=int, default=900)
     parser.add_argument("--merge-min-neighbor-support", type=float, default=0.08)
     parser.add_argument("--max-merge-candidates", type=int, default=180000)
