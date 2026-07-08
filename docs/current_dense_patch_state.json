@@ -127,8 +127,9 @@
   "latest_patch_graph_change": {
     "id": "contact_rich_fh_merge_guard_20260708",
     "status": "committed_local_waiting_remote_dense_run",
-    "commit": "9a37662",
-    "purpose": "Make the FH-style patch merge guard use richer contact evidence instead of mean color and mean normal only.",
+    "commit": "6ed8161",
+    "previous_commit": "9a37662",
+    "purpose": "Make patch merging use richer contact evidence instead of mean color and mean normal only. The latest change applies contact shape to the attachment score, which is the dominant small-fragment merge path.",
     "code_paths": [
       "scripts/optimize_patch_graph_energy.py",
       "tests/test_geo_patch_merge_math.py"
@@ -139,19 +140,25 @@
       "contact_planarity_delta",
       "contact_linearity_delta"
     ],
+    "attachment_score_terms": [
+      "attachment_shape",
+      "attachment_contact_roughness_delta",
+      "attachment_contact_planarity_delta",
+      "attachment_contact_linearity_delta"
+    ],
     "local_verification": [
       "python3 -m py_compile scripts/optimize_patch_graph_energy.py",
       "python3 -m pytest -q tests/test_geo_patch_merge_math.py"
     ],
     "local_smoke_result": {
       "source": "server_parking_priority_s10/geo_patch_region_model_smoke_bridge_v2_20260707",
-      "output": "server_parking_priority_s10/geo_patch_region_model_smoke_bridge_v2_fh_contactrich_v1_20260708",
+      "output": "server_parking_priority_s10/geo_patch_region_model_smoke_bridge_v2_attachment_shape_v1_20260708",
       "input_patch_count": 13290,
-      "output_patch_count": 13241,
-      "merge_accept": 49,
-      "merge_reject": 3105,
-      "fh_merge_guard_reject": 12,
-      "interpretation": "The contact-rich terms are wired and tested, but the smoke run did not change output because anchor and fragment gates dominate before FH guard decisions."
+      "output_patch_count": 13242,
+      "merge_accept": 48,
+      "merge_reject": 3104,
+      "fh_merge_guard_reject": 13,
+      "interpretation": "Contact-rich evidence is now wired into both FH guard and attachment scoring. Smoke output is slightly more conservative than FH-only contact-rich because attachment shape can reject locally inconsistent small-fragment merges."
     },
     "pending_remote_run": {
       "host": "scan-train",
