@@ -278,6 +278,22 @@
         "large_low_purity_count": 17,
         "interpretation": "Same-geometry, high-contact, color-continuous bridge accepts a small number of additional edges without worsening large mixed-patch metrics. This is a safer recall direction than lowering score alone, but the current candidate graph remains too sparse for major object consolidation."
       },
+      "superpoint_graph_edge_sparsity": {
+        "id": "superpoint_graph_edge_sparsity_20260708",
+        "status": "root_cause_diagnostic",
+        "runner": "scripts/analyze_superpoint_graph_edges.py",
+        "local_report": "server_parking_priority_s10/geo_patch_las_opt_cpp_v2_voxel003_r4_4090d_20260623/superpoint_graph_edge_sparsity_20260708.json",
+        "patch_count": 197630,
+        "edge_pair_count": 7793,
+        "isolated_patch_count": 189147,
+        "isolated_patch_ratio": 0.9570763548044325,
+        "isolated_voxels": 4099477,
+        "isolated_voxel_ratio": 0.2830657249916986,
+        "degree_p50": 0,
+        "degree_p90": 0,
+        "degree_p99": 1,
+        "interpretation": "SPG recall is capped mainly by candidate graph construction, not by edge scoring: 95.7% of patches have no candidate edge at all, including 28.3% of voxels. Next work should add principled non-touching candidates such as near-bbox/same-structure/color-compatible neighbors, then score them with the same geometry gates."
+      },
       "local_region_smoke": {
                 "path": "server_parking_priority_s10/dense_las_voxel003_local_region_smoke_1m_20260708",
                 "input": "/Users/skkac/Work/SCAN/work_MT20260616-175807/dense_sources/dense_las_voxel003_local/dense_las_voxel003_binary.ply",
