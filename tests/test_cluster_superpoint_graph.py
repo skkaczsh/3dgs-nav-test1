@@ -10,6 +10,7 @@ def args(**overrides):
         min_edge_score=0.5,
         max_color_distance=100.0,
         max_merged_entropy=1.1,
+        fh_k=0.0,
         min_patch_voxels=1,
         disable_contact_bridge=False,
         contact_bridge_min_support=0.25,
@@ -161,3 +162,28 @@ def test_superpoint_graph_vetoes_stable_surface_crossing():
     )
     assert len(set(out.tolist())) == 2
     assert report["reject_counts"]["structural_horizontal_vertical_veto"] == 1
+
+
+def test_fh_threshold_rejects_edge_that_is_too_weak_for_component_size():
+    arrays = {
+        "xyz": np.array([[0, 0, 0], [0, 1, 0], [1, 0, 0], [1, 1, 0]], dtype=np.float32),
+        "rgb": np.array([[10, 10, 10], [10, 10, 10], [40, 10, 10], [40, 10, 10]], dtype=np.float32),
+        "normal": np.array([[0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]], dtype=np.float32),
+        "roughness": np.array([0.1, 0.1, 0.1, 0.1], dtype=np.float32),
+        "planarity": np.array([0.9, 0.9, 0.9, 0.9], dtype=np.float32),
+        "linearity": np.array([0.1, 0.1, 0.1, 0.1], dtype=np.float32),
+        "local_color_std": np.array([1, 1, 1, 1], dtype=np.float32),
+        "height_range": np.array([0, 0, 0, 0], dtype=np.float32),
+        "buckets": np.array([1, 1, 1, 1], dtype=np.int16),
+    }
+    labels = np.array([1, 1, 2, 2], dtype=np.int32)
+    out, report = cluster(
+        arrays,
+        labels,
+        np.array([0, 1], dtype=np.int32),
+        np.array([2, 3], dtype=np.int32),
+        args(min_edge_score=0.1, fh_k=0.1),
+    )
+
+    assert len(set(out.tolist())) == 2
+    assert report["reject_counts"]["fh_threshold"] == 1

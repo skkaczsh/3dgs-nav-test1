@@ -25,6 +25,7 @@ from scripts.optimize_patch_graph_energy import (
     build_edge_features,
     compute_patch_stats,
     entropy,
+    fh_threshold,
     merge_patch_stats,
     normal_score,
     read_labels,
@@ -59,6 +60,10 @@ def edge_score(feature: dict[str, float], max_color_distance: float) -> float:
     planar = 1.0 - min(1.0, max(0.0, feature.get("contact_planarity_delta", 1.0)) / 0.35)
     linear = 1.0 - min(1.0, max(0.0, feature.get("contact_linearity_delta", 1.0)) / 0.35)
     return 0.28 * color + 0.16 * color_p90 + 0.18 * support + 0.14 * normal + 0.10 * rough + 0.07 * planar + 0.07 * linear
+
+
+def edge_dissimilarity(feature: dict[str, float], max_color_distance: float) -> float:
+    return 1.0 - edge_score(feature, max_color_distance)
 
 
 def contact_bridge(a, b, feature: dict[str, float], args: argparse.Namespace) -> bool:
@@ -170,6 +175,10 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
                 continue
             else:
                 accepted_reason = "contact_bridge"
+        dissimilarity = edge_dissimilarity(feature, args.max_color_distance)
+        if args.fh_k > 0 and dissimilarity > min(fh_threshold(sa, args.fh_k), fh_threshold(sb, args.fh_k)):
+            rejects["fh_threshold"] = rejects.get("fh_threshold", 0) + 1
+            continue
         vetoed, reason, _ = structural_merge_veto(sa, sb, args)
         if vetoed:
             rejects[reason] = rejects.get(reason, 0) + 1
@@ -181,6 +190,7 @@ def cluster(arrays: dict[str, np.ndarray], labels: np.ndarray, src: np.ndarray, 
         keep, drop = (a, b) if sa.count >= sb.count else (b, a)
         dsu.union(keep, drop)
         stats[keep] = merge_patch_stats(stats[keep], stats[drop])
+        stats[keep].internal_diff = max(stats[keep].internal_diff, dissimilarity)
         del stats[drop]
         accepted += 1
         accepted_reasons[accepted_reason] = accepted_reasons.get(accepted_reason, 0) + 1
@@ -210,6 +220,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-edge-score", type=float, default=0.82)
     parser.add_argument("--max-color-distance", type=float, default=90.0)
     parser.add_argument("--max-merged-entropy", type=float, default=1.05)
+    parser.add_argument("--fh-k", type=float, default=0.0)
     parser.add_argument("--min-patch-voxels", type=int, default=4)
     parser.add_argument("--disable-contact-bridge", action="store_true")
     parser.add_argument("--contact-bridge-min-support", type=float, default=0.25)

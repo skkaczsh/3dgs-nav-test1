@@ -15,6 +15,7 @@ RUN="${RUN:-0}"
 PYTHON="${PYTHON:-python3}"
 MIN_EDGE_SCORE="${MIN_EDGE_SCORE:-0.78}"
 MAX_MERGED_ENTROPY="${MAX_MERGED_ENTROPY:-1.20}"
+FH_K="${FH_K:-0}"
 
 echo "remote=${REMOTE_HOST}"
 echo "region_input=${REGION_INPUT}"
@@ -22,6 +23,7 @@ echo "patch_labels=${PATCH_LABELS}"
 echo "output_dir=${OUTPUT_DIR}"
 echo "min_edge_score=${MIN_EDGE_SCORE}"
 echo "max_merged_entropy=${MAX_MERGED_ENTROPY}"
+echo "fh_k=${FH_K}"
 
 if [[ "${RUN}" != "1" ]]; then
   echo "dry_run=1"
@@ -50,6 +52,7 @@ cd "${REMOTE_REPO}"
   --output-stem superpoint_graph_v1 \
   --min-edge-score "${MIN_EDGE_SCORE}" \
   --max-merged-entropy "${MAX_MERGED_ENTROPY}" \
+  --fh-k "${FH_K}" \
   --max-color-distance 90 \
   --enable-structural-merge-veto \
   --structural-veto-min-voxels 1000 \
