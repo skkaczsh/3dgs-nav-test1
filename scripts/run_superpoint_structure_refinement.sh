@@ -2,17 +2,19 @@
 # Run after the first-pass VLM report is complete; it never mutates that pass.
 set -euo pipefail
 
-if [[ $# -ne 4 ]]; then
-  echo "usage: $0 ROOT SOURCE_FRAME_SUPPORT CONTACT_EDGES OUTPUT_DIR" >&2
+if [[ $# -ne 5 ]]; then
+  echo "usage: $0 ROOT SOURCE_FRAME_SUPPORT CONTACT_EDGES FULL_GEOMETRY_OBJECTS OUTPUT_DIR" >&2
   exit 2
 fi
 
 root=$1
 source_support=$2
 contact_edges=$3
-out=$4
+geometry_objects=$4
+out=$5
 first="$root/qwen_review"
 test ! -e "$out"
+test -f "$geometry_objects"
 mkdir -p "$out"
 
 expected=$(python3 - "$root/evidence/object_image_evidence.jsonl" <<'PY'
@@ -56,8 +58,9 @@ python3 scripts/build_superpoint_anchor_posteriors.py --objects-jsonl "$root/obj
   --review-jsonl "$out/merged_reviews.jsonl" --output-jsonl "$out/anchor_posteriors.jsonl" --min-confidence 0.8
 python3 scripts/propagate_superpoint_structural_anchors.py --contact-edges "$contact_edges" \
   --anchor-posteriors "$out/anchor_posteriors.jsonl" --output-jsonl "$out/structural_posteriors.jsonl" \
+  --geometry-objects-jsonl "$geometry_objects" \
   --report "$out/structural_posterior_report.json" --min-faces 10 --contact-faces-norm 100 --color-sigma 40 --max-hops 2 --min-confidence 0.35 --min-margin 0.15
 python3 scripts/build_superpoint_structure_regions.py --structural-posteriors "$out/structural_posteriors.jsonl" \
-  --contact-edges "$contact_edges" --objects-jsonl "$root/objects.jsonl" \
+  --contact-edges "$contact_edges" --objects-jsonl "$geometry_objects" \
   --output-regions "$out/regions.jsonl" --output-assignments "$out/region_assignments.jsonl" \
   --report "$out/regions_report.json" --min-faces 10 --contact-faces-norm 100 --color-sigma 40

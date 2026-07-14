@@ -125,7 +125,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--contact-edges", type=Path, required=True)
     parser.add_argument("--anchor-posteriors", type=Path, required=True)
-    parser.add_argument("--geometry-objects-jsonl", type=Path, help="Full official-superpoint geometry catalogue; required for full-graph propagation.")
+    parser.add_argument("--geometry-objects-jsonl", type=Path, required=True, help="Full official-superpoint geometry catalogue.")
     parser.add_argument("--output-jsonl", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--min-faces", type=int, default=10)
@@ -137,7 +137,7 @@ def main() -> None:
     args = parser.parse_args()
 
     anchor_rows = read_jsonl(args.anchor_posteriors)
-    geometry_rows = read_jsonl(args.geometry_objects_jsonl) if args.geometry_objects_jsonl else anchor_rows
+    geometry_rows = read_jsonl(args.geometry_objects_jsonl)
     geometry_by_id = {int(row["object_id"]): str(row.get("geometry_type") or "unknown") for row in geometry_rows}
     rows, report = propagate(
         read_jsonl(args.contact_edges), anchor_rows, args.min_faces,

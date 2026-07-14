@@ -909,7 +909,7 @@ Dense colorized source note:
     existing anchor/posterior pipeline consider the result for propagation.
     The broad first-pass review remains untouched and no completed VLM work is
     discarded.  `run_superpoint_structure_refinement.sh ROOT
-    SOURCE_FRAME_SUPPORT CONTACT_EDGES OUTPUT_DIR` is the canonical checked
+    SOURCE_FRAME_SUPPORT CONTACT_EDGES FULL_GEOMETRY_OBJECTS OUTPUT_DIR` is the canonical checked
     runner: it rejects an incomplete or partially parsed first pass, records
     both review rounds, then rebuilds the ledger, posterior, and Regions.
     The prompt includes the official Superpoint's `geometry_type`, world normal,
