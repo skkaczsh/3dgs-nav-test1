@@ -842,6 +842,23 @@ Dense colorized source note:
   - canonical 2D producer: `semantic_eval/` now lives inside this repository.
     A VLM transport or parse failure writes `unknown`, never `other`; otherwise
     a failed API credential can silently become false semantic evidence.
+- Planned graph posterior, after a valid multiview semantic set exists:
+  - node: one official Superpoint.  Node ownership is immutable; neither label
+    propagation nor a VLM may merge nodes or move points across a boundary.
+  - edge: only a measured dense-voxel contact or an edge from the same original
+    partition graph.  Centroid-neighbour edges are prohibited: they connect
+    nearby but disconnected walls, railings, vehicles, and vegetation.
+  - edge weight: contact support multiplied by geometry/color compatibility,
+    with hard-zero edges for incompatible stable structures.  The intended
+    posterior is the constrained harmonic objective
+    `sum_i alpha_i ||p_i-y_i||^2 + lambda sum_(i,j) w_ij ||p_i-p_j||^2`, where
+    `y_i` is the multiview observation posterior, `alpha_i` is its independent
+    view support, and `p_i` is the propagated label posterior.
+  - promotion: only structural labels (`floor/road/roof/wall/ceiling/grass`)
+    may propagate, and only when posterior confidence and margin both exceed
+    review thresholds.  Fine labels (`person/car/railing/pipe/equipment`) stay
+    as local candidates because propagating them over a contact graph creates
+    exactly the large false-positive regions seen in earlier runs.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color
