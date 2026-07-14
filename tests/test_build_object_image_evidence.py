@@ -35,6 +35,11 @@ def test_evidence_pose_uses_the_crop_frame_not_the_last_candidate() -> None:
     assert module.pose_for_evidence({"frame_id": 10}, poses)["name"] == "crop"
 
 
+def test_source_frame_points_do_not_leak_between_observations() -> None:
+    points = np.array([[1.0, 2.0, 3.0, 10.0], [4.0, 5.0, 6.0, 20.0]], dtype=np.float32)
+    assert module.points_for_source_frame(points, 20).tolist() == [[4.0, 5.0, 6.0]]
+
+
 def test_depth_cache_evicts_oldest_frame_camera_pair() -> None:
     cache = module.OrderedDict()
     module.remember_depth_buffer(cache, (1, 0), np.ones((1, 1), dtype=np.float32), 1)

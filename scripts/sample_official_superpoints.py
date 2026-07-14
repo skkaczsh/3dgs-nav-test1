@@ -103,8 +103,8 @@ def source_aware_samples(
     selected = set(source_support)
     sections = read_lx_sections(lx_path)
     frames = sorted({frame for values in source_support.values() for frame in values})
-    samples: dict[int, np.ndarray] = {}
-    keys: dict[int, np.ndarray] = {}
+    samples: dict[tuple[int, int], np.ndarray] = {}
+    keys: dict[tuple[int, int], np.ndarray] = {}
     rng = np.random.default_rng(seed)
     raw_points = matched_points = selected_points = 0
     with lx_path.open("rb") as handle:
@@ -128,8 +128,15 @@ def source_aware_samples(
                     continue
                 object_points = matched_xyz[matched_labels == oid]
                 selected_points += len(object_points)
-                reservoir_update(samples, keys, oid, object_points, max_points_per_object, rng)
-    return samples, {
+                # Keep frame membership. A global Superpoint sample cannot be
+                # projected into a source frame as though every point was seen there.
+                per_frame_limit = max(1, max_points_per_object // max(1, len(source_support[oid])))
+                framed = np.column_stack((object_points, np.full(len(object_points), frame_id, dtype=np.float32)))
+                reservoir_update(samples, keys, (oid, frame_id), framed, per_frame_limit, rng)
+    grouped: dict[int, list[np.ndarray]] = defaultdict(list)
+    for (object_id, _frame_id), points in samples.items():
+        grouped[object_id].append(points)
+    return {object_id: np.vstack(chunks) for object_id, chunks in grouped.items()}, {
         "source_frames": len(frames),
         "raw_lx_points": int(raw_points),
         "matched_reference_points": int(matched_points),
@@ -183,9 +190,10 @@ def main() -> None:
             xyz, labels, support, args.lx, args.max_match_distance, args.max_points_per_object, args.seed,
         )
         for object_id, points in samples.items():
-            sample = np.empty(len(points), dtype=[("x", "f4"), ("y", "f4"), ("z", "f4"), ("object", "i4")])
+            sample = np.empty(len(points), dtype=[("x", "f4"), ("y", "f4"), ("z", "f4"), ("object", "i4"), ("source_frame", "i4")])
             sample["x"], sample["y"], sample["z"] = points[:, 0], points[:, 1], points[:, 2]
             sample["object"] = object_id
+            sample["source_frame"] = points[:, 3].astype(np.int32, copy=False)
             chunks.append(sample)
     else:
         rng = np.random.default_rng(args.seed)

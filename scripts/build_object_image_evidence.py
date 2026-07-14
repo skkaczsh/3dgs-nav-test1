@@ -108,6 +108,8 @@ def load_object_point_samples(
                 float(parts[idx["y"]]),
                 float(parts[idx["z"]]),
             ]
+            if "source_frame" in idx:
+                point.append(float(parts[idx["source_frame"]]))
             bucket = samples[object_id]
             if len(bucket) < max_points_per_object:
                 bucket.append(point)
@@ -117,6 +119,13 @@ def load_object_point_samples(
                     bucket[replace_at] = point
 
     return {oid: np.asarray(points, dtype=np.float32) for oid, points in samples.items() if points}
+
+
+def points_for_source_frame(points: np.ndarray, frame_id: int) -> np.ndarray:
+    """Use only raw points actually scanned in a source-supported frame."""
+    if points.shape[1] == 3:
+        return points
+    return points[np.rint(points[:, 3]).astype(np.int32) == frame_id, :3]
 
 
 def transform_world_to_lidar(points_world: np.ndarray, pose: dict[str, Any]) -> np.ndarray:
@@ -544,6 +553,10 @@ def main() -> None:
             obs = []
             for pose in frame_pool:
                 frame_id = int(pose["frame_id"])
+                frame_points = points_for_source_frame(points, frame_id)
+                if len(frame_points) < args.min_projected_points:
+                    object_failures["no_points_from_source_frame"] += 1
+                    continue
                 frame_section_points: np.ndarray | None = None
                 if lx_handle is not None:
                     frame_section_points = lx_section_points(lx_handle, lx_sections, frame_id)
@@ -556,7 +569,7 @@ def main() -> None:
                     if not img_path.exists():
                         object_failures["missing_image"] += 1
                         continue
-                    uv, depth = project_points(points, pose, cam_id, args.min_depth)
+                    uv, depth = project_points(frame_points, pose, cam_id, args.min_depth)
                     if len(uv) < args.min_projected_points:
                         object_failures["low_projected_before_image_filter"] += 1
                         continue
@@ -646,7 +659,7 @@ def main() -> None:
                         "bbox_xyxy": [int(x0), int(y0), int(x1), int(y1)],
                         "raw_bbox_xyxy": [int(rx0), int(ry0), int(rx1), int(ry1)],
                         "projected_points": int(len(uv_in)),
-                        "sample_points": int(len(points)),
+                        "sample_points": int(len(frame_points)),
                         "bbox_area": area,
                         "raw_bbox_area": raw_area,
                         "bbox_area_ratio": area_ratio,
@@ -660,6 +673,7 @@ def main() -> None:
                         "frame_selection": frame_selection,
                         "uv": uv_in,
                         "depth": depth_in,
+                        "points": frame_points,
                     })
             obs.sort(key=lambda row: row["score"], reverse=True)
             for rank, row in enumerate(obs[:args.top_k], 1):
@@ -670,9 +684,10 @@ def main() -> None:
                 bbox = tuple(row["bbox_xyxy"])
                 crop, crop_bbox = crop_with_margin(image, bbox, args.crop_margin)
                 overlay = image.copy()
+                evidence_points = row["points"]
                 evidence_pose = pose_for_evidence(row, poses_by_frame)
-                up_hint = world_up_image_hint(points, evidence_pose, row["cam_id"])
-                pose_hint = camera_pose_context(points, evidence_pose, row["cam_id"])
+                up_hint = world_up_image_hint(evidence_points, evidence_pose, row["cam_id"])
+                pose_hint = camera_pose_context(evidence_points, evidence_pose, row["cam_id"])
                 draw_world_up_arrow(overlay, up_hint)
                 x0, y0, x1, y1 = bbox
                 cv2.rectangle(overlay, (x0, y0), (x1, y1), (0, 255, 255), 3)
@@ -686,7 +701,7 @@ def main() -> None:
                 cv2.imwrite(str(crop_path), crop)
                 cv2.imwrite(str(overlay_path), overlay)
                 out = {
-                    **{k: v for k, v in row.items() if k not in {"uv", "depth"}},
+                    **{k: v for k, v in row.items() if k not in {"uv", "depth", "points"}},
                     "rank": rank,
                     "crop_path": str(crop_path),
                     "overlay_path": str(overlay_path),
