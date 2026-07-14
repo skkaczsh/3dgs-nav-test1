@@ -908,7 +908,10 @@ Dense colorized source note:
     review may return `wall/roof/ceiling/stair/floor/grass`; only then can the
     existing anchor/posterior pipeline consider the result for propagation.
     The broad first-pass review remains untouched and no completed VLM work is
-    discarded.
+    discarded.  `run_superpoint_structure_refinement.sh ROOT
+    SOURCE_FRAME_SUPPORT CONTACT_EDGES OUTPUT_DIR` is the canonical checked
+    runner: it rejects an incomplete or partially parsed first pass, records
+    both review rounds, then rebuilds the ledger, posterior, and Regions.
   - observation materialization (2026-07-14):
     `materialize_superpoint_observation_ledger.py` is the canonical export for
     source-supported image evidence.  It does not recompute projection or
