@@ -859,6 +859,15 @@ Dense colorized source note:
     can still disagree (for example, a description of an indoor ceiling with a
     `floor` label).  Descriptions are evidence; geometry remains the canonical
     structural-label arbiter.
+  - contact graph validation (2026-07-14):
+    `export_official_superpoint_contact_graph.py` rebuilt 6-neighbor contacts
+    from the same `14,482,557` 3cm reference voxels and emitted `19,357`
+    cross-Superpoint pairs in 16.5 seconds.  The corrected grid builder rejects
+    linear-key row-wrap edges.  The graph has `12,680` connected nodes but a
+    largest component of `10,377`; true contact alone is therefore not a
+    propagation permission.  The posterior must retain only edges with
+    structural and appearance compatibility, and must never propagate fine
+    object labels over the component.
 - Planned graph posterior, after a valid multiview semantic set exists:
   - node: one official Superpoint.  Node ownership is immutable; neither label
     propagation nor a VLM may merge nodes or move points across a boundary.
