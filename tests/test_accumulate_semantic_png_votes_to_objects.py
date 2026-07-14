@@ -58,6 +58,40 @@ def test_geometry_only_can_accept_strong_png_votes() -> None:
     assert report["changed_object_count"] == 1
 
 
+def test_camera_observations_are_normalized_before_multi_view_fusion() -> None:
+    votes = defaultdict(Counter)
+    observation_counts = Counter()
+
+    first_weight, first_points = module.add_observation_votes(
+        votes, observation_counts, 7, Counter({"floor": 1000}), min_observation_points=12
+    )
+    second_weight, second_points = module.add_observation_votes(
+        votes, observation_counts, 7, Counter({"wall": 12}), min_observation_points=12
+    )
+
+    assert (first_weight, first_points) == (1.0, 1000)
+    assert (second_weight, second_points) == (1.0, 12)
+    assert votes[7] == Counter({"floor": 1.0, "wall": 1.0})
+    assert observation_counts[7] == 2
+
+
+def test_sparse_visual_evidence_is_retained_as_candidate_not_hard_label() -> None:
+    row = {"object_id": 7, "geometry_type": "rough_mixed", **geometry_only_semantic_fields("rough_mixed")}
+    updated, _report = module.apply_votes(
+        [row],
+        {
+            "votes": {7: Counter({"person": 1.0})},
+            "vetoes": defaultdict(Counter),
+            "observation_counts": Counter({7: 1}),
+        },
+        args(min_votes=2),
+    )
+
+    assert updated[0]["semantic_label"] == "unknown"
+    assert updated[0]["semantic_candidate_label"] == "person"
+    assert updated[0]["semantic_observation_count"] == 1
+
+
 def test_legacy_geometry_label_fallback_is_preserved_for_old_artifacts() -> None:
     row = {"object_id": 1, "geometry_type": "vertical", "semantic_label": "vertical"}
 

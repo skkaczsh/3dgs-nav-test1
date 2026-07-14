@@ -817,6 +817,28 @@ Dense colorized source note:
     object-level evidence after geometry ownership is fixed.  It is still only a
     cam0/50-frame smoke; full production needs all cameras and a cached/binary
     vote path to avoid repeated ASCII PLY projection cost.
+- Official-Superpoint multiview evidence mainline:
+  - ownership source: `run_official_superpoints_patch.py` on the authoritative
+    same-order `dense_las_voxel003_binary` input.  A Superpoint id is permanent
+    for one run and is the only owner of its points; image evidence cannot
+    split, absorb, or relabel neighbouring Superpoints.
+  - evidence source: `accumulate_semantic_png_votes_to_objects.py` projects
+    each camera pose through the validated calibration chain, first-touch
+    z-buffer, and SKYMASK/SAM semantic PNG.  It writes
+    `<output-stem>_observations.jsonl`; one row is one
+    `(patch_id, frame_id, cam_id)` observation with visible support, accepted
+    semantic pixels, and geometry-vetoed pixels.
+  - posterior rule: label pixels are normalized inside each camera observation.
+    A view contributes at most one unit of evidence, after reaching
+    `--min-observation-points`; independent viewpoints therefore outweigh a
+    single close-up with many projected pixels.  The object result retains
+    `semantic_candidate_label`, `semantic_candidate_ratio`,
+    `semantic_observation_count`, and `semantic_evidence_weight` even when
+    evidence is too sparse for a hard label.
+  - operational consequence: use the observation ledger as the only input to
+    later Object/Zone graph construction and VLM review.  Do not create a
+    second label-first target route or allow VLM to rewrite Superpoint
+    ownership.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color

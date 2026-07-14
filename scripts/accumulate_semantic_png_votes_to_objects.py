@@ -221,7 +221,33 @@ def zbuffer_visible(point_indices: np.ndarray, uu: np.ndarray, vv: np.ndarray, d
     return keep
 
 
-def accumulate_votes(points: np.ndarray, object_ids: np.ndarray, object_rows: dict[int, dict[str, Any]], args: argparse.Namespace) -> dict[str, Any]:
+def add_observation_votes(
+    votes: dict[int, Counter[str]],
+    observation_counts: Counter[int],
+    object_id: int,
+    label_counts: Counter[str],
+    min_observation_points: int,
+) -> tuple[float, int]:
+    """Add one camera observation without letting pixel density dominate votes."""
+    accepted = int(sum(label_counts.values()))
+    if not accepted:
+        return 0.0, 0
+    # One view has at most unit influence.  More supporting pixels only make
+    # that view reliable; they must not outweigh independent viewpoints.
+    weight = min(1.0, accepted / float(max(1, min_observation_points)))
+    for label, count in label_counts.items():
+        votes[object_id][label] += weight * (count / accepted)
+    observation_counts[object_id] += 1
+    return weight, accepted
+
+
+def accumulate_votes(
+    points: np.ndarray,
+    object_ids: np.ndarray,
+    object_rows: dict[int, dict[str, Any]],
+    args: argparse.Namespace,
+    observation_sink: Any | None = None,
+) -> dict[str, Any]:
     frame_ids = args.frames if args.frames else frames_with_semantic(args.semantic_eval_dir, args.combo, args.cams)
     if args.max_frames and len(frame_ids) > args.max_frames:
         step = max(len(frame_ids) / float(args.max_frames), 1.0)
@@ -231,6 +257,7 @@ def accumulate_votes(points: np.ndarray, object_ids: np.ndarray, object_rows: di
     pose_map = {int(p["frame_id"]): p for p in config.load_img_pos(min(frame_ids or [0]), max(frame_ids or [0]))}
     votes: dict[int, Counter[str]] = defaultdict(Counter)
     vetoes: dict[int, Counter[str]] = defaultdict(Counter)
+    observation_counts: Counter[int] = Counter()
     frame_reports = []
 
     for frame_id in frame_ids:
@@ -265,20 +292,49 @@ def accumulate_votes(points: np.ndarray, object_ids: np.ndarray, object_rows: di
                 keep = zbuffer_visible(idx, uu, vv, d, w)
                 idx, uu, vv, d = idx[keep], uu[keep], vv[keep], d[keep]
             sampled = sem[vv, uu].astype(np.uint8)
+            visible_ids, inverse = np.unique(object_ids[idx], return_inverse=True)
             used = 0
-            for oid, sid in zip(object_ids[idx], sampled):
-                label = LABEL_NAMES.get(int(sid), "unknown")
-                if label in SKIP_LABELS:
-                    continue
+            for group_index, oid in enumerate(visible_ids):
                 row = object_rows.get(int(oid))
                 if row is None:
                     continue
+                labels = sampled[inverse == group_index]
+                visible_points = int(len(labels))
+                accepted: Counter[str] = Counter()
+                rejected: Counter[str] = Counter()
                 geometry_type = object_geometry(row)
-                if label_allowed(label, geometry_type):
-                    votes[int(oid)][label] += 1
-                    used += 1
-                else:
-                    vetoes[int(oid)][label] += 1
+                for semantic_id, count in zip(*np.unique(labels, return_counts=True)):
+                    label = LABEL_NAMES.get(int(semantic_id), "unknown")
+                    if label in SKIP_LABELS:
+                        continue
+                    if label_allowed(label, geometry_type):
+                        accepted[label] += int(count)
+                    else:
+                        rejected[label] += int(count)
+                weight, accepted_points = add_observation_votes(
+                    votes,
+                    observation_counts,
+                    int(oid),
+                    accepted,
+                    args.min_observation_points,
+                )
+                vetoes[int(oid)].update(rejected)
+                used += accepted_points
+                if observation_sink is not None and (accepted_points or rejected):
+                    observation_sink(
+                        {
+                            "schema": "superpoint-observation/v1",
+                            "patch_id": int(oid),
+                            "frame_id": int(frame_id),
+                            "cam_id": int(cam_id),
+                            "mask_source": args.combo,
+                            "visible_points": visible_points,
+                            "accepted_points": accepted_points,
+                            "accepted_weight": round(weight, 6),
+                            "label_pixel_counts": dict(accepted),
+                            "veto_label_pixel_counts": dict(rejected),
+                        }
+                    )
             frame_reports.append(
                 {
                     "frame_id": int(frame_id),
@@ -293,6 +349,7 @@ def accumulate_votes(points: np.ndarray, object_ids: np.ndarray, object_rows: di
         "frame_ids": frame_ids,
         "votes": votes,
         "vetoes": vetoes,
+        "observation_counts": observation_counts,
         "frame_reports": frame_reports,
     }
 
@@ -300,6 +357,7 @@ def accumulate_votes(points: np.ndarray, object_ids: np.ndarray, object_rows: di
 def apply_votes(objects: list[dict[str, Any]], vote_data: dict[str, Any], args: argparse.Namespace) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     votes: dict[int, Counter[str]] = vote_data["votes"]
     vetoes: dict[int, Counter[str]] = vote_data["vetoes"]
+    observation_counts: Counter[int] = vote_data.get("observation_counts", Counter())
     updated = []
     counts = Counter()
     changed = 0
@@ -310,6 +368,12 @@ def apply_votes(objects: list[dict[str, Any]], vote_data: dict[str, Any], args: 
         obj_votes = votes.get(int(oid), Counter()) if oid is not None else Counter()
         total = sum(obj_votes.values())
         original = normalized_original_label(out)
+        candidate_label, candidate_weight = obj_votes.most_common(1)[0] if obj_votes else ("unknown", 0.0)
+        candidate_ratio = candidate_weight / max(total, 1e-9)
+        out["semantic_observation_count"] = int(observation_counts.get(int(oid), 0)) if oid is not None else 0
+        out["semantic_evidence_weight"] = round(float(total), 6)
+        out["semantic_candidate_label"] = candidate_label
+        out["semantic_candidate_ratio"] = round(float(candidate_ratio), 6)
         if total >= args.min_votes:
             label, count = obj_votes.most_common(1)[0]
             ratio = count / max(total, 1)
@@ -389,6 +453,18 @@ def main() -> int:
     parser.add_argument("--min-votes", type=int, default=12)
     parser.add_argument("--min-vote-ratio", type=float, default=0.55)
     parser.add_argument(
+        "--min-observation-points",
+        type=int,
+        default=12,
+        help="Pixels needed for a camera view to carry full unit evidence weight.",
+    )
+    parser.add_argument(
+        "--write-observation-ledger",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Write per-patch, per-camera evidence records beside the fused objects.",
+    )
+    parser.add_argument(
         "--allow-qa-preview-source",
         action="store_true",
         help="Allow stride-sampled viewer PLY as QA source. This stage still cannot change object ownership.",
@@ -408,10 +484,21 @@ def main() -> int:
     objects = read_jsonl(args.objects_jsonl)
     object_rows = {int(k): row for row in objects if (k := object_key(row)) is not None}
 
-    vote_data = accumulate_votes(points, object_ids, object_rows, args)
+    observation_out = args.output_dir / f"{args.output_stem}_observations.jsonl"
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    if args.write_observation_ledger:
+        with observation_out.open("w", encoding="utf-8") as ledger:
+            vote_data = accumulate_votes(
+                points,
+                object_ids,
+                object_rows,
+                args,
+                observation_sink=lambda row: ledger.write(json.dumps(row, ensure_ascii=False) + "\n"),
+            )
+    else:
+        vote_data = accumulate_votes(points, object_ids, object_rows, args)
     updated, object_report = apply_votes(objects, vote_data, args)
 
-    args.output_dir.mkdir(parents=True, exist_ok=True)
     objects_out = args.output_dir / f"{args.output_stem}.jsonl"
     ply_out = args.output_dir / f"{args.output_stem}.ply"
     report_out = args.output_dir / f"{args.output_stem}_report.json"
@@ -419,13 +506,14 @@ def main() -> int:
     labels_by_object = {int(k): str(row.get("semantic_label") or "unknown") for row in updated if (k := object_key(row)) is not None}
     ply_report = write_semantic_ply(args.source_ply, ply_out, labels_by_object)
     report = {
-        "schema": "semantic-png-object-votes/v1",
+        "schema": "semantic-png-object-votes/v2",
         "source_ply": str(args.source_ply),
         "objects_jsonl": str(args.objects_jsonl),
         "semantic_eval_dir": str(args.semantic_eval_dir),
         "combo": args.combo,
         "output_objects_jsonl": str(objects_out),
         "output_ply": str(ply_out),
+        "observation_ledger": str(observation_out) if args.write_observation_ledger else None,
         "frame_count": len(vote_data["frame_ids"]),
         "frame_ids": vote_data["frame_ids"],
         "object_report": object_report,
