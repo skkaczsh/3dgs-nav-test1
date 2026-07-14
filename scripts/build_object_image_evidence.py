@@ -183,7 +183,29 @@ def priority_mask_path(priority_dir: Path, cam_id: int, frame_id: int, suffix: s
     return priority_dir / "priority" / f"cam{cam_id}_{frame_id:06d}{suffix}.png"
 
 
-def choose_frame_pool(points: np.ndarray, poses: list[dict[str, Any]], max_frames: int, max_distance: float) -> list[dict[str, Any]]:
+def choose_frame_pool(
+    points: np.ndarray,
+    poses: list[dict[str, Any]],
+    max_frames: int,
+    max_distance: float,
+    mode: str,
+    min_depth: float,
+) -> list[dict[str, Any]]:
+    if mode == "projected":
+        scored = []
+        for pose in poses:
+            best = 0
+            for cam_id in (0, 1, 2):
+                uv, _depth = project_points(points, pose, cam_id, min_depth)
+                if len(uv):
+                    inside = (uv[:, 0] >= 0) & (uv[:, 0] < config.IMAGE_WIDTH)
+                    inside &= (uv[:, 1] >= 0) & (uv[:, 1] < config.IMAGE_HEIGHT)
+                    best = max(best, int(inside.sum()))
+            if best:
+                scored.append((-best, pose))
+        scored.sort(key=lambda item: item[0])
+        return [pose for _score, pose in scored[:max_frames]]
+
     centroid = points.mean(axis=0)
     scored = []
     for pose in poses:
@@ -310,6 +332,8 @@ def main() -> None:
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--max-frame-pool", type=int, default=80)
     parser.add_argument("--max-frame-distance", type=float, default=0.0)
+    parser.add_argument("--view-selection", choices=("nearby", "projected"), default="nearby",
+                        help="Use exact sampled-point camera visibility before depth gating for review candidates.")
     parser.add_argument("--max-points-per-object", type=int, default=2500)
     parser.add_argument("--min-depth", type=float, default=0.1)
     parser.add_argument("--min-projected-points", type=int, default=20)
@@ -357,7 +381,10 @@ def main() -> None:
                 missing_points.append(object_id)
                 failure_counts["missing_points"] += 1
                 continue
-            frame_pool = choose_frame_pool(points, poses, args.max_frame_pool, args.max_frame_distance)
+            frame_pool = choose_frame_pool(
+                points, poses, args.max_frame_pool, args.max_frame_distance,
+                args.view_selection, args.min_depth,
+            )
             object_failures = Counter()
             object_attempts = 0
             object_accepted = 0
@@ -555,6 +582,7 @@ def main() -> None:
             "top_k": args.top_k,
             "max_frame_pool": args.max_frame_pool,
             "max_frame_distance": args.max_frame_distance,
+            "view_selection": args.view_selection,
             "max_points_per_object": args.max_points_per_object,
             "min_projected_points": args.min_projected_points,
             "min_bbox_area": args.min_bbox_area,
