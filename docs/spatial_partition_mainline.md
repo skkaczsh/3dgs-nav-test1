@@ -884,12 +884,18 @@ Dense colorized source note:
   - edge: only a measured dense-voxel contact or an edge from the same original
     partition graph.  Centroid-neighbour edges are prohibited: they connect
     nearby but disconnected walls, railings, vehicles, and vegetation.
-  - edge weight: contact support multiplied by geometry/color compatibility,
-    with hard-zero edges for incompatible stable structures.  The intended
-    posterior is the constrained harmonic objective
-    `sum_i alpha_i ||p_i-y_i||^2 + lambda sum_(i,j) w_ij ||p_i-p_j||^2`, where
-    `y_i` is the multiview observation posterior, `alpha_i` is its independent
-    view support, and `p_i` is the propagated label posterior.
+  - edge weight: the first production pass uses measured contact and boundary
+    color only: `w_ij = min(shared_faces/100, 1) * exp(-0.5*(rgb_delta/40)^2)`.
+    Edges below 10 shared faces have zero weight.  This is deliberately local:
+    a label score is the best product of edge weights over paths of at most two
+    hops from a structural anchor.  It is not an unbounded graph smoother.
+    `propagate_superpoint_structural_anchors.py` records the winning source
+    anchor and hop count for every posterior.
+  - deferred upgrade: after a manually calibrated anchor set exists, compare
+    the bounded result against the constrained harmonic objective
+    `sum_i alpha_i ||p_i-y_i||^2 + lambda sum_(i,j) w_ij ||p_i-p_j||^2`.
+    Until then, solving it over the 10k-node contact component would hide an
+    unmeasured propagation radius behind a neat equation.
   - promotion: only structural labels (`floor/road/roof/wall/ceiling/grass`)
     may propagate, and only when posterior confidence and margin both exceed
     review thresholds.  Fine labels (`person/car/railing/pipe/equipment`) stay
