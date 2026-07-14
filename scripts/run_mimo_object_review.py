@@ -297,11 +297,14 @@ def main() -> None:
     ]
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    output_jsonl = args.output_dir / "mimo_object_review.jsonl"
     rows: list[dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=max(1, args.concurrency)) as pool:
         futures = [pool.submit(review_one, task) for task in tasks]
         for fut in as_completed(futures):
             rows.append(fut.result())
+            # Keep completed reviews recoverable when a long VLM batch is interrupted.
+            write_jsonl(output_jsonl, sorted(rows, key=lambda r: int(r["object_id"])))
             print(json.dumps({
                 "done": len(rows),
                 "object_id": rows[-1]["object_id"],
@@ -309,7 +312,7 @@ def main() -> None:
                 "parse_error": rows[-1].get("parse_error", "")[:120],
             }, ensure_ascii=False), flush=True)
     rows.sort(key=lambda r: int(r["object_id"]))
-    write_jsonl(args.output_dir / "mimo_object_review.jsonl", rows)
+    write_jsonl(output_jsonl, rows)
 
     label_counts = Counter()
     action_counts = Counter()
