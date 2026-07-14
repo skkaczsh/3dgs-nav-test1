@@ -91,6 +91,9 @@ the VLM-reviewed subset. Nodes absent from that catalogue are skipped. This
 keeps a small review batch as sparse unary evidence rather than accidentally
 treating unreviewed graph nodes as geometry-free recipients.
 
+The production CLI additionally verifies that the geometry catalogue covers
+every contact-graph endpoint before it writes a posterior.
+
 ## Stop Doing
 
 - Do not add another bucket-split post-pass.

@@ -33,6 +33,10 @@ def edge_weight(row: dict[str, Any], min_faces: int, contact_faces_norm: int, co
     return contact * color
 
 
+def graph_node_ids(edges: list[dict[str, Any]]) -> set[int]:
+    return {int(edge[key]) for edge in edges for key in ("object_a", "object_b")}
+
+
 def propagate(
     edges: list[dict[str, Any]],
     anchors: list[dict[str, Any]],
@@ -136,14 +140,19 @@ def main() -> None:
     parser.add_argument("--min-margin", type=float, default=0.15)
     args = parser.parse_args()
 
+    edge_rows = read_jsonl(args.contact_edges)
     anchor_rows = read_jsonl(args.anchor_posteriors)
     geometry_rows = read_jsonl(args.geometry_objects_jsonl)
     geometry_by_id = {int(row["object_id"]): str(row.get("geometry_type") or "unknown") for row in geometry_rows}
+    missing_geometry = graph_node_ids(edge_rows) - set(geometry_by_id)
+    if missing_geometry:
+        raise SystemExit(f"geometry catalogue misses {len(missing_geometry)} contact-graph nodes; first={min(missing_geometry)}")
     rows, report = propagate(
-        read_jsonl(args.contact_edges), anchor_rows, args.min_faces,
+        edge_rows, anchor_rows, args.min_faces,
         args.contact_faces_norm, args.color_sigma, args.max_hops, args.min_confidence, args.min_margin,
         geometry_by_id,
     )
+    report["contact_graph_nodes"] = len(graph_node_ids(edge_rows))
     args.output_jsonl.parent.mkdir(parents=True, exist_ok=True)
     with args.output_jsonl.open("w", encoding="utf-8") as f:
         for row in rows:
