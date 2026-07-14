@@ -146,6 +146,50 @@ def project_points(points_world: np.ndarray, pose: dict[str, Any], cam_id: int, 
     return uv, depth
 
 
+def world_up_image_hint(points_world: np.ndarray, pose: dict[str, Any], cam_id: int) -> dict[str, Any]:
+    """Express world-up in this camera's pixel coordinates near an object."""
+    if len(points_world) == 0:
+        return {"world_up_image_hint": "unavailable"}
+    center_world = points_world.mean(axis=0, keepdims=True)
+    center_lidar = transform_world_to_lidar(center_world, pose)[0]
+    t_cl = config.Tcl[cam_id]
+    center_cam = t_cl[:3, :3] @ center_lidar + t_cl[:3, 3]
+    if center_cam[2] <= 0.1:
+        return {"world_up_image_hint": "unavailable"}
+
+    r_world_to_camera = t_cl[:3, :3] @ config.Til[:3, :3].T @ pose["T_world_robot"][:3, :3].T
+    up_cam = r_world_to_camera @ np.array([0.0, 0.0, 1.0])
+    k = config.CAMERA_PARAMS[cam_id]["K"]
+
+    def pixel(point_cam: np.ndarray) -> np.ndarray:
+        uv_h = k @ point_cam
+        return uv_h[:2] / uv_h[2]
+
+    base = pixel(center_cam)
+    raised = pixel(center_cam + up_cam)
+    delta = raised - base
+    length = float(np.linalg.norm(delta))
+    if length < 1e-3 or not np.isfinite(length):
+        return {"world_up_image_hint": "unavailable"}
+    unit = delta / length
+    horizontal = "right" if unit[0] > 0.35 else ("left" if unit[0] < -0.35 else "center")
+    vertical = "down" if unit[1] > 0.35 else ("up" if unit[1] < -0.35 else "center")
+    return {
+        "world_up_image_hint": f"{vertical}_{horizontal}",
+        "world_up_image_unit_xy": [round(float(unit[0]), 3), round(float(unit[1]), 3)],
+    }
+
+
+def draw_world_up_arrow(image: np.ndarray, hint: dict[str, Any]) -> None:
+    unit = hint.get("world_up_image_unit_xy")
+    if not isinstance(unit, list) or len(unit) != 2:
+        return
+    start = (80, 90)
+    end = (int(round(start[0] + 42 * float(unit[0]))), int(round(start[1] + 42 * float(unit[1]))))
+    cv2.arrowedLine(image, start, end, (255, 255, 0), 3, cv2.LINE_AA, tipLength=0.24)
+    cv2.putText(image, "WORLD UP", (12, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.58, (255, 255, 0), 2, cv2.LINE_AA)
+
+
 def build_frame_depth_buffer(
     points_world: np.ndarray,
     pose: dict[str, Any],
@@ -574,6 +618,8 @@ def main() -> None:
                 bbox = tuple(row["bbox_xyxy"])
                 crop, crop_bbox = crop_with_margin(image, bbox, args.crop_margin)
                 overlay = image.copy()
+                up_hint = world_up_image_hint(points, pose, row["cam_id"])
+                draw_world_up_arrow(overlay, up_hint)
                 x0, y0, x1, y1 = bbox
                 cv2.rectangle(overlay, (x0, y0), (x1, y1), (0, 255, 255), 3)
                 for uv in row["uv"][::max(1, len(row["uv"]) // 400)]:
@@ -591,6 +637,7 @@ def main() -> None:
                     "crop_path": str(crop_path),
                     "overlay_path": str(overlay_path),
                     "crop_bbox_xyxy": list(crop_bbox),
+                    **up_hint,
                     **sampled_projection_payload(row["uv"], row["depth"], args.save_projected_samples),
                     "semantic_label": obj.get("semantic_label", ""),
                     "scene_context": obj.get("scene_context", ""),

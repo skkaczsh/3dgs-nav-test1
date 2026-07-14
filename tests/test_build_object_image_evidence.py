@@ -35,3 +35,9 @@ def test_depth_cache_evicts_oldest_frame_camera_pair() -> None:
     module.remember_depth_buffer(cache, (1, 0), np.ones((1, 1), dtype=np.float32), 1)
     module.remember_depth_buffer(cache, (2, 0), np.ones((1, 1), dtype=np.float32), 1)
     assert list(cache) == [(2, 0)]
+
+
+def test_draw_world_up_arrow_changes_image() -> None:
+    image = np.zeros((160, 160, 3), dtype=np.uint8)
+    module.draw_world_up_arrow(image, {"world_up_image_unit_xy": [0.0, -1.0]})
+    assert int(image.sum()) > 0

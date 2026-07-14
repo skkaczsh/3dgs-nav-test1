@@ -135,6 +135,7 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
             "bbox_area_ratio": row.get("bbox_area_ratio"),
             "median_depth": row.get("median_depth"),
             "bbox_xyxy": row.get("bbox_xyxy"),
+            "world_up_image_hint": row.get("world_up_image_hint", "unavailable"),
         }
         for row in evidence_rows
     ]
@@ -142,6 +143,7 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
     common = (
         "You are reviewing one 3D point-cloud object from an outdoor parking-lot scan. "
         "Images are undistorted camera evidence. Red points / yellow boxes indicate where this 3D object projects. "
+        "When shown, the cyan WORLD UP arrow is gravity expressed in image pixels; do not assume image-top is world-up. "
         "Use the images plus the 3D geometry summary. Do not classify the whole image; classify only the projected object.\n\n"
         f"Allowed controlled labels: {labels}.\n"
     )
