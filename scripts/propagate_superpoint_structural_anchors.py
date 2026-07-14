@@ -37,6 +37,17 @@ def graph_node_ids(edges: list[dict[str, Any]]) -> set[int]:
     return {int(edge[key]) for edge in edges for key in ("object_a", "object_b")}
 
 
+def structural_region_factor(label: str, region: str, ratio: float, mismatch_penalty: float) -> float:
+    """Use the drivability field only as a soft structural compatibility term."""
+    if ratio < 0.8:
+        return 1.0
+    if label in {"floor", "grass", "stair"} and region == "vertical_surface_region":
+        return mismatch_penalty
+    if label == "wall" and region == "ground_like_region":
+        return mismatch_penalty
+    return 1.0
+
+
 def propagate(
     edges: list[dict[str, Any]],
     anchors: list[dict[str, Any]],
@@ -47,6 +58,8 @@ def propagate(
     min_confidence: float,
     min_margin: float,
     geometry_by_id: dict[int, str] | None = None,
+    structural_regions_by_id: dict[int, tuple[str, float]] | None = None,
+    structural_mismatch_penalty: float = 0.25,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     graph: dict[int, list[tuple[int, float]]] = defaultdict(list)
     for row in edges:
@@ -64,6 +77,7 @@ def propagate(
     seed_count = 0
     missing_geometry_skips = 0
     geometry_conflict_skips = 0
+    structural_penalty_edges = 0
     for row in anchors:
         label = str(row.get("anchor_label") or "unknown")
         if not bool(row.get("propagation_eligible")) or label not in STRUCTURAL_LABELS:
@@ -86,7 +100,10 @@ def propagate(
             if conflict_reason(geometry_by_id[target], label):
                 geometry_conflict_skips += 1
                 continue
-            candidate = score * weight
+            region, ratio = (structural_regions_by_id or {}).get(target, ("unknown", 0.0))
+            factor = structural_region_factor(label, region, ratio, structural_mismatch_penalty)
+            structural_penalty_edges += int(factor < 1.0)
+            candidate = score * weight * factor
             if candidate <= scores[target].get(label, 0.0):
                 continue
             scores[target][label] = candidate
@@ -122,6 +139,7 @@ def propagate(
         "geometry_nodes": len(geometry_by_id),
         "missing_geometry_skips": missing_geometry_skips,
         "geometry_conflict_skips": geometry_conflict_skips,
+        "structural_penalty_edges": structural_penalty_edges,
     }
 
 
@@ -138,19 +156,27 @@ def main() -> None:
     parser.add_argument("--max-hops", type=int, default=2)
     parser.add_argument("--min-confidence", type=float, default=0.35)
     parser.add_argument("--min-margin", type=float, default=0.15)
+    parser.add_argument("--structural-mismatch-penalty", type=float, default=0.25)
     args = parser.parse_args()
 
     edge_rows = read_jsonl(args.contact_edges)
     anchor_rows = read_jsonl(args.anchor_posteriors)
     geometry_rows = read_jsonl(args.geometry_objects_jsonl)
     geometry_by_id = {int(row["object_id"]): str(row.get("geometry_type") or "unknown") for row in geometry_rows}
+    structural_regions_by_id = {
+        int(row["object_id"]): (
+            str(row.get("structural_region_dominant") or "unknown"),
+            float(row.get("structural_region_dominant_ratio") or 0.0),
+        )
+        for row in geometry_rows
+    }
     missing_geometry = graph_node_ids(edge_rows) - set(geometry_by_id)
     if missing_geometry:
         raise SystemExit(f"geometry catalogue misses {len(missing_geometry)} contact-graph nodes; first={min(missing_geometry)}")
     rows, report = propagate(
         edge_rows, anchor_rows, args.min_faces,
         args.contact_faces_norm, args.color_sigma, args.max_hops, args.min_confidence, args.min_margin,
-        geometry_by_id,
+        geometry_by_id, structural_regions_by_id, args.structural_mismatch_penalty,
     )
     report["contact_graph_nodes"] = len(graph_node_ids(edge_rows))
     args.output_jsonl.parent.mkdir(parents=True, exist_ok=True)

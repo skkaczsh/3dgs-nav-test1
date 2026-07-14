@@ -1,4 +1,4 @@
-from scripts.propagate_superpoint_structural_anchors import graph_node_ids, propagate
+from scripts.propagate_superpoint_structural_anchors import graph_node_ids, propagate, structural_region_factor
 
 
 def test_propagation_stops_after_short_color_compatible_path() -> None:
@@ -44,3 +44,9 @@ def test_propagation_does_not_invent_geometry_for_unlisted_graph_nodes() -> None
 def test_graph_node_ids_covers_both_edge_endpoints() -> None:
     edges = [{"object_a": 2, "object_b": 9, "shared_voxel_faces": 1, "contact_rgb_distance": 0.0}]
     assert graph_node_ids(edges) == {2, 9}
+
+
+def test_structural_region_is_a_soft_penalty_not_a_semantic_relabel() -> None:
+    assert structural_region_factor("wall", "ground_like_region", 0.9, 0.25) == 0.25
+    assert structural_region_factor("wall", "ground_like_region", 0.7, 0.25) == 1.0
+    assert structural_region_factor("ceiling", "ground_like_region", 0.9, 0.25) == 1.0

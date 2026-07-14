@@ -100,6 +100,11 @@ explicitly non-semantic: they are usable for candidate sampling and graph
 compatibility, but never translate `ground_like_region` into `floor` or
 `vertical_surface_region` into `wall`.
 
+For bounded structural propagation, a high-confidence contradictory region
+multiplies the edge score by a calibrated penalty (default `0.25`); it does not
+create a hard relabel. This is an evidence term in the posterior, alongside
+contact/color weight and geometry veto.
+
 ## Stop Doing
 
 - Do not add another bucket-split post-pass.
