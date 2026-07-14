@@ -24,3 +24,14 @@ def test_geometry_conflict_cannot_become_anchor_but_keeps_attachment() -> None:
     assert not row["propagation_eligible"]
     assert row["anchor_status"] == "geometry_conflict_local_only"
     assert row["surface_attachment"] == "ceiling"
+
+
+def test_strict_geometry_keeps_rough_surface_local() -> None:
+    row = anchor_row(
+        {"object_id": 10, "geometry_type": "rough_mixed"},
+        {"parsed": {"controlled_label": "wall", "confidence": 0.99, "is_surface_fragment": True}},
+        0.8,
+        stable_geometry_only=True,
+    )
+    assert not row["propagation_eligible"]
+    assert row["anchor_status"] == "geometry_uncertain_local_only"

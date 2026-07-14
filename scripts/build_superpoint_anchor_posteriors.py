@@ -23,7 +23,10 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def anchor_row(object_row: dict[str, Any], review_row: dict[str, Any] | None, min_confidence: float) -> dict[str, Any]:
+def anchor_row(
+    object_row: dict[str, Any], review_row: dict[str, Any] | None, min_confidence: float,
+    stable_geometry_only: bool = False,
+) -> dict[str, Any]:
     object_id = int(object_row["object_id"])
     parsed = (review_row or {}).get("parsed") or {}
     label = str(parsed.get("controlled_label") or "unknown")
@@ -32,11 +35,17 @@ def anchor_row(object_row: dict[str, Any], review_row: dict[str, Any] | None, mi
     is_surface = bool(parsed.get("is_surface_fragment"))
     geometry_type = str(object_row.get("geometry_type") or "unknown")
     geometry_conflict = conflict_reason(geometry_type, label)
-    propagate = is_surface and label in STRUCTURAL_LABELS and confidence >= min_confidence and not geometry_conflict
+    stable_geometry = geometry_type in {"horizontal", "vertical"}
+    propagate = (
+        is_surface and label in STRUCTURAL_LABELS and confidence >= min_confidence
+        and not geometry_conflict and (not stable_geometry_only or stable_geometry)
+    )
     if geometry_conflict:
         status = "geometry_conflict_local_only"
     elif propagate:
         status = "structural_anchor"
+    elif stable_geometry_only and is_surface and label in STRUCTURAL_LABELS and confidence >= min_confidence:
+        status = "geometry_uncertain_local_only"
     elif is_surface and label == "building_part":
         status = "needs_structural_refinement"
     elif parsed:
@@ -65,10 +74,15 @@ def main() -> None:
     parser.add_argument("--review-jsonl", type=Path, required=True)
     parser.add_argument("--output-jsonl", type=Path, required=True)
     parser.add_argument("--min-confidence", type=float, default=0.8)
+    parser.add_argument("--stable-geometry-only", action="store_true",
+                        help="Allow only horizontal/vertical Superpoints to seed graph propagation.")
     args = parser.parse_args()
 
     reviews = {int(row["object_id"]): row for row in read_jsonl(args.review_jsonl)}
-    rows = [anchor_row(row, reviews.get(int(row["object_id"])), args.min_confidence) for row in read_jsonl(args.objects_jsonl)]
+    rows = [
+        anchor_row(row, reviews.get(int(row["object_id"])), args.min_confidence, args.stable_geometry_only)
+        for row in read_jsonl(args.objects_jsonl)
+    ]
     args.output_jsonl.parent.mkdir(parents=True, exist_ok=True)
     with args.output_jsonl.open("w", encoding="utf-8") as f:
         for row in rows:
