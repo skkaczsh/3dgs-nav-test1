@@ -40,8 +40,8 @@ def build_manifest(regions: list[dict[str, Any]], observations: list[dict[str, A
             })
         count = int(region["superpoint_count"])
         anchors_count = max(len(anchors), 1)
-        # Large regions justified by few anchors deserve human attention first.
-        priority = (1 + int(region.get("max_hops") or 0)) * math.sqrt(count) / anchors_count
+        # Review both spatial impact and weak provenance; neither can hide the other.
+        priority = (1 + int(region.get("max_hops") or 0)) * math.sqrt(count) * (1 + 1 / anchors_count)
         manifest.append({
             "region_id": region["region_id"],
             "region_label": region["region_label"],
