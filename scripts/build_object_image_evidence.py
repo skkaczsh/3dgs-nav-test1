@@ -672,6 +672,8 @@ def main() -> None:
         "objects_jsonl": str(args.objects_jsonl),
         "object_ply": str(args.object_ply),
         "frame_root": str(args.frame_root),
+        "calibration_file": str(config.CALIB_FILE),
+        "img_pos_file": str(config.IMG_POS_FILE),
         "output_dir": str(args.output_dir),
         "candidate_objects": len(objects),
         "objects_with_points": len(point_samples),
