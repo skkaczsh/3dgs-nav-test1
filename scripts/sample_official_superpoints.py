@@ -25,10 +25,12 @@ def supported_ids(path: Path) -> set[int]:
     }
 
 
-def select_rows(rows: list[dict[str, Any]], support: set[int], per_geometry: int, seed: int) -> list[dict[str, Any]]:
+def select_rows(
+    rows: list[dict[str, Any]], support: set[int], per_geometry: int, min_object_points: int, seed: int,
+) -> list[dict[str, Any]]:
     groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
-        if int(row["object_id"]) in support:
+        if int(row["object_id"]) in support and int(row.get("count") or 0) >= min_object_points:
             groups[str(row.get("geometry_type") or "unknown")].append(row)
     rng = np.random.default_rng(seed)
     selected = []
@@ -48,12 +50,13 @@ def main() -> None:
     parser.add_argument("--source-support", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--per-geometry", type=int, default=20)
+    parser.add_argument("--min-object-points", type=int, default=0)
     parser.add_argument("--max-points-per-object", type=int, default=1500)
     parser.add_argument("--seed", type=int, default=17)
     args = parser.parse_args()
 
     support = supported_ids(args.source_support)
-    selected = select_rows(read_jsonl(args.objects_jsonl), support, args.per_geometry, args.seed)
+    selected = select_rows(read_jsonl(args.objects_jsonl), support, args.per_geometry, args.min_object_points, args.seed)
     selected_ids = np.array([int(row["object_id"]) for row in selected], dtype=np.int32)
     labels = np.load(args.labels).astype(np.int32, copy=False)
     vertex = PlyData.read(str(args.reference_ply))["vertex"].data
@@ -76,7 +79,7 @@ def main() -> None:
     with (output / "objects.jsonl").open("w", encoding="utf-8") as f:
         for row in selected:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
-    report = {"selected_objects": len(selected), "per_geometry": args.per_geometry, "supported_pool": len(support), "sample_points": int(sum(len(chunk) for chunk in chunks))}
+    report = {"selected_objects": len(selected), "per_geometry": args.per_geometry, "min_object_points": args.min_object_points, "supported_pool": len(support), "sample_points": int(sum(len(chunk) for chunk in chunks))}
     (output / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False))
 
