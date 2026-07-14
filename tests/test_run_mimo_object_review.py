@@ -1,4 +1,4 @@
-from scripts.run_mimo_object_review import prompt_for_object
+from scripts.run_mimo_object_review import prompt_for_object, validate_controlled_fields
 
 
 def test_structure_review_requests_specific_surface_label() -> None:
@@ -15,3 +15,16 @@ def test_object_review_keeps_fine_object_rules() -> None:
     assert "Car must be an actual vehicle body" in prompt
     assert "WORLD UP arrow" in prompt
     assert "thin rail, pipe, light strip" in prompt
+
+
+def test_controlled_fields_reject_freeform_labels_but_keep_description() -> None:
+    parsed = {
+        "controlled_label": "light_strip",
+        "surface_attachment": "ceiling",
+        "description_zh": "黑色线性灯带",
+    }
+    warnings = validate_controlled_fields(parsed)
+    assert parsed["controlled_label"] == "unknown"
+    assert parsed["surface_attachment"] == "ceiling"
+    assert parsed["description_zh"] == "黑色线性灯带"
+    assert warnings == ["unsupported_controlled_label=light_strip"]

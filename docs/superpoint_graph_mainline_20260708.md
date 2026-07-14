@@ -72,6 +72,14 @@ describes a broad floor/wall/ceiling-like parent when applicable. This prevents
 a thin light strip or railing from becoming a ceiling/wall token merely because
 it is attached to that surface.
 
+Image orientation is explicit evidence, not a visual convention: every overlay
+contains a projected world-`+Z` arrow and each review row stores its pixel
+unit vector. `world_normal_abs_z` / `gravity_orientation_hint` are the only
+world-orientation inputs exposed to the VLM; the local PCA `verticality` feature
+is not a gravity direction. Free-form descriptions are retained, but a VLM
+value outside the controlled-label contract is normalized to `unknown` and can
+never become a graph anchor.
+
 ## Stop Doing
 
 - Do not add another bucket-split post-pass.

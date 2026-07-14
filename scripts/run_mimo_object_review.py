@@ -79,6 +79,20 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def validate_controlled_fields(parsed: dict[str, Any]) -> list[str]:
+    """Keep open descriptions, but keep graph labels inside their contract."""
+    warnings: list[str] = []
+    label = str(parsed.get("controlled_label") or "unknown")
+    if label not in CONTROLLED_LABELS:
+        parsed["controlled_label"] = "unknown"
+        warnings.append(f"unsupported_controlled_label={label}")
+    attachment = str(parsed.get("surface_attachment") or "unknown")
+    if attachment not in SURFACE_ATTACHMENTS:
+        parsed["surface_attachment"] = "unknown"
+        warnings.append(f"unsupported_surface_attachment={attachment}")
+    return warnings
+
+
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
@@ -149,6 +163,7 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
         "When shown, the cyan WORLD UP arrow is the direction of world +Z in image pixels, the direction opposite gravity. "
         "Treat it as a level reference: a world-horizontal surface extends approximately perpendicular to that arrow, while a world-vertical surface extends approximately along it. "
         "The camera may be rolled or pitched, so do not assume image-top is world-up. "
+        "For 3D orientation, use world_normal_abs_z and gravity_orientation_hint as authoritative. Ignore geometry_features.verticality for world up/down; it is a local PCA feature, not a gravity direction. "
         "Use the images plus the 3D geometry summary. Do not classify the whole image; classify only the projected object.\n\n"
         f"Allowed controlled labels: {labels}.\n"
         f"Allowed surface_attachment values: {attachments}.\n"
@@ -163,7 +178,9 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
             "The camera can be rotated: do not infer floor or wall from image up/down. "
             "Use gravity_orientation_hint from world coordinates as advisory evidence. "
             "horizontal_like may be floor/roof/ceiling/grass; vertical_like may be wall/door_or_window; "
+            "If vertical_like conflicts with a horizontal surface label, keep any parent in surface_attachment but return unknown or review_manually for controlled_label. "
             "thin_linear or rough_mixed geometry needs especially strong visual support. Geometry does not force a label.\n"
+            "controlled_label must be exactly one allowed value. Put free terms such as 'light strip' only in description_zh.\n"
             "Return strict JSON only with keys:"
             "{"
             "\"controlled_label\": string, "
@@ -192,6 +209,8 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
         "that contains or supports it. A thin rail, pipe, light strip, curb, or window edge must not be labeled wall/floor/ceiling "
         "only because it is attached to one; use its intrinsic label and record the parent in surface_attachment. "
         "For a broad surface superpoint, controlled_label and surface_attachment may be the same.\n\n"
+        "controlled_label must be exactly one allowed value. Put free terms such as 'light strip' only in description_zh. "
+        "If vertical_like conflicts with floor/roof/ceiling/grass/stair, keep the parent in surface_attachment and use unknown or review_manually for controlled_label.\n\n"
         "Return strict JSON only with keys:\n"
         "{"
         "\"controlled_label\": string, "
@@ -284,6 +303,7 @@ def call_chat_completion(
     parsed, parse_error = parse_json_response(text)
     if parsed is None:
         raise ValueError(f"unparseable assistant content: {parse_error}; raw={text[:500]}")
+    validation_warnings = validate_controlled_fields(parsed)
     return {
         "object_id": int(obj["object_id"]),
         "input_semantic_label": obj.get("semantic_label", ""),
@@ -293,6 +313,7 @@ def call_chat_completion(
         "raw_response": text,
         "parsed": parsed,
         "parse_error": "",
+        "validation_warnings": validation_warnings,
         "elapsed_sec": elapsed,
         "usage": body.get("usage", {}),
     }
