@@ -15,3 +15,12 @@ def test_generic_building_part_requires_refinement_before_propagation() -> None:
     row = anchor_row(object_row, generic, 0.8)
     assert not row["propagation_eligible"]
     assert row["anchor_status"] == "needs_structural_refinement"
+
+
+def test_geometry_conflict_cannot_become_anchor_but_keeps_attachment() -> None:
+    object_row = {"object_id": 9, "geometry_type": "vertical"}
+    review = {"parsed": {"controlled_label": "ceiling", "surface_attachment": "ceiling", "confidence": 0.99, "is_surface_fragment": True}}
+    row = anchor_row(object_row, review, 0.8)
+    assert not row["propagation_eligible"]
+    assert row["anchor_status"] == "geometry_conflict_local_only"
+    assert row["surface_attachment"] == "ceiling"

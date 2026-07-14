@@ -8,6 +8,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+try:
+    from .audit_superpoint_structural_conflicts import conflict_reason
+except ImportError:  # Direct script execution keeps scripts/ on sys.path.
+    from audit_superpoint_structural_conflicts import conflict_reason
+
 
 # `building_part` is deliberately excluded: it is a VLM fallback description,
 # not a specific structural class safe to spread over a contact graph.
@@ -22,23 +27,35 @@ def anchor_row(object_row: dict[str, Any], review_row: dict[str, Any] | None, mi
     object_id = int(object_row["object_id"])
     parsed = (review_row or {}).get("parsed") or {}
     label = str(parsed.get("controlled_label") or "unknown")
+    attachment = str(parsed.get("surface_attachment") or "unknown")
     confidence = float(parsed.get("confidence") or 0.0)
     is_surface = bool(parsed.get("is_surface_fragment"))
-    propagate = is_surface and label in STRUCTURAL_LABELS and confidence >= min_confidence
+    geometry_type = str(object_row.get("geometry_type") or "unknown")
+    geometry_conflict = conflict_reason(geometry_type, label)
+    propagate = is_surface and label in STRUCTURAL_LABELS and confidence >= min_confidence and not geometry_conflict
+    if geometry_conflict:
+        status = "geometry_conflict_local_only"
+    elif propagate:
+        status = "structural_anchor"
+    elif is_surface and label == "building_part":
+        status = "needs_structural_refinement"
+    elif parsed:
+        status = "local_only"
+    else:
+        status = "no_visual_evidence"
     return {
         "object_id": object_id,
-        "geometry_type": str(object_row.get("geometry_type") or "unknown"),
+        "geometry_type": geometry_type,
         "description_zh": str(parsed.get("description_zh") or ""),
         "candidate_label": label,
+        "surface_attachment": attachment,
         "confidence": confidence,
         "is_surface_fragment": is_surface,
         "is_true_object": bool(parsed.get("is_true_object")),
+        "geometry_conflict": geometry_conflict,
         "anchor_label": label if propagate else "unknown",
         "propagation_eligible": propagate,
-        "anchor_status": (
-            "structural_anchor" if propagate
-            else ("needs_structural_refinement" if is_surface and label == "building_part" else ("local_only" if parsed else "no_visual_evidence"))
-        ),
+        "anchor_status": status,
     }
 
 
