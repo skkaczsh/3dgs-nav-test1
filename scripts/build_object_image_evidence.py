@@ -23,6 +23,19 @@ from typing import Any
 import cv2
 import numpy as np
 
+
+def configure_dataset_from_cli() -> None:
+    """Set config's dataset paths before importing the shared calibration module."""
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--data-dir", type=Path)
+    args, _unknown = parser.parse_known_args()
+    if args.data_dir:
+        data_dir = args.data_dir.resolve()
+        os.environ["SCAN_DATA_DIR"] = str(data_dir)
+        os.environ["SCAN_IMAGE_DIR"] = str(data_dir / "image")
+
+
+configure_dataset_from_cli()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
 from project_priority_masks_to_lx import read_lx_points, read_lx_sections
@@ -468,6 +481,8 @@ def make_contact_sheet(rows: list[dict[str, Any]], output_path: Path, thumb_size
 
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--data-dir", type=Path, required=True,
+                        help="Dataset root supplying image/img_pos.txt and image/cam_in_ex.txt.")
     parser.add_argument("--objects-jsonl", type=Path, required=True)
     parser.add_argument("--object-ply", type=Path, required=True)
     parser.add_argument("--frame-root", type=Path, required=True)

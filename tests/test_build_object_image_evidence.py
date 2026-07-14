@@ -1,6 +1,16 @@
 import numpy as np
+import sys
 
 from scripts import build_object_image_evidence as module
+
+
+def test_dataset_cli_configures_calibration_paths(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(sys, "argv", ["evidence.py", "--data-dir", str(tmp_path)])
+    monkeypatch.delenv("SCAN_DATA_DIR", raising=False)
+    monkeypatch.delenv("SCAN_IMAGE_DIR", raising=False)
+    module.configure_dataset_from_cli()
+    assert module.os.environ["SCAN_DATA_DIR"] == str(tmp_path.resolve())
+    assert module.os.environ["SCAN_IMAGE_DIR"] == str(tmp_path.resolve() / "image")
 
 
 def test_projected_view_selection_beats_nearest_backfacing_pose(monkeypatch) -> None:
