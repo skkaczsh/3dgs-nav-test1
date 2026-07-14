@@ -859,6 +859,26 @@ Dense colorized source note:
     review thresholds.  Fine labels (`person/car/railing/pipe/equipment`) stay
     as local candidates because propagating them over a contact graph creates
     exactly the large false-positive regions seen in earlier runs.
+
+## Scene Prior Baseline
+
+The first usable route-level prior is a `30:1` cam0 sample of the parking
+scan, generated on the local Qwen VL server from `207` frames. It identifies
+entrance plaza, outdoor parking, landscape, indoor lobby, stairwell, and roof
+segments. The authoritative run artifact is
+`/root/epfs/work_MT20260616-175807/scene_prior_qwen30_v2_20260714/mimo_scene_prior.json`
+on `scan-vlm`.
+
+The server must be called with `VLM_DISABLE_THINKING=1`; otherwise Qwen may
+consume the output budget in reasoning and truncate the required JSON. Both
+`build_mimo_scene_prior.py` and `run_mimo_object_review.py` now pass the
+OpenAI-compatible `chat_template_kwargs.enable_thinking=false` only when that
+environment flag is set.
+
+This prior is deliberately weak evidence. Its time ranges may overlap, for
+example a grass landscape inside an outdoor-parking route segment. It may
+select candidate labels or veto implausible ones, but cannot move a voxel,
+merge Superpoints, or turn a local visual observation into a hard label.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color
