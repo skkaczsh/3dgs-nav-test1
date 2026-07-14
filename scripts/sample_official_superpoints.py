@@ -73,7 +73,7 @@ def reservoir_update(
     if len(new_points) == 0:
         return
     new_keys = rng.random(len(new_points))
-    old_points = points.get(object_id, np.empty((0, 3), dtype=np.float32))
+    old_points = points.get(object_id, np.empty((0, new_points.shape[1]), dtype=np.float32))
     old_keys = keys.get(object_id, np.empty(0, dtype=np.float64))
     all_points = np.vstack([old_points, new_points.astype(np.float32, copy=False)])
     all_keys = np.concatenate([old_keys, new_keys])

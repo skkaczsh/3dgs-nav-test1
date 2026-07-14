@@ -45,3 +45,9 @@ def test_reservoir_update_keeps_bounded_sample() -> None:
     reservoir_update(points, keys, 7, np.arange(30, dtype=np.float32).reshape(10, 3), 3, np.random.default_rng(17))
     assert points[7].shape == (3, 3)
     assert keys[7].shape == (3,)
+
+
+def test_reservoir_update_keeps_source_frame_column() -> None:
+    points, keys = {}, {}
+    reservoir_update(points, keys, 7, np.zeros((2, 4), dtype=np.float32), 3, np.random.default_rng(17))
+    assert points[7].shape == (2, 4)
