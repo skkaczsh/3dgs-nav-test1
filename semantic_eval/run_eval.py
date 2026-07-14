@@ -166,6 +166,24 @@ def image_to_base64(image: np.ndarray, max_size: int = 1024) -> str:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
+def decode_sam_segmentation(segmentation: Any) -> np.ndarray:
+    """Decode dense masks and the uncompressed RLE used by the TRT runner."""
+    if isinstance(segmentation, dict) and {"counts", "size"} <= segmentation.keys():
+        h, w = (int(value) for value in segmentation["size"])
+        flat = np.empty(h * w, dtype=bool)
+        offset = 0
+        value = False
+        for count in segmentation["counts"]:
+            next_offset = min(offset + int(count), flat.size)
+            flat[offset:next_offset] = value
+            offset = next_offset
+            value = not value
+        if offset < flat.size:
+            flat[offset:] = False
+        return flat.reshape((w, h)).T
+    return np.asarray(segmentation, dtype=bool)
+
+
 def decode_sam2_masks(path: Path) -> list[Mask]:
     if not path.exists():
         return []
@@ -173,7 +191,7 @@ def decode_sam2_masks(path: Path) -> list[Mask]:
     items = data.get("masks", data if isinstance(data, list) else [])
     masks: list[Mask] = []
     for item in items:
-        seg = np.array(item["segmentation"], dtype=bool)
+        seg = decode_sam_segmentation(item["segmentation"])
         ys, xs = np.where(seg)
         bbox = item.get("bbox")
         if not bbox and len(xs):

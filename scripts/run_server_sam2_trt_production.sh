@@ -23,9 +23,6 @@ RUNNER_SRC="${RUNNER_SRC:-${REPO_ROOT}/tools/sam2_trt_amg_runner.cpp}"
 IMAGE_GLOB="${IMAGE_GLOB:-${INPUT_DIR}/*.png}"
 OUTPUT_MODE="${OUTPUT_MODE:-uncompressed_rle}"
 OVERWRITE="${OVERWRITE:-0}"
-SEMANTIC_EVAL_RUN_EVAL="${SEMANTIC_EVAL_RUN_EVAL:-/root/epfs/manifold_3dgs_project/semantic_eval/run_eval.py}"
-PATCH_SEMANTIC_EVAL_RLE="${PATCH_SEMANTIC_EVAL_RLE:-1}"
-
 POINTS_PER_SIDE="${POINTS_PER_SIDE:-32}"
 POINTS_PER_BATCH="${POINTS_PER_BATCH:-64}"
 PRED_IOU_THRESH="${PRED_IOU_THRESH:-0.7}"
@@ -46,11 +43,6 @@ mkdir -p "${OUTPUT_DIR}" "${REPORT_DIR}"
 
 if [[ ! -x "${RUNNER}" || "${BUILD_RUNNER:-0}" == "1" ]]; then
   SRC="${RUNNER_SRC}" OUT="${RUNNER}" bash "${SCRIPT_DIR}/build_sam2_tensorrt_runner.sh"
-fi
-
-if [[ "${OUTPUT_MODE}" == "uncompressed_rle" && "${PATCH_SEMANTIC_EVAL_RLE}" == "1" && -f "${SEMANTIC_EVAL_RUN_EVAL}" ]]; then
-  echo "[0/4] patching semantic_eval RLE mask loader"
-  python3 "${SCRIPT_DIR}/patch_semantic_eval_rle_masks.py" --run-eval "${SEMANTIC_EVAL_RUN_EVAL}"
 fi
 
 runner_args=(

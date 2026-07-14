@@ -414,11 +414,10 @@ Promotion criteria for replacing the Python SAM2 generator:
 ## Production Candidate Runner
 
 Use `run_server_sam2_trt_production.sh` for production-shaped candidate output.
-It writes `uncompressed_rle` JSON by default and patches
-`semantic_eval/run_eval.py` with `patch_semantic_eval_rle_masks.py` so the
-existing VLM, merge, completion, and artifact-writing path can decode compact
-RLE masks. This avoids duplicating the current hundreds-of-GB bool-list SAM2
-mask cache.
+It writes `uncompressed_rle` JSON by default. The canonical
+`semantic_eval/run_eval.py` loader decodes this format directly, so the VLM,
+merge, completion, and artifact-writing path shares one mask implementation.
+This avoids duplicating the current hundreds-of-GB bool-list SAM2 mask cache.
 
 Example 20-image validation run:
 
