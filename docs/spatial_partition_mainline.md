@@ -839,6 +839,9 @@ Dense colorized source note:
     later Object/Zone graph construction and VLM review.  Do not create a
     second label-first target route or allow VLM to rewrite Superpoint
     ownership.
+  - canonical 2D producer: `semantic_eval/` now lives inside this repository.
+    A VLM transport or parse failure writes `unknown`, never `other`; otherwise
+    a failed API credential can silently become false semantic evidence.
 - The full colorized reconstruction is
   `work_MT20260616-175807/outputs/colorized_full/colorized_visible_0000_6180_full.ply`.
   It is a binary PLY with `92984215` colored points and about `95%` color
