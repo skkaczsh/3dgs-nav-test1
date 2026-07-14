@@ -18,3 +18,13 @@ def test_projected_view_selection_beats_nearest_backfacing_pose(monkeypatch) -> 
         np.array([[0.0, 0.0, 0.0]], dtype=np.float32), poses, 1, 0.0, "projected", 0.1
     )
     assert selected[0]["name"] == "far_visible"
+
+
+def test_source_frame_selection_uses_only_raw_section_support() -> None:
+    poses = {
+        10: {"frame_id": 10, "name": "raw_source"},
+        20: {"frame_id": 20, "name": "second_source"},
+        30: {"frame_id": 30, "name": "unrelated_visible"},
+    }
+    selected = module.choose_source_frame_pool(7, {7: [20, 10]}, poses, 8)
+    assert [pose["name"] for pose in selected] == ["second_source", "raw_source"]

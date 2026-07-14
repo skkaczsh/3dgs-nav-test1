@@ -37,6 +37,17 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def read_source_frame_support(path: Path) -> dict[int, list[int]]:
+    """Load conservative per-superpoint source-frame candidates."""
+    support: dict[int, list[int]] = {}
+    for row in read_jsonl(path):
+        object_id = int(row["object_id"])
+        frames = [int(item["frame_id"]) for item in row.get("top_source_frames", [])]
+        if frames:
+            support[object_id] = frames
+    return support
+
+
 def parse_ply_header(path: Path) -> tuple[list[str], int]:
     props: list[str] = []
     vertex_count = 0
@@ -217,6 +228,20 @@ def choose_frame_pool(
     return [pose for _dist, pose in scored[:max_frames]]
 
 
+def choose_source_frame_pool(
+    object_id: int,
+    support: dict[int, list[int]],
+    poses_by_frame: dict[int, dict[str, Any]],
+    max_frames: int,
+) -> list[dict[str, Any]]:
+    """Return only poses whose raw LiDAR section contributed to the object."""
+    return [
+        poses_by_frame[frame_id]
+        for frame_id in support.get(object_id, [])
+        if frame_id in poses_by_frame
+    ][:max_frames]
+
+
 def crop_with_margin(image: np.ndarray, bbox: tuple[int, int, int, int], margin: int) -> tuple[np.ndarray, tuple[int, int, int, int]]:
     h, w = image.shape[:2]
     x0, y0, x1, y1 = bbox
@@ -334,6 +359,8 @@ def main() -> None:
     parser.add_argument("--max-frame-distance", type=float, default=0.0)
     parser.add_argument("--view-selection", choices=("nearby", "projected"), default="nearby",
                         help="Use exact sampled-point camera visibility before depth gating for review candidates.")
+    parser.add_argument("--source-frame-support", type=Path, default=None,
+                        help="Optional Superpoint source-frame JSONL. When set, only use frames whose raw section contributed to the object.")
     parser.add_argument("--max-points-per-object", type=int, default=2500)
     parser.add_argument("--min-depth", type=float, default=0.1)
     parser.add_argument("--min-projected-points", type=int, default=20)
@@ -363,7 +390,12 @@ def main() -> None:
         if not all_poses:
             raise SystemExit("No poses loaded from img_pos.txt.")
         pose_end = int(all_poses[-1]["frame_id"])
-    poses = [p for p in config.load_img_pos(args.start, pose_end) if int(p["frame_id"]) % args.frame_stride == 0]
+    all_poses = config.load_img_pos(args.start, pose_end)
+    poses = all_poses if args.source_frame_support else [
+        p for p in all_poses if int(p["frame_id"]) % args.frame_stride == 0
+    ]
+    poses_by_frame = {int(p["frame_id"]): p for p in all_poses}
+    source_frame_support = read_source_frame_support(args.source_frame_support) if args.source_frame_support else {}
     object_map = {int(obj["object_id"]): obj for obj in objects}
     lx_sections = read_lx_sections(args.lx) if args.lx else []
     lx_handle = args.lx.open("rb") if args.lx else None
@@ -381,10 +413,17 @@ def main() -> None:
                 missing_points.append(object_id)
                 failure_counts["missing_points"] += 1
                 continue
-            frame_pool = choose_frame_pool(
-                points, poses, args.max_frame_pool, args.max_frame_distance,
-                args.view_selection, args.min_depth,
-            )
+            if args.source_frame_support:
+                frame_pool = choose_source_frame_pool(
+                    object_id, source_frame_support, poses_by_frame, args.max_frame_pool,
+                )
+                frame_selection = "source_support"
+            else:
+                frame_pool = choose_frame_pool(
+                    points, poses, args.max_frame_pool, args.max_frame_distance,
+                    args.view_selection, args.min_depth,
+                )
+                frame_selection = args.view_selection
             object_failures = Counter()
             object_attempts = 0
             object_accepted = 0
@@ -504,6 +543,7 @@ def main() -> None:
                         "depth_filtered_points": depth_filtered_points,
                         "depth_visible_ratio": depth_visible_ratio,
                         "score": score,
+                        "frame_selection": frame_selection,
                         "uv": uv_in,
                         "depth": depth_in,
                     })
@@ -583,6 +623,7 @@ def main() -> None:
             "max_frame_pool": args.max_frame_pool,
             "max_frame_distance": args.max_frame_distance,
             "view_selection": args.view_selection,
+            "source_frame_support": str(args.source_frame_support) if args.source_frame_support else "",
             "max_points_per_object": args.max_points_per_object,
             "min_projected_points": args.min_projected_points,
             "min_bbox_area": args.min_bbox_area,
