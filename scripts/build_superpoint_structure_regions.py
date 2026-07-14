@@ -26,8 +26,11 @@ def structural_regions(
     contact_faces_norm: int,
     color_sigma: float,
 ) -> list[tuple[str, list[int]]]:
-    labels = {
-        int(row["object_id"]): str(row["structural_candidate_label"])
+    nodes = {
+        int(row["object_id"]): (
+            str(row["structural_candidate_label"]),
+            int(row["structural_source_anchor"]),
+        )
         for row in posteriors if row.get("propagation_eligible")
     }
     graph: dict[int, list[int]] = defaultdict(list)
@@ -35,11 +38,11 @@ def structural_regions(
         if not edge_weight(edge, min_faces, contact_faces_norm, color_sigma):
             continue
         a, b = int(edge["object_a"]), int(edge["object_b"])
-        if labels.get(a) and labels.get(a) == labels.get(b):
+        if nodes.get(a) and nodes.get(a) == nodes.get(b):
             graph[a].append(b)
             graph[b].append(a)
 
-    unseen = set(labels)
+    unseen = set(nodes)
     regions = []
     while unseen:
         start = unseen.pop()
@@ -52,7 +55,7 @@ def structural_regions(
                     unseen.remove(neighbor)
                     members.append(neighbor)
                     queue.append(neighbor)
-        regions.append((labels[start], sorted(members)))
+        regions.append((nodes[start][0], sorted(members)))
     return sorted(regions, key=lambda item: (item[0], item[1][0]))
 
 

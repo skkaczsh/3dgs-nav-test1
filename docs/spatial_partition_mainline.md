@@ -912,6 +912,12 @@ Dense colorized source note:
     SOURCE_FRAME_SUPPORT CONTACT_EDGES OUTPUT_DIR` is the canonical checked
     runner: it rejects an incomplete or partially parsed first pass, records
     both review rounds, then rebuilds the ledger, posterior, and Regions.
+  - region boundary: a Region may include only Superpoints with the same
+    winning structural anchor.  A two-hop posterior constrains each node, not
+    the diameter of a connected component; joining same-label nodes from
+    different anchors can otherwise chain indoor, outdoor, and roof surfaces
+    into one false Region.  Cross-anchor Region merging is deferred to an
+    explicit consistency review.
   - observation materialization (2026-07-14):
     `materialize_superpoint_observation_ledger.py` is the canonical export for
     source-supported image evidence.  It does not recompute projection or
