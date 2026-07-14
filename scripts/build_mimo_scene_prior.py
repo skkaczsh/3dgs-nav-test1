@@ -143,6 +143,8 @@ def chat(base_url: str, api_key: str, model: str, content: list[dict[str, Any]],
         "temperature": 0.0,
         "max_tokens": max_tokens,
     }
+    if os.environ.get("VLM_DISABLE_THINKING", "").lower() in {"1", "true", "yes", "on"}:
+        payload["chat_template_kwargs"] = {"enable_thinking": False}
     req = urllib.request.Request(
         base_url.rstrip("/") + "/chat/completions",
         data=json.dumps(payload).encode("utf-8"),
