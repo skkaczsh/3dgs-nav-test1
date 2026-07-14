@@ -46,8 +46,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reference-ply", type=Path, required=True)
     parser.add_argument("--labels", type=Path, required=True)
-    parser.add_argument("--objects-jsonl", type=Path, required=True)
-    parser.add_argument("--source-support", type=Path, required=True)
+    parser.add_argument("--objects-jsonl", type=Path)
+    parser.add_argument("--source-support", type=Path)
+    parser.add_argument("--selected-objects-jsonl", type=Path, help="Use a preselected candidate set instead of random geometry sampling.")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--per-geometry", type=int, default=20)
     parser.add_argument("--min-object-points", type=int, default=0)
@@ -55,8 +56,16 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=17)
     args = parser.parse_args()
 
-    support = supported_ids(args.source_support)
-    selected = select_rows(read_jsonl(args.objects_jsonl), support, args.per_geometry, args.min_object_points, args.seed)
+    if args.selected_objects_jsonl:
+        selected = read_jsonl(args.selected_objects_jsonl)
+        support = set()
+        selection_source = "selected_objects_jsonl"
+    else:
+        if not args.objects_jsonl or not args.source_support:
+            raise SystemExit("--objects-jsonl and --source-support are required without --selected-objects-jsonl")
+        support = supported_ids(args.source_support)
+        selected = select_rows(read_jsonl(args.objects_jsonl), support, args.per_geometry, args.min_object_points, args.seed)
+        selection_source = "random_geometry_sample"
     selected_ids = np.array([int(row["object_id"]) for row in selected], dtype=np.int32)
     labels = np.load(args.labels).astype(np.int32, copy=False)
     vertex = PlyData.read(str(args.reference_ply))["vertex"].data
@@ -79,7 +88,7 @@ def main() -> None:
     with (output / "objects.jsonl").open("w", encoding="utf-8") as f:
         for row in selected:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
-    report = {"selected_objects": len(selected), "per_geometry": args.per_geometry, "min_object_points": args.min_object_points, "supported_pool": len(support), "sample_points": int(sum(len(chunk) for chunk in chunks))}
+    report = {"selected_objects": len(selected), "selection_source": selection_source, "per_geometry": args.per_geometry, "min_object_points": args.min_object_points, "supported_pool": len(support), "sample_points": int(sum(len(chunk) for chunk in chunks))}
     (output / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False))
 
