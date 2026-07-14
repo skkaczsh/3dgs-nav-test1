@@ -94,6 +94,12 @@ treating unreviewed graph nodes as geometry-free recipients.
 The production CLI additionally verifies that the geometry catalogue covers
 every contact-graph endpoint before it writes a posterior.
 
+`annotate_superpoints_structural_regions.py` adds dense drivability votes to
+the full geometry catalogue with an exact world-voxel lookup. These votes are
+explicitly non-semantic: they are usable for candidate sampling and graph
+compatibility, but never translate `ground_like_region` into `floor` or
+`vertical_surface_region` into `wall`.
+
 ## Stop Doing
 
 - Do not add another bucket-split post-pass.
