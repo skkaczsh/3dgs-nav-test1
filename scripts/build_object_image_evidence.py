@@ -16,7 +16,7 @@ import json
 import math
 import os
 import sys
-from collections import Counter
+from collections import Counter, OrderedDict
 from pathlib import Path
 from typing import Any
 
@@ -242,6 +242,20 @@ def choose_source_frame_pool(
     ][:max_frames]
 
 
+def remember_depth_buffer(
+    cache: OrderedDict[tuple[int, int], np.ndarray],
+    key: tuple[int, int],
+    value: np.ndarray,
+    max_entries: int,
+) -> None:
+    if max_entries <= 0:
+        return
+    cache[key] = value
+    cache.move_to_end(key)
+    while len(cache) > max_entries:
+        cache.popitem(last=False)
+
+
 def crop_with_margin(image: np.ndarray, bbox: tuple[int, int, int, int], margin: int) -> tuple[np.ndarray, tuple[int, int, int, int]]:
     h, w = image.shape[:2]
     x0, y0, x1, y1 = bbox
@@ -350,6 +364,8 @@ def main() -> None:
     parser.add_argument("--lx", type=Path, default=None, help="Optional MANIFOLD .lx stream. When set, evidence points must be visible in the same frame section depth buffer.")
     parser.add_argument("--depth-tolerance", type=float, default=0.45, help="Max object-vs-frame depth difference when --lx is enabled.")
     parser.add_argument("--depth-neighborhood", type=int, default=1, help="Pixel radius for local section depth lookup when --lx is enabled.")
+    parser.add_argument("--max-depth-cache-entries", type=int, default=48,
+                        help="Bound cached frame/camera depth maps; 0 disables caching.")
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--end", type=int, default=None)
     parser.add_argument("--frame-stride", type=int, default=10)
@@ -399,7 +415,7 @@ def main() -> None:
     object_map = {int(obj["object_id"]): obj for obj in objects}
     lx_sections = read_lx_sections(args.lx) if args.lx else []
     lx_handle = args.lx.open("rb") if args.lx else None
-    depth_cache: dict[tuple[int, int], np.ndarray] = {}
+    depth_cache: OrderedDict[tuple[int, int], np.ndarray] = OrderedDict()
 
     try:
         rows = []
@@ -471,7 +487,9 @@ def main() -> None:
                                 config.IMAGE_WIDTH,
                                 config.IMAGE_HEIGHT,
                             )
-                            depth_cache[cache_key] = depth_buffer
+                            remember_depth_buffer(depth_cache, cache_key, depth_buffer, args.max_depth_cache_entries)
+                        else:
+                            depth_cache.move_to_end(cache_key)
                         uu_depth = np.clip(np.rint(uv_in[:, 0]).astype(np.int32), 0, config.IMAGE_WIDTH - 1)
                         vv_depth = np.clip(np.rint(uv_in[:, 1]).astype(np.int32), 0, config.IMAGE_HEIGHT - 1)
                         local_depth = min_depth_neighborhood(depth_buffer, uu_depth, vv_depth, args.depth_neighborhood)
@@ -635,6 +653,7 @@ def main() -> None:
             "lx": str(args.lx) if args.lx else "",
             "depth_tolerance": args.depth_tolerance,
             "depth_neighborhood": args.depth_neighborhood,
+            "max_depth_cache_entries": args.max_depth_cache_entries,
             "score_mode": args.score_mode,
             "save_projected_samples": args.save_projected_samples,
         },

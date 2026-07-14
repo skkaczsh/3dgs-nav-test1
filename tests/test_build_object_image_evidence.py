@@ -28,3 +28,10 @@ def test_source_frame_selection_uses_only_raw_section_support() -> None:
     }
     selected = module.choose_source_frame_pool(7, {7: [20, 10]}, poses, 8)
     assert [pose["name"] for pose in selected] == ["second_source", "raw_source"]
+
+
+def test_depth_cache_evicts_oldest_frame_camera_pair() -> None:
+    cache = module.OrderedDict()
+    module.remember_depth_buffer(cache, (1, 0), np.ones((1, 1), dtype=np.float32), 1)
+    module.remember_depth_buffer(cache, (2, 0), np.ones((1, 1), dtype=np.float32), 1)
+    assert list(cache) == [(2, 0)]
