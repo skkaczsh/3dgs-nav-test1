@@ -19,16 +19,16 @@ from typing import Any
 
 import numpy as np
 
-from optimize_patch_graph_energy import (
-    PatchStats,
-    bbox_gap,
-    compatible_bucket_score,
-    compute_patch_stats,
-    normal_score,
-    normalize_rows,
-    read_labels,
-    read_region_input,
-)
+try:
+    from scripts.optimize_patch_graph_energy import (
+        PatchStats, bbox_gap, compatible_bucket_score, compute_patch_stats,
+        normal_score, normalize_rows, read_labels, read_region_input,
+    )
+except ModuleNotFoundError:  # Supports direct `python scripts/...` execution.
+    from optimize_patch_graph_energy import (
+        PatchStats, bbox_gap, compatible_bucket_score, compute_patch_stats,
+        normal_score, normalize_rows, read_labels, read_region_input,
+    )
 
 
 def build_edge_counts(labels: np.ndarray, src: np.ndarray, dst: np.ndarray) -> dict[tuple[int, int], int]:
@@ -72,10 +72,14 @@ def build_grid6_edges(arrays: dict[str, np.ndarray], voxel_size: float) -> tuple
     src_parts: list[np.ndarray] = []
     dst_parts: list[np.ndarray] = []
     deltas = [1, nx, nx * ny]
-    for delta in deltas:
+    spans = cells.max(axis=0) + 1
+    for axis, delta in enumerate(deltas):
         target = keys + int(delta)
         pos = np.searchsorted(sorted_keys, target)
-        valid = (pos < len(sorted_keys)) & (sorted_keys[np.minimum(pos, len(sorted_keys) - 1)] == target)
+        # A linear key increment wraps at row boundaries unless the coordinate
+        # itself has room to advance along this axis.
+        valid = cells[:, axis] + 1 < spans[axis]
+        valid &= (pos < len(sorted_keys)) & (sorted_keys[np.minimum(pos, len(sorted_keys) - 1)] == target)
         if not np.any(valid):
             continue
         src_idx = np.flatnonzero(valid).astype(np.int32, copy=False)
