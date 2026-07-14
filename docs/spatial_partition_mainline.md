@@ -868,6 +868,16 @@ Dense colorized source note:
     propagation permission.  The posterior must retain only edges with
     structural and appearance compatibility, and must never propagate fine
     object labels over the component.
+  - anchor validation (2026-07-14): a source-supported, geometry-stratified
+    100-node sample initially had only 23% reviewable image evidence because
+    most tiny Superpoints cannot form a stable crop.  Restricting VLM review to
+    nodes with at least 500 reference voxels raised source-frame + first-touch
+    + SKYMASK evidence coverage to `90/100`; all 90 Qwen outputs parsed.  Of
+    these, only 20 were marked as a structural surface fragment and became
+    graph anchors (`15 building_part`, `4 floor`, `1 grass`).  The remaining
+    70 descriptions stay local-only.  Global PCA geometry types are not hard
+    label vetoes: car panels, glass doors, vegetation crowns, and railings can
+    all be locally planar or linear.
 - Planned graph posterior, after a valid multiview semantic set exists:
   - node: one official Superpoint.  Node ownership is immutable; neither label
     propagation nor a VLM may merge nodes or move points across a boundary.
