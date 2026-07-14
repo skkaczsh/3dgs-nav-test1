@@ -100,6 +100,17 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
+def completed_review_ids(path: Path) -> set[int]:
+    """Return only parseable reviews; failed rows remain eligible for retry."""
+    if not path.exists():
+        return set()
+    return {
+        int(row["object_id"])
+        for row in read_jsonl(path)
+        if row.get("parsed")
+    }
+
+
 def image_data_url(path: Path) -> str:
     mime = mimetypes.guess_type(path.name)[0] or "image/jpeg"
     data = base64.b64encode(path.read_bytes()).decode("ascii")
@@ -379,6 +390,7 @@ def main() -> None:
     parser.add_argument("--max-tokens", type=int, default=900)
     parser.add_argument("--image-mode", choices=("overlay", "crop", "both"), default="overlay")
     parser.add_argument("--task", choices=("object", "structure"), default="object")
+    parser.add_argument("--resume", action="store_true", help="Keep parseable existing rows and retry only missing/failed objects.")
     parser.add_argument("--base-url", default=os.environ.get("MIMO_BASE_URL", "https://token-plan-sgp.xiaomimimo.com/v1"))
     parser.add_argument("--model", default=os.environ.get("MIMO_MODEL", "mimo-v2.5"))
     args = parser.parse_args()
@@ -400,20 +412,25 @@ def main() -> None:
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     output_jsonl = args.output_dir / "mimo_object_review.jsonl"
-    rows: list[dict[str, Any]] = []
+    existing_rows = read_jsonl(output_jsonl) if args.resume and output_jsonl.exists() else []
+    completed_ids = completed_review_ids(output_jsonl) if args.resume else set()
+    rows_by_id = {int(row["object_id"]): row for row in existing_rows if row.get("parsed")}
+    tasks = [task for task in tasks if int(task[4]["object_id"]) not in completed_ids]
     with ThreadPoolExecutor(max_workers=max(1, args.concurrency)) as pool:
         futures = [pool.submit(review_one, task) for task in tasks]
         for fut in as_completed(futures):
-            rows.append(fut.result())
+            row = fut.result()
+            rows_by_id[int(row["object_id"])] = row
             # Keep completed reviews recoverable when a long VLM batch is interrupted.
-            write_jsonl(output_jsonl, sorted(rows, key=lambda r: int(r["object_id"])))
+            rows = sorted(rows_by_id.values(), key=lambda r: int(r["object_id"]))
+            write_jsonl(output_jsonl, rows)
             print(json.dumps({
                 "done": len(rows),
-                "object_id": rows[-1]["object_id"],
-                "parsed": bool(rows[-1].get("parsed")),
-                "parse_error": rows[-1].get("parse_error", "")[:120],
+                "object_id": row["object_id"],
+                "parsed": bool(row.get("parsed")),
+                "parse_error": row.get("parse_error", "")[:120],
             }, ensure_ascii=False), flush=True)
-    rows.sort(key=lambda r: int(r["object_id"]))
+    rows = sorted(rows_by_id.values(), key=lambda r: int(r["object_id"]))
     write_jsonl(output_jsonl, rows)
 
     label_counts = Counter()
