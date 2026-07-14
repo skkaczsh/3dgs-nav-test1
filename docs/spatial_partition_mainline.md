@@ -915,6 +915,35 @@ Dense colorized source note:
 
 ## Scene Prior Baseline
 
+## External Method Boundary
+
+The mainline intentionally adopts the useful boundary from three related
+methods, without importing their unnecessary training/runtime surface:
+
+- Superpoint Graph partitions a large cloud into geometrically homogeneous
+  elements and performs semantic reasoning over their graph.  Our immutable
+  official Superpoints and measured voxel-contact graph are that representation;
+  replacing them with a second heuristic patch generator is a regression.
+- Superpoint Transformer adds learned multi-scale attention.  It is not the
+  next production step because no task-specific 3D labels exist to calibrate
+  such a model.  The bounded posterior is a transparent, conservative
+  substitute until a reviewed anchor set is large enough for learning.
+- OVI-MAP separates class-agnostic instance reconstruction from open-vocabulary
+  semantic inference.  This is the decisive local rule: geometric ownership is
+  fixed before VLM evidence arrives.  A VLM cannot move a point across a
+  Superpoint boundary.
+- HOV-SG builds hierarchy after segment-level mapping.  For this mixed parking
+  scene the useful hierarchy is `scene -> spatial_region -> structure/object
+  -> superpoint -> observation`, not its indoor-only `floor -> room -> object`
+  naming.  Region nodes must be built only from QA-approved structural
+  posteriors; local open-vocabulary candidates stay attached to their
+  Superpoints until then.
+
+This keeps the first production version small: one dense geometric ownership
+map, one evidence ledger, and one contact graph.  No dense per-point language
+feature store, graph neural network, or second segmentation pipeline is needed
+to test the next decision.
+
 The first usable route-level prior is a `30:1` cam0 sample of the parking
 scan, generated on the local Qwen VL server from `207` frames. It identifies
 entrance plaza, outdoor parking, landscape, indoor lobby, stairwell, and roof
