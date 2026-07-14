@@ -42,9 +42,10 @@ def test_evidence_pose_uses_the_crop_frame_not_the_last_candidate() -> None:
 
 
 def test_source_frame_points_do_not_leak_between_observations() -> None:
-    points = np.array([[1.0, 2.0, 3.0, 10.0], [4.0, 5.0, 6.0, 20.0]], dtype=np.float32)
-    assert module.points_for_source_frame(points, 20).tolist() == [[4.0, 5.0, 6.0]]
+    points = np.array([[1.0, 2.0, 3.0, 10.0], [4.0, 5.0, 6.0, 20.0], [7.0, 8.0, 9.0, 20.0]], dtype=np.float32)
+    assert module.points_for_source_frame(points, 20).tolist() == [[4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
     assert module.available_source_frames(points) == {10, 20}
+    assert module.available_source_frames(points, 2) == {20}
 
 
 def test_depth_cache_evicts_oldest_frame_camera_pair() -> None:

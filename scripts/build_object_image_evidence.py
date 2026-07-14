@@ -128,10 +128,11 @@ def points_for_source_frame(points: np.ndarray, frame_id: int) -> np.ndarray:
     return points[np.rint(points[:, 3]).astype(np.int32) == frame_id, :3]
 
 
-def available_source_frames(points: np.ndarray) -> set[int] | None:
+def available_source_frames(points: np.ndarray, min_points: int = 1) -> set[int] | None:
     if points.shape[1] == 3:
         return None
-    return set(np.rint(points[:, 3]).astype(np.int32).tolist())
+    frames, counts = np.unique(np.rint(points[:, 3]).astype(np.int32), return_counts=True)
+    return set(frames[counts >= min_points].tolist())
 
 
 def transform_world_to_lidar(points_world: np.ndarray, pose: dict[str, Any]) -> np.ndarray:
@@ -544,7 +545,7 @@ def main() -> None:
             if args.source_frame_support:
                 frame_pool = choose_source_frame_pool(
                     object_id, source_frame_support, poses_by_frame, args.max_frame_pool,
-                    available_source_frames(points),
+                    available_source_frames(points, args.min_projected_points),
                 )
                 frame_selection = "source_support"
             else:
