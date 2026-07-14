@@ -199,6 +199,8 @@ def call_chat_completion(
         "temperature": 0.0,
         "max_tokens": max_tokens,
     }
+    if os.environ.get("VLM_DISABLE_THINKING", "").lower() in {"1", "true", "yes", "on"}:
+        payload["chat_template_kwargs"] = {"enable_thinking": False}
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         base_url.rstrip("/") + "/chat/completions",
