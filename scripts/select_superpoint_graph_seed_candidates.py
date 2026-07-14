@@ -33,6 +33,7 @@ def graph_candidates(
     min_points: int,
     per_group: int,
     max_candidates: int,
+    allowed_geometry_types: set[str],
 ) -> list[dict[str, Any]]:
     object_by_id = {int(row["object_id"]): row for row in objects}
     graph: dict[int, list[tuple[int, float]]] = defaultdict(list)
@@ -46,6 +47,8 @@ def graph_candidates(
     groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for object_id, row in object_by_id.items():
         if object_id not in supported or object_id in reviewed or object_id not in graph:
+            continue
+        if str(row.get("geometry_type") or "unknown") not in allowed_geometry_types:
             continue
         if int(row.get("count") or 0) < min_points:
             continue
@@ -94,15 +97,17 @@ def main() -> None:
     parser.add_argument("--min-points", type=int, default=500)
     parser.add_argument("--per-group", type=int, default=25)
     parser.add_argument("--max-candidates", type=int, default=300)
+    parser.add_argument("--geometry-types", default="horizontal,vertical", help="Comma-separated geometry types eligible as structural seeds.")
     args = parser.parse_args()
 
     objects = read_jsonl(args.objects_jsonl)
     supported = source_supported_ids(read_jsonl(args.source_support))
     reviewed = {int(row["object_id"]) for row in read_jsonl(args.reviewed_jsonl)}
     covered = {int(row["object_id"]) for row in read_jsonl(args.covered_posteriors)}
+    allowed_geometry_types = {value.strip() for value in args.geometry_types.split(",") if value.strip()}
     rows = graph_candidates(
         objects, read_jsonl(args.contact_edges), supported, reviewed, covered,
-        args.min_points, args.per_group, args.max_candidates,
+        args.min_points, args.per_group, args.max_candidates, allowed_geometry_types,
     )
     args.output_jsonl.parent.mkdir(parents=True, exist_ok=True)
     args.output_jsonl.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
@@ -117,6 +122,7 @@ def main() -> None:
         "already_covered": len(covered),
         "selection_groups": dict(sorted(group_counts.items())),
         "min_points": args.min_points,
+        "allowed_geometry_types": sorted(allowed_geometry_types),
     }
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

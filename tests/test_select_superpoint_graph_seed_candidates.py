@@ -11,6 +11,6 @@ def test_candidates_prefer_uncovered_supported_contact_neighborhoods() -> None:
         {"object_a": 1, "object_b": 2, "shared_voxel_faces": 100, "contact_rgb_distance": 0.0},
         {"object_a": 2, "object_b": 3, "shared_voxel_faces": 100, "contact_rgb_distance": 0.0},
     ]
-    rows = graph_candidates(objects, edges, {1, 2, 3}, {1}, {1}, 500, 2, 10)
+    rows = graph_candidates(objects, edges, {1, 2, 3}, {1}, {1}, 500, 2, 10, {"horizontal", "vertical"})
     assert [row["object_id"] for row in rows] == [2, 3]
     assert rows[0]["new_one_hop_neighbors"] == 1
