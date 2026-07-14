@@ -22,6 +22,19 @@ def read_xyz(path: Path) -> np.ndarray:
     return np.column_stack([vertex["x"], vertex["y"], vertex["z"]]).astype(np.float32, copy=False)
 
 
+def read_frame_filter(path: Path) -> set[int]:
+    raw = path.read_text(encoding="utf-8").strip()
+    if not raw:
+        return set()
+    try:
+        values = json.loads(raw)
+    except json.JSONDecodeError:
+        values = raw.replace(",", " ").split()
+    if not isinstance(values, list):
+        raise ValueError(f"frame filter must be a JSON list or whitespace-delimited ids: {path}")
+    return {int(value) for value in values}
+
+
 def update_top_frames(top_frames: np.ndarray, top_hits: np.ndarray, label: int, frame: int, hits: int) -> None:
     slot = int(np.argmin(top_hits[label]))
     if hits > int(top_hits[label, slot]):
@@ -40,6 +53,8 @@ def main() -> None:
     parser.add_argument("--end", type=int, default=None)
     parser.add_argument("--max-distance", type=float, default=0.05)
     parser.add_argument("--top-frames", type=int, default=8)
+    parser.add_argument("--candidate-frames", type=Path,
+                        help="Optional frame-id list. Retain top support only within this reusable frame set.")
     parser.add_argument("--progress-every", type=int, default=100)
     args = parser.parse_args()
 
@@ -51,6 +66,7 @@ def main() -> None:
     tree = cKDTree(xyz, compact_nodes=False, balanced_tree=False)
     sections = read_lx_sections(args.lx)
     end = min(len(sections) - 1, args.end if args.end is not None else len(sections) - 1)
+    candidate_frames = read_frame_filter(args.candidate_frames) if args.candidate_frames else None
 
     frame_min = np.full(label_count, -1, dtype=np.int32)
     frame_max = np.full(label_count, -1, dtype=np.int32)
@@ -79,8 +95,9 @@ def main() -> None:
             frame_max[present] = np.maximum(frame_max[present], frame)
             frame_count[present] += 1
             matched_hits[present] += counts
-            for label, hits in zip(present.tolist(), counts.tolist()):
-                update_top_frames(top_frames, top_hits, int(label), frame, int(hits))
+            if candidate_frames is None or frame in candidate_frames:
+                for label, hits in zip(present.tolist(), counts.tolist()):
+                    update_top_frames(top_frames, top_hits, int(label), frame, int(hits))
             if frame == args.start or frame % args.progress_every == 0:
                 print(f"frame={frame} raw={raw_points} matched={matched_points}", flush=True)
 
@@ -107,6 +124,8 @@ def main() -> None:
         "lx": str(args.lx),
         "frame_range": [args.start, end],
         "max_distance": args.max_distance,
+        "candidate_frames": str(args.candidate_frames) if args.candidate_frames else "",
+        "candidate_frame_count": len(candidate_frames) if candidate_frames is not None else 0,
         "raw_lx_points": raw_points,
         "matched_lx_points": matched_points,
         "matched_ratio": matched_points / max(raw_points, 1),
