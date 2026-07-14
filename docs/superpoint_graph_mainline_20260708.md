@@ -122,11 +122,24 @@ contact/color weight and geometry veto.
   `43` to `31`. It fixed no previously unsafe anchor. The retry is therefore
   rejected as an automatic replacement; retain the old geometry-safe anchors.
 - Graph-coverage sampling found only eight new horizontal/vertical candidates.
-  Their initial first-touch image-evidence preflight failed, but that result is
-  not final: the candidate PLY was globally reservoir-sampled before being
-  restricted to source-support frames, so it may have discarded exactly the
-  source-visible points. Retest after source-aware materialization; source-frame
-  provenance alone is insufficient proof of image observability.
+  The first preflight used a globally reservoir-sampled candidate PLY, which
+  was not the same spatial support used by provenance. It has been retested by
+  matching raw world-coordinate `.lx` points from each candidate's proven
+  source frames with the same `0.05m` KD-tree radius as provenance.
+  - Full source support materialized `211` actual source points across all 8.
+  - Restricting to frames with an existing priority/skymask materialized `100`
+    points across 5 candidates; the other 3 have no reviewable priority frame.
+  - The five reviewable candidates still produced zero first-touch-valid image
+    observations under the normal depth/sky/bbox gates. They must not enter VLM
+    review or anchor propagation.
+  Therefore source-frame provenance is necessary but not sufficient: it proves
+  raw scan contribution, not camera-FOV visibility. Candidate selection for
+  VLM must use the same `priority_top32` support set as the image pipeline.
+
+`sample_official_superpoints.py --source-aware --source-support ... --lx ...`
+is the sole materializer for this check. It reuses the provenance KD-tree
+match and writes only source-supported raw points; the default reference-uniform
+mode remains for geometry-only viewer samples.
 
 ## Stop Doing
 
