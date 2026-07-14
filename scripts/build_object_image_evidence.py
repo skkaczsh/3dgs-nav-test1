@@ -333,6 +333,11 @@ def choose_source_frame_pool(
     ][:max_frames]
 
 
+def pose_for_evidence(row: dict[str, Any], poses_by_frame: dict[int, dict[str, Any]]) -> dict[str, Any]:
+    """Return the calibration pose that produced this evidence crop."""
+    return poses_by_frame[int(row["frame_id"])]
+
+
 def remember_depth_buffer(
     cache: OrderedDict[tuple[int, int], np.ndarray],
     key: tuple[int, int],
@@ -665,8 +670,9 @@ def main() -> None:
                 bbox = tuple(row["bbox_xyxy"])
                 crop, crop_bbox = crop_with_margin(image, bbox, args.crop_margin)
                 overlay = image.copy()
-                up_hint = world_up_image_hint(points, pose, row["cam_id"])
-                pose_hint = camera_pose_context(points, pose, row["cam_id"])
+                evidence_pose = pose_for_evidence(row, poses_by_frame)
+                up_hint = world_up_image_hint(points, evidence_pose, row["cam_id"])
+                pose_hint = camera_pose_context(points, evidence_pose, row["cam_id"])
                 draw_world_up_arrow(overlay, up_hint)
                 x0, y0, x1, y1 = bbox
                 cv2.rectangle(overlay, (x0, y0), (x1, y1), (0, 255, 255), 3)

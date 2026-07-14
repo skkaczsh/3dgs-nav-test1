@@ -30,6 +30,11 @@ def test_source_frame_selection_uses_only_raw_section_support() -> None:
     assert [pose["name"] for pose in selected] == ["second_source", "raw_source"]
 
 
+def test_evidence_pose_uses_the_crop_frame_not_the_last_candidate() -> None:
+    poses = {10: {"frame_id": 10, "name": "crop"}, 20: {"frame_id": 20, "name": "last_candidate"}}
+    assert module.pose_for_evidence({"frame_id": 10}, poses)["name"] == "crop"
+
+
 def test_depth_cache_evicts_oldest_frame_camera_pair() -> None:
     cache = module.OrderedDict()
     module.remember_depth_buffer(cache, (1, 0), np.ones((1, 1), dtype=np.float32), 1)
