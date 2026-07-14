@@ -141,6 +141,25 @@ is the sole materializer for this check. It reuses the provenance KD-tree
 match and writes only source-supported raw points; the default reference-uniform
 mode remains for geometry-only viewer samples.
 
+## 2026-07-14 Source-Aware Pose Evidence Pilot
+
+- Rebuilding the full 418-object review set with `priority_top32` source-aware
+  raw-LX samples retained `262` objects / `492` first-touch-valid observations.
+  The older global-reference sampling reported `381` objects; the difference is
+  deliberately rejected pseudo-visibility from distant parts of a global
+  Superpoint, not missing geometry.
+- All 492 observations carry calibrated camera pose facts and `314` also have
+  a usable projected world-up arrow. The absence of an image-space arrow is
+  tolerated because the numeric pose facts remain available.
+- A 21-object Qwen smoke had `21/21` parse success and changed `10` controlled
+  labels versus the old evidence. Plausible corrections include `floor ->
+  stair` and `building_part -> railing`; plausible but non-final descriptions
+  such as a drain cover as `equipment` demonstrate why VLM remains a unary
+  term behind geometry/structure vetoes, never an automatic graph anchor.
+- Promote the source-aware evidence directory as the only input for the next
+  VLM batch. Do not compare its lower observation count to the old count as a
+  recall regression; they have different spatial-support contracts.
+
 ## Stop Doing
 
 - Do not add another bucket-split post-pass.
