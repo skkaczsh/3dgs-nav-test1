@@ -12,12 +12,17 @@ source_support=$2
 contact_edges=$3
 geometry_objects=$4
 out=$5
-first="$root/qwen_review"
+objects_jsonl=${OBJECTS_JSONL:-"$root/objects.jsonl"}
+evidence_dir=${EVIDENCE_DIR:-"$root/evidence"}
+first=${REVIEW_DIR:-"$root/qwen_review"}
 test ! -e "$out"
 test -f "$geometry_objects"
+test -f "$objects_jsonl"
+test -f "$evidence_dir/object_image_evidence.jsonl"
+test -f "$first/mimo_object_review.jsonl"
 mkdir -p "$out"
 
-expected=$(python3 - "$root/evidence/object_image_evidence.jsonl" <<'PY'
+expected=$(python3 - "$evidence_dir/object_image_evidence.jsonl" <<'PY'
 import json, sys
 print(len({int(row["object_id"]) for row in map(json.loads, open(sys.argv[1])) if row}))
 PY
@@ -32,7 +37,7 @@ PY
 
 cp "$first/mimo_object_review.jsonl" "$out/first_review.jsonl"
 python3 scripts/select_structural_refinement_candidates.py \
-  --objects-jsonl "$root/objects.jsonl" --review-jsonl "$out/first_review.jsonl" \
+  --objects-jsonl "$objects_jsonl" --review-jsonl "$out/first_review.jsonl" \
   --output-objects "$out/structural_candidates.jsonl" --output-ids "$out/structural_candidate_ids.json" \
   --report "$out/structural_candidates_report.json" --min-confidence 0.8
 
@@ -40,7 +45,7 @@ mkdir -p "$out/structure_review"
 if [[ $(wc -l < "$out/structural_candidates.jsonl") -gt 0 ]]; then
   # ponytail: the caller supplies the VLM endpoint credentials; no second config layer.
   python3 scripts/run_mimo_object_review.py --objects-jsonl "$out/structural_candidates.jsonl" \
-    --evidence-jsonl "$root/evidence/object_image_evidence.jsonl" --output-dir "$out/structure_review" \
+    --evidence-jsonl "$evidence_dir/object_image_evidence.jsonl" --output-dir "$out/structure_review" \
     --task structure --top-k 2 --concurrency 4 --timeout 180 --retries 1 --max-tokens 1024 --image-mode both
 else
   : > "$out/structure_review/mimo_object_review.jsonl"
@@ -51,10 +56,10 @@ python3 scripts/merge_superpoint_review_rounds.py \
   --structural-review-jsonl "$out/structure_review/mimo_object_review.jsonl" \
   --output-jsonl "$out/merged_reviews.jsonl" --report "$out/merged_reviews_report.json" --min-confidence 0.8
 python3 scripts/materialize_superpoint_observation_ledger.py \
-  --evidence-jsonl "$root/evidence/object_image_evidence.jsonl" --objects-jsonl "$root/objects.jsonl" \
+  --evidence-jsonl "$evidence_dir/object_image_evidence.jsonl" --objects-jsonl "$objects_jsonl" \
   --review-jsonl "$out/merged_reviews.jsonl" --source-frame-support "$source_support" \
   --output-jsonl "$out/observations.jsonl" --report "$out/observations_report.json"
-python3 scripts/build_superpoint_anchor_posteriors.py --objects-jsonl "$root/objects.jsonl" \
+python3 scripts/build_superpoint_anchor_posteriors.py --objects-jsonl "$objects_jsonl" \
   --review-jsonl "$out/merged_reviews.jsonl" --output-jsonl "$out/anchor_posteriors.jsonl" --min-confidence 0.8
 python3 scripts/propagate_superpoint_structural_anchors.py --contact-edges "$contact_edges" \
   --anchor-posteriors "$out/anchor_posteriors.jsonl" --output-jsonl "$out/structural_posteriors.jsonl" \
