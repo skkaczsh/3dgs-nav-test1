@@ -291,3 +291,15 @@ Implementation hook:
 - This gate is deliberately small: it does not replace visual QA or improve
   clustering by itself; it prevents known-bad structural over-merge candidates
   from being treated as serious promotion candidates.
+
+## 2026-07-14 Frame-Exact VLM Evidence
+
+- Source-aware samples retain `source_frame`; evidence for frame `F` uses only
+  points actually scanned in `F`. Cross-frame Superpoint points must not be
+  projected into `F` and then treated as visible after a depth gate.
+- The frame-exact pass produced 62 fully visible review units from 418 sampled
+  Superpoints and 62/62 parseable VLM reviews. It is the current precision
+  baseline, not a coverage baseline.
+- Remaining coverage work must build review context from geometrically adjacent
+  Superpoints while preserving each Superpoint's exclusive ownership. Do not
+  weaken first-touch, sky, or source-frame gates to recover historical counts.
