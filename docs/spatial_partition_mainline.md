@@ -842,6 +842,23 @@ Dense colorized source note:
   - canonical 2D producer: `semantic_eval/` now lives inside this repository.
     A VLM transport or parse failure writes `unknown`, never `other`; otherwise
     a failed API credential can silently become false semantic evidence.
+  - source-frame contract: the official LAS-derived Superpoint PLY does not
+    retain raw `.lx` frame provenance.  `build_superpoint_frame_provenance.py`
+    restores a conservative sidecar by matching raw section points to the
+    immutable reference cloud (`<=0.05m`) and recording each Superpoint's
+    strongest source frames.  Evidence selection must use this sidecar before
+    first-touch depth gating.  A global point that projects inside an unrelated
+    frame but fails that frame's first-touch depth test is correctly occluded;
+    increasing the depth tolerance would reintroduce through-wall evidence.
+  - validation (2026-07-14): all `6,180` raw sections produced `28,749,815`
+    conservative matches out of `97,855,095` raw points (29.38%), supporting
+    `17,164` official Superpoints.  A stratified 20-object review then reached
+    `20/20` objects with source-frame first-touch image evidence.  Local Qwen
+    returned strict JSON for `20/20` reviews when
+    `VLM_DISABLE_THINKING=1`; its free-form description and controlled label
+    can still disagree (for example, a description of an indoor ceiling with a
+    `floor` label).  Descriptions are evidence; geometry remains the canonical
+    structural-label arbiter.
 - Planned graph posterior, after a valid multiview semantic set exists:
   - node: one official Superpoint.  Node ownership is immutable; neither label
     propagation nor a VLM may merge nodes or move points across a boundary.
