@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Superpoint Region QA</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #f5f7f8; color: #182126; font: 14px Arial, sans-serif; }
+  header { padding: 14px 20px; background: #fff; border-bottom: 1px solid #dce3e6; display: flex; gap: 16px; align-items: center; }
+  h1 { margin: 0; font-size: 18px; }
+  select { min-width: 160px; padding: 6px; border: 1px solid #aebbc2; background: #fff; }
+  #status { color: #52636c; }
+  main { max-width: 1320px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
+  article { background: #fff; border: 1px solid #d8e0e3; padding: 12px; display: grid; grid-template-columns: 250px 1fr; gap: 14px; }
+  .meta { border-right: 1px solid #e5ebed; padding-right: 12px; }
+  h2 { margin: 0 0 8px; font-size: 16px; }
+  dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 12px; }
+  dt { color: #60727a; } dd { margin: 0; font-family: monospace; }
+  .evidence { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+  figure { margin: 0; border: 1px solid #e0e6e8; padding: 8px; }
+  img { width: 100%; display: block; background: #e9edef; }
+  figcaption { margin-top: 7px; line-height: 1.45; }
+  .warning { color: #a64211; font-weight: bold; }
+  @media (max-width: 760px) { article { grid-template-columns: 1fr; } .meta { border: 0; border-bottom: 1px solid #e5ebed; padding: 0 0 10px; } }
+</style>
+<header>
+  <h1>Superpoint Region QA</h1>
+  <label>类别 <select id="label"><option value="">全部</option></select></label>
+  <span id="status"></span>
+</header>
+<main id="regions"></main>
+<script>
+  const query = new URLSearchParams(location.search);
+  const manifestUrl = query.get('manifest');
+  const mediaBase = (query.get('media') || '').replace(/\/$/, '');
+  const status = document.querySelector('#status');
+  const label = document.querySelector('#label');
+  const main = document.querySelector('#regions');
+  let rows = [];
+
+  function imageFor(evidence) {
+    return `${mediaBase}/${evidence.superpoint_id}_overlay.jpg`;
+  }
+  function render() {
+    const selected = label.value;
+    const visible = rows.filter(row => !selected || row.region_label === selected);
+    status.textContent = `${visible.length} / ${rows.length}`;
+    main.replaceChildren(...visible.map(row => {
+      const article = document.createElement('article');
+      const conflicts = row.member_geometry_conflicts || [];
+      article.innerHTML = `<section class="meta"><h2>${row.region_id}</h2><dl>
+        <dt>label</dt><dd>${row.region_label}</dd><dt>superpoints</dt><dd>${row.superpoint_count}</dd>
+        <dt>max hops</dt><dd>${row.max_hops}</dd><dt>QA priority</dt><dd>${row.qa_priority}</dd>
+        <dt>geometry conflicts</dt><dd class="${conflicts.length ? 'warning' : ''}">${conflicts.length}</dd>
+      </dl></section>`;
+      const evidence = document.createElement('section'); evidence.className = 'evidence';
+      for (const item of row.source_anchor_evidence) {
+        const figure = document.createElement('figure');
+        const conflict = item.geometry_conflict ? `<span class="warning">${item.geometry_conflict}</span><br>` : '';
+        figure.innerHTML = `<img loading="lazy" src="${imageFor(item)}" alt="anchor overlay ${item.superpoint_id}">
+          <figcaption><b>${item.superpoint_id}</b> ${item.candidate_label} ${item.confidence}<br>${conflict}${item.description_zh || ''}</figcaption>`;
+        evidence.append(figure);
+      }
+      article.append(evidence); return article;
+    }));
+  }
+  if (!manifestUrl) { status.textContent = 'missing manifest'; }
+  else fetch(manifestUrl).then(r => r.text()).then(text => {
+    rows = text.trim().split('\n').filter(Boolean).map(JSON.parse);
+    [...new Set(rows.map(row => row.region_label))].sort().forEach(value => label.add(new Option(value, value)));
+    label.addEventListener('change', render); render();
+  }).catch(error => { status.textContent = String(error); });
+</script>
+</html>
