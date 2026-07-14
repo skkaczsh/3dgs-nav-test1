@@ -105,6 +105,23 @@ multiplies the edge score by a calibrated penalty (default `0.25`); it does not
 create a hard relabel. This is an evidence term in the posterior, alongside
 contact/color weight and geometry veto.
 
+## 2026-07-14 Evidence And Seed Coverage
+
+- The full 3cm reference cloud has `14,482,557` points and `27,019` official
+  Superpoints. Its `12,680` contact-graph nodes are fully covered by the
+  geometry catalogue; graph propagation fails fast on an incomplete catalogue.
+- The drivability field has an exact world-voxel hit ratio of `99.992%` on that
+  reference cloud. It contributes non-semantic ground-like / vertical-like
+  compatibility only.
+- A 69-object Qwen structural retry with explicit world-up evidence reduced
+  geometry-label conflicts from `24` to `15`, but reduced safe anchors from
+  `43` to `31`. It fixed no previously unsafe anchor. The retry is therefore
+  rejected as an automatic replacement; retain the old geometry-safe anchors.
+- Graph-coverage sampling found only eight new horizontal/vertical candidates.
+  All failed first-touch image-evidence preflight, so none may enter VLM review
+  or anchor propagation. Source-frame provenance alone is insufficient proof
+  of image observability.
+
 ## Stop Doing
 
 - Do not add another bucket-split post-pass.
