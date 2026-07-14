@@ -30,6 +30,12 @@ def test_source_frame_selection_uses_only_raw_section_support() -> None:
     assert [pose["name"] for pose in selected] == ["second_source", "raw_source"]
 
 
+def test_source_frame_selection_skips_frames_without_materialized_points() -> None:
+    poses = {10: {"frame_id": 10}, 20: {"frame_id": 20}, 30: {"frame_id": 30}}
+    selected = module.choose_source_frame_pool(7, {7: [10, 20, 30]}, poses, 2, {20, 30})
+    assert [pose["frame_id"] for pose in selected] == [20, 30]
+
+
 def test_evidence_pose_uses_the_crop_frame_not_the_last_candidate() -> None:
     poses = {10: {"frame_id": 10, "name": "crop"}, 20: {"frame_id": 20, "name": "last_candidate"}}
     assert module.pose_for_evidence({"frame_id": 10}, poses)["name"] == "crop"
@@ -38,6 +44,7 @@ def test_evidence_pose_uses_the_crop_frame_not_the_last_candidate() -> None:
 def test_source_frame_points_do_not_leak_between_observations() -> None:
     points = np.array([[1.0, 2.0, 3.0, 10.0], [4.0, 5.0, 6.0, 20.0]], dtype=np.float32)
     assert module.points_for_source_frame(points, 20).tolist() == [[4.0, 5.0, 6.0]]
+    assert module.available_source_frames(points) == {10, 20}
 
 
 def test_depth_cache_evicts_oldest_frame_camera_pair() -> None:

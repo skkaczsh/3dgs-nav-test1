@@ -128,6 +128,12 @@ def points_for_source_frame(points: np.ndarray, frame_id: int) -> np.ndarray:
     return points[np.rint(points[:, 3]).astype(np.int32) == frame_id, :3]
 
 
+def available_source_frames(points: np.ndarray) -> set[int] | None:
+    if points.shape[1] == 3:
+        return None
+    return set(np.rint(points[:, 3]).astype(np.int32).tolist())
+
+
 def transform_world_to_lidar(points_world: np.ndarray, pose: dict[str, Any]) -> np.ndarray:
     T = pose["T_world_robot"]
     R_rw = T[:3, :3]
@@ -333,12 +339,13 @@ def choose_source_frame_pool(
     support: dict[int, list[int]],
     poses_by_frame: dict[int, dict[str, Any]],
     max_frames: int,
+    available_frames: set[int] | None = None,
 ) -> list[dict[str, Any]]:
     """Return only poses whose raw LiDAR section contributed to the object."""
     return [
         poses_by_frame[frame_id]
         for frame_id in support.get(object_id, [])
-        if frame_id in poses_by_frame
+        if frame_id in poses_by_frame and (available_frames is None or frame_id in available_frames)
     ][:max_frames]
 
 
@@ -537,6 +544,7 @@ def main() -> None:
             if args.source_frame_support:
                 frame_pool = choose_source_frame_pool(
                     object_id, source_frame_support, poses_by_frame, args.max_frame_pool,
+                    available_source_frames(points),
                 )
                 frame_selection = "source_support"
             else:
