@@ -86,6 +86,11 @@ floor/ceiling/roof/grass/stair label into a vertical token, nor a wall label
 into a horizontal token. This makes the geometry veto a graph invariant rather
 than a seed-only filter.
 
+Propagation receives the full official-superpoint geometry catalogue, not just
+the VLM-reviewed subset. Nodes absent from that catalogue are skipped. This
+keeps a small review batch as sparse unary evidence rather than accidentally
+treating unreviewed graph nodes as geometry-free recipients.
+
 ## Stop Doing
 
 - Do not add another bucket-split post-pass.

@@ -42,6 +42,7 @@ def propagate(
     max_hops: int,
     min_confidence: float,
     min_margin: float,
+    geometry_by_id: dict[int, str] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     graph: dict[int, list[tuple[int, float]]] = defaultdict(list)
     for row in edges:
@@ -53,9 +54,12 @@ def propagate(
 
     scores: dict[int, dict[str, float]] = defaultdict(dict)
     provenance: dict[tuple[int, str], tuple[int, int]] = {}
-    geometry_by_id = {int(row["object_id"]): str(row.get("geometry_type") or "unknown") for row in anchors}
+    if geometry_by_id is None:
+        geometry_by_id = {int(row["object_id"]): str(row.get("geometry_type") or "unknown") for row in anchors}
     queue: list[tuple[float, int, str, int, int]] = []
     seed_count = 0
+    missing_geometry_skips = 0
+    geometry_conflict_skips = 0
     for row in anchors:
         label = str(row.get("anchor_label") or "unknown")
         if not bool(row.get("propagation_eligible")) or label not in STRUCTURAL_LABELS:
@@ -72,7 +76,11 @@ def propagate(
         if score < scores[source].get(label, 0.0) or hops >= max_hops:
             continue
         for target, weight in graph.get(source, []):
-            if conflict_reason(geometry_by_id.get(target, "unknown"), label):
+            if target not in geometry_by_id:
+                missing_geometry_skips += 1
+                continue
+            if conflict_reason(geometry_by_id[target], label):
+                geometry_conflict_skips += 1
                 continue
             candidate = score * weight
             if candidate <= scores[target].get(label, 0.0):
@@ -102,13 +110,22 @@ def propagate(
             "propagation_eligible": eligible,
             "propagation_status": "promoted" if eligible else "ambiguous_or_weak",
         })
-    return rows, {"seed_count": seed_count, "nodes_with_posterior": len(rows), "promoted_nodes": promoted, "retained_edges": sum(len(neighbors) for neighbors in graph.values()) // 2}
+    return rows, {
+        "seed_count": seed_count,
+        "nodes_with_posterior": len(rows),
+        "promoted_nodes": promoted,
+        "retained_edges": sum(len(neighbors) for neighbors in graph.values()) // 2,
+        "geometry_nodes": len(geometry_by_id),
+        "missing_geometry_skips": missing_geometry_skips,
+        "geometry_conflict_skips": geometry_conflict_skips,
+    }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--contact-edges", type=Path, required=True)
     parser.add_argument("--anchor-posteriors", type=Path, required=True)
+    parser.add_argument("--geometry-objects-jsonl", type=Path, help="Full official-superpoint geometry catalogue; required for full-graph propagation.")
     parser.add_argument("--output-jsonl", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--min-faces", type=int, default=10)
@@ -119,9 +136,13 @@ def main() -> None:
     parser.add_argument("--min-margin", type=float, default=0.15)
     args = parser.parse_args()
 
+    anchor_rows = read_jsonl(args.anchor_posteriors)
+    geometry_rows = read_jsonl(args.geometry_objects_jsonl) if args.geometry_objects_jsonl else anchor_rows
+    geometry_by_id = {int(row["object_id"]): str(row.get("geometry_type") or "unknown") for row in geometry_rows}
     rows, report = propagate(
-        read_jsonl(args.contact_edges), read_jsonl(args.anchor_posteriors), args.min_faces,
+        read_jsonl(args.contact_edges), anchor_rows, args.min_faces,
         args.contact_faces_norm, args.color_sigma, args.max_hops, args.min_confidence, args.min_margin,
+        geometry_by_id,
     )
     args.output_jsonl.parent.mkdir(parents=True, exist_ok=True)
     with args.output_jsonl.open("w", encoding="utf-8") as f:
