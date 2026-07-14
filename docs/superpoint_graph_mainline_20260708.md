@@ -74,11 +74,15 @@ it is attached to that surface.
 
 Image orientation is explicit evidence, not a visual convention: every overlay
 contains a projected world-`+Z` arrow and each review row stores its pixel
-unit vector. `world_normal_abs_z` / `gravity_orientation_hint` are the only
-world-orientation inputs exposed to the VLM; the local PCA `verticality` feature
-is not a gravity direction. Free-form descriptions are retained, but a VLM
-value outside the controlled-label contract is normalized to `unknown` and can
-never become a graph anchor.
+unit vector. Each row also carries calibrated camera center, camera optical
+axis, image-up axis, object view direction, object-relative height, and view
+elevation from the exact world-to-LiDAR-to-camera projection chain. These are
+hard conditioning facts for review, not visual cues that a VLM must infer.
+`world_normal_abs_z` / `gravity_orientation_hint` remain authoritative for
+surface orientation; the local PCA `verticality` feature is not a gravity
+direction. Free-form descriptions are retained, but a VLM value outside the
+controlled-label contract is normalized to `unknown` and can never become a
+graph anchor.
 
 The same contradiction function is applied both when an anchor is created and
 when it traverses a contact edge. A color-compatible edge may not propagate a
@@ -118,9 +122,11 @@ contact/color weight and geometry veto.
   `43` to `31`. It fixed no previously unsafe anchor. The retry is therefore
   rejected as an automatic replacement; retain the old geometry-safe anchors.
 - Graph-coverage sampling found only eight new horizontal/vertical candidates.
-  All failed first-touch image-evidence preflight, so none may enter VLM review
-  or anchor propagation. Source-frame provenance alone is insufficient proof
-  of image observability.
+  Their initial first-touch image-evidence preflight failed, but that result is
+  not final: the candidate PLY was globally reservoir-sampled before being
+  restricted to source-support frames, so it may have discarded exactly the
+  source-visible points. Retest after source-aware materialization; source-frame
+  provenance alone is insufficient proof of image observability.
 
 ## Stop Doing
 

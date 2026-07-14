@@ -152,6 +152,15 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
             "bbox_xyxy": row.get("bbox_xyxy"),
             "world_up_image_hint": row.get("world_up_image_hint", "unavailable"),
             "world_up_image_unit_xy": row.get("world_up_image_unit_xy"),
+            "camera_pose_hint": row.get("camera_pose_hint", "unavailable"),
+            "camera_center_world": row.get("camera_center_world"),
+            "camera_forward_world_unit": row.get("camera_forward_world_unit"),
+            "camera_image_up_world_unit": row.get("camera_image_up_world_unit"),
+            "object_view_direction_world_unit": row.get("object_view_direction_world_unit"),
+            "object_camera_distance_m": row.get("object_camera_distance_m"),
+            "object_relative_height_m": row.get("object_relative_height_m"),
+            "object_view_elevation_deg": row.get("object_view_elevation_deg"),
+            "camera_forward_elevation_deg": row.get("camera_forward_elevation_deg"),
         }
         for row in evidence_rows
     ]
@@ -164,6 +173,11 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
         "Treat it as a level reference: a world-horizontal surface extends approximately perpendicular to that arrow, while a world-vertical surface extends approximately along it. "
         "The camera may be rolled or pitched, so do not assume image-top is world-up. "
         "For 3D orientation, use world_normal_abs_z and gravity_orientation_hint as authoritative. Ignore geometry_features.verticality for world up/down; it is a local PCA feature, not a gravity direction. "
+        "Each evidence record may include calibrated camera_pose facts computed from the same projection chain: "
+        "camera_center_world, camera_forward_world_unit, camera_image_up_world_unit, object_view_direction_world_unit, "
+        "object_relative_height_m, object_view_elevation_deg, and camera_forward_elevation_deg. "
+        "They are hard geometric evidence, not quantities to infer from the image. Positive object_relative_height_m means the object centroid is above the camera; "
+        "positive object_view_elevation_deg means the object lies above the camera's world-horizontal plane. "
         "Use the images plus the 3D geometry summary. Do not classify the whole image; classify only the projected object.\n\n"
         f"Allowed controlled labels: {labels}.\n"
         f"Allowed surface_attachment values: {attachments}.\n"

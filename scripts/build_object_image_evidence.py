@@ -180,6 +180,53 @@ def world_up_image_hint(points_world: np.ndarray, pose: dict[str, Any], cam_id: 
     }
 
 
+def camera_pose_context(points_world: np.ndarray, pose: dict[str, Any], cam_id: int) -> dict[str, Any]:
+    """Return calibrated pose facts for a projected object observation.
+
+    Image pixels alone cannot tell a VLM whether its top edge is world-up when
+    the rig is rolled or pitched. These values are derived from the same
+    world->LiDAR->camera chain used for the projection, so downstream review
+    can treat them as geometry evidence rather than visual guesswork.
+    """
+    if len(points_world) == 0:
+        return {"camera_pose_hint": "unavailable"}
+
+    T = pose["T_world_robot"]
+    r_rw = T[:3, :3]
+    t_rw = T[:3, 3]
+    r_wr = r_rw.T
+    t_wr = -r_wr @ t_rw
+    r_lw = config.Til[:3, :3].T @ r_wr
+    t_lw = config.Til[:3, :3].T @ t_wr - config.Til[:3, :3].T @ config.Til[:3, 3]
+    t_cl = config.Tcl[cam_id]
+    r_cw = t_cl[:3, :3] @ r_lw
+    t_cw = t_cl[:3, :3] @ t_lw + t_cl[:3, 3]
+
+    camera_center = -r_cw.T @ t_cw
+    camera_forward = r_cw.T @ np.array([0.0, 0.0, 1.0])
+    camera_image_up = r_cw.T @ np.array([0.0, -1.0, 0.0])
+    centroid = points_world.mean(axis=0).astype(np.float64, copy=False)
+    view = centroid - camera_center
+    distance = float(np.linalg.norm(view))
+    if distance <= 1e-6:
+        return {"camera_pose_hint": "unavailable"}
+    view_unit = view / distance
+    world_up = np.array([0.0, 0.0, 1.0])
+    target_elevation = math.degrees(math.asin(float(np.clip(np.dot(view_unit, world_up), -1.0, 1.0))))
+    forward_elevation = math.degrees(math.asin(float(np.clip(np.dot(camera_forward, world_up), -1.0, 1.0))))
+    return {
+        "camera_pose_hint": "calibrated",
+        "camera_center_world": [round(float(v), 3) for v in camera_center],
+        "camera_forward_world_unit": [round(float(v), 4) for v in camera_forward],
+        "camera_image_up_world_unit": [round(float(v), 4) for v in camera_image_up],
+        "object_view_direction_world_unit": [round(float(v), 4) for v in view_unit],
+        "object_camera_distance_m": round(distance, 3),
+        "object_relative_height_m": round(float(view[2]), 3),
+        "object_view_elevation_deg": round(target_elevation, 2),
+        "camera_forward_elevation_deg": round(forward_elevation, 2),
+    }
+
+
 def draw_world_up_arrow(image: np.ndarray, hint: dict[str, Any]) -> None:
     unit = hint.get("world_up_image_unit_xy")
     if not isinstance(unit, list) or len(unit) != 2:
@@ -619,6 +666,7 @@ def main() -> None:
                 crop, crop_bbox = crop_with_margin(image, bbox, args.crop_margin)
                 overlay = image.copy()
                 up_hint = world_up_image_hint(points, pose, row["cam_id"])
+                pose_hint = camera_pose_context(points, pose, row["cam_id"])
                 draw_world_up_arrow(overlay, up_hint)
                 x0, y0, x1, y1 = bbox
                 cv2.rectangle(overlay, (x0, y0), (x1, y1), (0, 255, 255), 3)
@@ -638,6 +686,7 @@ def main() -> None:
                     "overlay_path": str(overlay_path),
                     "crop_bbox_xyxy": list(crop_bbox),
                     **up_hint,
+                    **pose_hint,
                     **sampled_projection_payload(row["uv"], row["depth"], args.save_projected_samples),
                     "semantic_label": obj.get("semantic_label", ""),
                     "scene_context": obj.get("scene_context", ""),

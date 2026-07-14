@@ -11,10 +11,12 @@ def test_structure_review_requests_specific_surface_label() -> None:
 
 
 def test_object_review_keeps_fine_object_rules() -> None:
-    prompt = prompt_for_object({"object_id": 7}, [], "object")
+    prompt = prompt_for_object({"object_id": 7}, [{"camera_pose_hint": "calibrated"}], "object")
     assert "Car must be an actual vehicle body" in prompt
     assert "WORLD UP arrow" in prompt
     assert "thin rail, pipe, light strip" in prompt
+    assert "camera_pose facts" in prompt
+    assert "object_view_elevation_deg" in prompt
 
 
 def test_controlled_fields_reject_freeform_labels_but_keep_description() -> None:

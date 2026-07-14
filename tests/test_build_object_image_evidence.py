@@ -41,3 +41,20 @@ def test_draw_world_up_arrow_changes_image() -> None:
     image = np.zeros((160, 160, 3), dtype=np.uint8)
     module.draw_world_up_arrow(image, {"world_up_image_unit_xy": [0.0, -1.0]})
     assert int(image.sum()) > 0
+
+
+def test_camera_pose_context_uses_projection_chain(monkeypatch) -> None:
+    identity = np.eye(4, dtype=np.float64)
+    monkeypatch.setattr(module.config, "Til", identity)
+    monkeypatch.setattr(module.config, "Tcl", [identity])
+    hint = module.camera_pose_context(
+        np.array([[0.0, 0.0, 2.0]], dtype=np.float32),
+        {"T_world_robot": identity},
+        0,
+    )
+    assert hint["camera_pose_hint"] == "calibrated"
+    assert hint["camera_center_world"] == [0.0, 0.0, 0.0]
+    assert hint["camera_forward_world_unit"] == [0.0, 0.0, 1.0]
+    assert hint["camera_image_up_world_unit"] == [0.0, -1.0, 0.0]
+    assert hint["object_relative_height_m"] == 2.0
+    assert hint["object_view_elevation_deg"] == 90.0
