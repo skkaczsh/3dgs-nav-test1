@@ -86,7 +86,7 @@ SKIP_LABELS = {"unknown", "sky", "ignore", "water"}
 HORIZONTAL_LABELS = {"floor", "ground", "road", "grass", "stair", "indoor_floor", "roof", "other"}
 VERTICAL_LABELS = {"wall", "building", "railing", "pipe", "equipment", "other"}
 THIN_LABELS = {"railing", "pipe", "equipment", "tree", "other"}
-ROUGH_LABELS = {"car", "tree", "grass", "railing", "pipe", "equipment", "wall", "building", "other", "furniture"}
+ROUGH_LABELS = {"car", "tree", "grass", "railing", "pipe", "equipment", "wall", "building", "other", "furniture", "person"}
 GEOMETRY_LABELS = {"horizontal", "vertical", "thin_linear", "rough_mixed", "mixed"}
 
 
@@ -465,6 +465,12 @@ def main() -> int:
         help="Write per-patch, per-camera evidence records beside the fused objects.",
     )
     parser.add_argument(
+        "--write-semantic-ply",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Write a recolored full PLY. Disable for evidence-only smoke runs.",
+    )
+    parser.add_argument(
         "--allow-qa-preview-source",
         action="store_true",
         help="Allow stride-sampled viewer PLY as QA source. This stage still cannot change object ownership.",
@@ -504,7 +510,7 @@ def main() -> int:
     report_out = args.output_dir / f"{args.output_stem}_report.json"
     write_jsonl(objects_out, updated)
     labels_by_object = {int(k): str(row.get("semantic_label") or "unknown") for row in updated if (k := object_key(row)) is not None}
-    ply_report = write_semantic_ply(args.source_ply, ply_out, labels_by_object)
+    ply_report = write_semantic_ply(args.source_ply, ply_out, labels_by_object) if args.write_semantic_ply else None
     report = {
         "schema": "semantic-png-object-votes/v2",
         "source_ply": str(args.source_ply),
@@ -512,7 +518,7 @@ def main() -> int:
         "semantic_eval_dir": str(args.semantic_eval_dir),
         "combo": args.combo,
         "output_objects_jsonl": str(objects_out),
-        "output_ply": str(ply_out),
+        "output_ply": str(ply_out) if args.write_semantic_ply else None,
         "observation_ledger": str(observation_out) if args.write_observation_ledger else None,
         "frame_count": len(vote_data["frame_ids"]),
         "frame_ids": vote_data["frame_ids"],

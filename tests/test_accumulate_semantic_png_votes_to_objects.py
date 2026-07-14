@@ -92,6 +92,11 @@ def test_sparse_visual_evidence_is_retained_as_candidate_not_hard_label() -> Non
     assert updated[0]["semantic_observation_count"] == 1
 
 
+def test_person_evidence_is_allowed_for_rough_geometry() -> None:
+    assert module.label_allowed("person", "rough_mixed")
+    assert not module.label_allowed("person", "horizontal")
+
+
 def test_legacy_geometry_label_fallback_is_preserved_for_old_artifacts() -> None:
     row = {"object_id": 1, "geometry_type": "vertical", "semantic_label": "vertical"}
 
