@@ -104,6 +104,9 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
             "surface_trust_guard_status",
             "surface_trust_guard_majority_label",
             "surface_trust_guard_majority_ratio",
+            "first_pass_label",
+            "first_pass_confidence",
+            "first_pass_description_zh",
         ]
         if key in obj
     }
