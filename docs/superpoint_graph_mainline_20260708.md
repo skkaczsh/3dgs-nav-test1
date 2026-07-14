@@ -291,3 +291,18 @@ Implementation hook:
 - This gate is deliberately small: it does not replace visual QA or improve
   clustering by itself; it prevents known-bad structural over-merge candidates
   from being treated as serious promotion candidates.
+
+## 2026-07-14 Local Horizontal Strata Guard
+
+- A horizontal surface cannot be labelled from normal alone: an indoor floor,
+  ceiling, roof, and shelf can all have the same local PCA signature.
+- `correct_horizontal_anchor_strata.py` is a deliberately narrow post-review
+  guard. It changes a high-confidence `floor` anchor only when a high-confidence
+  horizontal `ceiling` anchor occupies the same local XY stratum and height.
+  It never relies on global Z, which would break elevated floors and roofs.
+- The first strict source-aware pass corrected only official superpoint `25431`
+  to `ceiling`, supported by nearby ceiling `10614` (`0.44m` planar gap,
+  `0.16m` height gap). The remaining floor anchors were unchanged.
+- The guard runs before graph propagation, records every correction in
+  `anchor_strata_report.json`, and remains a precision guard rather than a
+  coverage-expansion mechanism.
