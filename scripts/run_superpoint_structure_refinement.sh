@@ -65,11 +65,8 @@ python3 scripts/materialize_superpoint_observation_ledger.py \
   --output-jsonl "$out/observations.jsonl" --report "$out/observations_report.json"
 python3 scripts/build_superpoint_anchor_posteriors.py --objects-jsonl "$objects_jsonl" \
   --review-jsonl "$out/merged_reviews.jsonl" --output-jsonl "$out/anchor_posteriors.jsonl" --min-confidence 0.8 "${anchor_args[@]}"
-python3 scripts/correct_horizontal_anchor_strata.py --anchors-jsonl "$out/anchor_posteriors.jsonl" \
-  --geometry-jsonl "$geometry_objects" --output-jsonl "$out/anchor_posteriors_strata.jsonl" \
-  --report "$out/anchor_strata_report.json"
 python3 scripts/propagate_superpoint_structural_anchors.py --contact-edges "$contact_edges" \
-  --anchor-posteriors "$out/anchor_posteriors_strata.jsonl" --output-jsonl "$out/structural_posteriors.jsonl" \
+  --anchor-posteriors "$out/anchor_posteriors.jsonl" --output-jsonl "$out/structural_posteriors.jsonl" \
   --geometry-objects-jsonl "$geometry_objects" \
   --report "$out/structural_posterior_report.json" --min-faces 10 --contact-faces-norm 100 --color-sigma 40 --max-hops 2 --min-confidence 0.35 --min-margin 0.15
 python3 scripts/build_superpoint_structure_regions.py --structural-posteriors "$out/structural_posteriors.jsonl" \
