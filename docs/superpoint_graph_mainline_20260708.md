@@ -66,6 +66,12 @@ Transformer while avoiding a scene-trained semantic network. PointGroup's
 two-coordinate proposal is useful later for fine-object candidates, not for
 changing exclusive voxel ownership.
 
+VLM evidence carries both an intrinsic `controlled_label` and a
+`surface_attachment`. The former describes the superpoint itself; the latter
+describes a broad floor/wall/ceiling-like parent when applicable. This prevents
+a thin light strip or railing from becoming a ceiling/wall token merely because
+it is attached to that surface.
+
 ## Stop Doing
 
 - Do not add another bucket-split post-pass.

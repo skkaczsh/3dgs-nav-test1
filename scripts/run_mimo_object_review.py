@@ -52,6 +52,7 @@ CONTROLLED_LABELS = [
     "building_part",
     "unknown",
 ]
+SURFACE_ATTACHMENTS = ["none", "floor", "wall", "grass", "roof", "ceiling", "stair", "unknown"]
 
 
 def geometry_context(obj: dict[str, Any]) -> dict[str, Any]:
@@ -140,18 +141,22 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
         for row in evidence_rows
     ]
     labels = ", ".join(CONTROLLED_LABELS)
+    attachments = ", ".join(SURFACE_ATTACHMENTS)
     common = (
         "You are reviewing one 3D point-cloud object from an outdoor parking-lot scan. "
         "Images are undistorted camera evidence. Red points / yellow boxes indicate where this 3D object projects. "
         "When shown, the cyan WORLD UP arrow is gravity expressed in image pixels; do not assume image-top is world-up. "
         "Use the images plus the 3D geometry summary. Do not classify the whole image; classify only the projected object.\n\n"
         f"Allowed controlled labels: {labels}.\n"
+        f"Allowed surface_attachment values: {attachments}.\n"
     )
     if task == "structure":
         return common + (
             "This is a second-pass structural review of a generic building surface. "
             "Choose only a specific structure when the visible evidence supports it: wall, roof, ceiling, stair, floor, or grass. "
             "Use building_part or unknown when the crop cannot support a specific structure.\n"
+            "controlled_label names this 3D superpoint itself. surface_attachment names a larger surface it is attached to; "
+            "do not use a parent surface as controlled_label for a thin line, light strip, railing, pipe, or other child feature.\n"
             "The camera can be rotated: do not infer floor or wall from image up/down. "
             "Use gravity_orientation_hint from world coordinates as advisory evidence. "
             "horizontal_like may be floor/roof/ceiling/grass; vertical_like may be wall/door_or_window; "
@@ -159,6 +164,7 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
             "Return strict JSON only with keys:"
             "{"
             "\"controlled_label\": string, "
+            "\"surface_attachment\": string, "
             "\"description_zh\": string, "
             "\"is_true_object\": false, "
             "\"is_surface_fragment\": true, "
@@ -179,9 +185,14 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
         "- Doors and windows are door_or_window unless the evidence only shows an unresolved building surface fragment.\n"
         "- If evidence mostly shows a surface fragment, say surface_fragment and choose floor/wall/grass/building_part.\n"
         "- If evidence is unclear, choose unknown and action review_manually.\n\n"
+        "controlled_label names the observed 3D superpoint itself. surface_attachment separately names a broad surface "
+        "that contains or supports it. A thin rail, pipe, light strip, curb, or window edge must not be labeled wall/floor/ceiling "
+        "only because it is attached to one; use its intrinsic label and record the parent in surface_attachment. "
+        "For a broad surface superpoint, controlled_label and surface_attachment may be the same.\n\n"
         "Return strict JSON only with keys:\n"
         "{"
         "\"controlled_label\": string, "
+        "\"surface_attachment\": string, "
         "\"description_zh\": string, "
         "\"is_true_object\": boolean, "
         "\"is_surface_fragment\": boolean, "
