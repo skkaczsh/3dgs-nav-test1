@@ -160,6 +160,21 @@ mode remains for geometry-only viewer samples.
   VLM batch. Do not compare its lower observation count to the old count as a
   recall regression; they have different spatial-support contracts.
 
+## 2026-07-14 Stable-Geometry Propagation Split
+
+- A strict counterfactual keeps `rough_mixed` Superpoints as local VLM evidence
+  but permits only `horizontal` / `vertical` geometry to seed graph propagation.
+  It reduced source-aware propagation from `39` to `22` superpoints and wall
+  assignments from `15` to `4`; the removed labels were primarily rough-mixed
+  wall/stair candidates.
+- This is the intended two-tier contract: stable geometry can be automatic;
+  rough-mixed observations remain useful descriptions and QA targets but must
+  not spread a surface label through contact edges.
+- `STABLE_GEOMETRY_ONLY=1` on `run_superpoint_structure_refinement.sh` selects
+  this high-precision mode. The default remains the wider experiment baseline
+  until region QA establishes that its additional rough-mixed propagation is
+  reliable.
+
 ## Stop Doing
 
 - Do not add another bucket-split post-pass.

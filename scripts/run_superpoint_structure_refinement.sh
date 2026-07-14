@@ -15,6 +15,10 @@ out=$5
 objects_jsonl=${OBJECTS_JSONL:-"$root/objects.jsonl"}
 evidence_dir=${EVIDENCE_DIR:-"$root/evidence"}
 first=${REVIEW_DIR:-"$root/qwen_review"}
+anchor_args=()
+if [[ "${STABLE_GEOMETRY_ONLY:-0}" == "1" ]]; then
+  anchor_args+=(--stable-geometry-only)
+fi
 test ! -e "$out"
 test -f "$geometry_objects"
 test -f "$objects_jsonl"
@@ -60,7 +64,7 @@ python3 scripts/materialize_superpoint_observation_ledger.py \
   --review-jsonl "$out/merged_reviews.jsonl" --source-frame-support "$source_support" \
   --output-jsonl "$out/observations.jsonl" --report "$out/observations_report.json"
 python3 scripts/build_superpoint_anchor_posteriors.py --objects-jsonl "$objects_jsonl" \
-  --review-jsonl "$out/merged_reviews.jsonl" --output-jsonl "$out/anchor_posteriors.jsonl" --min-confidence 0.8
+  --review-jsonl "$out/merged_reviews.jsonl" --output-jsonl "$out/anchor_posteriors.jsonl" --min-confidence 0.8 "${anchor_args[@]}"
 python3 scripts/propagate_superpoint_structural_anchors.py --contact-edges "$contact_edges" \
   --anchor-posteriors "$out/anchor_posteriors.jsonl" --output-jsonl "$out/structural_posteriors.jsonl" \
   --geometry-objects-jsonl "$geometry_objects" \
