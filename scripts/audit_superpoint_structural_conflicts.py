@@ -18,6 +18,10 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def conflict_reason(geometry_type: str, label: str) -> str:
+    geometry_type = {
+        "horizontal_surface": "horizontal",
+        "vertical_surface": "vertical",
+    }.get(geometry_type, geometry_type)
     if geometry_type == "thin_linear" and label in HORIZONTAL_LABELS | {"wall"}:
         return "thin_linear_labeled_as_surface"
     if geometry_type == "vertical" and label in HORIZONTAL_LABELS:

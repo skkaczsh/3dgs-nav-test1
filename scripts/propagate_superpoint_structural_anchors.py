@@ -11,6 +11,11 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+try:
+    from .audit_superpoint_structural_conflicts import conflict_reason
+except ImportError:  # Direct script execution keeps scripts/ on sys.path.
+    from audit_superpoint_structural_conflicts import conflict_reason
+
 
 STRUCTURAL_LABELS = {"floor", "wall", "grass", "roof", "ceiling", "stair"}
 
@@ -48,6 +53,7 @@ def propagate(
 
     scores: dict[int, dict[str, float]] = defaultdict(dict)
     provenance: dict[tuple[int, str], tuple[int, int]] = {}
+    geometry_by_id = {int(row["object_id"]): str(row.get("geometry_type") or "unknown") for row in anchors}
     queue: list[tuple[float, int, str, int, int]] = []
     seed_count = 0
     for row in anchors:
@@ -66,6 +72,8 @@ def propagate(
         if score < scores[source].get(label, 0.0) or hops >= max_hops:
             continue
         for target, weight in graph.get(source, []):
+            if conflict_reason(geometry_by_id.get(target, "unknown"), label):
+                continue
             candidate = score * weight
             if candidate <= scores[target].get(label, 0.0):
                 continue
@@ -90,6 +98,7 @@ def propagate(
             "structural_margin": round(margin, 6),
             "structural_source_anchor": seed,
             "structural_hops": hops,
+            "geometry_type": geometry_by_id.get(object_id, "unknown"),
             "propagation_eligible": eligible,
             "propagation_status": "promoted" if eligible else "ambiguous_or_weak",
         })

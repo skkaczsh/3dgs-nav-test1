@@ -80,6 +80,12 @@ is not a gravity direction. Free-form descriptions are retained, but a VLM
 value outside the controlled-label contract is normalized to `unknown` and can
 never become a graph anchor.
 
+The same contradiction function is applied both when an anchor is created and
+when it traverses a contact edge. A color-compatible edge may not propagate a
+floor/ceiling/roof/grass/stair label into a vertical token, nor a wall label
+into a horizontal token. This makes the geometry veto a graph invariant rather
+than a seed-only filter.
+
 ## Stop Doing
 
 - Do not add another bucket-split post-pass.

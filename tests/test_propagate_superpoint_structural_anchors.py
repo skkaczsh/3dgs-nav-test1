@@ -18,3 +18,13 @@ def test_propagation_stops_after_short_color_compatible_path() -> None:
     assert 4 not in by_id
     assert by_id[5]["propagation_status"] == "ambiguous_or_weak"
     assert report["retained_edges"] == 4
+
+
+def test_propagation_cannot_cross_into_geometry_that_conflicts_with_label() -> None:
+    edges = [{"object_a": 1, "object_b": 2, "shared_voxel_faces": 100, "contact_rgb_distance": 0.0}]
+    anchors = [
+        {"object_id": 1, "geometry_type": "horizontal", "anchor_label": "floor", "propagation_eligible": True},
+        {"object_id": 2, "geometry_type": "vertical_surface", "anchor_label": "unknown", "propagation_eligible": False},
+    ]
+    rows, _report = propagate(edges, anchors, 10, 100, 40.0, 2, 0.35, 0.15)
+    assert {row["object_id"] for row in rows} == {1}
