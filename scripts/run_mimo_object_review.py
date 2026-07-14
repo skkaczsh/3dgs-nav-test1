@@ -384,6 +384,7 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--top-k", type=int, default=2)
     parser.add_argument("--limit-objects", type=int, default=0)
+    parser.add_argument("--object-ids", type=int, nargs="+", help="Review only these object ids; useful for failed-row recovery.")
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--timeout", type=float, default=120.0)
     parser.add_argument("--retries", type=int, default=1)
@@ -400,6 +401,9 @@ def main() -> None:
         raise SystemExit("MIMO_API_KEY is required in the environment.")
 
     objects = read_jsonl(args.objects_jsonl)
+    if args.object_ids:
+        object_ids = set(args.object_ids)
+        objects = [obj for obj in objects if int(obj["object_id"]) in object_ids]
     if args.limit_objects:
         objects = objects[:args.limit_objects]
     evidence_rows = read_jsonl(args.evidence_jsonl)
