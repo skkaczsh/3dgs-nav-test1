@@ -901,6 +901,17 @@ Dense colorized source note:
     review thresholds.  Fine labels (`person/car/railing/pipe/equipment`) stay
     as local candidates because propagating them over a contact graph creates
     exactly the large false-positive regions seen in earlier runs.
+  - observation materialization (2026-07-14):
+    `materialize_superpoint_observation_ledger.py` is the canonical export for
+    source-supported image evidence.  It does not recompute projection or
+    create a second semantic route: it flattens the existing accepted
+    `(Superpoint, frame, camera)` rows with geometry, first-touch/SKYMASK
+    metrics, artifact paths, and any completed VLM review.  A partial run over
+    381 review candidates produced 713 observations with a 100% source-frame
+    confirmation ratio.  Its 36 structural anchors promoted 262 nodes under
+    the bounded two-hop rule.  This is a calibration artifact, not a production
+    semantic map: `building_part` dominates the provisional anchors and must
+    remain a structural candidate until object-level QA validates its meaning.
 
 ## Scene Prior Baseline
 
