@@ -46,6 +46,26 @@ Move the dense patch mainline from chained post-passes to a single superpoint-gr
 4. Export exclusive voxel labels and viewer PLY.
 5. Only after this, add SAM/skymask/VLM evidence as semantic evidence on nodes/objects.
 
+## Semantic Graph Inference Boundary
+
+Official superpoints are immutable spatial tokens. Multi-view VLM and 2D masks
+contribute unary evidence only; they never change voxel ownership. The next
+semantic pass minimizes a graph energy over superpoint labels:
+
+`E(y) = sum_i unary(i, y_i) + lambda * sum_(i,j) contact(i,j) * [y_i != y_j]`.
+
+The unary term combines first-touch-visible observations, sky rejection, VLM
+confidence, and structural-region compatibility. The pairwise term uses only
+real face contact plus color/geometry compatibility, so disconnected objects
+cannot be smoothed together. Hard structural contradictions remain vetoes.
+After label inference, each label-induced connected component is an object;
+there is no label-first patch merge pass.
+
+This follows the superpoint-token/context separation in SPG and Superpoint
+Transformer while avoiding a scene-trained semantic network. PointGroup's
+two-coordinate proposal is useful later for fine-object candidates, not for
+changing exclusive voxel ownership.
+
 ## Stop Doing
 
 - Do not add another bucket-split post-pass.
