@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import Any
 
 
-STRUCTURAL_LABELS = {"floor", "wall", "grass", "building_part"}
+# `building_part` is deliberately excluded: it is a VLM fallback description,
+# not a specific structural class safe to spread over a contact graph.
+STRUCTURAL_LABELS = {"floor", "wall", "grass"}
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -33,7 +35,10 @@ def anchor_row(object_row: dict[str, Any], review_row: dict[str, Any] | None, mi
         "is_true_object": bool(parsed.get("is_true_object")),
         "anchor_label": label if propagate else "unknown",
         "propagation_eligible": propagate,
-        "anchor_status": "structural_anchor" if propagate else ("local_only" if parsed else "no_visual_evidence"),
+        "anchor_status": (
+            "structural_anchor" if propagate
+            else ("needs_structural_refinement" if is_surface and label == "building_part" else ("local_only" if parsed else "no_visual_evidence"))
+        ),
     }
 
 
