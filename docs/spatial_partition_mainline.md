@@ -912,6 +912,9 @@ Dense colorized source note:
     SOURCE_FRAME_SUPPORT CONTACT_EDGES OUTPUT_DIR` is the canonical checked
     runner: it rejects an incomplete or partially parsed first pass, records
     both review rounds, then rebuilds the ledger, posterior, and Regions.
+    The prompt includes the official Superpoint's `geometry_type`, world normal,
+    and gravity orientation hint because camera frames can be rotated; these are
+    advisory evidence, never a hard semantic override.
   - region boundary: a Region may include only Superpoints with the same
     winning structural anchor.  A two-hop posterior constrains each node, not
     the diameter of a connected component; joining same-label nodes from

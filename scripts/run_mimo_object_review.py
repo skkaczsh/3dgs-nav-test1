@@ -54,6 +54,21 @@ CONTROLLED_LABELS = [
 ]
 
 
+def geometry_context(obj: dict[str, Any]) -> dict[str, Any]:
+    features = obj.get("geometry_features") or {}
+    normal = features.get("normal") or obj.get("pca_normal")
+    normal_z = abs(float(normal[2])) if isinstance(normal, list) and len(normal) == 3 else None
+    orientation = "unavailable"
+    if normal_z is not None:
+        orientation = "horizontal_like" if normal_z >= 0.85 else ("vertical_like" if normal_z <= 0.30 else "oblique_or_linear")
+    return {
+        "geometry_type": obj.get("geometry_type") or features.get("geometry_type") or "unknown",
+        "geometry_features": features,
+        "world_normal_abs_z": normal_z,
+        "gravity_orientation_hint": orientation,
+    }
+
+
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as f:
@@ -110,6 +125,7 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
         ]
         if key in obj
     }
+    geometry.update(geometry_context(obj))
     evidence = [
         {
             "rank": row.get("rank"),
@@ -134,6 +150,10 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
             "This is a second-pass structural review of a generic building surface. "
             "Choose only a specific structure when the visible evidence supports it: wall, roof, ceiling, stair, floor, or grass. "
             "Use building_part or unknown when the crop cannot support a specific structure.\n"
+            "The camera can be rotated: do not infer floor or wall from image up/down. "
+            "Use gravity_orientation_hint from world coordinates as advisory evidence. "
+            "horizontal_like may be floor/roof/ceiling/grass; vertical_like may be wall/door_or_window; "
+            "thin_linear or rough_mixed geometry needs especially strong visual support. Geometry does not force a label.\n"
             "Return strict JSON only with keys:"
             "{"
             "\"controlled_label\": string, "
