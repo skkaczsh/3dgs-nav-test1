@@ -47,7 +47,8 @@ def propagate(
             graph[b].append((a, weight))
 
     scores: dict[int, dict[str, float]] = defaultdict(dict)
-    queue: list[tuple[float, int, str, int]] = []
+    provenance: dict[tuple[int, str], tuple[int, int]] = {}
+    queue: list[tuple[float, int, str, int, int]] = []
     seed_count = 0
     for row in anchors:
         label = str(row.get("anchor_label") or "unknown")
@@ -55,11 +56,12 @@ def propagate(
             continue
         object_id = int(row["object_id"])
         scores[object_id][label] = 1.0
-        heapq.heappush(queue, (-1.0, object_id, label, 0))
+        provenance[(object_id, label)] = (0, object_id)
+        heapq.heappush(queue, (-1.0, object_id, label, 0, object_id))
         seed_count += 1
 
     while queue:
-        neg_score, source, label, hops = heapq.heappop(queue)
+        neg_score, source, label, hops, seed = heapq.heappop(queue)
         score = -neg_score
         if score < scores[source].get(label, 0.0) or hops >= max_hops:
             continue
@@ -68,7 +70,8 @@ def propagate(
             if candidate <= scores[target].get(label, 0.0):
                 continue
             scores[target][label] = candidate
-            heapq.heappush(queue, (-candidate, target, label, hops + 1))
+            provenance[(target, label)] = (hops + 1, seed)
+            heapq.heappush(queue, (-candidate, target, label, hops + 1, seed))
 
     rows = []
     promoted = 0
@@ -77,6 +80,7 @@ def propagate(
         label, confidence = ranked[0]
         margin = confidence - (ranked[1][1] if len(ranked) > 1 else 0.0)
         eligible = confidence >= min_confidence and margin >= min_margin
+        hops, seed = provenance[(object_id, label)]
         promoted += int(eligible)
         rows.append({
             "object_id": object_id,
@@ -84,6 +88,8 @@ def propagate(
             "structural_candidate_label": label,
             "structural_confidence": round(confidence, 6),
             "structural_margin": round(margin, 6),
+            "structural_source_anchor": seed,
+            "structural_hops": hops,
             "propagation_eligible": eligible,
             "propagation_status": "promoted" if eligible else "ambiguous_or_weak",
         })

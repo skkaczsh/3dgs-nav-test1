@@ -13,6 +13,8 @@ def test_propagation_stops_after_short_color_compatible_path() -> None:
     by_id = {row["object_id"]: row for row in rows}
     assert by_id[2]["propagation_status"] == "promoted"
     assert by_id[3]["propagation_status"] == "promoted"
+    assert by_id[3]["structural_source_anchor"] == 1
+    assert by_id[3]["structural_hops"] == 2
     assert 4 not in by_id
     assert by_id[5]["propagation_status"] == "ambiguous_or_weak"
     assert report["retained_edges"] == 4
