@@ -16,13 +16,16 @@ except ModuleNotFoundError:  # Supports direct `python scripts/...` execution.
     from propose_geo_patch_object_merges import build_edge_counts, build_grid6_edges
 
 
-def read_xyz(path: Path) -> np.ndarray:
+def read_xyz_rgb(path: Path) -> tuple[np.ndarray, np.ndarray]:
     vertex = PlyData.read(str(path))["vertex"].data
-    return np.column_stack([vertex["x"], vertex["y"], vertex["z"]]).astype(np.float32, copy=False)
+    xyz = np.column_stack([vertex["x"], vertex["y"], vertex["z"]]).astype(np.float32, copy=False)
+    rgb = np.column_stack([vertex["red"], vertex["green"], vertex["blue"]]).astype(np.float32, copy=False)
+    return xyz, rgb
 
 
 def contact_rows(
     xyz: np.ndarray,
+    rgb: np.ndarray,
     labels: np.ndarray,
     voxel_size: float,
     min_shared_faces: int,
@@ -31,6 +34,21 @@ def contact_rows(
         raise ValueError(f"xyz/label count mismatch: {len(xyz)} != {len(labels)}")
     src, dst = build_grid6_edges({"xyz": xyz}, voxel_size)
     contacts = build_edge_counts(labels, src, dst)
+    cross = labels[src] != labels[dst]
+    left = labels[src[cross]].astype(np.int64, copy=False)
+    right = labels[dst[cross]].astype(np.int64, copy=False)
+    swap = left > right
+    low = np.where(swap, right, left)
+    high = np.where(swap, left, right)
+    base = int(labels.max()) + 1
+    keys = low * base + high
+    unique_keys, inverse = np.unique(keys, return_inverse=True)
+    color_delta = np.linalg.norm(rgb[src[cross]] - rgb[dst[cross]], axis=1)
+    mean_color_delta = np.bincount(inverse, weights=color_delta) / np.maximum(np.bincount(inverse), 1)
+    color_by_pair = {
+        (int(key // base), int(key % base)): float(mean_color_delta[i])
+        for i, key in enumerate(unique_keys.tolist())
+    }
     counts = np.bincount(labels.astype(np.int64, copy=False))
     rows = []
     for (object_a, object_b), shared_faces in sorted(contacts.items()):
@@ -42,6 +60,7 @@ def contact_rows(
             "object_b": object_b,
             "shared_voxel_faces": shared_faces,
             "contact_ratio_min": shared_faces / smaller,
+            "contact_rgb_distance": color_by_pair[(object_a, object_b)],
         })
     return rows, {
         "directed_voxel_edges": int(len(src)),
@@ -60,9 +79,9 @@ def main() -> None:
     parser.add_argument("--min-shared-faces", type=int, default=1)
     args = parser.parse_args()
 
-    xyz = read_xyz(args.reference_ply)
+    xyz, rgb = read_xyz_rgb(args.reference_ply)
     labels = np.load(args.labels).astype(np.int32, copy=False)
-    rows, stats = contact_rows(xyz, labels, args.voxel_size, args.min_shared_faces)
+    rows, stats = contact_rows(xyz, rgb, labels, args.voxel_size, args.min_shared_faces)
 
     args.output_jsonl.parent.mkdir(parents=True, exist_ok=True)
     with args.output_jsonl.open("w", encoding="utf-8") as f:

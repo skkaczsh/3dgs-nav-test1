@@ -10,7 +10,8 @@ def test_contact_graph_contains_only_true_neighbor_faces() -> None:
         [1.0, 1.0, 0.0],
         [3.0, 0.0, 0.0],
     ], dtype=np.float32)
+    rgb = np.array([[0, 0, 0], [30, 40, 0], [30, 40, 0], [0, 0, 0]], dtype=np.float32)
     labels = np.array([0, 1, 1, 2], dtype=np.int32)
-    rows, stats = contact_rows(xyz, labels, 1.0, 1)
-    assert rows == [{"object_a": 0, "object_b": 1, "shared_voxel_faces": 1, "contact_ratio_min": 1.0}]
+    rows, stats = contact_rows(xyz, rgb, labels, 1.0, 1)
+    assert rows == [{"object_a": 0, "object_b": 1, "shared_voxel_faces": 1, "contact_ratio_min": 1.0, "contact_rgb_distance": 50.0}]
     assert stats["kept_contact_pairs"] == 1
