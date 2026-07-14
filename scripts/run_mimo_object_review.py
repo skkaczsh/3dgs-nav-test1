@@ -46,6 +46,9 @@ CONTROLLED_LABELS = [
     "door_or_window",
     "sign_or_box",
     "curb_or_low_barrier",
+    "roof",
+    "ceiling",
+    "stair",
     "building_part",
     "unknown",
 ]
@@ -83,7 +86,7 @@ def evidence_by_object(rows: list[dict[str, Any]], top_k: int) -> dict[int, list
     return grouped
 
 
-def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]]) -> str:
+def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], task: str) -> str:
     geometry = {
         key: obj.get(key)
         for key in [
@@ -117,11 +120,31 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]]) 
         for row in evidence_rows
     ]
     labels = ", ".join(CONTROLLED_LABELS)
-    return (
+    common = (
         "You are reviewing one 3D point-cloud object from an outdoor parking-lot scan. "
         "Images are undistorted camera evidence. Red points / yellow boxes indicate where this 3D object projects. "
         "Use the images plus the 3D geometry summary. Do not classify the whole image; classify only the projected object.\n\n"
         f"Allowed controlled labels: {labels}.\n"
+    )
+    if task == "structure":
+        return common + (
+            "This is a second-pass structural review of a generic building surface. "
+            "Choose only a specific structure when the visible evidence supports it: wall, roof, ceiling, stair, floor, or grass. "
+            "Use building_part or unknown when the crop cannot support a specific structure.\n"
+            "Return strict JSON only with keys:"
+            "{"
+            "\"controlled_label\": string, "
+            "\"description_zh\": string, "
+            "\"is_true_object\": false, "
+            "\"is_surface_fragment\": true, "
+            "\"confidence\": number, "
+            "\"action\": \"keep\"|\"relabel\"|\"demote_to_unknown\"|\"review_manually\", "
+            "\"reason_zh\": string"
+            "}.\n\n"
+            f"3D geometry summary JSON:\n{json.dumps(geometry, ensure_ascii=False)}\n"
+            f"Evidence metadata JSON:\n{json.dumps(evidence, ensure_ascii=False)}"
+        )
+    return common + (
         "Important rules:\n"
         "- Broad flat pavement is floor, not railing/car.\n"
         "- Vertical building facade or wall panels are wall/building_part, not car/railing.\n"
@@ -185,8 +208,9 @@ def call_chat_completion(
     timeout: float,
     max_tokens: int,
     image_mode: str,
+    task: str,
 ) -> dict[str, Any]:
-    content: list[dict[str, Any]] = [{"type": "text", "text": prompt_for_object(obj, evidence_rows)}]
+    content: list[dict[str, Any]] = [{"type": "text", "text": prompt_for_object(obj, evidence_rows, task)}]
     for row in evidence_rows:
         for path in evidence_image_paths(row, image_mode):
             content.append({
@@ -226,6 +250,7 @@ def call_chat_completion(
         "input_semantic_label": obj.get("semantic_label", ""),
         "evidence_count": len(evidence_rows),
         "image_mode": image_mode,
+        "review_task": task,
         "raw_response": text,
         "parsed": parsed,
         "parse_error": "",
@@ -248,6 +273,7 @@ def review_one(args_tuple: tuple[argparse.Namespace, str, str, str, dict[str, An
                 args.timeout,
                 args.max_tokens,
                 args.image_mode,
+                args.task,
             )
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
             last_error = repr(exc)
@@ -257,6 +283,7 @@ def review_one(args_tuple: tuple[argparse.Namespace, str, str, str, dict[str, An
         "input_semantic_label": obj.get("semantic_label", ""),
         "evidence_count": len(ev_rows),
         "image_mode": args.image_mode,
+        "review_task": args.task,
         "raw_response": "",
         "parsed": None,
         "parse_error": last_error,
@@ -277,6 +304,7 @@ def main() -> None:
     parser.add_argument("--retries", type=int, default=1)
     parser.add_argument("--max-tokens", type=int, default=900)
     parser.add_argument("--image-mode", choices=("overlay", "crop", "both"), default="overlay")
+    parser.add_argument("--task", choices=("object", "structure"), default="object")
     parser.add_argument("--base-url", default=os.environ.get("MIMO_BASE_URL", "https://token-plan-sgp.xiaomimimo.com/v1"))
     parser.add_argument("--model", default=os.environ.get("MIMO_MODEL", "mimo-v2.5"))
     args = parser.parse_args()

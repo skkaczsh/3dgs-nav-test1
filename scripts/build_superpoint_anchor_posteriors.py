@@ -11,7 +11,7 @@ from typing import Any
 
 # `building_part` is deliberately excluded: it is a VLM fallback description,
 # not a specific structural class safe to spread over a contact graph.
-STRUCTURAL_LABELS = {"floor", "wall", "grass"}
+STRUCTURAL_LABELS = {"floor", "wall", "grass", "roof", "ceiling", "stair"}
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 
-STRUCTURAL_LABELS = {"floor", "wall", "grass"}
+STRUCTURAL_LABELS = {"floor", "wall", "grass", "roof", "ceiling", "stair"}
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:

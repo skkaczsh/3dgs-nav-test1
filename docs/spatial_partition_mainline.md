@@ -896,13 +896,19 @@ Dense colorized source note:
     `sum_i alpha_i ||p_i-y_i||^2 + lambda sum_(i,j) w_ij ||p_i-p_j||^2`.
     Until then, solving it over the 10k-node contact component would hide an
     unmeasured propagation radius behind a neat equation.
-  - promotion: only specific structural labels (`floor/wall/grass`)
+  - promotion: only specific structural labels (`floor/wall/grass/roof/ceiling/stair`)
     may propagate, and only when posterior confidence and margin both exceed
     review thresholds.  `building_part` is intentionally not specific enough:
     it enters a second structural-refinement review rather than propagating.
     Fine labels (`person/car/railing/pipe/equipment`) also stay as local
     candidates because propagating them over a contact graph creates exactly
     the large false-positive regions seen in earlier runs.
+  - structural refinement: reuse `run_mimo_object_review.py --task structure`
+    only on high-confidence `building_part` surface fragments.  This narrow
+    review may return `wall/roof/ceiling/stair/floor/grass`; only then can the
+    existing anchor/posterior pipeline consider the result for propagation.
+    The broad first-pass review remains untouched and no completed VLM work is
+    discarded.
   - observation materialization (2026-07-14):
     `materialize_superpoint_observation_ledger.py` is the canonical export for
     source-supported image evidence.  It does not recompute projection or
