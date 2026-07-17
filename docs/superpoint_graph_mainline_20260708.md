@@ -390,6 +390,13 @@ an API key in a shell command. A configured VLM review writes one parsed row
 per immutable `object_id`; only then may `build_superpoint_soft_unaries.py`
 turn its confidence into alpha mass while retaining an explicit unknown mass.
 
+Use `run_mimo_object_review.py --dry-run` on the exact objects/evidence pair
+before an endpoint call. It writes the full selected object-ID plan but requires
+no credential and sends no images. The real run accepts either `MIMO_API_KEY`
+from the process environment or `--api-key-file` pointing to a permission-
+restricted secret file outside the repository. Neither path permits a key in a
+command-line value, generated plan, review JSONL, or log.
+
 `run_mimo_object_review.py --scene-prior` may attach only route segments whose
 frame intervals overlap the object's selected evidence frames. The route prior
 is prompt context for plausibility checks, not a hard label or veto; projected

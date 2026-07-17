@@ -1,9 +1,25 @@
+import pytest
+
 from scripts.run_mimo_object_review import (
     completed_review_ids,
+    load_api_key,
     prompt_for_object,
     scene_context_for_evidence,
     validate_controlled_fields,
 )
+
+
+def test_key_file_is_supported_without_exposing_the_key(tmp_path, monkeypatch) -> None:
+    monkeypatch.delenv("MIMO_API_KEY", raising=False)
+    key_file = tmp_path / "mimo.key"
+    key_file.write_text("test-secret\n", encoding="utf-8")
+    assert load_api_key(key_file) == "test-secret"
+
+
+def test_key_loader_fails_closed_when_no_secret_is_configured(monkeypatch) -> None:
+    monkeypatch.delenv("MIMO_API_KEY", raising=False)
+    with pytest.raises(SystemExit, match="MIMO_API_KEY or --api-key-file"):
+        load_api_key(None)
 
 
 def test_structure_review_requests_specific_surface_label() -> None:

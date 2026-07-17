@@ -14,6 +14,10 @@ API credentials are read from environment variables:
 - MIMO_API_KEY
 - MIMO_BASE_URL, default https://token-plan-sgp.xiaomimimo.com/v1
 - MIMO_MODEL, default mimo-v2.5
+
+For batch hosts, ``--api-key-file`` is also supported. Keep that file outside
+the repository with restrictive permissions; the key is never written to the
+review artifact, plan, or log.
 """
 
 from __future__ import annotations
@@ -125,6 +129,22 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     with path.open("w", encoding="utf-8") as f:
         for row in rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def load_api_key(api_key_file: Path | None) -> str:
+    """Load a VLM key without ever putting it in a CLI argument or artifact."""
+    if api_key_file is not None:
+        try:
+            api_key = api_key_file.read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            raise SystemExit(f"cannot read --api-key-file: {exc}") from exc
+        if not api_key:
+            raise SystemExit("--api-key-file is empty.")
+        return api_key
+    api_key = os.environ.get("MIMO_API_KEY", "").strip()
+    if not api_key:
+        raise SystemExit("MIMO_API_KEY or --api-key-file is required.")
+    return api_key
 
 
 def completed_review_ids(path: Path) -> set[int]:
@@ -435,15 +455,15 @@ def main() -> None:
     parser.add_argument("--image-mode", choices=("overlay", "crop", "both"), default="overlay")
     parser.add_argument("--task", choices=("object", "structure"), default="object")
     parser.add_argument("--resume", action="store_true", help="Keep parseable existing rows and retry only missing/failed objects.")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Write the selected review plan without requiring a key or calling the endpoint.")
+    parser.add_argument("--api-key-file", type=Path,
+                        help="Read the key from a local permission-restricted file, never from a CLI value.")
     parser.add_argument("--base-url", default=os.environ.get("MIMO_BASE_URL", "https://token-plan-sgp.xiaomimimo.com/v1"))
     parser.add_argument("--model", default=os.environ.get("MIMO_MODEL", "mimo-v2.5"))
     parser.add_argument("--scene-prior", type=Path,
                         help="Optional route-level scene prior; used only as a soft prompt context.")
     args = parser.parse_args()
-
-    api_key = os.environ.get("MIMO_API_KEY")
-    if not api_key:
-        raise SystemExit("MIMO_API_KEY is required in the environment.")
 
     objects = read_jsonl(args.objects_jsonl)
     if args.object_ids:
@@ -454,13 +474,38 @@ def main() -> None:
     evidence_rows = read_jsonl(args.evidence_jsonl)
     grouped = evidence_by_object(evidence_rows, args.top_k)
     scene_prior = load_scene_prior(args.scene_prior)
-    tasks = [
-        (args, args.base_url, api_key, args.model, obj, grouped.get(int(obj["object_id"]), []), scene_prior)
+    reviewable = [
+        (obj, grouped.get(int(obj["object_id"]), []))
         for obj in objects
         if grouped.get(int(obj["object_id"]))
     ]
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    if args.dry_run:
+        plan = {
+            "objects_jsonl": str(args.objects_jsonl),
+            "evidence_jsonl": str(args.evidence_jsonl),
+            "model": args.model,
+            "task": args.task,
+            "image_mode": args.image_mode,
+            "top_k": args.top_k,
+            "requested_objects": len(objects),
+            "reviewable_objects": len(reviewable),
+            "object_ids": [int(obj["object_id"]) for obj, _ in reviewable],
+        }
+        (args.output_dir / "mimo_object_review_plan.json").write_text(
+            json.dumps(plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        print(json.dumps({
+            key: value for key, value in plan.items() if key != "object_ids"
+        }, ensure_ascii=False, indent=2))
+        return
+
+    api_key = load_api_key(args.api_key_file)
+    tasks = [
+        (args, args.base_url, api_key, args.model, obj, ev_rows, scene_prior)
+        for obj, ev_rows in reviewable
+    ]
     output_jsonl = args.output_dir / "mimo_object_review.jsonl"
     existing_rows = read_jsonl(output_jsonl) if args.resume and output_jsonl.exists() else []
     completed_ids = completed_review_ids(output_jsonl) if args.resume else set()
