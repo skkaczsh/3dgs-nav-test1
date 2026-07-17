@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import sys
 from pathlib import Path
@@ -20,6 +21,19 @@ from scripts.geometry_input_contract import geometry_only_semantic_fields
 from scripts.optimize_patch_graph_energy import compute_patch_stats, read_region_input
 
 
+def configure_official_spg_backend(root: Path) -> Path:
+    """Expose the official partition extension modules from one explicit root."""
+    partition = root / "partition"
+    if not partition.is_dir():
+        raise RuntimeError(
+            f"official Superpoint Graph partition directory is missing: {partition}. "
+            "Run scripts/setup_official_superpoint_graph.sh first."
+        )
+    if str(partition) not in sys.path:
+        sys.path.insert(0, str(partition))
+    return partition
+
+
 def read_ply_xyz_rgb(path: Path) -> tuple[np.ndarray, np.ndarray]:
     ply = PlyData.read(str(path))
     vertex = ply["vertex"].data
@@ -29,6 +43,24 @@ def read_ply_xyz_rgb(path: Path) -> tuple[np.ndarray, np.ndarray]:
     else:
         rgb = np.zeros((len(xyz), 3), dtype="uint8")
     return np.ascontiguousarray(xyz), rgb
+
+
+def crop_points(
+    xyz: np.ndarray, rgb: np.ndarray, bbox_min: list[float] | None, bbox_max: list[float] | None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Spatial smoke crops preserve local density and cannot reuse global labels."""
+    if bbox_min is None and bbox_max is None:
+        return xyz, rgb
+    if bbox_min is None or bbox_max is None:
+        raise ValueError("--bbox-min and --bbox-max must be provided together")
+    low = np.asarray(bbox_min, dtype=np.float32)
+    high = np.asarray(bbox_max, dtype=np.float32)
+    if np.any(high <= low):
+        raise ValueError("--bbox-max must be strictly greater than --bbox-min")
+    keep = np.all((xyz >= low) & (xyz <= high), axis=1)
+    if not np.any(keep):
+        raise ValueError("spatial crop contains no points")
+    return np.ascontiguousarray(xyz[keep]), np.ascontiguousarray(rgb[keep])
 
 
 def write_random_color_ply(path: Path, xyz: np.ndarray, labels: np.ndarray) -> None:
@@ -146,19 +178,41 @@ def main() -> int:
     parser.add_argument("--stride-preview", type=int, default=10)
     parser.add_argument("--region-input", type=Path, help="Optional same-order GPRG input for geometry-only object metadata.")
     parser.add_argument("--labels-input", type=Path, help="Reuse an existing same-order official_superpoints_labels.npy instead of rerunning Cut Pursuit.")
+    parser.add_argument("--bbox-min", type=float, nargs=3, metavar=("X", "Y", "Z"),
+                        help="Optional spatial smoke-crop lower bound; cannot reuse global labels/metadata.")
+    parser.add_argument("--bbox-max", type=float, nargs=3, metavar=("X", "Y", "Z"),
+                        help="Optional spatial smoke-crop upper bound; cannot reuse global labels/metadata.")
+    parser.add_argument(
+        "--superpoint-graph-root", type=Path,
+        default=Path(os.environ.get("SUPERPOINT_GRAPH_ROOT", REPO_ROOT / "third_party" / "superpoint_graph")),
+        help="Official loicland/superpoint_graph checkout containing compiled partition modules.",
+    )
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    xyz, _rgb = read_ply_xyz_rgb(args.input)
+    if (args.bbox_min is None) != (args.bbox_max is None):
+        raise ValueError("--bbox-min and --bbox-max must be provided together")
+    if args.bbox_min is not None and (args.labels_input or args.region_input):
+        raise ValueError("a spatial smoke crop cannot reuse global --labels-input or --region-input")
+    xyz, rgb = read_ply_xyz_rgb(args.input)
+    input_points = len(xyz)
+    xyz, _rgb = crop_points(xyz, rgb, args.bbox_min, args.bbox_max)
     if args.labels_input:
         labels = np.load(args.labels_input).astype(np.uint32, copy=False)
         if len(labels) != len(xyz):
             raise ValueError(f"labels count differs from PLY: {len(labels)} != {len(xyz)}")
     else:
-        from graphs import compute_graph_nn_2
-        import libcp
-        import libply_c
+        configure_official_spg_backend(args.superpoint_graph_root)
+        try:
+            from graphs import compute_graph_nn_2
+            import libcp
+            import libply_c
+        except ModuleNotFoundError as exc:
+            raise RuntimeError(
+                "official Superpoint Graph extensions are unavailable. "
+                "Run scripts/setup_official_superpoint_graph.sh and pass --superpoint-graph-root if needed."
+            ) from exc
 
         graph_nn, target_fea = compute_graph_nn_2(xyz, args.k_nn_adj, args.k_nn_geof)
         geof = libply_c.compute_geof(xyz, target_fea, args.k_nn_geof).astype("float32")
@@ -191,6 +245,7 @@ def main() -> int:
     counts = np.bincount(labels)
     report = {
         "input": str(args.input),
+        "input_points": int(input_points),
         "points": int(len(xyz)),
         "superpoints": int(labels.max() + 1) if len(labels) else 0,
         "nonempty_superpoints": int((counts > 0).sum()),
@@ -203,6 +258,9 @@ def main() -> int:
             "lambda_edge_weight": args.lambda_edge_weight,
             "region_input": str(args.region_input) if args.region_input else None,
             "labels_input": str(args.labels_input) if args.labels_input else None,
+            "superpoint_graph_root": str(args.superpoint_graph_root),
+            "bbox_min": args.bbox_min,
+            "bbox_max": args.bbox_max,
         },
         "outputs": {
             "labels": str(labels_path),

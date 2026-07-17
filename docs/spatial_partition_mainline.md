@@ -964,6 +964,37 @@ map, one evidence ledger, and one contact graph.  No dense per-point language
 feature store, graph neural network, or second segmentation pipeline is needed
 to test the next decision.
 
+## Official Superpoint Graph Backend
+
+The official `loicland/superpoint_graph` Cut Pursuit backend is the canonical
+geometry-only superpoint generator.  It replaces experimental local BFS and
+ad-hoc graph components as the ownership primitive.  The checked setup command
+is `scripts/setup_official_superpoint_graph.sh`; it builds the pinned partition
+extensions and verifies a small `compute_geof + cutpursuit` smoke case.
+
+`run_official_superpoints_patch.py` now takes an explicit
+`--superpoint-graph-root` (or `SUPERPOINT_GRAPH_ROOT`) and has a spatial crop
+mode.  A crop is deliberately incompatible with reused global labels or region
+metadata, so smoke tests cannot accidentally attach stale global ownership to
+new point rows.
+
+The first dense-LAS crop uses 156,479 3 cm voxels in world coordinates
+(`bbox=[0,-16,-1]..[4,-12,10]`).  It establishes the useful regularization
+range, rather than promoting a single unmeasured parameter:
+
+- `reg_strength=0.025`: 1,335 superpoints, median 5 points: too fragmented.
+- `reg_strength=0.05`: 564 superpoints, median 15 points: fine review
+  candidate.
+- `reg_strength=0.10`: previous 217-superpoint run: coarse endpoint and prone
+  to merging distinct local structures.
+
+The partition feature remains the official local geometric descriptor.  RGB,
+first-touch visibility, SKYMask and VLM results are separate edge/unary
+evidence after geometric ownership exists.  This prevents illumination or a
+single image mask from redefining a 3D boundary.  A future color-aware Cut
+Pursuit variant must be evaluated as a named ablation against this geometry-only
+baseline, not silently become the default.
+
 The first usable route-level prior is a `30:1` cam0 sample of the parking
 scan, generated on the local Qwen VL server from `207` frames. It identifies
 entrance plaza, outdoor parking, landscape, indoor lobby, stairwell, and roof

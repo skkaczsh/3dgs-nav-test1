@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 
 import numpy as np
+import pytest
 from plyfile import PlyData
 
-from scripts.run_official_superpoints_patch import geometry_by_object, write_objects_jsonl, write_random_color_ply
+from scripts.run_official_superpoints_patch import crop_points, geometry_by_object, write_objects_jsonl, write_random_color_ply
 
 
 def test_official_superpoint_export_is_semantic_vote_compatible(tmp_path) -> None:
@@ -44,3 +45,12 @@ def test_superpoint_pca_distinguishes_horizontal_vertical_and_line() -> None:
     assert geometry[1]["geometry_type"] == "horizontal"
     assert geometry[2]["geometry_type"] == "vertical"
     assert geometry[3]["geometry_type"] == "thin_linear"
+
+
+def test_spatial_crop_keeps_local_points_and_rejects_invalid_bounds() -> None:
+    xyz = np.asarray([[0, 0, 0], [1, 1, 1], [2, 2, 2]], dtype=np.float32)
+    rgb = np.zeros((3, 3), dtype=np.uint8)
+    cropped, _ = crop_points(xyz, rgb, [0.5, 0.5, 0.5], [1.5, 1.5, 1.5])
+    assert cropped.tolist() == [[1.0, 1.0, 1.0]]
+    with pytest.raises(ValueError, match="strictly greater"):
+        crop_points(xyz, rgb, [1, 1, 1], [1, 2, 2])
