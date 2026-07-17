@@ -136,8 +136,9 @@ done
 for pid in "${pids[@]}"; do
   wait "$pid"
 done
-cat "${OUTPUT_DIR}"/sam2_runner_gpu*.stdout.jsonl > "${OUTPUT_DIR}/sam2_runner.stdout.jsonl"
-cat "${OUTPUT_DIR}"/sam2_runner_gpu*.stderr.log > "${OUTPUT_DIR}/sam2_runner.stderr.log"
+cat "${OUTPUT_DIR}"/sam2_runner_shard*.stdout.jsonl > "${OUTPUT_DIR}/sam2_runner.stdout.jsonl"
+cat "${OUTPUT_DIR}"/sam2_runner_shard*.stderr.log > "${OUTPUT_DIR}/sam2_runner.stderr.log"
+rm -rf "$SHARD_ROOT"
 
 if [[ -n "$EVIDENCE_JSONL" ]]; then
   cp "$EVIDENCE_JSONL" "$COMBINED_EVIDENCE"

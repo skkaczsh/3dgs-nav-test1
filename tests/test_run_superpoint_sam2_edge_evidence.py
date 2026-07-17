@@ -16,6 +16,8 @@ def test_runner_supports_exact_single_ledger_without_duplicate_evidence() -> Non
     assert 'index % ${#GPU_LIST[@]}' in script
     assert 'run_sam2_shard' in script
     assert 'sam2_runner_shard${shard}_gpu${gpu}' in script
+    assert 'sam2_runner_shard*.stdout.jsonl' in script
+    assert 'rm -rf "$SHARD_ROOT"' in script
     assert 'wait "$pid"' in script
     assert 'build_superpoint_sam2_comask_edges.py' in script
     assert 'make_superpoint_sam2_edge_review.py' in script
