@@ -1052,6 +1052,19 @@ observed canary Superpoints, so these rows are boundary/compatibility evidence
 only. They are not a license to propagate a semantic label into the remaining
 unobserved Superpoints.
 
+The corresponding SAM2 test is intentionally edge-only. Feed
+`edge_evidence_sky_20260717/object_contact_view_evidence.jsonl` to
+`make_sam2_input_links.py --views-jsonl` so the runner receives exactly the
+13 shared `(frame, camera)` views, rather than the 212 unrelated direct-review
+views. TensorRT SAM2 completed all 13; its co-mask reducer found six candidate
+contact edges, four with at least two views. One edge had repeated separation
+(`sam2_affinity=0.673104`), while the other five remained neutral because they
+did not have repeated compact-mask evidence. The rendered two-view QA sheet
+confirmed that this measured cut lies between distinct roof-work equipment
+parts. Thus SAM2 is a conservative multiplier that can reduce an existing
+contact affinity; it is neither an ownership merger nor a source of semantic
+labels.
+
 ### GPU Partition Upgrade Gate
 
 The current deterministic Cut Pursuit partition is the production ownership
