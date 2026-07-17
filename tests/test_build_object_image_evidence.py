@@ -1,5 +1,7 @@
-import numpy as np
+from pathlib import Path
 import sys
+
+import numpy as np
 
 from scripts import build_object_image_evidence as module
 
@@ -63,6 +65,16 @@ def test_depth_cache_evicts_oldest_frame_camera_pair() -> None:
     module.remember_depth_buffer(cache, (1, 0), np.ones((1, 1), dtype=np.float32), 1)
     module.remember_depth_buffer(cache, (2, 0), np.ones((1, 1), dtype=np.float32), 1)
     assert list(cache) == [(2, 0)]
+
+
+def test_sky_mask_path_accepts_current_and_legacy_names(tmp_path: Path) -> None:
+    current = tmp_path / "cam1_0000249_sky.png"
+    current.write_bytes(b"")
+    assert module.sky_mask_path(tmp_path, 1, 249) == current
+    current.unlink()
+    legacy = tmp_path / "cam1_00249_sky.png"
+    legacy.write_bytes(b"")
+    assert module.sky_mask_path(tmp_path, 1, 249) == legacy
 
 
 def test_draw_world_up_arrow_changes_image() -> None:

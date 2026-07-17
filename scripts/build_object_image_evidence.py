@@ -314,6 +314,22 @@ def priority_mask_path(priority_dir: Path, cam_id: int, frame_id: int, suffix: s
     return priority_dir / "priority" / f"cam{cam_id}_{frame_id:06d}{suffix}.png"
 
 
+def sky_mask_path(sky_mask_dir: Path, cam_id: int, frame_id: int) -> Path | None:
+    """Return a SKYMask artifact for a calibrated frame, if one exists.
+
+    SKYMask runs produced both the historic five-digit names and the current
+    seven-digit names.  This lookup intentionally knows only mask filenames;
+    it does not import any semantic-priority label convention.
+    """
+    candidates = (
+        sky_mask_dir / f"cam{cam_id}_{frame_id:07d}_sky.png",
+        sky_mask_dir / f"cam{cam_id}_{frame_id:06d}_sky.png",
+        sky_mask_dir / f"cam{cam_id}_{frame_id:05d}_sky.png",
+        sky_mask_dir / f"cam{cam_id}_{frame_id:04d}_sky.png",
+    )
+    return next((path for path in candidates if path.is_file()), None)
+
+
 def global_depth_map_path(depth_map_dir: Path, cam_id: int, frame_id: int) -> Path:
     return depth_map_dir / f"cam{cam_id}_{frame_id:06d}_geometry.npz"
 
@@ -499,8 +515,11 @@ def main() -> None:
     parser.add_argument("--object-ply", type=Path, required=True)
     parser.add_argument("--frame-root", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--priority-dir", type=Path, default=None, help="Optional priority/refined mask dir. When set, projected sky pixels are rejected.")
+    parser.add_argument("--priority-dir", type=Path, default=None, help="Optional legacy priority/refined mask dir. When set, class 6 pixels are rejected as sky.")
     parser.add_argument("--priority-suffix", default="_priority_refined", help="Priority mask suffix before .png.")
+    parser.add_argument("--sky-mask-dir", type=Path, default=None,
+                        help="Optional SKYMask directory. Pixels >= --sky-threshold are rejected as sky without using semantic labels.")
+    parser.add_argument("--sky-threshold", type=int, default=128)
     parser.add_argument("--lx", type=Path, default=None, help="Optional MANIFOLD .lx stream. When set, evidence points must be visible in the same frame section depth buffer.")
     parser.add_argument("--depth-tolerance", type=float, default=0.45, help="Max object-vs-frame depth difference when --lx is enabled.")
     parser.add_argument("--depth-neighborhood", type=int, default=1, help="Pixel radius for local section depth lookup when --lx is enabled.")
@@ -556,6 +575,8 @@ def main() -> None:
         raise SystemExit("--global-visibility requires --global-depth-map-dir")
     if args.global_view_plan is not None and not args.global_visibility:
         raise SystemExit("--global-view-plan requires --global-visibility")
+    if args.priority_dir is not None and args.sky_mask_dir is not None:
+        raise SystemExit("--priority-dir and --sky-mask-dir are mutually exclusive; use SKYMask for geometry-owned evidence")
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     objects = read_jsonl(args.objects_jsonl)
@@ -615,6 +636,7 @@ def main() -> None:
     lx_sections = read_lx_sections(args.lx) if args.lx else []
     lx_handle = args.lx.open("rb") if args.lx else None
     depth_cache: OrderedDict[tuple[int, int], np.ndarray] = OrderedDict()
+    sky_cache: OrderedDict[tuple[int, int], np.ndarray] = OrderedDict()
 
     try:
         rows = []
@@ -746,6 +768,36 @@ def main() -> None:
                         uu = np.clip(np.rint(uv_in[:, 0]).astype(np.int32), 0, config.IMAGE_WIDTH - 1)
                         vv = np.clip(np.rint(uv_in[:, 1]).astype(np.int32), 0, config.IMAGE_HEIGHT - 1)
                         non_sky = priority[vv, uu] != 6
+                        sky_filtered_points = int((~non_sky).sum())
+                        sky_ratio = sky_filtered_points / max(len(non_sky), 1)
+                        if args.max_sky_ratio > 0 and sky_ratio > args.max_sky_ratio:
+                            object_failures["sky_ratio_too_high"] += 1
+                            continue
+                        uv_in = uv_in[non_sky]
+                        depth_in = depth_in[non_sky]
+                        if len(uv_in) < args.min_projected_points:
+                            object_failures["low_projected_after_sky_filter"] += 1
+                            continue
+                    elif args.sky_mask_dir is not None:
+                        cache_key = (frame_id, int(cam_id))
+                        sky_mask = sky_cache.get(cache_key)
+                        if sky_mask is None:
+                            mask_path = sky_mask_path(args.sky_mask_dir, cam_id, frame_id)
+                            if mask_path is None:
+                                object_failures["missing_sky_mask"] += 1
+                                continue
+                            sky_mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+                            if sky_mask is None:
+                                object_failures["sky_mask_read_failed"] += 1
+                                continue
+                            if sky_mask.shape[:2] != (config.IMAGE_HEIGHT, config.IMAGE_WIDTH):
+                                sky_mask = cv2.resize(sky_mask, (config.IMAGE_WIDTH, config.IMAGE_HEIGHT), interpolation=cv2.INTER_NEAREST)
+                            remember_depth_buffer(sky_cache, cache_key, sky_mask, args.max_depth_cache_entries)
+                        else:
+                            sky_cache.move_to_end(cache_key)
+                        uu = np.clip(np.rint(uv_in[:, 0]).astype(np.int32), 0, config.IMAGE_WIDTH - 1)
+                        vv = np.clip(np.rint(uv_in[:, 1]).astype(np.int32), 0, config.IMAGE_HEIGHT - 1)
+                        non_sky = sky_mask[vv, uu] < args.sky_threshold
                         sky_filtered_points = int((~non_sky).sum())
                         sky_ratio = sky_filtered_points / max(len(non_sky), 1)
                         if args.max_sky_ratio > 0 and sky_ratio > args.max_sky_ratio:
@@ -889,6 +941,8 @@ def main() -> None:
             "max_bbox_area_ratio": args.max_bbox_area_ratio,
             "priority_dir": str(args.priority_dir) if args.priority_dir else "",
             "priority_suffix": args.priority_suffix,
+            "sky_mask_dir": str(args.sky_mask_dir) if args.sky_mask_dir else "",
+            "sky_threshold": args.sky_threshold,
             "max_sky_ratio": args.max_sky_ratio,
             "lx": str(args.lx) if args.lx else "",
             "depth_tolerance": args.depth_tolerance,
