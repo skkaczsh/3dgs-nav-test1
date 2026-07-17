@@ -32,6 +32,28 @@ def test_projected_view_selection_beats_nearest_backfacing_pose(monkeypatch) -> 
     assert selected[0]["name"] == "far_visible"
 
 
+def test_first_touch_visibility_rejects_occluded_and_sky_pixels(monkeypatch) -> None:
+    monkeypatch.setattr(module.config, "IMAGE_WIDTH", 8)
+    monkeypatch.setattr(module.config, "IMAGE_HEIGHT", 8)
+
+    def project(_points, _pose, _cam_id, _min_depth):
+        return np.array([[2.0, 2.0], [3.0, 3.0], [4.0, 4.0]], dtype=np.float32), np.array([2.0, 5.0, 2.0], dtype=np.float32)
+
+    monkeypatch.setattr(module, "project_points", project)
+    depth = np.full((8, 8), np.inf, dtype=np.float32)
+    depth[2, 2] = 2.0
+    depth[3, 3] = 2.0  # second point is behind the first touch.
+    depth[4, 4] = 2.0
+    sky = np.zeros((8, 8), dtype=np.uint8)
+    sky[4, 4] = 255
+
+    count = module.first_touch_visible_count(
+        np.zeros((3, 3), dtype=np.float32), {}, 0, depth, sky, 0.1, 0.2, 0, 128,
+    )
+
+    assert count == 1
+
+
 def test_source_frame_selection_uses_only_raw_section_support() -> None:
     poses = {
         10: {"frame_id": 10, "name": "raw_source"},

@@ -300,6 +300,44 @@ def min_depth_neighborhood(depth_buffer: np.ndarray, uu: np.ndarray, vv: np.ndar
     return out
 
 
+def first_touch_visible_count(
+    points: np.ndarray,
+    pose: dict[str, Any],
+    cam_id: int,
+    depth_buffer: np.ndarray,
+    sky_mask: np.ndarray | None,
+    min_depth: float,
+    depth_tolerance: float,
+    depth_neighborhood: int,
+    sky_threshold: int,
+) -> int:
+    """Count sampled points that are actually visible in one calibrated view.
+
+    This deliberately belongs in view planning, not only crop extraction.
+    Ranking a view by raw in-image projection systematically prefers large
+    back-facing/occluded surfaces; first-touch and sky rejection are part of
+    the definition of a useful semantic observation.
+    """
+    uv, depth = project_points(points, pose, cam_id, min_depth)
+    if not len(uv):
+        return 0
+    width = config.IMAGE_WIDTH
+    height = config.IMAGE_HEIGHT
+    in_image = (uv[:, 0] >= 0) & (uv[:, 0] < width)
+    in_image &= (uv[:, 1] >= 0) & (uv[:, 1] < height)
+    if not np.any(in_image):
+        return 0
+    uv = uv[in_image]
+    depth = depth[in_image]
+    uu = np.clip(np.rint(uv[:, 0]).astype(np.int32), 0, width - 1)
+    vv = np.clip(np.rint(uv[:, 1]).astype(np.int32), 0, height - 1)
+    first_touch = min_depth_neighborhood(depth_buffer, uu, vv, depth_neighborhood)
+    keep = np.isfinite(first_touch) & (np.abs(depth - first_touch) <= depth_tolerance)
+    if sky_mask is not None:
+        keep &= sky_mask[vv, uu] < sky_threshold
+    return int(keep.sum())
+
+
 def lx_section_points(lx_handle, sections: list[dict[str, Any]], frame_id: int) -> np.ndarray | None:
     if frame_id < 0 or frame_id >= len(sections):
         return None
@@ -582,6 +620,17 @@ def main() -> None:
         default=None,
         help="Reuse a validated global-evidence-view-plan/v1 instead of rescoring every pose.",
     )
+    parser.add_argument(
+        "--global-view-plan-depth-aware",
+        action="store_true",
+        help="When writing a view plan, rank a wider raw-projection pool by first-touch visibility and SKYMask.",
+    )
+    parser.add_argument(
+        "--global-view-plan-prefilter",
+        type=int,
+        default=0,
+        help="Raw projected-view pool before depth-aware planning; 0 uses --max-frame-pool.",
+    )
     parser.add_argument("--max-points-per-object", type=int, default=2500)
     parser.add_argument("--min-depth", type=float, default=0.1)
     parser.add_argument("--min-projected-points", type=int, default=20)
@@ -610,6 +659,10 @@ def main() -> None:
         raise SystemExit("--global-view-plan-input requires --global-visibility")
     if args.global_view_plan is not None and args.global_view_plan_input is not None:
         raise SystemExit("--global-view-plan and --global-view-plan-input are mutually exclusive")
+    if args.global_view_plan_depth_aware and args.global_view_plan is None:
+        raise SystemExit("--global-view-plan-depth-aware requires --global-view-plan")
+    if args.global_view_plan_depth_aware and args.global_depth_map_dir is None:
+        raise SystemExit("--global-view-plan-depth-aware requires --global-depth-map-dir")
     if args.priority_dir is not None and args.sky_mask_dir is not None:
         raise SystemExit("--priority-dir and --sky-mask-dir are mutually exclusive; use SKYMask for geometry-owned evidence")
 
@@ -639,6 +692,8 @@ def main() -> None:
     if args.global_view_plan is not None:
         plan_rows = []
         selected_frames: set[int] = set()
+        plan_depth_cache: OrderedDict[tuple[int, int], np.ndarray] = OrderedDict()
+        plan_sky_cache: OrderedDict[tuple[int, int], np.ndarray] = OrderedDict()
         for object_index, object_id in enumerate(sorted(object_ids), 1):
             if args.progress_every > 0 and (object_index == 1 or object_index % args.progress_every == 0):
                 print(
@@ -650,10 +705,49 @@ def main() -> None:
             if points is None or len(points) < args.min_projected_points:
                 plan_rows.append({"object_id": object_id, "frame_ids": [], "reason": "insufficient_object_samples"})
                 continue
+            prefilter = args.global_view_plan_prefilter or args.max_frame_pool
             pool = choose_frame_pool(
-                points, poses, args.max_frame_pool, args.max_frame_distance,
+                points, poses, prefilter, args.max_frame_distance,
                 args.view_selection, args.min_depth,
             )
+            if args.global_view_plan_depth_aware:
+                visible_scores: list[tuple[int, int, dict[str, Any]]] = []
+                for pose in pool:
+                    frame_id = int(pose["frame_id"])
+                    score = 0
+                    for cam_id in args.cams:
+                        cache_key = (frame_id, int(cam_id))
+                        depth_buffer = plan_depth_cache.get(cache_key)
+                        if depth_buffer is None:
+                            depth_path = global_depth_map_path(args.global_depth_map_dir, cam_id, frame_id)
+                            if not depth_path.exists():
+                                continue
+                            depth_buffer = load_global_depth_map(depth_path)
+                            remember_depth_buffer(plan_depth_cache, cache_key, depth_buffer, args.max_depth_cache_entries)
+                        else:
+                            plan_depth_cache.move_to_end(cache_key)
+                        sky_mask = None
+                        if args.sky_mask_dir is not None:
+                            sky_mask = plan_sky_cache.get(cache_key)
+                            if sky_mask is None:
+                                mask_path = sky_mask_path(args.sky_mask_dir, cam_id, frame_id)
+                                if mask_path is not None:
+                                    sky_mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+                                    if sky_mask is not None and sky_mask.shape[:2] != (config.IMAGE_HEIGHT, config.IMAGE_WIDTH):
+                                        sky_mask = cv2.resize(
+                                            sky_mask, (config.IMAGE_WIDTH, config.IMAGE_HEIGHT), interpolation=cv2.INTER_NEAREST,
+                                        )
+                                    if sky_mask is not None:
+                                        remember_depth_buffer(plan_sky_cache, cache_key, sky_mask, args.max_depth_cache_entries)
+                        score += first_touch_visible_count(
+                            points[:, :3], pose, cam_id, depth_buffer, sky_mask,
+                            args.min_depth, args.depth_tolerance, args.depth_neighborhood, args.sky_threshold,
+                        )
+                    if score:
+                        # The frame id makes equal-score selection deterministic.
+                        visible_scores.append((-score, frame_id, pose))
+                visible_scores.sort(key=lambda item: (item[0], item[1]))
+                pool = [pose for _score, _frame_id, pose in visible_scores[:args.max_frame_pool]]
             frame_ids = [int(pose["frame_id"]) for pose in pool]
             selected_frames.update(frame_ids)
             plan_rows.append({"object_id": object_id, "frame_ids": frame_ids, "reason": "ok" if frame_ids else "empty_global_pose_pool"})
@@ -664,6 +758,8 @@ def main() -> None:
                 "frame_stride": args.frame_stride,
                 "view_selection": args.view_selection,
                 "max_frame_pool": args.max_frame_pool,
+                "depth_aware": bool(args.global_view_plan_depth_aware),
+                "prefilter_frames": args.global_view_plan_prefilter or args.max_frame_pool,
                 "object_count": len(object_ids),
                 "selected_frame_count": len(selected_frames),
                 "selected_frame_ids": sorted(selected_frames),

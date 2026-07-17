@@ -26,6 +26,27 @@ view-valid target points
 - Visibility: z-buffer + first-touch.
 - Disabled by default: image-space splat, hole fill, pixel-height guard, blue-sky heuristics.
 
+## Evidence View Planning
+
+Global-object evidence must choose views with the same visibility model used
+for the evidence itself.  The production order is:
+
+```text
+wide raw-projection candidate pool
+-> first-touch depth consistency
+-> SKYMask rejection
+-> highest visible-point views
+-> crop / 2D mask / VLM evidence
+```
+
+Selecting the top raw projection-area views and applying first-touch only
+afterwards is invalid: large objects are often projected through their
+occluders and then lose every selected view.  Use
+`scripts/build_object_image_evidence.py --global-view-plan-depth-aware` with a
+bounded `--global-view-plan-prefilter`; its output remains an explicit,
+reproducible view plan and is never silently recomputed while extracting VLM
+evidence.
+
 ## Structural Region Field
 
 `scripts/build_structural_region_field.py` converts the color-coded
