@@ -47,6 +47,15 @@ def mask_path(output_dir: Path, cam_id: int, frame_id: int) -> Path:
     return output_dir / f"cam{cam_id}_{frame_id:07d}_sky.png"
 
 
+def read_frame_ids(path: Path) -> list[int]:
+    """Read a JSON array or one frame id per line, preserving no duplicates."""
+    text = path.read_text(encoding="utf-8").strip()
+    if not text:
+        return []
+    values = json.loads(text) if text.startswith("[") else [line for line in text.splitlines() if line.strip()]
+    return sorted({int(value) for value in values})
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--frames-dir", type=Path, required=True)
@@ -54,6 +63,8 @@ def main() -> None:
     parser.add_argument("--model", type=Path, default=Path("/root/epfs/lingbot-map/lingbot-map/skyseg_batch.onnx"))
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--end", type=int, default=999)
+    parser.add_argument("--frame-ids-file", type=Path, default=None,
+                        help="Optional JSON array or newline frame-id list. Limits inference to actual consumer poses.")
     parser.add_argument("--cams", type=int, nargs="+", default=[0, 1, 2])
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--skip-existing", action="store_true")
@@ -65,8 +76,9 @@ def main() -> None:
     sess = ort.InferenceSession(str(args.model), providers=[args.provider])
     input_name = sess.get_inputs()[0].name
 
+    frame_ids = read_frame_ids(args.frame_ids_file) if args.frame_ids_file else list(range(args.start, args.end + 1))
     rows = []
-    for frame_id in range(args.start, args.end + 1):
+    for frame_id in frame_ids:
         for cam_id in args.cams:
             src = frame_path(args.frames_dir, cam_id, frame_id)
             dst = mask_path(args.output_dir, cam_id, frame_id)
@@ -89,7 +101,7 @@ def main() -> None:
                 "sky_ratio": float((mask > 0).sum() / max(mask.size, 1)),
                 "output": str(dst),
             })
-        if (frame_id - args.start + 1) % 50 == 0:
+        if len(rows) and (len(rows) // max(1, len(args.cams))) % 50 == 0:
             ok_count = sum(1 for r in rows if r["status"] in {"ok", "skip"})
             print(f"frame={frame_id} done={ok_count}/{len(rows)}")
 
@@ -102,6 +114,8 @@ def main() -> None:
         "model": str(args.model),
         "start": args.start,
         "end": args.end,
+        "frame_ids_file": str(args.frame_ids_file) if args.frame_ids_file else "",
+        "requested_frame_count": len(frame_ids),
         "cams": args.cams,
         "status_counts": counts,
         "total": len(rows),
