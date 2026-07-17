@@ -16,6 +16,9 @@ GPU_ID="${GPU_ID:-0}"
 # sharded and all workers write distinct mask filenames into MASK_DIR.
 GPU_IDS="${GPU_IDS:-$GPU_ID}"
 POINTS_PER_SIDE="${POINTS_PER_SIDE:-32}"
+# The deployed TensorRT decoder engine has a fixed prompt batch dimension of
+# 64.  Changing this requires rebuilding that engine; do not expose it as a
+# fake runtime tuning knob.
 POINTS_PER_BATCH="${POINTS_PER_BATCH:-64}"
 MIN_MASK_AREA="${MIN_MASK_AREA:-500}"
 
