@@ -162,6 +162,13 @@ Current gaps:
 
 - It has not yet implemented small-region hole/island cleanup equivalent to
   SAM2's CUDA connected-components postprocess.
+- The current 4090D host retains the exported TensorRT ONNX/engine artifacts
+  but its shared `weights/` directory is empty and the historical Python
+  `vlm_seg` environment no longer exists. Therefore the current parking-lot
+  SAM2 run is verified for engine execution, compressed-RLE decode/area
+  conservation, and multi-view edge consistency only. It is **not** a Python
+  SAM2 parity or promotion result until the exact original checkpoint and a
+  reproducible Python environment are restored.
 - Some downstream scripts still assume bool-list `segmentation`; those should
   be updated before promoting RLE artifacts into the main semantic pipeline.
 - It is not promoted to the main mask directory until a 20-50 image benchmark
