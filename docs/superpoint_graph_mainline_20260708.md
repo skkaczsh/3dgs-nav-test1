@@ -309,6 +309,13 @@ Implementation hook:
 - `build_object_image_evidence.py --global-visibility --global-depth-map-dir`
   makes the new contract explicit and refuses accidental mixing with
   `--source-frame-support` or frame-local `--lx` depth.
+- Controlled 20-object comparison on the same 0.03m dense source:
+  - source-frame + frame-local depth: `8/20` objects with evidence, with all
+    `12` failures reported as `empty_frame_pool`;
+  - global pose + full-cloud first-touch: `14/20` objects with evidence, no
+    empty-pool failure. The remaining failures are either too few sampled
+    object points or genuinely fail projection/depth visibility.
+  This is the required coverage gain before spending VLM budget.
 - This follows the useful part of modern 2D/3D graph approaches: geometry
   primitives own disjoint 3D support, multi-view masks/features are evidence
   on graph nodes/edges, and semantic decisions are posterior labels rather
