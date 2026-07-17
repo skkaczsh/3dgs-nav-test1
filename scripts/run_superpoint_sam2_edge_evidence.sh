@@ -141,9 +141,22 @@ if (( ${#INPUT_IMAGES[@]} > 0 )); then
     run_sam2_shard "$shard" "${GPU_LIST[$shard]}" &
     pids+=("$!")
   done
+
+  heartbeat_sec="${SAM2_HEARTBEAT_SEC:-60}"
+  (
+    while true; do
+      sleep "$heartbeat_sec"
+      completed=$(find "$MASK_DIR" -maxdepth 1 -type f -name '*_sam_masks.json' | wc -l)
+      printf 'sam2_progress completed=%s total=%s pending=%s\n' \
+        "$completed" "$image_count" "$(( image_count - completed ))"
+    done
+  ) &
+  heartbeat_pid="$!"
   for pid in "${pids[@]}"; do
     wait "$pid"
   done
+  kill "$heartbeat_pid" 2>/dev/null || true
+  wait "$heartbeat_pid" 2>/dev/null || true
   cat "${OUTPUT_DIR}"/sam2_runner_shard*.stdout.jsonl > "${OUTPUT_DIR}/sam2_runner.stdout.jsonl"
   cat "${OUTPUT_DIR}"/sam2_runner_shard*.stderr.log > "${OUTPUT_DIR}/sam2_runner.stderr.log"
 else
