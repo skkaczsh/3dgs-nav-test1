@@ -492,6 +492,24 @@ contact affinity after repeated evidence; mask absence, a single view, or a
 large ambiguous mask remains neutral (`1.0`). SAM2 therefore cannot silently
 redefine the 3D partition or create a label by itself.
 
+### Full Shared-View SAM2 Run (2026-07-17)
+
+The production-size contact batch completed `215/215` selected shared views
+with TensorRT SAM2 in `compressed_rle` and `--skip-visuals` mode. The complete
+artifact is compact (mask JSON plus done flags only) and was summarized into
+`97` real shared-view contact edges from the immutable `19,357`-edge contact
+graph. Of those rows, `90` have at least two views, `9` have repeated strong
+separation evidence, and `9` have repeated strong same-mask support. The
+affinity quantiles are `p10=0.816789`, `p50=1.0`, and `p90=1.0`.
+
+This is a coverage result, not a semantic result: the other contact edges are
+unobserved by this selected camera set and remain neutral. The graph inference
+run consumed all `97` SAM2 rows together with `57` photometric rows and `418`
+immutable Superpoint nodes. It emitted zero semantic proposals because the
+remote host has no configured VLM credential, so the unary ledger contains no
+reviewed labels. That is the intended fail-closed behavior; do not replace
+missing VLM evidence with a hard mask label.
+
 ## Method Audit And Ablation Matrix
 
 The current design is intentionally closest to the useful part of
