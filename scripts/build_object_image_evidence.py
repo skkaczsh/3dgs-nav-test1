@@ -609,7 +609,8 @@ def main() -> None:
                 frame_id = int(pose["frame_id"])
                 frame_points = points[:, :3] if args.global_visibility else points_for_source_frame(points, frame_id)
                 if len(frame_points) < args.min_projected_points:
-                    object_failures["no_points_from_source_frame"] += 1
+                    failure = "insufficient_object_samples" if args.global_visibility else "no_points_from_source_frame"
+                    object_failures[failure] += 1
                     continue
                 frame_section_points: np.ndarray | None = None
                 if lx_handle is not None:
