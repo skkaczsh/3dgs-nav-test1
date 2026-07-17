@@ -354,15 +354,20 @@ Implementation hook:
   (93.5%) and `1105` accepted observations. The `141` additional observable
   candidates prove that sampling support, rather than relaxed geometry gates,
   was the dominant coverage bottleneck.
-- The remaining 27 candidates are genuine current no-evidence cases: they are
-  outside the selected camera FOV, too small after perspective projection, or
-  occluded by the full-cloud first-touch surface. They remain `unobserved`, not
-  semantic `unknown`.
+- A second, strictly scoped rescue runs only the 27 initial no-evidence tokens
+  with `view_selection=projected`, which ranks poses by actual in-image support
+  instead of centroid distance. With the same first-touch, sky, and bbox gates
+  it recovers 9 tokens. The final evidence ledger contains `400/418` objects
+  (95.7%) and `1120` observations. The remaining 18 are outside the selected
+  camera FOV, too small after perspective projection, or occluded by the
+  full-cloud first-touch surface. They remain `unobserved`, not semantic
+  `unknown`.
 - The global first-touch frame plan is a function of the object samples. When
   the support set changes, regenerate the plan before rendering maps. The
-  dense-plan rerun added 21 poses / 63 maps; after the delta render, the final
+  dense-plan rerun added 21 poses / 63 maps; after the delta render, the base
   result remained `391/418` objects but removed all `missing_global_depth_map`
-  failures. The remaining 27 are therefore not a cache artifact.
+  failures. The 27 residuals were therefore not a cache artifact; the
+  projected-view rescue above is an explicit second selection stage.
 
 Operational rule: use `sample_official_superpoints.py` without
 `--source-aware` whenever `build_object_image_evidence.py` uses
