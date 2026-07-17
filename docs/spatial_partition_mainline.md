@@ -1063,7 +1063,10 @@ did not have repeated compact-mask evidence. The rendered two-view QA sheet
 confirmed that this measured cut lies between distinct roof-work equipment
 parts. Thus SAM2 is a conservative multiplier that can reduce an existing
 contact affinity; it is neither an ownership merger nor a source of semantic
-labels.
+labels. `run_superpoint_sam2_edge_evidence.sh` is the canonical resumable
+entry point: it materializes only those edge views, uses the repository-pinned
+TensorRT runner with compressed RLE and no unnecessary QA PNGs, computes the
+co-mask rows, and emits review sheets only for measured cuts.
 
 ### GPU Partition Upgrade Gate
 
