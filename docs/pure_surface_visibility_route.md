@@ -49,6 +49,11 @@ evidence.  A planned view must also satisfy the extraction stage's
 `--min-projected-points` threshold; a single first-touch pixel is not semantic
 evidence.
 
+The raw-frustum prefilter uses the exact calibrated affine chain in batched
+form across poses.  This is an implementation optimization, not a second
+projection model: it exists so depth-aware planning remains feasible on the
+full dense source instead of degenerating into repeated tiny matrix calls.
+
 ## Structural Region Field
 
 `scripts/build_structural_region_field.py` converts the color-coded

@@ -414,6 +414,75 @@ def choose_frame_pool(
     return [pose for _dist, pose in scored[:max_frames]]
 
 
+def camera_world_affines(poses: list[dict[str, Any]], cam_id: int) -> tuple[np.ndarray, np.ndarray]:
+    """Return batched affine maps from world coordinates into one camera.
+
+    This is algebraically the same chain as ``project_points``:
+    ``Tcl @ Til^-1 @ T_world_robot^-1``.  Planning calls it for hundreds of
+    poses, so materializing the affine maps once avoids thousands of tiny BLAS
+    calls without introducing a second calibration convention.
+    """
+    if not poses:
+        return np.empty((0, 3, 3), dtype=np.float64), np.empty((0, 3), dtype=np.float64)
+    r_li = config.Til[:3, :3].T
+    t_li = -r_li @ config.Til[:3, 3]
+    t_cl = config.Tcl[cam_id]
+    r_cl = t_cl[:3, :3]
+    r = np.empty((len(poses), 3, 3), dtype=np.float64)
+    t = np.empty((len(poses), 3), dtype=np.float64)
+    for index, pose in enumerate(poses):
+        t_world_robot = pose["T_world_robot"]
+        r_wr = t_world_robot[:3, :3].T
+        t_wr = -r_wr @ t_world_robot[:3, 3]
+        r_lw = r_li @ r_wr
+        t_lw = r_li @ t_wr + t_li
+        r[index] = r_cl @ r_lw
+        t[index] = r_cl @ t_lw + t_cl[:3, 3]
+    return r, t
+
+
+def choose_projected_frame_pool_batched(
+    points: np.ndarray,
+    poses: list[dict[str, Any]],
+    max_frames: int,
+    min_depth: float,
+    pose_batch: int = 128,
+) -> list[dict[str, Any]]:
+    """Rank poses by in-image projected-point count using batched calibration.
+
+    This is a *raw* frustum prefilter only.  Semantic evidence still requires
+    first-touch depth and SKYMask in the next stage, which prevents a large
+    occluded surface from becoming evidence merely because it projects widely.
+    """
+    if not poses or len(points) == 0 or max_frames <= 0:
+        return []
+    points64 = np.asarray(points[:, :3], dtype=np.float64)
+    counts = np.zeros(len(poses), dtype=np.int64)
+    for cam_id in (0, 1, 2):
+        r_all, t_all = camera_world_affines(poses, cam_id)
+        k = config.CAMERA_PARAMS[cam_id]["K"]
+        for start in range(0, len(poses), pose_batch):
+            stop = min(start + pose_batch, len(poses))
+            p_cam = np.einsum("fij,nj->fni", r_all[start:stop], points64, optimize=True)
+            p_cam += t_all[start:stop, None, :]
+            z = p_cam[:, :, 2]
+            valid = z > min_depth
+            # K is upper triangular for the calibrated pinhole frames, but
+            # keep the full homogeneous multiplication to retain its contract.
+            uv_h = np.einsum("ij,fnj->fni", k, p_cam, optimize=True)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                u = uv_h[:, :, 0] / uv_h[:, :, 2]
+                v = uv_h[:, :, 1] / uv_h[:, :, 2]
+            valid &= (u >= 0) & (u < config.IMAGE_WIDTH)
+            valid &= (v >= 0) & (v < config.IMAGE_HEIGHT)
+            counts[start:stop] += valid.sum(axis=1, dtype=np.int64)
+    ranked = sorted(
+        ((-int(count), int(pose["frame_id"]), pose) for count, pose in zip(counts, poses) if count),
+        key=lambda item: (item[0], item[1]),
+    )
+    return [pose for _count, _frame_id, pose in ranked[:max_frames]]
+
+
 def choose_source_frame_pool(
     object_id: int,
     support: dict[int, list[int]],
@@ -706,10 +775,13 @@ def main() -> None:
                 plan_rows.append({"object_id": object_id, "frame_ids": [], "reason": "insufficient_object_samples"})
                 continue
             prefilter = args.global_view_plan_prefilter or args.max_frame_pool
-            pool = choose_frame_pool(
-                points, poses, prefilter, args.max_frame_distance,
-                args.view_selection, args.min_depth,
-            )
+            if args.global_view_plan_depth_aware and args.view_selection == "projected":
+                pool = choose_projected_frame_pool_batched(points, poses, prefilter, args.min_depth)
+            else:
+                pool = choose_frame_pool(
+                    points, poses, prefilter, args.max_frame_distance,
+                    args.view_selection, args.min_depth,
+                )
             if args.global_view_plan_depth_aware:
                 visible_scores: list[tuple[int, int, dict[str, Any]]] = []
                 for pose in pool:

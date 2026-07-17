@@ -32,6 +32,28 @@ def test_projected_view_selection_beats_nearest_backfacing_pose(monkeypatch) -> 
     assert selected[0]["name"] == "far_visible"
 
 
+def test_batched_projected_selection_matches_calibrated_scalar_chain(monkeypatch) -> None:
+    monkeypatch.setattr(module.config, "IMAGE_WIDTH", 100)
+    monkeypatch.setattr(module.config, "IMAGE_HEIGHT", 100)
+    monkeypatch.setattr(module.config, "Til", np.eye(4, dtype=np.float64))
+    monkeypatch.setattr(module.config, "Tcl", [np.eye(4, dtype=np.float64) for _ in range(3)])
+    monkeypatch.setattr(
+        module.config,
+        "CAMERA_PARAMS",
+        [{"K": np.array([[40.0, 0.0, 50.0], [0.0, 40.0, 50.0], [0.0, 0.0, 1.0]])} for _ in range(3)],
+    )
+    identity = np.eye(4, dtype=np.float64)
+    shifted = np.eye(4, dtype=np.float64)
+    shifted[0, 3] = 10.0
+    poses = [{"frame_id": 10, "T_world_robot": identity}, {"frame_id": 20, "T_world_robot": shifted}]
+    points = np.array([[0.0, 0.0, 2.0], [0.2, 0.1, 2.0]], dtype=np.float32)
+
+    scalar = module.choose_frame_pool(points, poses, 2, 0.0, "projected", 0.1)
+    batched = module.choose_projected_frame_pool_batched(points, poses, 2, 0.1, pose_batch=1)
+
+    assert [row["frame_id"] for row in batched] == [row["frame_id"] for row in scalar]
+
+
 def test_first_touch_visibility_rejects_occluded_and_sky_pixels(monkeypatch) -> None:
     monkeypatch.setattr(module.config, "IMAGE_WIDTH", 8)
     monkeypatch.setattr(module.config, "IMAGE_HEIGHT", 8)
