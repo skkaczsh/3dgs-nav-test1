@@ -92,6 +92,13 @@ SHARD_ROOT="${OUTPUT_DIR}/sam2_input_shards"
 rm -rf "$SHARD_ROOT"
 mkdir -p "$SHARD_ROOT"
 mapfile -t INPUT_IMAGES < <(find "$INPUT_DIR" -maxdepth 1 -type l \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) -print | sort)
+PENDING_IMAGES=()
+for image in "${INPUT_IMAGES[@]}"; do
+  stem="$(basename "${image%.*}")"
+  [[ -s "${MASK_DIR}/${stem}_sam_masks.json" ]] || PENDING_IMAGES+=("$image")
+done
+echo "sam2_input_views=${#INPUT_IMAGES[@]} resume_existing=$(( ${#INPUT_IMAGES[@]} - ${#PENDING_IMAGES[@]} )) pending=${#PENDING_IMAGES[@]}"
+INPUT_IMAGES=("${PENDING_IMAGES[@]}")
 for index in "${!INPUT_IMAGES[@]}"; do
   shard=$(( index % ${#GPU_LIST[@]} ))
   shard_dir="$SHARD_ROOT/$shard"
@@ -128,16 +135,20 @@ run_sam2_shard() {
   done
 }
 
-pids=()
-for shard in "${!GPU_LIST[@]}"; do
-  run_sam2_shard "$shard" "${GPU_LIST[$shard]}" &
-  pids+=("$!")
-done
-for pid in "${pids[@]}"; do
-  wait "$pid"
-done
-cat "${OUTPUT_DIR}"/sam2_runner_shard*.stdout.jsonl > "${OUTPUT_DIR}/sam2_runner.stdout.jsonl"
-cat "${OUTPUT_DIR}"/sam2_runner_shard*.stderr.log > "${OUTPUT_DIR}/sam2_runner.stderr.log"
+if (( ${#INPUT_IMAGES[@]} > 0 )); then
+  pids=()
+  for shard in "${!GPU_LIST[@]}"; do
+    run_sam2_shard "$shard" "${GPU_LIST[$shard]}" &
+    pids+=("$!")
+  done
+  for pid in "${pids[@]}"; do
+    wait "$pid"
+  done
+  cat "${OUTPUT_DIR}"/sam2_runner_shard*.stdout.jsonl > "${OUTPUT_DIR}/sam2_runner.stdout.jsonl"
+  cat "${OUTPUT_DIR}"/sam2_runner_shard*.stderr.log > "${OUTPUT_DIR}/sam2_runner.stderr.log"
+else
+  echo "SAM2 resume: every requested view already has a nonempty mask artifact."
+fi
 rm -rf "$SHARD_ROOT"
 
 if [[ -n "$EVIDENCE_JSONL" ]]; then

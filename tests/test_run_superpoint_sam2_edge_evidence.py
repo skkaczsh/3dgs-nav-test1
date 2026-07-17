@@ -13,6 +13,10 @@ def test_runner_supports_exact_single_ledger_without_duplicate_evidence() -> Non
     assert '--skip-visuals' in script
     assert 'GPU_IDS="${GPU_IDS:-$GPU_ID}"' in script
     assert 'mapfile -t INPUT_IMAGES' in script
+    assert 'PENDING_IMAGES=()' in script
+    assert '[[ -s "${MASK_DIR}/${stem}_sam_masks.json" ]] || PENDING_IMAGES+=("$image")' in script
+    assert 'resume_existing=$(( ${#INPUT_IMAGES[@]} - ${#PENDING_IMAGES[@]} ))' in script
+    assert 'SAM2 resume: every requested view already has a nonempty mask artifact.' in script
     assert 'index % ${#GPU_LIST[@]}' in script
     assert 'run_sam2_shard' in script
     assert 'sam2_runner_shard${shard}_gpu${gpu}' in script
