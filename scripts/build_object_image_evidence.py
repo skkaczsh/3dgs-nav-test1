@@ -349,7 +349,7 @@ def choose_frame_pool(
         scored.sort(key=lambda item: item[0])
         return [pose for _score, pose in scored[:max_frames]]
 
-    centroid = points.mean(axis=0)
+    centroid = points[:, :3].mean(axis=0)
     scored = []
     for pose in poses:
         dist = float(np.linalg.norm(np.asarray(pose["pos"], dtype=np.float64) - centroid.astype(np.float64)))
