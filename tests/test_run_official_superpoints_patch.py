@@ -29,6 +29,9 @@ def test_official_superpoint_export_is_semantic_vote_compatible(tmp_path) -> Non
     assert vertex["semantic"].tolist() == [0, 0, 0]
     rows = [json.loads(line) for line in jsonl_path.read_text().splitlines()]
     assert rows[0]["geometry_type"] == "horizontal"
+    assert rows[0]["count"] == 2
+    assert rows[0]["bbox_min"] == [0.0, 0.0, 0.0]
+    assert rows[0]["bbox_max"] == [1.0, 0.0, 0.0]
     assert rows[0]["semantic_label"] == "unknown"
     assert rows[0]["label_policy"] == "geometry_is_not_semantic"
 

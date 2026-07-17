@@ -164,19 +164,31 @@ def geometry_by_object(xyz: np.ndarray, labels: np.ndarray, region_input: Path |
 
 
 def write_objects_jsonl(path: Path, xyz: np.ndarray, labels: np.ndarray, geometry: dict[int, dict[str, object]]) -> None:
+    """Write object metadata in O(points + superpoints), never one full scan per id."""
+    label_ids = labels.astype(np.int64, copy=False)
+    count = np.bincount(label_ids)
+    active = np.flatnonzero(count)
+    sums = np.column_stack([
+        np.bincount(label_ids, weights=xyz[:, axis], minlength=len(count))
+        for axis in range(3)
+    ])
+    minimum = np.full((len(count), 3), np.inf, dtype=np.float32)
+    maximum = np.full((len(count), 3), -np.inf, dtype=np.float32)
+    for axis in range(3):
+        np.minimum.at(minimum[:, axis], label_ids, xyz[:, axis])
+        np.maximum.at(maximum[:, axis], label_ids, xyz[:, axis])
+    centroids = sums / np.maximum(count[:, None], 1)
     with path.open("w", encoding="utf-8") as f:
-        for label in np.unique(labels):
-            idx = np.flatnonzero(labels == label)
-            pts = xyz[idx]
+        for label in active:
             geometry_meta = geometry.get(int(label), {"geometry_type": "unknown", "source": "unavailable"})
             geometry_type = str(geometry_meta["geometry_type"])
             row = {
                 "object_id": int(label),
                 "label": "official_superpoint",
-                "count": int(len(idx)),
-                "bbox_min": pts.min(axis=0).round(4).tolist(),
-                "bbox_max": pts.max(axis=0).round(4).tolist(),
-                "centroid": pts.mean(axis=0).round(4).tolist(),
+                "count": int(count[label]),
+                "bbox_min": minimum[label].round(4).tolist(),
+                "bbox_max": maximum[label].round(4).tolist(),
+                "centroid": centroids[label].round(4).tolist(),
                 "geometry_type": geometry_type,
                 "geometry_features": geometry_meta,
                 **geometry_only_semantic_fields(geometry_type),
