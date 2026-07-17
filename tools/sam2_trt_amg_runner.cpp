@@ -205,6 +205,7 @@ struct Args {
   float crop_overlap_ratio = 512.0f / 1500.0f;
   std::string output_mode = "compressed_rle";
   bool write_trace = false;
+  bool write_visuals = true;
   bool skip_existing = true;
 };
 
@@ -880,6 +881,8 @@ Args parse_args(int argc, char** argv) {
       args.output_mode = need_value(a);
     } else if (a == "--write-trace") {
       args.write_trace = true;
+    } else if (a == "--skip-visuals") {
+      args.write_visuals = false;
     } else if (a == "--overwrite") {
       args.skip_existing = false;
     } else {
@@ -942,8 +945,10 @@ int main(int argc, char** argv) {
           failed += 1;
           continue;
         }
-        save_visuals(bgr, masks, (out_dir / (img_name + "_sam_masks.png")).string(),
-                     (out_dir / (img_name + "_numbered.png")).string());
+        if (args.write_visuals) {
+          save_visuals(bgr, masks, (out_dir / (img_name + "_sam_masks.png")).string(),
+                       (out_dir / (img_name + "_numbered.png")).string());
+        }
         save_json(json_path, img_name, basename(image_path), masks, bgr.rows, bgr.cols,
                   args.output_mode);
         if (args.write_trace) {

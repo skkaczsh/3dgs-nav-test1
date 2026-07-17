@@ -141,6 +141,9 @@ uncompressed-count artifacts as well as COCO compressed-RLE. The latter is the
 only production-safe representation: a real 53-mask `1920x1080` smoke was
 `48KB`, while the prior uncompressed-count JSON was `733MB`. Use
 `--output-mode binary_mask` only for an explicit legacy compatibility test.
+For edge-evidence batches, add `--skip-visuals`: the JSON masks and done flags
+remain, while the two QA PNGs per frame are omitted. Generate visuals only for
+the selected human-review subset.
 
 Current implementation coverage:
 
