@@ -743,7 +743,7 @@ def main() -> None:
                             points[:, :3], pose, cam_id, depth_buffer, sky_mask,
                             args.min_depth, args.depth_tolerance, args.depth_neighborhood, args.sky_threshold,
                         )
-                    if score:
+                    if score >= args.min_projected_points:
                         # The frame id makes equal-score selection deterministic.
                         visible_scores.append((-score, frame_id, pose))
                 visible_scores.sort(key=lambda item: (item[0], item[1]))

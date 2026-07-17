@@ -45,6 +45,8 @@ occluders and then lose every selected view.  Use
 `scripts/build_object_image_evidence.py --global-view-plan-depth-aware` with a
 bounded `--global-view-plan-prefilter`; its output remains an explicit,
 reproducible view plan and is never silently recomputed while extracting VLM
+evidence.  A planned view must also satisfy the extraction stage's
+`--min-projected-points` threshold; a single first-touch pixel is not semantic
 evidence.
 
 ## Structural Region Field
