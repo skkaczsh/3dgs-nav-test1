@@ -527,6 +527,16 @@ strong SAM2 separation. The remaining seven strong SAM2 cuts are already weak
 is the intended division of labor: geometry gates possible connectivity; SAM2
 only lowers the weight of the remaining plausible connections.
 
+An agreement-only historical-label holdout was also run as a diagnostic, never
+as a unary source. Two old review ledgers yielded `138` high-confidence exact
+label agreements. Only fourteen current SAM2 edges had two such endpoints, so
+the result is directional rather than a promotion gate: strong separation had
+`0/2` same-label pairs, strong same-mask had `4/4`, weak non-neutral had `2/2`,
+and neutral had `5/6`. `evaluate_superpoint_edge_holdout.py` records these
+counts and examples on every future edge-evidence change. Do not tune a
+threshold to this tiny holdout and do not feed its historical labels back into
+the production unary ledger.
+
 ## Method Audit And Ablation Matrix
 
 The current design is intentionally closest to the useful part of
