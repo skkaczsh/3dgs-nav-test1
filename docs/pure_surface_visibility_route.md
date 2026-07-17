@@ -99,6 +99,26 @@ plausible pipeline:
 - SAM2 repeated-view co-mask evidence can only attenuate a contact edge; it
   cannot create an edge, assign a class, or alter point ownership.
 
+### Verified SAM2 Contact Evidence (2026-07-17)
+
+The full dense 3cm Superpoint contact run used the frozen depth-aware view
+ledger and completed all `231/231` requested views.  Its artifact root is:
+
+```text
+official_spg_geometry_full_voxel003_reg005_deterministic_20260717/
+  evidence_mass_coverage_candidates_20260717/
+  depth_aware_prefilter80_sharded_v1_20260717/evidence_full/
+  sam2_contact_evidence/
+```
+
+The resulting `sam2_comask_report.json` records `129` candidate immutable
+contact edges, `127` shared-view edges (`0.984496` coverage), `120` edges with
+at least two views, and only `7` strong-separation edges.  This is the expected
+shape for a conservative boundary cue: the median affinity remains `1.0`, so
+SAM2 does not globally fragment the 3D graph.  The seven strong-separation
+edges have rendered review images in `sam2_edge_review/` and must be inspected
+before changing any attenuation threshold.
+
 ## Structural Region Field
 
 `scripts/build_structural_region_field.py` converts the color-coded
