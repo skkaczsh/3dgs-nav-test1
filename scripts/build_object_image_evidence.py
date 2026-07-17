@@ -564,6 +564,8 @@ def main() -> None:
     parser.add_argument("--crop-margin", type=int, default=48)
     parser.add_argument("--save-projected-samples", type=int, default=0, help="Store up to this many projected uv/depth samples per evidence row for patch-level feature binding.")
     parser.add_argument("--limit-objects", type=int, default=0)
+    parser.add_argument("--progress-every", type=int, default=0,
+                        help="Write a stderr heartbeat after this many objects; 0 disables progress logs.")
     parser.add_argument("--seed", type=int, default=17)
     args = parser.parse_args()
 
@@ -604,7 +606,13 @@ def main() -> None:
     if args.global_view_plan is not None:
         plan_rows = []
         selected_frames: set[int] = set()
-        for object_id in sorted(object_ids):
+        for object_index, object_id in enumerate(sorted(object_ids), 1):
+            if args.progress_every > 0 and (object_index == 1 or object_index % args.progress_every == 0):
+                print(
+                    f"[view-plan] objects={object_index}/{len(object_ids)} selected_frames={len(selected_frames)}",
+                    file=sys.stderr,
+                    flush=True,
+                )
             points = point_samples.get(object_id)
             if points is None or len(points) < args.min_projected_points:
                 plan_rows.append({"object_id": object_id, "frame_ids": [], "reason": "insufficient_object_samples"})
@@ -643,7 +651,13 @@ def main() -> None:
         missing_points = []
         failure_counts = Counter()
         objects_without_evidence = []
-        for object_id in sorted(object_ids):
+        for object_index, object_id in enumerate(sorted(object_ids), 1):
+            if args.progress_every > 0 and (object_index == 1 or object_index % args.progress_every == 0):
+                print(
+                    f"[evidence] objects={object_index}/{len(object_ids)} accepted_rows={len(rows)}",
+                    file=sys.stderr,
+                    flush=True,
+                )
             obj = object_map[object_id]
             points = point_samples.get(object_id)
             if points is None or len(points) == 0:
