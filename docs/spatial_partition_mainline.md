@@ -1004,6 +1004,14 @@ larger value unless `--allow-nondeterministic-omp` is explicit. Multi-thread
 Cut Pursuit may be used for exploratory parameter sweeps, but never as a
 production ownership artifact or semantic-evidence key.
 
+The current production source is the 14,482,557-point, 3 cm binary PLY whose
+SHA-256 is `df51c3727798014df1e981040ba9187410129ec1b97fe3be04bf6dafffbfee09`.
+It is byte-identical to the PLY used by the full CUDA first-touch map set. This
+is the required provenance link for attaching existing depth/SKYMask evidence
+to new official Superpoint ids: the maps may be reused because camera geometry
+and point-row world geometry are identical, while all old superpoint labels and
+semantic votes remain excluded.
+
 The first usable route-level prior is a `30:1` cam0 sample of the parking
 scan, generated on the local Qwen VL server from `207` frames. It identifies
 entrance plaza, outdoor parking, landscape, indoor lobby, stairwell, and roof
