@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Export assigned official Superpoints as a compact semantic-viewer PLY."""
+"""Export structural regions for the semantic viewer.
+
+By default this is a strict, high-confidence review export. The
+--include-unassigned flag retains the complete reference cloud: unassigned
+points have object=0 and semantic=unknown. This lets the viewer show coverage
+honestly instead of making a partial structural export look like a whole scene.
+"""
 
 from __future__ import annotations
 
@@ -49,6 +55,17 @@ def main() -> None:
     parser.add_argument("--regions-jsonl", type=Path, required=True)
     parser.add_argument("--output-ply", type=Path, required=True)
     parser.add_argument("--output-objects-jsonl", type=Path, required=True)
+    parser.add_argument(
+        "--include-unassigned",
+        action="store_true",
+        help="Keep every reference point; points outside strict regions become unknown.",
+    )
+    parser.add_argument(
+        "--point-stride",
+        type=int,
+        default=1,
+        help="Keep every Nth source point after coverage selection (viewer export only).",
+    )
     args = parser.parse_args()
 
     assignments, regions = read_jsonl(args.assignments_jsonl), read_jsonl(args.regions_jsonl)
@@ -57,11 +74,18 @@ def main() -> None:
     vertex = PlyData.read(str(args.reference_ply))["vertex"].data
     if len(vertex) != len(labels):
         raise SystemExit(f"reference/label count mismatch: {len(vertex)} != {len(labels)}")
+    if args.point_stride < 1:
+        raise SystemExit("--point-stride must be positive")
     region_for_point = np.fromiter((lookup.get(int(label), 0) for label in labels), dtype=np.uint32, count=len(labels))
-    keep = region_for_point > 0
+    keep = np.ones(len(vertex), dtype=bool) if args.include_unassigned else region_for_point > 0
+    if args.point_stride > 1:
+        keep &= np.arange(len(vertex)) % args.point_stride == 0
     out = np.empty(int(keep.sum()), dtype=[("x", "f4"), ("y", "f4"), ("z", "f4"), ("red", "u1"), ("green", "u1"), ("blue", "u1"), ("object", "u4"), ("semantic", "u1")])
     out["x"], out["y"], out["z"] = vertex["x"][keep], vertex["y"][keep], vertex["z"][keep]
     out["object"] = region_for_point[keep]
+    unknown = out["object"] == 0
+    out["semantic"][unknown] = SEMANTIC["unknown"]
+    out["red"][unknown], out["green"][unknown], out["blue"][unknown] = COLOR["unknown"]
     for region_id, obj in objects.items():
         mask = out["object"] == region_id
         label = obj["semantic_label"]
@@ -74,7 +98,15 @@ def main() -> None:
     args.output_objects_jsonl.write_text(
         "".join(json.dumps(objects[key], ensure_ascii=False) + "\n" for key in sorted(objects)), encoding="utf-8"
     )
-    print(json.dumps({"regions": len(objects), "points": len(out), "output_ply": str(args.output_ply)}, ensure_ascii=False))
+    print(json.dumps({
+        "regions": len(objects),
+        "points": len(out),
+        "assigned_points": int((region_for_point > 0).sum()),
+        "unassigned_points": int((region_for_point == 0).sum()),
+        "include_unassigned": args.include_unassigned,
+        "point_stride": args.point_stride,
+        "output_ply": str(args.output_ply),
+    }, ensure_ascii=False))
 
 
 if __name__ == "__main__":
