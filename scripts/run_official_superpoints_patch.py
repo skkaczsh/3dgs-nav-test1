@@ -80,6 +80,15 @@ def configure_omp_threads(threads: int, allow_nondeterministic: bool) -> None:
     os.environ["OMP_NUM_THREADS"] = str(threads)
 
 
+def resolve_reg_strength(value: float | None, has_labels_input: bool) -> float:
+    """Do not silently invent partition provenance while rematerializing labels."""
+    if value is not None:
+        return float(value)
+    if has_labels_input:
+        raise ValueError("--labels-input requires explicit --reg-strength from the original partition run")
+    return 0.1
+
+
 def write_random_color_ply(path: Path, xyz: np.ndarray, labels: np.ndarray) -> None:
     rng = random.Random(0)
     unique, inverse = np.unique(labels, return_inverse=True)
@@ -202,7 +211,8 @@ def main() -> int:
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--k-nn-adj", type=int, default=10)
     parser.add_argument("--k-nn-geof", type=int, default=45)
-    parser.add_argument("--reg-strength", type=float, default=0.1)
+    parser.add_argument("--reg-strength", type=float,
+                        help="Cut Pursuit regularization; required with --labels-input for provenance.")
     parser.add_argument("--lambda-edge-weight", type=float, default=1.0)
     parser.add_argument("--stride-preview", type=int, default=10)
     parser.add_argument("--skip-existing-visuals", action="store_true",
@@ -232,6 +242,7 @@ def main() -> int:
         raise ValueError("--bbox-min and --bbox-max must be provided together")
     if args.bbox_min is not None and (args.labels_input or args.region_input):
         raise ValueError("a spatial smoke crop cannot reuse global --labels-input or --region-input")
+    args.reg_strength = resolve_reg_strength(args.reg_strength, args.labels_input is not None)
     progress("load_input", input=str(args.input))
     xyz, rgb = read_ply_xyz_rgb(args.input)
     input_points = len(xyz)
