@@ -391,6 +391,29 @@ def choose_source_frame_pool(
     ][:max_frames]
 
 
+def load_global_view_plan(
+    path: Path, object_ids: set[int], poses_by_frame: dict[int, dict[str, Any]],
+) -> dict[int, list[dict[str, Any]]]:
+    """Load a projected-view plan without silently recomputing pose search."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("schema") != "global-evidence-view-plan/v1":
+        raise ValueError(f"Unsupported global view plan schema: {data.get('schema')!r}")
+    planned: dict[int, list[dict[str, Any]]] = {}
+    for row in data.get("objects") or []:
+        object_id = int(row["object_id"])
+        if object_id in planned:
+            raise ValueError(f"Duplicate object_id in global view plan: {object_id}")
+        frame_ids = [int(frame_id) for frame_id in row.get("frame_ids") or []]
+        missing_frames = [frame_id for frame_id in frame_ids if frame_id not in poses_by_frame]
+        if missing_frames:
+            raise ValueError(f"Global view plan object {object_id} references missing poses: {missing_frames[:5]}")
+        planned[object_id] = [poses_by_frame[frame_id] for frame_id in frame_ids]
+    missing_objects = sorted(object_ids - set(planned))
+    if missing_objects:
+        raise ValueError(f"Global view plan is missing requested object ids: {missing_objects[:10]}")
+    return {object_id: planned[object_id] for object_id in object_ids}
+
+
 def pose_for_evidence(row: dict[str, Any], poses_by_frame: dict[int, dict[str, Any]]) -> dict[str, Any]:
     """Return the calibration pose that produced this evidence crop."""
     return poses_by_frame[int(row["frame_id"])]
@@ -553,6 +576,12 @@ def main() -> None:
         default=None,
         help="Write selected global camera poses per object and exit before depth/image evidence extraction.",
     )
+    parser.add_argument(
+        "--global-view-plan-input",
+        type=Path,
+        default=None,
+        help="Reuse a validated global-evidence-view-plan/v1 instead of rescoring every pose.",
+    )
     parser.add_argument("--max-points-per-object", type=int, default=2500)
     parser.add_argument("--min-depth", type=float, default=0.1)
     parser.add_argument("--min-projected-points", type=int, default=20)
@@ -577,6 +606,10 @@ def main() -> None:
         raise SystemExit("--global-visibility requires --global-depth-map-dir")
     if args.global_view_plan is not None and not args.global_visibility:
         raise SystemExit("--global-view-plan requires --global-visibility")
+    if args.global_view_plan_input is not None and not args.global_visibility:
+        raise SystemExit("--global-view-plan-input requires --global-visibility")
+    if args.global_view_plan is not None and args.global_view_plan_input is not None:
+        raise SystemExit("--global-view-plan and --global-view-plan-input are mutually exclusive")
     if args.priority_dir is not None and args.sky_mask_dir is not None:
         raise SystemExit("--priority-dir and --sky-mask-dir are mutually exclusive; use SKYMask for geometry-owned evidence")
 
@@ -641,6 +674,11 @@ def main() -> None:
         print(json.dumps({"objects": len(plan_rows), "selected_frames": len(selected_frames), "output": str(args.global_view_plan)}, ensure_ascii=False))
         return
 
+    global_view_plan = (
+        load_global_view_plan(args.global_view_plan_input, object_ids, poses_by_frame)
+        if args.global_view_plan_input is not None else {}
+    )
+
     lx_sections = read_lx_sections(args.lx) if args.lx else []
     lx_handle = args.lx.open("rb") if args.lx else None
     depth_cache: OrderedDict[tuple[int, int], np.ndarray] = OrderedDict()
@@ -670,6 +708,9 @@ def main() -> None:
                     available_source_frames(points, args.min_projected_points),
                 )
                 frame_selection = "source_support"
+            elif args.global_view_plan_input is not None:
+                frame_pool = global_view_plan[object_id]
+                frame_selection = "global_view_plan"
             else:
                 frame_pool = choose_frame_pool(
                     points, poses, args.max_frame_pool, args.max_frame_distance,
@@ -948,6 +989,7 @@ def main() -> None:
             "source_frame_support": str(args.source_frame_support) if args.source_frame_support else "",
             "global_visibility": args.global_visibility,
             "global_depth_map_dir": str(args.global_depth_map_dir) if args.global_depth_map_dir else "",
+            "global_view_plan_input": str(args.global_view_plan_input) if args.global_view_plan_input else "",
             "max_points_per_object": args.max_points_per_object,
             "min_projected_points": args.min_projected_points,
             "min_bbox_area": args.min_bbox_area,

@@ -1048,6 +1048,10 @@ the 240 geometry/log-scale strata. The first 200 added largest unselected
 Superpoints yield a 440-node review queue covering 7,727,889 voxels (53.36%).
 This is a *candidate* coverage measurement only: those cells remain unlabeled
 until they independently pass first-touch, SKYMask, and VLM/manual review.
+`build_object_image_evidence.py --global-view-plan-input` is the required
+handoff between those stages. It validates the plan schema, every requested
+object id, and every referenced calibrated pose, then reuses the exact pose
+list instead of silently recomputing an expensive all-pose projected search.
 
 `build_superpoint_contact_view_evidence.py` is the companion edge-only stage.
 It reprojects a direct 3D contact neighbor into the *same* accepted camera pose

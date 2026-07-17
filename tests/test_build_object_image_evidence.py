@@ -48,6 +48,31 @@ def test_source_frame_selection_skips_frames_without_materialized_points() -> No
     assert [pose["frame_id"] for pose in selected] == [20, 30]
 
 
+def test_global_view_plan_reuses_only_declared_calibrated_poses(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.json"
+    plan.write_text(
+        '{"schema":"global-evidence-view-plan/v1","objects":[{"object_id":7,"frame_ids":[20,10]}]}',
+        encoding="utf-8",
+    )
+    poses = {10: {"frame_id": 10}, 20: {"frame_id": 20}}
+
+    loaded = module.load_global_view_plan(plan, {7}, poses)
+
+    assert [pose["frame_id"] for pose in loaded[7]] == [20, 10]
+
+
+def test_global_view_plan_rejects_missing_requested_object(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.json"
+    plan.write_text('{"schema":"global-evidence-view-plan/v1","objects":[]}', encoding="utf-8")
+
+    try:
+        module.load_global_view_plan(plan, {7}, {10: {"frame_id": 10}})
+    except ValueError as exc:
+        assert "missing requested object ids" in str(exc)
+    else:
+        raise AssertionError("missing object must not trigger an implicit global re-search")
+
+
 def test_evidence_pose_uses_the_crop_frame_not_the_last_candidate() -> None:
     poses = {10: {"frame_id": 10, "name": "crop"}, 20: {"frame_id": 20, "name": "last_candidate"}}
     assert module.pose_for_evidence({"frame_id": 10}, poses)["name"] == "crop"
