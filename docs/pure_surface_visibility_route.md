@@ -53,6 +53,10 @@ The raw-frustum prefilter uses the exact calibrated affine chain in batched
 form across poses.  This is an implementation optimization, not a second
 projection model: it exists so depth-aware planning remains feasible on the
 full dense source instead of degenerating into repeated tiny matrix calls.
+For a large candidate manifest, run
+`scripts/run_superpoint_depth_aware_view_plan.sh`; it deterministically shards
+objects, bounds each worker's BLAS threads, then validates and merges one
+`global-evidence-view-plan/v1` artifact.
 
 ## Structural Region Field
 
