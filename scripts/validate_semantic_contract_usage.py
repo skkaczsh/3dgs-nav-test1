@@ -7,12 +7,14 @@ import argparse
 import ast
 import json
 from pathlib import Path
+import sys
 from typing import Any
 
-from scripts.current_mainline_contract import PROTECTED_SEMANTIC_CONTRACT_SCRIPT_PATHS
-
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.current_mainline_contract import PROTECTED_SEMANTIC_CONTRACT_SCRIPT_PATHS
 
 SENSITIVE_ASSIGNMENTS: frozenset[str] = frozenset(
     {
