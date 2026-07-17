@@ -876,6 +876,11 @@ def write_contact_sheet(paths: list[Path], output: Path, cols: int = 4) -> None:
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        help="Dataset root containing image/img_pos.txt and image/cam_in_ex.txt.",
+    )
     parser.add_argument("--lx", type=Path)
     parser.add_argument("--global-colored-ply", type=Path, help="Fused or raw XYZ/RGB PLY to reverse-render dense depth/color guidance")
     parser.add_argument(
@@ -972,6 +977,11 @@ def validate_global_source_guard(args: argparse.Namespace, global_metadata: dict
 def main() -> None:
     parser = build_arg_parser()
     args = parser.parse_args()
+
+    if args.data_dir:
+        os.environ["SCAN_DATA_DIR"] = str(args.data_dir)
+        os.environ["SCAN_IMAGE_DIR"] = str(args.data_dir / "image")
+        importlib.reload(config)
 
     t0 = time.time()
     if not args.lx and not args.global_colored_ply:

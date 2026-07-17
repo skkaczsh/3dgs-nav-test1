@@ -358,6 +358,11 @@ Implementation hook:
   outside the selected camera FOV, too small after perspective projection, or
   occluded by the full-cloud first-touch surface. They remain `unobserved`, not
   semantic `unknown`.
+- The global first-touch frame plan is a function of the object samples. When
+  the support set changes, regenerate the plan before rendering maps. The
+  dense-plan rerun added 21 poses / 63 maps; after the delta render, the final
+  result remained `391/418` objects but removed all `missing_global_depth_map`
+  failures. The remaining 27 are therefore not a cache artifact.
 
 Operational rule: use `sample_official_superpoints.py` without
 `--source-aware` whenever `build_object_image_evidence.py` uses
