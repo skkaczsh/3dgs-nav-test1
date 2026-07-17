@@ -103,8 +103,8 @@ run_sam2_shard() {
   local shard="$1"
   local gpu="$2"
   local shard_dir="$SHARD_ROOT/$shard"
-  local stdout_path="${OUTPUT_DIR}/sam2_runner_gpu${gpu}.stdout.jsonl"
-  local stderr_path="${OUTPUT_DIR}/sam2_runner_gpu${gpu}.stderr.log"
+  local stdout_path="${OUTPUT_DIR}/sam2_runner_shard${shard}_gpu${gpu}.stdout.jsonl"
+  local stderr_path="${OUTPUT_DIR}/sam2_runner_shard${shard}_gpu${gpu}.stderr.log"
   : > "$stdout_path"
   : > "$stderr_path"
   for extension in jpg jpeg png; do
