@@ -58,6 +58,28 @@ For a large candidate manifest, run
 objects, bounds each worker's BLAS threads, then validates and merges one
 `global-evidence-view-plan/v1` artifact.
 
+## Relation To 3D Segmentation Models
+
+The current dense-source pipeline deliberately adopts only the compatible
+parts of established 3D methods:
+
+- Superpoint Graph and Superpoint Transformer treat the geometric partition as
+  a compact representation for later contextual prediction, not as a semantic
+  label.  Our official Superpoints therefore own voxels exclusively, while
+  image and VLM observations remain posterior evidence.
+- Query-mask instance models such as Mask3D require a task-aligned learned 3D
+  representation and training labels.  They are a future teacher/model test,
+  not a substitute for a calibrated observation contract on this scan.
+- Hierarchical unsupervised approaches such as Part2Object use temporally
+  consecutive RGB objectness to guide point-to-part-to-object grouping.  The
+  analogous safe primitive here is a first-touch-visible multi-view
+  observation ledger, not an unconstrained 2D mask projection.
+
+References: [SPG](https://arxiv.org/abs/1711.09869),
+[Superpoint Transformer](https://arxiv.org/abs/2306.08045),
+[Mask3D](https://arxiv.org/abs/2210.03105), and
+[Part2Object](https://arxiv.org/abs/2407.10084).
+
 ## Structural Region Field
 
 `scripts/build_structural_region_field.py` converts the color-coded
