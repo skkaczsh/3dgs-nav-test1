@@ -1,6 +1,16 @@
 import numpy as np
 
-from scripts.build_superpoint_sam2_comask_edges import mask_support, report_summary, summarize_views
+from scripts.build_superpoint_sam2_comask_edges import (
+    induced_contact_edges,
+    mask_support,
+    report_summary,
+    summarize_views,
+)
+
+
+def test_induced_contact_edges_excludes_unreviewed_scene_nodes() -> None:
+    contact = {(1, 2), (1, 3), (3, 4)}
+    assert induced_contact_edges(contact, {1, 2, 4}) == {(1, 2)}
 
 
 def test_compact_shared_mask_supports_same_edge() -> None:

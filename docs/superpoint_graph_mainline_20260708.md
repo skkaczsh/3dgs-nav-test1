@@ -503,14 +503,17 @@ redefine the 3D partition or create a label by itself.
 
 The production-size contact batch completed `215/215` selected shared views
 with TensorRT SAM2 in `compressed_rle` and `--skip-visuals` mode. The complete
-artifact is compact (mask JSON plus done flags only) and was summarized into
-`97` real shared-view contact edges from the immutable `19,357`-edge contact
-graph. Of those rows, `90` have at least two views, `9` have repeated strong
-separation evidence, and `9` have repeated strong same-mask support. The
-affinity quantiles are `p10=0.816789`, `p50=1.0`, and `p90=1.0`.
+artifact is compact (mask JSON plus done flags only). The full scene contact
+graph has `19,357` edges, but the 400 Superpoints with final image evidence
+induce only `101` eligible edges. SAM2 supplied shared-view evidence for
+`97/101` (`96.0%`) of those eligible edges. Of the observed rows, `90` have at least
+two views, `9` have repeated strong separation evidence, and `9` have repeated
+strong same-mask support. The affinity quantiles are `p10=0.816789`,
+`p50=1.0`, and `p90=1.0`.
 
-This is a coverage result, not a semantic result: the other contact edges are
-unobserved by this selected camera set and remain neutral. The graph inference
+This is a boundary-evidence result, not a semantic result: the five induced
+edges without a shared observation remain neutral, and the rest of the global
+contact graph is outside this selected evidence domain. The graph inference
 run consumed all `97` SAM2 rows together with `57` photometric rows and `418`
 immutable Superpoint nodes. It emitted zero semantic proposals because the
 remote host has no configured VLM credential, so the unary ledger contains no

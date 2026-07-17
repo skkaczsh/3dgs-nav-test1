@@ -92,6 +92,11 @@ def choose_view_rows(rows: list[dict[str, Any]]) -> dict[tuple[int, int], dict[i
     return by_view
 
 
+def induced_contact_edges(contact: set[tuple[int, int]], object_ids: set[int]) -> set[tuple[int, int]]:
+    """Keep only contact edges whose two immutable nodes are in this evidence run."""
+    return {edge for edge in contact if edge[0] in object_ids and edge[1] in object_ids}
+
+
 def report_summary(rows: list[dict[str, Any]], min_views: int) -> dict[str, Any]:
     affinities = sorted(float(row["sam2_affinity"]) for row in rows)
     multi_view = [row for row in rows if int(row["view_count"]) >= min_views]
@@ -121,6 +126,8 @@ def main() -> None:
 
     contact = {edge_key(int(row["object_a"]), int(row["object_b"])) for row in read_jsonl(args.contact_edges)}
     by_view = choose_view_rows(read_jsonl(args.evidence_jsonl))
+    object_ids = {object_id for objects in by_view.values() for object_id in objects}
+    candidate_contact = induced_contact_edges(contact, object_ids)
     supports: dict[tuple[int, int], list[tuple[float, float]]] = defaultdict(list)
     masks_loaded = 0
     for (frame_id, cam_id), objects in by_view.items():
@@ -134,7 +141,7 @@ def main() -> None:
         for index, object_a in enumerate(object_ids):
             for object_b in object_ids[index + 1:]:
                 key = edge_key(object_a, object_b)
-                if key not in contact:
+                if key not in candidate_contact:
                     continue
                 uv_a = np.asarray(objects[object_a].get("projected_uv_samples") or [], dtype=np.float32).reshape(-1, 2)
                 uv_b = np.asarray(objects[object_b].get("projected_uv_samples") or [], dtype=np.float32).reshape(-1, 2)
@@ -145,8 +152,12 @@ def main() -> None:
     args.output_jsonl.parent.mkdir(parents=True, exist_ok=True)
     args.output_jsonl.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     report = {
-        "candidate_contact_edges": len(contact), "sam_mask_views_loaded": masks_loaded,
-        "shared_view_edges": len(rows), **report_summary(rows, args.min_views),
+        "all_contact_edges": len(contact),
+        "candidate_contact_edges": len(candidate_contact),
+        "sam_mask_views_loaded": masks_loaded,
+        "shared_view_edges": len(rows),
+        "candidate_contact_edge_coverage": round(len(rows) / max(len(candidate_contact), 1), 6),
+        **report_summary(rows, args.min_views),
     }
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
