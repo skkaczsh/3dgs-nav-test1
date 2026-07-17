@@ -491,3 +491,34 @@ desired calibration: `--sam2-comask-edges` can only multiply down an existing
 contact affinity after repeated evidence; mask absence, a single view, or a
 large ambiguous mask remains neutral (`1.0`). SAM2 therefore cannot silently
 redefine the 3D partition or create a label by itself.
+
+## Method Audit And Ablation Matrix
+
+The current design is intentionally closest to the useful part of
+[SAI3D](https://arxiv.org/abs/2312.11557): start from geometry-pure primitives,
+then use multi-view SAM evidence to decide which existing contacts may be
+merged or cut. It deliberately rejects the unsafe shortcut in early SAM3D
+pipelines that projects a 2D mask and lets it define the 3D object boundary.
+Our earlier wall/floor/railing contamination is direct evidence of why that
+shortcut is invalid for this incremental LiDAR scan.
+
+[SoftGroup](https://arxiv.org/abs/2203.01509) motivates the second invariant:
+VLM output stays a soft unary with explicit `unknown` mass. Neither a VLM nor
+a priority region may hard-label points before object grouping, because an
+early local mistake otherwise becomes an irreversible 3D merge.
+
+Production comparisons must use the same immutable 3cm Superpoints and full
+first-touch visibility cache, varying only admitted edge evidence:
+
+| Run | Edge terms | Node semantic terms | Expected use |
+| --- | --- | --- | --- |
+| A | 3D face contact + dense RGB + geometry veto | none | geometric partition baseline |
+| B | A + repeated photometric boundary LCB | none | reject image-visible false bridges |
+| C | B + repeated SAM2 co-mask separation LCB | none | verify image-supported object cuts |
+| D | C | frame-aligned Mimo soft unary + unknown mass | semantic posterior and review |
+
+The acceptance measurement is not total segment count. For a fixed high-risk
+set of contact edges, inspect: (1) repeated-view separation versus merge
+decision, (2) 3D spatial connectivity and exclusive voxel ownership, (3)
+surface-type contradictions, and only in Run D (4) semantic posterior margin.
+This prevents an apparent numerical gain from merely fragmenting the scene.
