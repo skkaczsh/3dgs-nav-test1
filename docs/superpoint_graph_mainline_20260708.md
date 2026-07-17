@@ -442,3 +442,25 @@ face-contact/RGB-supported edges, applies stable geometry vetoes, and records
 local proposals without promoting unobserved or observed-unlabeled nodes. Its
 real-ledger smoke on the current no-VLM input produced zero posterior labels,
 which is the required behavior rather than a lack of progress.
+
+### Photometric Edge Evidence Diagnostic
+
+`build_superpoint_photometric_edges.py` is a deliberately conservative probe
+of repeated image-space boundary evidence. For a true 3D face-contact edge it
+uses only views in which both immutable Superpoints have passed first-touch
+visibility, measures nearest cross-object projected RGB contrast, and uses a
+multi-view lower confidence bound to reduce (never increase) graph affinity.
+
+On the final global ledger (`400/418` observed objects and `1120` object-view
+rows), only `38` contact edges had a shared selected view; `18` had at least
+two views, and none had enough repeated contrast to be a strong cut. This is
+not a negative result about photometric boundaries. It proves that the
+object-wise top-K evidence selection is intentionally sparse and cannot be
+reused as a dense edge-supervision dataset.
+
+Do not enable the optional `--photometric-edges` input in production from this
+ledger. The next valid edge-evidence dataset must be rendered per selected
+camera pose for *all* contact-neighbor Superpoints together, retaining their
+first-touch-visible pixels and the corresponding 2D masks. That shared-view
+representation can estimate co-mask agreement and photometric boundary lower
+bounds without inventing visibility from two unrelated crops.

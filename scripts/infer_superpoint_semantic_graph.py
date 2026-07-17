@@ -50,6 +50,16 @@ def edge_affinity(row: dict[str, Any], min_faces: int, min_contact_ratio: float,
     return support * color
 
 
+def photometric_affinity(row: dict[str, Any] | None) -> float:
+    if not row:
+        return 1.0
+    try:
+        value = row.get("photometric_affinity")
+        return 1.0 if value is None else min(max(float(value), 0.0), 1.0)
+    except (TypeError, ValueError):
+        return 1.0
+
+
 def geometry_allows(geometry_type: str, label: str) -> bool:
     """Only veto stable surface contradictions; retain object-like alternatives."""
     if geometry_type == "horizontal" and label in VERTICAL_LABELS:
@@ -69,8 +79,14 @@ def infer(
     color_sigma: float = 35.0,
     pairwise_weight: float = 0.35,
     promotion_margin: float = 0.20,
+    photometric_rows: list[dict[str, Any]] | None = None,
+    photometric_weight: float = 1.0,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     rows = {int(row["object_id"]): row for row in unary_rows}
+    photo_by_edge = {
+        (min(int(row["object_a"]), int(row["object_b"])), max(int(row["object_a"]), int(row["object_b"]))): row
+        for row in (photometric_rows or [])
+    }
     graph: dict[int, list[tuple[int, float]]] = defaultdict(list)
     kept_edges = 0
     for edge in edge_rows:
@@ -78,6 +94,8 @@ def infer(
         if a not in rows or b not in rows:
             continue
         affinity = edge_affinity(edge, min_faces, min_contact_ratio, color_sigma)
+        photo = photometric_affinity(photo_by_edge.get((min(a, b), max(a, b))))
+        affinity *= (1.0 - photometric_weight) + photometric_weight * photo
         if affinity <= 0:
             continue
         graph[a].append((b, affinity))
@@ -123,6 +141,7 @@ def infer(
         "kept_edges": kept_edges,
         "reviewed_nodes": sum(row.get("state") == "reviewed" for row in rows.values()),
         "local_unlabeled_proposals": proposals,
+        "photometric_edges": len(photo_by_edge),
     }
 
 
@@ -137,10 +156,14 @@ def main() -> None:
     parser.add_argument("--color-sigma", type=float, default=35.0)
     parser.add_argument("--pairwise-weight", type=float, default=0.35)
     parser.add_argument("--promotion-margin", type=float, default=0.20)
+    parser.add_argument("--photometric-edges", type=Path,
+                        help="Optional repeated-view image boundary evidence; absent means no photometric adjustment.")
+    parser.add_argument("--photometric-weight", type=float, default=1.0)
     args = parser.parse_args()
     rows, report = infer(
         read_jsonl(args.soft_unaries), read_jsonl(args.contact_edges), args.min_faces,
         args.min_contact_ratio, args.color_sigma, args.pairwise_weight, args.promotion_margin,
+        read_jsonl(args.photometric_edges) if args.photometric_edges else None, args.photometric_weight,
     )
     args.output_jsonl.parent.mkdir(parents=True, exist_ok=True)
     args.output_jsonl.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")

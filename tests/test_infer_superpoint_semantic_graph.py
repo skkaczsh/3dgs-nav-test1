@@ -45,3 +45,16 @@ def test_edge_affinity_requires_contact_support_and_color_continuity() -> None:
     assert edge_affinity(good, 10, 0.01, 35.0) > 0.8
     assert edge_affinity(weak, 10, 0.01, 35.0) == 0.0
     assert edge_affinity(distant, 10, 0.01, 35.0) < 0.01
+
+
+def test_repeated_photometric_boundary_can_disable_an_otherwise_valid_edge() -> None:
+    rows = [
+        {"object_id": 1, "state": "reviewed", "geometry_type": "rough_mixed", "alpha": {"car": 1.0}},
+        {"object_id": 2, "state": "observed_unlabeled", "geometry_type": "rough_mixed", "alpha": {}},
+    ]
+    edges = [{"object_a": 1, "object_b": 2, "shared_voxel_faces": 100, "contact_ratio_min": 0.2, "contact_rgb_distance": 0.0}]
+    photo = [{"object_a": 1, "object_b": 2, "photometric_affinity": 0.0, "view_count": 3}]
+    result, report = infer(rows, edges, photometric_rows=photo)
+    by_id = {row["object_id"]: row for row in result}
+    assert by_id[2]["semantic_posterior"] == {}
+    assert report["photometric_edges"] == 1
