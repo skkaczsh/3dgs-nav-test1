@@ -430,3 +430,10 @@ Graph](https://arxiv.org/abs/1711.09869), [SAI3D](https://arxiv.org/abs/2312.115
 [SoftGroup](https://arxiv.org/abs/2203.01509): Superpoints are fixed tokens,
 multi-view evidence informs both nodes and boundaries, and uncertainty remains
 explicit until it has enough independent support.
+
+`scripts/infer_superpoint_semantic_graph.py` is the first executable safety
+layer for this contract. It normalizes reviewed `alpha` unaries, admits only
+face-contact/RGB-supported edges, applies stable geometry vetoes, and records
+local proposals without promoting unobserved or observed-unlabeled nodes. Its
+real-ledger smoke on the current no-VLM input produced zero posterior labels,
+which is the required behavior rather than a lack of progress.
