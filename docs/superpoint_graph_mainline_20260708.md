@@ -464,3 +464,21 @@ camera pose for *all* contact-neighbor Superpoints together, retaining their
 first-touch-visible pixels and the corresponding 2D masks. That shared-view
 representation can estimate co-mask agreement and photometric boundary lower
 bounds without inventing visibility from two unrelated crops.
+
+`build_superpoint_contact_view_evidence.py` implements that narrowly scoped
+expansion without changing the review ledger: every original object-view row
+remains primary VLM evidence, while its direct 3D contact neighbors are tested
+through the same pose, full-cloud depth map, and sky gate and emitted as
+`edge_only` rows. On the current ledger this issued `499` requests and accepted
+`399` shared-view observations. The resulting photometric diagnostic covers
+`57` contact edges (`42` with at least two views), compared with `38` / `18`
+from independent top-K crops. Only four edges have affinity below `0.8`, so
+this is a useful conservative *cut* term but not enough evidence to partition
+the scene by itself.
+
+The next edge-evidence upgrade is therefore 2D mask agreement on these shared
+views, not a larger RGB threshold. For an observed contact edge `(i, j)` and a
+view `v`, record whether its first-touch-visible pixels belong to the same
+SAM2/DINO segment and aggregate a lower confidence bound over independent
+views. This supplies the co-mask term in the graph contract while preserving
+the fixed 3D Superpoint ownership.

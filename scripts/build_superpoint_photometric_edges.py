@@ -89,7 +89,18 @@ def build_rows(
     contact = {edge_key(int(row["object_a"]), int(row["object_b"])) for row in contact_edges}
     by_view: dict[tuple[int, int], dict[int, dict[str, Any]]] = defaultdict(dict)
     for row in evidence_rows:
-        by_view[(int(row["frame_id"]), int(row["cam_id"]))][int(row["object_id"])] = row
+        view = by_view[(int(row["frame_id"]), int(row["cam_id"]))]
+        object_id = int(row["object_id"])
+        previous = view.get(object_id)
+        row_edge_only = bool(row.get("edge_only"))
+        previous_edge_only = bool(previous and previous.get("edge_only"))
+        if previous is None or (
+            previous_edge_only and not row_edge_only
+        ) or (
+            previous_edge_only == row_edge_only
+            and int(row.get("projected_points") or 0) > int(previous.get("projected_points") or 0)
+        ):
+            view[object_id] = row
 
     contrasts: dict[tuple[int, int], list[float]] = defaultdict(list)
     images: dict[str, np.ndarray] = {}
