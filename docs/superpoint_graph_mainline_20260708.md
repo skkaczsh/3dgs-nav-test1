@@ -390,6 +390,11 @@ an API key in a shell command. A configured VLM review writes one parsed row
 per immutable `object_id`; only then may `build_superpoint_soft_unaries.py`
 turn its confidence into alpha mass while retaining an explicit unknown mass.
 
+`run_mimo_object_review.py --scene-prior` may attach only route segments whose
+frame intervals overlap the object's selected evidence frames. The route prior
+is prompt context for plausibility checks, not a hard label or veto; projected
+crop, first-touch depth, and object geometry remain primary evidence.
+
 ## Conservative Semantic Graph Contract
 
 The semantic stage is a probability model on fixed Superpoint ownership, not

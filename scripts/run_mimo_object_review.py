@@ -79,6 +79,33 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def load_scene_prior(path: Path | None) -> dict[str, Any]:
+    if path is None:
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("segments"), list):
+        raise ValueError(f"scene prior must contain a segments list: {path}")
+    return data
+
+
+def scene_context_for_evidence(rows: list[dict[str, Any]], scene_prior: dict[str, Any]) -> list[dict[str, Any]]:
+    """Select only route segments overlapping the exact evidence frames."""
+    frames = {int(row["frame_id"]) for row in rows}
+    context = []
+    for segment in scene_prior.get("segments") or []:
+        try:
+            start, end = int(segment["start_frame"]), int(segment["end_frame"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not any(start <= frame <= end for frame in frames):
+            continue
+        context.append({
+            key: segment.get(key)
+            for key in ("segment_id", "area_type", "area_name_zh", "expected_labels", "unlikely_labels", "ground_subtypes", "confidence")
+        })
+    return context
+
+
 def validate_controlled_fields(parsed: dict[str, Any]) -> list[str]:
     """Keep open descriptions, but keep graph labels inside their contract."""
     warnings: list[str] = []
@@ -127,7 +154,10 @@ def evidence_by_object(rows: list[dict[str, Any]], top_k: int) -> dict[int, list
     return grouped
 
 
-def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], task: str) -> str:
+def prompt_for_object(
+    obj: dict[str, Any], evidence_rows: list[dict[str, Any]], task: str,
+    scene_context: list[dict[str, Any]] | None = None,
+) -> str:
     geometry = {
         key: obj.get(key)
         for key in [
@@ -193,8 +223,16 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
         f"Allowed controlled labels: {labels}.\n"
         f"Allowed surface_attachment values: {attachments}.\n"
     )
+    scene_text = ""
+    if scene_context:
+        scene_text = (
+            "Route context below was independently summarized from sparse video frames that overlap this object's evidence frames. "
+            "It is a soft plausibility prior only: do not use it to override the projected crop, depth evidence, or geometry. "
+            "In particular, an expected label is not proof and an unlikely label is not a veto.\n"
+            f"Route context JSON:\n{json.dumps(scene_context, ensure_ascii=False)}\n\n"
+        )
     if task == "structure":
-        return common + (
+        return common + scene_text + (
             "This is a second-pass structural review of a generic building surface. "
             "Choose only a specific structure when the visible evidence supports it: wall, roof, ceiling, stair, floor, or grass. "
             "Use building_part or unknown when the crop cannot support a specific structure.\n"
@@ -220,7 +258,7 @@ def prompt_for_object(obj: dict[str, Any], evidence_rows: list[dict[str, Any]], 
             f"3D geometry summary JSON:\n{json.dumps(geometry, ensure_ascii=False)}\n"
             f"Evidence metadata JSON:\n{json.dumps(evidence, ensure_ascii=False)}"
         )
-    return common + (
+    return common + scene_text + (
         "Important rules:\n"
         "- Broad flat pavement is floor, not railing/car.\n"
         "- Vertical building facade or wall panels are wall/building_part, not car/railing.\n"
@@ -292,8 +330,12 @@ def call_chat_completion(
     max_tokens: int,
     image_mode: str,
     task: str,
+    scene_prior: dict[str, Any],
 ) -> dict[str, Any]:
-    content: list[dict[str, Any]] = [{"type": "text", "text": prompt_for_object(obj, evidence_rows, task)}]
+    content: list[dict[str, Any]] = [{
+        "type": "text",
+        "text": prompt_for_object(obj, evidence_rows, task, scene_context_for_evidence(evidence_rows, scene_prior)),
+    }]
     for row in evidence_rows:
         for path in evidence_image_paths(row, image_mode):
             content.append({
@@ -344,8 +386,8 @@ def call_chat_completion(
     }
 
 
-def review_one(args_tuple: tuple[argparse.Namespace, str, str, str, dict[str, Any], list[dict[str, Any]]]) -> dict[str, Any]:
-    args, base_url, api_key, model, obj, ev_rows = args_tuple
+def review_one(args_tuple: tuple[argparse.Namespace, str, str, str, dict[str, Any], list[dict[str, Any]], dict[str, Any]]) -> dict[str, Any]:
+    args, base_url, api_key, model, obj, ev_rows, scene_prior = args_tuple
     last_error = ""
     for attempt in range(args.retries + 1):
         try:
@@ -359,6 +401,7 @@ def review_one(args_tuple: tuple[argparse.Namespace, str, str, str, dict[str, An
                 args.max_tokens,
                 args.image_mode,
                 args.task,
+                scene_prior,
             )
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
             last_error = repr(exc)
@@ -394,6 +437,8 @@ def main() -> None:
     parser.add_argument("--resume", action="store_true", help="Keep parseable existing rows and retry only missing/failed objects.")
     parser.add_argument("--base-url", default=os.environ.get("MIMO_BASE_URL", "https://token-plan-sgp.xiaomimimo.com/v1"))
     parser.add_argument("--model", default=os.environ.get("MIMO_MODEL", "mimo-v2.5"))
+    parser.add_argument("--scene-prior", type=Path,
+                        help="Optional route-level scene prior; used only as a soft prompt context.")
     args = parser.parse_args()
 
     api_key = os.environ.get("MIMO_API_KEY")
@@ -408,8 +453,9 @@ def main() -> None:
         objects = objects[:args.limit_objects]
     evidence_rows = read_jsonl(args.evidence_jsonl)
     grouped = evidence_by_object(evidence_rows, args.top_k)
+    scene_prior = load_scene_prior(args.scene_prior)
     tasks = [
-        (args, args.base_url, api_key, args.model, obj, grouped.get(int(obj["object_id"]), []))
+        (args, args.base_url, api_key, args.model, obj, grouped.get(int(obj["object_id"]), []), scene_prior)
         for obj in objects
         if grouped.get(int(obj["object_id"]))
     ]
