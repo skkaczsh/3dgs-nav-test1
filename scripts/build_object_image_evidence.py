@@ -314,6 +314,18 @@ def priority_mask_path(priority_dir: Path, cam_id: int, frame_id: int, suffix: s
     return priority_dir / "priority" / f"cam{cam_id}_{frame_id:06d}{suffix}.png"
 
 
+def global_depth_map_path(depth_map_dir: Path, cam_id: int, frame_id: int) -> Path:
+    return depth_map_dir / f"cam{cam_id}_{frame_id:06d}_geometry.npz"
+
+
+def load_global_depth_map(path: Path) -> np.ndarray:
+    """Load a pre-rendered full-cloud first-touch depth map."""
+    with np.load(path) as data:
+        depth = np.asarray(data["depth"], dtype=np.float32)
+        valid = np.asarray(data.get("valid", depth > 0), dtype=bool)
+    return np.where(valid & np.isfinite(depth) & (depth > 0), depth, np.inf)
+
+
 def choose_frame_pool(
     points: np.ndarray,
     poses: list[dict[str, Any]],
@@ -505,6 +517,17 @@ def main() -> None:
                         help="Use exact sampled-point camera visibility before depth gating for review candidates.")
     parser.add_argument("--source-frame-support", type=Path, default=None,
                         help="Optional Superpoint source-frame JSONL. When set, only use frames whose raw section contributed to the object.")
+    parser.add_argument(
+        "--global-visibility",
+        action="store_true",
+        help="Select views from all sampled poses and project the whole object, not only its source frame.",
+    )
+    parser.add_argument(
+        "--global-depth-map-dir",
+        type=Path,
+        default=None,
+        help="Pre-rendered full-cloud first-touch maps. Required with --global-visibility.",
+    )
     parser.add_argument("--max-points-per-object", type=int, default=2500)
     parser.add_argument("--min-depth", type=float, default=0.1)
     parser.add_argument("--min-projected-points", type=int, default=20)
@@ -518,6 +541,13 @@ def main() -> None:
     parser.add_argument("--limit-objects", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
     args = parser.parse_args()
+
+    if args.global_visibility and args.source_frame_support:
+        raise SystemExit("--global-visibility and --source-frame-support are mutually exclusive")
+    if args.global_visibility and args.lx:
+        raise SystemExit("--global-visibility requires full-cloud depth maps, not frame-local --lx depth")
+    if args.global_visibility and args.global_depth_map_dir is None:
+        raise SystemExit("--global-visibility requires --global-depth-map-dir")
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     objects = read_jsonl(args.objects_jsonl)
@@ -568,7 +598,7 @@ def main() -> None:
                     points, poses, args.max_frame_pool, args.max_frame_distance,
                     args.view_selection, args.min_depth,
                 )
-                frame_selection = args.view_selection
+                frame_selection = "global_" + args.view_selection if args.global_visibility else args.view_selection
             object_failures = Counter()
             object_attempts = 0
             object_accepted = 0
@@ -577,7 +607,7 @@ def main() -> None:
             obs = []
             for pose in frame_pool:
                 frame_id = int(pose["frame_id"])
-                frame_points = points_for_source_frame(points, frame_id)
+                frame_points = points[:, :3] if args.global_visibility else points_for_source_frame(points, frame_id)
                 if len(frame_points) < args.min_projected_points:
                     object_failures["no_points_from_source_frame"] += 1
                     continue
@@ -608,7 +638,30 @@ def main() -> None:
 
                     depth_filtered_points = 0
                     depth_visible_ratio = 1.0
-                    if frame_section_points is not None:
+                    if args.global_depth_map_dir is not None:
+                        cache_key = (frame_id, int(cam_id))
+                        depth_buffer = depth_cache.get(cache_key)
+                        if depth_buffer is None:
+                            depth_path = global_depth_map_path(args.global_depth_map_dir, cam_id, frame_id)
+                            if not depth_path.exists():
+                                object_failures["missing_global_depth_map"] += 1
+                                continue
+                            depth_buffer = load_global_depth_map(depth_path)
+                            remember_depth_buffer(depth_cache, cache_key, depth_buffer, args.max_depth_cache_entries)
+                        else:
+                            depth_cache.move_to_end(cache_key)
+                        uu_depth = np.clip(np.rint(uv_in[:, 0]).astype(np.int32), 0, config.IMAGE_WIDTH - 1)
+                        vv_depth = np.clip(np.rint(uv_in[:, 1]).astype(np.int32), 0, config.IMAGE_HEIGHT - 1)
+                        local_depth = min_depth_neighborhood(depth_buffer, uu_depth, vv_depth, args.depth_neighborhood)
+                        depth_keep = np.isfinite(local_depth) & (np.abs(depth_in - local_depth) <= args.depth_tolerance)
+                        depth_filtered_points = int((~depth_keep).sum())
+                        depth_visible_ratio = float(depth_keep.mean()) if len(depth_keep) else 0.0
+                        uv_in = uv_in[depth_keep]
+                        depth_in = depth_in[depth_keep]
+                        if len(uv_in) < args.min_projected_points:
+                            object_failures["low_projected_after_depth_filter"] += 1
+                            continue
+                    elif frame_section_points is not None:
                         cache_key = (frame_id, int(cam_id))
                         depth_buffer = depth_cache.get(cache_key)
                         if depth_buffer is None:
@@ -785,6 +838,8 @@ def main() -> None:
             "max_frame_distance": args.max_frame_distance,
             "view_selection": args.view_selection,
             "source_frame_support": str(args.source_frame_support) if args.source_frame_support else "",
+            "global_visibility": args.global_visibility,
+            "global_depth_map_dir": str(args.global_depth_map_dir) if args.global_depth_map_dir else "",
             "max_points_per_object": args.max_points_per_object,
             "min_projected_points": args.min_projected_points,
             "min_bbox_area": args.min_bbox_area,
