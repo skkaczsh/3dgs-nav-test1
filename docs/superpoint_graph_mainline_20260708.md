@@ -292,14 +292,27 @@ Implementation hook:
   clustering by itself; it prevents known-bad structural over-merge candidates
   from being treated as serious promotion candidates.
 
-## 2026-07-14 Frame-Exact VLM Evidence
+## 2026-07-17 Global First-Touch Evidence
 
-- Source-aware samples retain `source_frame`; evidence for frame `F` uses only
-  points actually scanned in `F`. Cross-frame Superpoint points must not be
-  projected into `F` and then treated as visible after a depth gate.
-- The frame-exact pass produced 62 fully visible review units from 418 sampled
-  Superpoints and 62/62 parseable VLM reviews. It is the current precision
-  baseline, not a coverage baseline.
-- Remaining coverage work must build review context from geometrically adjacent
-  Superpoints while preserving each Superpoint's exclusive ownership. Do not
-  weaken first-touch, sky, or source-frame gates to recover historical counts.
+- `source_frame` is provenance, not a camera-pose constraint. The MANIFOLD
+  scan is keyframe/incremental while video poses are independently sampled;
+  requiring a point and an image to share a frame number causes valid global
+  geometry to have an empty review-frame pool.
+- The production visibility invariant is now: project a complete world-space
+  Superpoint through candidate `img_pos` poses, then retain only pixels that
+  agree with a pre-rendered full-cloud first-touch depth map and are not sky.
+  This rejects occluded/see-through evidence without assuming a one-to-one
+  video/LiDAR timestamp correspondence.
+- The old frame-exact pass remains a high-precision diagnostic baseline, not
+  the coverage baseline. Its strict route reduced 418 candidates to 242 with
+  image evidence and eventually to 34 propagated Superpoints.
+- `build_object_image_evidence.py --global-visibility --global-depth-map-dir`
+  makes the new contract explicit and refuses accidental mixing with
+  `--source-frame-support` or frame-local `--lx` depth.
+- This follows the useful part of modern 2D/3D graph approaches: geometry
+  primitives own disjoint 3D support, multi-view masks/features are evidence
+  on graph nodes/edges, and semantic decisions are posterior labels rather
+  than 2D masks redefining object boundaries. See the official
+  [Superpoint Graph implementation](https://github.com/loicland/superpoint_graph),
+  [SAI3D paper](https://arxiv.org/abs/2312.11557), and
+  [SAM-Graph implementation](https://github.com/zju3dv/SAM_Graph).
