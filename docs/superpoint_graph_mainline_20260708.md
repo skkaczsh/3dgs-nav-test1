@@ -520,6 +520,13 @@ remote host has no configured VLM credential, so the unary ledger contains no
 reviewed labels. That is the intended fail-closed behavior; do not replace
 missing VLM evidence with a hard mask label.
 
+The semantic graph's independent geometry/RGB gate retains `55` edges for
+possible label propagation. `53` of those have a SAM2 observation and `2` have
+strong SAM2 separation. The remaining seven strong SAM2 cuts are already weak
+3D contacts, so they cannot become semantic bridges even without a mask. This
+is the intended division of labor: geometry gates possible connectivity; SAM2
+only lowers the weight of the remaining plausible connections.
+
 ## Method Audit And Ablation Matrix
 
 The current design is intentionally closest to the useful part of

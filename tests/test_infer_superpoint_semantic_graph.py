@@ -70,3 +70,5 @@ def test_repeated_sam2_separation_can_disable_an_otherwise_valid_edge() -> None:
     result, report = infer(rows, edges, sam2_rows=sam2)
     assert {row["object_id"]: row for row in result}[2]["semantic_posterior"] == {}
     assert report["sam2_comask_edges"] == 1
+    assert report["sam2_observed_viable_edges"] == 1
+    assert report["sam2_strong_separation_viable_edges"] == 1

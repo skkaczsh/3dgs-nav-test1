@@ -105,14 +105,24 @@ def infer(
     }
     graph: dict[int, list[tuple[int, float]]] = defaultdict(list)
     kept_edges = 0
+    sam2_observed_viable_edges = 0
+    sam2_strong_separation_viable_edges = 0
     for edge in edge_rows:
         a, b = int(edge["object_a"]), int(edge["object_b"])
         if a not in rows or b not in rows:
             continue
         affinity = edge_affinity(edge, min_faces, min_contact_ratio, color_sigma)
-        photo = photometric_affinity(photo_by_edge.get((min(a, b), max(a, b))))
+        if affinity <= 0:
+            continue
+        key = (min(a, b), max(a, b))
+        photo = photometric_affinity(photo_by_edge.get(key))
         affinity *= (1.0 - photometric_weight) + photometric_weight * photo
-        sam2 = sam2_affinity(sam2_by_edge.get((min(a, b), max(a, b))))
+        if affinity <= 0:
+            continue
+        sam2 = sam2_affinity(sam2_by_edge.get(key))
+        if key in sam2_by_edge:
+            sam2_observed_viable_edges += 1
+            sam2_strong_separation_viable_edges += int(sam2 < 0.8)
         affinity *= (1.0 - sam2_weight) + sam2_weight * sam2
         if affinity <= 0:
             continue
@@ -161,6 +171,8 @@ def infer(
         "local_unlabeled_proposals": proposals,
         "photometric_edges": len(photo_by_edge),
         "sam2_comask_edges": len(sam2_by_edge),
+        "sam2_observed_viable_edges": sam2_observed_viable_edges,
+        "sam2_strong_separation_viable_edges": sam2_strong_separation_viable_edges,
     }
 
 
