@@ -528,6 +528,12 @@ def main() -> None:
         default=None,
         help="Pre-rendered full-cloud first-touch maps. Required with --global-visibility.",
     )
+    parser.add_argument(
+        "--global-view-plan",
+        type=Path,
+        default=None,
+        help="Write selected global camera poses per object and exit before depth/image evidence extraction.",
+    )
     parser.add_argument("--max-points-per-object", type=int, default=2500)
     parser.add_argument("--min-depth", type=float, default=0.1)
     parser.add_argument("--min-projected-points", type=int, default=20)
@@ -546,8 +552,10 @@ def main() -> None:
         raise SystemExit("--global-visibility and --source-frame-support are mutually exclusive")
     if args.global_visibility and args.lx:
         raise SystemExit("--global-visibility requires full-cloud depth maps, not frame-local --lx depth")
-    if args.global_visibility and args.global_depth_map_dir is None:
+    if args.global_visibility and args.global_depth_map_dir is None and args.global_view_plan is None:
         raise SystemExit("--global-visibility requires --global-depth-map-dir")
+    if args.global_view_plan is not None and not args.global_visibility:
+        raise SystemExit("--global-view-plan requires --global-visibility")
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     objects = read_jsonl(args.objects_jsonl)
@@ -571,6 +579,39 @@ def main() -> None:
     poses_by_frame = {int(p["frame_id"]): p for p in all_poses}
     source_frame_support = read_source_frame_support(args.source_frame_support) if args.source_frame_support else {}
     object_map = {int(obj["object_id"]): obj for obj in objects}
+
+    if args.global_view_plan is not None:
+        plan_rows = []
+        selected_frames: set[int] = set()
+        for object_id in sorted(object_ids):
+            points = point_samples.get(object_id)
+            if points is None or len(points) < args.min_projected_points:
+                plan_rows.append({"object_id": object_id, "frame_ids": [], "reason": "insufficient_object_samples"})
+                continue
+            pool = choose_frame_pool(
+                points, poses, args.max_frame_pool, args.max_frame_distance,
+                args.view_selection, args.min_depth,
+            )
+            frame_ids = [int(pose["frame_id"]) for pose in pool]
+            selected_frames.update(frame_ids)
+            plan_rows.append({"object_id": object_id, "frame_ids": frame_ids, "reason": "ok" if frame_ids else "empty_global_pose_pool"})
+        args.global_view_plan.parent.mkdir(parents=True, exist_ok=True)
+        args.global_view_plan.write_text(
+            json.dumps({
+                "schema": "global-evidence-view-plan/v1",
+                "frame_stride": args.frame_stride,
+                "view_selection": args.view_selection,
+                "max_frame_pool": args.max_frame_pool,
+                "object_count": len(object_ids),
+                "selected_frame_count": len(selected_frames),
+                "selected_frame_ids": sorted(selected_frames),
+                "objects": plan_rows,
+            }, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        print(json.dumps({"objects": len(plan_rows), "selected_frames": len(selected_frames), "output": str(args.global_view_plan)}, ensure_ascii=False))
+        return
+
     lx_sections = read_lx_sections(args.lx) if args.lx else []
     lx_handle = args.lx.open("rb") if args.lx else None
     depth_cache: OrderedDict[tuple[int, int], np.ndarray] = OrderedDict()
