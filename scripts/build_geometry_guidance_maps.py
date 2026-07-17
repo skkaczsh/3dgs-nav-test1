@@ -21,6 +21,7 @@ where boundaries can safely pass.
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import os
 import sys
@@ -263,6 +264,125 @@ def query_semantic_prior(
         if counter:
             out[i] = int(counter.most_common(1)[0][0])
     return out
+
+
+def require_torch_cuda() -> Any:
+    """Return Torch only when its CUDA backend is usable for projection."""
+    try:
+        torch = importlib.import_module("torch")
+    except ImportError as exc:
+        raise RuntimeError(
+            "--global-projector torch requires PyTorch with CUDA support, but torch could not be imported."
+        ) from exc
+    if not torch.cuda.is_available():
+        raise RuntimeError(
+            "--global-projector torch requires an available CUDA device; "
+            "install a CUDA-enabled PyTorch build and run on a CUDA host."
+        )
+    return torch
+
+
+def world_to_camera_transform(pose: dict[str, Any], cam_id: int) -> np.ndarray:
+    """Compose the validated world -> lidar -> camera calibration chain."""
+    t_world_robot = np.asarray(pose["T_world_robot"], dtype=np.float32)
+    r_wr = t_world_robot[:3, :3].T
+    t_wr = -r_wr @ t_world_robot[:3, 3]
+    r_li = config.Til[:3, :3].T.astype(np.float32, copy=False)
+    t_li = -r_li @ config.Til[:3, 3].astype(np.float32, copy=False)
+    t_cl = config.Tcl[cam_id].astype(np.float32, copy=False)
+    r_world_camera = t_cl[:3, :3] @ r_li @ r_wr
+    t_world_camera = t_cl[:3, :3] @ (r_li @ t_wr + t_li) + t_cl[:3, 3]
+    return np.column_stack((r_world_camera, t_world_camera)).astype(np.float32, copy=False)
+
+
+def project_world_points_numpy(
+    points_world: np.ndarray,
+    world_to_camera: np.ndarray,
+    camera_matrix: np.ndarray,
+    height: int,
+    width: int,
+    min_depth: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Reference world-space projection and nearest-depth z-buffer."""
+    p_cam = (world_to_camera[:, :3] @ points_world.T + world_to_camera[:, 3:]).T
+    z = p_cam[:, 2]
+    valid = z > min_depth
+    if not np.any(valid):
+        empty_i = np.empty(0, dtype=np.int32)
+        return empty_i, empty_i, empty_i, np.empty(0, dtype=np.float32)
+
+    valid_idx = np.where(valid)[0]
+    uv_h = (camera_matrix @ p_cam[valid].T).T
+    u = uv_h[:, 0] / uv_h[:, 2]
+    v = uv_h[:, 1] / uv_h[:, 2]
+    in_img = (u >= 0) & (u < width) & (v >= 0) & (v < height)
+    if not np.any(in_img):
+        empty_i = np.empty(0, dtype=np.int32)
+        return empty_i, empty_i, empty_i, np.empty(0, dtype=np.float32)
+
+    idx = valid_idx[in_img]
+    uu = np.clip(np.rint(u[in_img]).astype(np.int32), 0, width - 1)
+    vv = np.clip(np.rint(v[in_img]).astype(np.int32), 0, height - 1)
+    depths = z[valid][in_img].astype(np.float32)
+    keep = zbuffer_visible(idx, uu, vv, depths, width)
+    return idx[keep], uu[keep], vv[keep], depths[keep]
+
+
+def project_world_points_torch(
+    points_world: np.ndarray,
+    world_to_camera: np.ndarray,
+    camera_matrix: np.ndarray,
+    height: int,
+    width: int,
+    min_depth: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """CUDA world-space projection with a per-pixel minimum-depth z-buffer."""
+    torch = require_torch_cuda()
+    device = torch.device("cuda")
+    points = torch.as_tensor(points_world, dtype=torch.float32, device=device)
+    transform = torch.as_tensor(world_to_camera, dtype=torch.float32, device=device)
+    intrinsic = torch.as_tensor(camera_matrix, dtype=torch.float32, device=device)
+    p_cam = points @ transform[:, :3].T + transform[:, 3]
+    z = p_cam[:, 2]
+    valid_idx = torch.nonzero(z > float(min_depth), as_tuple=False).flatten()
+    if valid_idx.numel() == 0:
+        empty_i = np.empty(0, dtype=np.int32)
+        return empty_i, empty_i, empty_i, np.empty(0, dtype=np.float32)
+
+    p_cam = p_cam[valid_idx]
+    z = z[valid_idx]
+    uv_h = p_cam @ intrinsic.T
+    u = uv_h[:, 0] / uv_h[:, 2]
+    v = uv_h[:, 1] / uv_h[:, 2]
+    in_img = (u >= 0) & (u < width) & (v >= 0) & (v < height)
+    if not bool(in_img.any()):
+        empty_i = np.empty(0, dtype=np.int32)
+        return empty_i, empty_i, empty_i, np.empty(0, dtype=np.float32)
+
+    idx = valid_idx[in_img]
+    uu = torch.round(u[in_img]).to(torch.int64).clamp_(0, width - 1)
+    vv = torch.round(v[in_img]).to(torch.int64).clamp_(0, height - 1)
+    depths = z[in_img]
+    pixel = vv * int(width) + uu
+
+    pixel_count = int(height) * int(width)
+    min_depths = torch.full((pixel_count,), float("inf"), dtype=depths.dtype, device=device)
+    min_depths.scatter_reduce_(0, pixel, depths, reduce="amin", include_self=True)
+    nearest = depths == min_depths[pixel]
+    point_at_pixel = torch.full((pixel_count,), len(points_world), dtype=torch.int64, device=device)
+    point_at_pixel.scatter_reduce_(0, pixel[nearest], idx[nearest], reduce="amin", include_self=True)
+
+    visible_pixel = torch.nonzero(point_at_pixel < len(points_world), as_tuple=False).flatten()
+    selected_idx = point_at_pixel[visible_pixel]
+    selected_depths = min_depths[visible_pixel]
+    selected_uu = visible_pixel.remainder(width)
+    selected_vv = torch.div(visible_pixel, width, rounding_mode="floor")
+    return (
+        selected_idx.cpu().numpy().astype(np.int32, copy=False),
+        selected_uu.cpu().numpy().astype(np.int32, copy=False),
+        selected_vv.cpu().numpy().astype(np.int32, copy=False),
+        selected_depths.cpu().numpy().astype(np.float32, copy=False),
+    )
 
 
 def compute_depth_edges(depth: np.ndarray, valid: np.ndarray, threshold: float, mark_invalid_boundary: bool) -> np.ndarray:
@@ -566,13 +686,14 @@ def semantic_to_rgb(semantic: np.ndarray) -> np.ndarray:
 
 def project_one_camera(
     points_world: np.ndarray,
-    p_lidar: np.ndarray,
+    p_lidar: np.ndarray | None,
     semantic_for_point: np.ndarray,
     colors_for_point: np.ndarray | None,
     cam_id: int,
     frame_id: int,
     image: np.ndarray,
     args: argparse.Namespace,
+    pose: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     h, w = image.shape[:2]
     depth = np.zeros((h, w), dtype=np.float32)
@@ -601,27 +722,43 @@ def project_one_camera(
             "surface_visible": 0,
         }
 
-    t_cl = config.Tcl[cam_id]
-    p_cam = (t_cl[:3, :3] @ p_lidar.T + t_cl[:3, 3:]).T
-    z = p_cam[:, 2]
-    valid = z > args.min_depth
-    if not np.any(valid):
-        return empty_result()
+    if args.global_projector == "torch":
+        if pose is None:
+            raise ValueError("Torch global projection requires the frame pose.")
+        idx, uu, vv, depths = project_world_points_torch(
+            points_world,
+            world_to_camera_transform(pose, cam_id),
+            config.CAMERA_PARAMS[cam_id]["K"],
+            h,
+            w,
+            args.min_depth,
+        )
+    else:
+        if p_lidar is None:
+            raise ValueError("NumPy projection requires lidar-frame points.")
+        t_cl = config.Tcl[cam_id]
+        p_cam = (t_cl[:3, :3] @ p_lidar.T + t_cl[:3, 3:]).T
+        z = p_cam[:, 2]
+        valid = z > args.min_depth
+        if not np.any(valid):
+            return empty_result()
 
-    valid_idx = np.where(valid)[0]
-    uv_h = (config.CAMERA_PARAMS[cam_id]["K"] @ p_cam[valid].T).T
-    u = uv_h[:, 0] / uv_h[:, 2]
-    v = uv_h[:, 1] / uv_h[:, 2]
-    in_img = (u >= 0) & (u < w) & (v >= 0) & (v < h)
-    if not np.any(in_img):
-        return empty_result()
+        valid_idx = np.where(valid)[0]
+        uv_h = (config.CAMERA_PARAMS[cam_id]["K"] @ p_cam[valid].T).T
+        u = uv_h[:, 0] / uv_h[:, 2]
+        v = uv_h[:, 1] / uv_h[:, 2]
+        in_img = (u >= 0) & (u < w) & (v >= 0) & (v < h)
+        if not np.any(in_img):
+            return empty_result()
 
-    idx = valid_idx[in_img]
-    uu = np.clip(np.rint(u[in_img]).astype(np.int32), 0, w - 1)
-    vv = np.clip(np.rint(v[in_img]).astype(np.int32), 0, h - 1)
-    depths = z[valid][in_img].astype(np.float32)
-    keep = zbuffer_visible(idx, uu, vv, depths, w)
-    idx, uu, vv, depths = idx[keep], uu[keep], vv[keep], depths[keep]
+        idx = valid_idx[in_img]
+        uu = np.clip(np.rint(u[in_img]).astype(np.int32), 0, w - 1)
+        vv = np.clip(np.rint(v[in_img]).astype(np.int32), 0, h - 1)
+        depths = z[valid][in_img].astype(np.float32)
+        keep = zbuffer_visible(idx, uu, vv, depths, w)
+        idx, uu, vv, depths = idx[keep], uu[keep], vv[keep], depths[keep]
+    if len(idx) == 0:
+        return empty_result()
     depth[vv, uu] = depths
     local_point_index[vv, uu] = idx.astype(np.int32)
     semantic[vv, uu] = semantic_for_point[idx]
@@ -741,6 +878,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lx", type=Path)
     parser.add_argument("--global-colored-ply", type=Path, help="Fused or raw XYZ/RGB PLY to reverse-render dense depth/color guidance")
+    parser.add_argument(
+        "--global-projector",
+        choices=["numpy", "torch"],
+        default="numpy",
+        help="Global PLY projector backend. torch requires CUDA; numpy remains the default.",
+    )
     parser.add_argument("--global-point-stride", type=int, default=1)
     parser.add_argument("--max-global-points", type=int, default=0)
     parser.add_argument(
@@ -833,6 +976,13 @@ def main() -> None:
     t0 = time.time()
     if not args.lx and not args.global_colored_ply:
         raise SystemExit("Provide either --lx for per-frame guidance or --global-colored-ply for dense reverse-render guidance.")
+    if args.global_projector == "torch":
+        if not args.global_colored_ply:
+            raise SystemExit("--global-projector torch is only supported with --global-colored-ply.")
+        try:
+            require_torch_cuda()
+        except RuntimeError as exc:
+            raise SystemExit(str(exc)) from exc
     args.output_dir.mkdir(parents=True, exist_ok=True)
     for name in ("maps", "depth_viz", "depth_edge", "rendered_rgb", "color_edge", "semantic_prior"):
         (args.output_dir / name).mkdir(exist_ok=True)
@@ -894,14 +1044,24 @@ def main() -> None:
                 source_kept = int(len(points))
             semantic_for_point = query_semantic_prior(points, prior, args.prior_voxel_size, args.prior_neighbor_radius)
             pose = poses[frame_id]
-            p_lidar = transform_world_to_lidar(points, pose)
+            p_lidar = None if args.global_projector == "torch" else transform_world_to_lidar(points, pose)
             for cam_id in args.cams:
                 img_path = frame_path(args.frame_root, cam_id, frame_id)
                 image = cv2.imread(str(img_path))
                 if image is None:
                     rows.append({"frame_id": frame_id, "cam_id": cam_id, "status": "missing_image", "image_path": str(img_path)})
                     continue
-                out = project_one_camera(points, p_lidar, semantic_for_point, colors_for_point, cam_id, frame_id, image, args)
+                out = project_one_camera(
+                    points,
+                    p_lidar,
+                    semantic_for_point,
+                    colors_for_point,
+                    cam_id,
+                    frame_id,
+                    image,
+                    args,
+                    pose,
+                )
                 image_id = f"cam{cam_id}_{frame_id:06d}"
                 npz_path = args.output_dir / "maps" / f"{image_id}_geometry.npz"
                 depth_viz_path = args.output_dir / "depth_viz" / f"{image_id}_depth.jpg"
