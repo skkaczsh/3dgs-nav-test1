@@ -27,8 +27,20 @@ def predict_sky_mask(session, input_name: str, image_bgr: np.ndarray, threshold:
     return (mask_full > threshold).astype(np.uint8) * 255
 
 
-def frame_path(frames_dir: Path, cam_id: int, frame_id: int) -> Path:
-    return frames_dir / f"cam{cam_id}" / f"frame_{frame_id:04d}.png"
+def frame_path(frames_dir: Path, cam_id: int, frame_id: int) -> Path | None:
+    """Find the undistorted frame without assuming a legacy image codec."""
+    frame_dir = frames_dir / f"cam{cam_id}"
+    for suffix in (".png", ".jpg", ".jpeg"):
+        candidate = frame_dir / f"frame_{frame_id:06d}{suffix}"
+        if candidate.is_file():
+            return candidate
+    # The earliest extractor used four-digit names. Keep it as a read-only
+    # compatibility fallback; all new output remains seven-digit SKYMask.
+    for suffix in (".png", ".jpg", ".jpeg"):
+        candidate = frame_dir / f"frame_{frame_id:04d}{suffix}"
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def mask_path(output_dir: Path, cam_id: int, frame_id: int) -> Path:
@@ -61,8 +73,8 @@ def main() -> None:
             if args.skip_existing and dst.exists():
                 rows.append({"frame_id": frame_id, "cam_id": cam_id, "status": "skip", "output": str(dst)})
                 continue
-            if not src.exists():
-                rows.append({"frame_id": frame_id, "cam_id": cam_id, "status": "missing_frame", "frame": str(src)})
+            if src is None:
+                rows.append({"frame_id": frame_id, "cam_id": cam_id, "status": "missing_frame"})
                 continue
             img = cv2.imread(str(src))
             if img is None:
