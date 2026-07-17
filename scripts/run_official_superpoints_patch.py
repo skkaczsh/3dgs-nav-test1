@@ -205,6 +205,8 @@ def main() -> int:
     parser.add_argument("--reg-strength", type=float, default=0.1)
     parser.add_argument("--lambda-edge-weight", type=float, default=1.0)
     parser.add_argument("--stride-preview", type=int, default=10)
+    parser.add_argument("--skip-existing-visuals", action="store_true",
+                        help="Reuse existing full/preview PLYs when rematerializing metadata from fixed labels.")
     parser.add_argument("--omp-threads", type=int, default=1,
                         help="Cut Pursuit OpenMP threads; production default 1 is reproducible.")
     parser.add_argument("--allow-nondeterministic-omp", action="store_true",
@@ -279,11 +281,15 @@ def main() -> int:
 
     progress("write_outputs")
     full_ply = args.output_dir / "official_superpoints_random_color.ply"
-    write_random_color_ply(full_ply, xyz, labels)
-
     stride = max(1, args.stride_preview)
     preview_ply = args.output_dir / f"official_superpoints_random_color_stride{stride}.ply"
-    write_random_color_ply(preview_ply, xyz[::stride], labels[::stride])
+    if args.skip_existing_visuals:
+        missing = [str(path) for path in (full_ply, preview_ply) if not path.is_file()]
+        if missing:
+            raise ValueError("--skip-existing-visuals requires existing PLYs: " + ", ".join(missing))
+    else:
+        write_random_color_ply(full_ply, xyz, labels)
+        write_random_color_ply(preview_ply, xyz[::stride], labels[::stride])
     write_objects_jsonl(args.output_dir / "official_superpoints_objects.jsonl", xyz, labels, geometry)
 
     counts = np.bincount(labels)
