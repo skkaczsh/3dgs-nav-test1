@@ -19,6 +19,7 @@ from typing import Any
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+from scripts.sam_rle import decode_rle, encode_uncompressed_rle
 
 
 DEFAULT_SAM2_ROOT = Path("/root/epfs/vlm_seg_project/segment-anything-2")
@@ -26,38 +27,7 @@ DEFAULT_CHECKPOINT = Path("/root/epfs/vlm_seg_project/weights/sam2_hiera_large.p
 DEFAULT_CONFIG = "sam2_hiera_l.yaml"
 
 
-def decode_rle(rle: dict[str, Any]) -> np.ndarray:
-    h, w = [int(x) for x in rle["size"]]
-    flat = np.empty(h * w, dtype=bool)
-    idx = 0
-    value = False
-    for count in rle["counts"]:
-        next_idx = idx + int(count)
-        flat[idx:next_idx] = value
-        idx = next_idx
-        value = not value
-    if idx < flat.size:
-        flat[idx:] = False
-    return flat.reshape(w, h).T
-
-
-def encode_rle(mask: np.ndarray) -> dict[str, Any]:
-    mask = np.asarray(mask, dtype=bool)
-    h, w = mask.shape
-    flat = mask.T.reshape(-1)
-    counts: list[int] = []
-    value = False
-    run = 0
-    for pixel in flat:
-        pixel = bool(pixel)
-        if pixel == value:
-            run += 1
-        else:
-            counts.append(run)
-            run = 1
-            value = pixel
-    counts.append(run)
-    return {"size": [int(h), int(w)], "counts": counts}
+encode_rle = encode_uncompressed_rle
 
 
 def load_masks(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]], list[np.ndarray]]:

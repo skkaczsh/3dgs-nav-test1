@@ -203,7 +203,7 @@ struct Args {
   float crop_nms_thresh = 0.7f;
   int crop_n_layers = 1;
   float crop_overlap_ratio = 512.0f / 1500.0f;
-  std::string output_mode = "binary_mask";
+  std::string output_mode = "compressed_rle";
   bool write_trace = false;
   bool skip_existing = true;
 };
@@ -433,6 +433,38 @@ std::vector<int> encode_uncompressed_rle(const std::vector<uint8_t>& mask, int h
   return counts;
 }
 
+std::string encode_coco_counts(const std::vector<int>& counts) {
+  std::string out;
+  for (size_t i = 0; i < counts.size(); ++i) {
+    int value = counts[i];
+    if (i > 2) {
+      value -= counts[i - 2];
+    }
+    bool more = true;
+    while (more) {
+      int chunk = value & 0x1f;
+      value >>= 5;
+      more = (chunk & 0x10) ? (value != -1) : (value != 0);
+      if (more) {
+        chunk |= 0x20;
+      }
+      out.push_back(static_cast<char>(chunk + 48));
+    }
+  }
+  return out;
+}
+
+void write_json_string(std::ostream& out, const std::string& value) {
+  out << '"';
+  for (const char character : value) {
+    if (character == '\\' || character == '"') {
+      out << '\\';
+    }
+    out << character;
+  }
+  out << '"';
+}
+
 void save_json(const std::string& path, const std::string& image_name,
                const std::string& original_image, const std::vector<Candidate>& masks,
                int h, int w, const std::string& output_mode) {
@@ -463,6 +495,11 @@ void save_json(const std::string& path, const std::string& image_name,
         out << counts[j];
       }
       out << "]},\n";
+    } else if (output_mode == "compressed_rle") {
+      const auto counts = encode_uncompressed_rle(m.mask, h, w);
+      out << "      \"segmentation\": {\"size\": [" << h << ", " << w << "], \"counts\": ";
+      write_json_string(out, encode_coco_counts(counts));
+      out << ", \"encoding\": \"coco_rle\"},\n";
     } else {
       out << "      \"segmentation\": [\n";
       for (int y = 0; y < h; ++y) {
@@ -855,8 +892,9 @@ Args parse_args(int argc, char** argv) {
   if (args.points_per_batch != kDecoderBatch) {
     throw std::runtime_error("this build expects --points-per-batch 64 to match decoder engine");
   }
-  if (args.output_mode != "binary_mask" && args.output_mode != "uncompressed_rle") {
-    throw std::runtime_error("--output-mode must be binary_mask or uncompressed_rle");
+  if (args.output_mode != "binary_mask" && args.output_mode != "uncompressed_rle" &&
+      args.output_mode != "compressed_rle") {
+    throw std::runtime_error("--output-mode must be compressed_rle, uncompressed_rle, or binary_mask");
   }
   return args;
 }

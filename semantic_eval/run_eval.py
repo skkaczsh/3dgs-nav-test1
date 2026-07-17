@@ -22,6 +22,12 @@ from typing import Any
 
 import numpy as np
 from PIL import Image
+try:
+    from scripts.sam_rle import decode_rle
+except ModuleNotFoundError:  # Supports direct `python semantic_eval/run_eval.py` execution.
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from scripts.sam_rle import decode_rle
 
 
 COMBOS = [
@@ -167,20 +173,9 @@ def image_to_base64(image: np.ndarray, max_size: int = 1024) -> str:
 
 
 def decode_sam_segmentation(segmentation: Any) -> np.ndarray:
-    """Decode dense masks and the uncompressed RLE used by the TRT runner."""
+    """Decode dense masks plus legacy and COCO-compressed RLE."""
     if isinstance(segmentation, dict) and {"counts", "size"} <= segmentation.keys():
-        h, w = (int(value) for value in segmentation["size"])
-        flat = np.empty(h * w, dtype=bool)
-        offset = 0
-        value = False
-        for count in segmentation["counts"]:
-            next_offset = min(offset + int(count), flat.size)
-            flat[offset:next_offset] = value
-            offset = next_offset
-            value = not value
-        if offset < flat.size:
-            flat[offset:] = False
-        return flat.reshape((w, h)).T
+        return decode_rle(segmentation)
     return np.asarray(segmentation, dtype=bool)
 
 

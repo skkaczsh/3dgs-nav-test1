@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Iterable
 
 import numpy as np
+from scripts.sam_rle import decode_rle
 
 
 @dataclass
@@ -57,16 +58,7 @@ def infer_image_ids(baseline_dir: Path, candidate_dir: Path) -> list[str]:
 def mask_array(mask: dict) -> np.ndarray:
     segmentation = mask.get("segmentation")
     if isinstance(segmentation, dict) and "counts" in segmentation and "size" in segmentation:
-        h, w = segmentation["size"]
-        flat = np.empty(int(h) * int(w), dtype=bool)
-        idx = 0
-        parity = False
-        for count in segmentation["counts"]:
-            next_idx = idx + int(count)
-            flat[idx:next_idx] = parity
-            idx = next_idx
-            parity = not parity
-        arr = flat.reshape(int(w), int(h)).T
+        arr = decode_rle(segmentation)
     else:
         arr = np.asarray(segmentation, dtype=bool)
     if arr.ndim != 2:

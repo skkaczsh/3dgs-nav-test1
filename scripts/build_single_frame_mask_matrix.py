@@ -24,6 +24,7 @@ from typing import Any
 
 import numpy as np
 from PIL import Image, ImageDraw
+from scripts.sam_rle import decode_rle
 
 
 PALETTE = np.asarray(
@@ -49,21 +50,6 @@ PALETTE = np.asarray(
     ],
     dtype=np.uint8,
 )
-
-
-def decode_rle(rle: dict[str, Any]) -> np.ndarray:
-    h, w = [int(x) for x in rle["size"]]
-    flat = np.empty(h * w, dtype=bool)
-    idx = 0
-    value = False
-    for count in rle["counts"]:
-        next_idx = idx + int(count)
-        flat[idx:next_idx] = value
-        idx = next_idx
-        value = not value
-    if idx < flat.size:
-        flat[idx:] = False
-    return flat.reshape(w, h).T
 
 
 def load_sam_masks(path: Path | None) -> list[np.ndarray]:

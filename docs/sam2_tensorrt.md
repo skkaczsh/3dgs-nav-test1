@@ -135,11 +135,12 @@ The runner writes Python-compatible artifact names and schema:
 - `{image_id}_numbered.png`
 - `{image_id}_sam_done.flag`
 
-For candidate benchmarks, use `--output-mode uncompressed_rle`. The comparison
-tool can read both the original bool-list `binary_mask` schema and the
-uncompressed RLE schema, while RLE avoids hundreds of MB of JSON per image.
-Use `--output-mode binary_mask` only when testing exact compatibility with
-legacy consumers that directly expect a 2D bool list in `segmentation`.
+For candidate benchmarks, use `--output-mode compressed_rle` (the default).
+The comparison tool and canonical RLE decoder accept legacy bool-list and
+uncompressed-count artifacts as well as COCO compressed-RLE. The latter is the
+only production-safe representation: a real 53-mask `1920x1080` smoke was
+`48KB`, while the prior uncompressed-count JSON was `733MB`. Use
+`--output-mode binary_mask` only for an explicit legacy compatibility test.
 
 Current implementation coverage:
 
@@ -151,7 +152,8 @@ Current implementation coverage:
 - predicted IoU, stability score, area filtering.
 - crop-edge filtering, box NMS, crop NMS, overlap resolution.
 - JSON/overlay/numbered PNG/flag output compatible with downstream consumers.
-- `binary_mask` and `uncompressed_rle` JSON output modes.
+- `compressed_rle` (default), legacy `uncompressed_rle`, and `binary_mask`
+  JSON output modes.
 
 Current gaps:
 
@@ -414,10 +416,10 @@ Promotion criteria for replacing the Python SAM2 generator:
 ## Production Candidate Runner
 
 Use `run_server_sam2_trt_production.sh` for production-shaped candidate output.
-It writes `uncompressed_rle` JSON by default. The canonical
-`semantic_eval/run_eval.py` loader decodes this format directly, so the VLM,
-merge, completion, and artifact-writing path shares one mask implementation.
-This avoids duplicating the current hundreds-of-GB bool-list SAM2 mask cache.
+It writes `compressed_rle` JSON by default. The canonical `scripts/sam_rle.py`
+codec is used by `semantic_eval/run_eval.py`, comparison, coverage completion,
+and single-frame mask QA, so the VLM, merge, completion, and artifact-writing
+path shares one mask implementation while retaining legacy RLE compatibility.
 
 Example 20-image validation run:
 
@@ -432,7 +434,8 @@ bash run_server_sam2_trt_production.sh
 
 The script runs:
 
-- Optional semantic-eval RLE loader patch when `OUTPUT_MODE=uncompressed_rle`.
+- Optional semantic-eval RLE loader compatibility patch when `OUTPUT_MODE` is
+  an RLE mode.
 - C++ TensorRT AMG candidate generation.
 - Candidate manifest generation.
 - Optional baseline comparison when `BASELINE_DIR` is set.

@@ -26,7 +26,7 @@ for box in ${BOX_VALUES}; do
           CANDIDATE_DIR="${candidate_dir}" \
           REPORT_DIR="${report_dir}" \
           GPU_ID="${GPU_ID}" \
-          OUTPUT_MODE=uncompressed_rle \
+          OUTPUT_MODE=compressed_rle \
           BOX_NMS_THRESH="${box}" \
           CROP_NMS_THRESH="${crop}" \
           PRED_IOU_THRESH="${pred}" \

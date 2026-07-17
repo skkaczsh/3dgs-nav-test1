@@ -15,6 +15,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
+from scripts.sam_rle import decode_rle
 
 
 @dataclass
@@ -69,19 +70,7 @@ def infer_ids(baseline_dir: Path, candidate_dir: Path) -> list[str]:
 
 def decode_segmentation(segmentation: object) -> np.ndarray:
     if isinstance(segmentation, dict) and "counts" in segmentation and "size" in segmentation:
-        h, w = [int(x) for x in segmentation["size"]]
-        flat = np.empty(h * w, dtype=bool)
-        idx = 0
-        value = False
-        for count_raw in segmentation["counts"]:
-            count = int(count_raw)
-            next_idx = min(idx + count, flat.size)
-            flat[idx:next_idx] = value
-            idx = next_idx
-            value = not value
-        if idx < flat.size:
-            flat[idx:] = False
-        return flat.reshape((w, h)).T
+        return decode_rle(segmentation)
     arr = np.asarray(segmentation, dtype=bool)
     if arr.ndim != 2:
         raise ValueError(f"segmentation must be 2D, got shape={arr.shape}")
