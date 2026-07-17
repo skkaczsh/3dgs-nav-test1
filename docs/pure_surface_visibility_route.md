@@ -80,6 +80,25 @@ References: [SPG](https://arxiv.org/abs/1711.09869),
 [Mask3D](https://arxiv.org/abs/2210.03105), and
 [Part2Object](https://arxiv.org/abs/2407.10084).
 
+## Semantic Graph Invariant
+
+VLM review is intentionally sparse: only a stratified subset of visible
+Superpoints receives an image-derived unary posterior.  That subset is not the
+semantic graph.  `scripts/build_superpoint_soft_unaries.py` must always be run
+with the complete immutable `official_superpoints_objects.jsonl` as
+`--objects-jsonl`; unreviewed nodes carry an empty unary rather than fabricated
+`unknown` evidence.  `scripts/infer_superpoint_semantic_graph.py` then uses the
+complete contact graph and lets only reviewed nodes send bounded messages.
+
+This preserves three properties that are easy to lose in an otherwise
+plausible pipeline:
+
+- Every voxel has exactly one geometric owner before semantic inference.
+- A candidate-only VLM manifest cannot accidentally turn into a disconnected
+  candidate-only spatial graph.
+- SAM2 repeated-view co-mask evidence can only attenuate a contact edge; it
+  cannot create an edge, assign a class, or alter point ownership.
+
 ## Structural Region Field
 
 `scripts/build_structural_region_field.py` converts the color-coded
