@@ -389,3 +389,44 @@ object-description endpoint. Do not replace the missing VLM with them or place
 an API key in a shell command. A configured VLM review writes one parsed row
 per immutable `object_id`; only then may `build_superpoint_soft_unaries.py`
 turn its confidence into alpha mass while retaining an explicit unknown mass.
+
+## Conservative Semantic Graph Contract
+
+The semantic stage is a probability model on fixed Superpoint ownership, not
+an object-merging pass. For a node `i`, label `l`, and visible view `v`, its
+unary is the reliability-weighted visual posterior:
+
+`U_i(l) = -rho_i log(eps + sum_v r_iv q_iv(l) / sum_v r_iv)`.
+
+`r_iv` combines first-touch depth consistency, non-sky support, visible-point
+ratio, and view quality. `rho_i` is calibrated from effective view count,
+visibility support, and cross-view agreement. An unobserved node has `rho=0`:
+it is neutral evidence, never a default `unknown` vote or an automatic anchor.
+
+Only real 6-neighbor voxel-face contacts may contribute positive smoothing.
+Their affinity must combine shared-face support, contact RGB continuity,
+geometry compatibility, and the *lower confidence bound* of multi-view
+co-mask agreement. A single optimistic mask or VLM label cannot make an edge
+positive. Geometry and drivability provide veto/compatibility terms, never
+floor/wall ground truth. Hard vetoes require independently stable physical
+contradictions; local horizontal PCA alone cannot reject a car, railing, or
+equipment.
+
+Do not run a global unrestricted Potts/CRF: the current 400 evidence nodes
+have only 101 induced direct contact edges, while the full graph contains large
+components connected through unobserved nodes. Such nodes must not become free
+semantic bridges. Promotion is bounded by hop radius, edge confidence,
+posterior margin, source-anchor provenance, and geometry compatibility.
+
+Object partition and semantic labelling remain separate. A later signed
+multicut/correlation-clustering object stage may use co-mask, RGB, geometry,
+and stable mask-boundary evidence to decide cuts, but it must preserve spatial
+connectivity and exclusive voxel ownership. Semantic labels aggregate on those
+objects and never move their boundary.
+
+This is the local interpretation of the useful parts of [Superpoint
+Graph](https://arxiv.org/abs/1711.09869), [SAI3D](https://arxiv.org/abs/2312.11557),
+[SAM-Graph](https://arxiv.org/abs/2312.08372), and
+[SoftGroup](https://arxiv.org/abs/2203.01509): Superpoints are fixed tokens,
+multi-view evidence informs both nodes and boundaries, and uncertainty remains
+explicit until it has enough independent support.
