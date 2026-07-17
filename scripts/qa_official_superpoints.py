@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,14 @@ from plyfile import PlyData
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        while block := f.read(1024 * 1024):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def ownership_report(labels: np.ndarray, point_count: int, small_threshold: int) -> dict[str, Any]:
@@ -84,13 +93,21 @@ def main() -> None:
     parser.add_argument("--objects-jsonl", type=Path)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--small-threshold", type=int, default=10)
+    parser.add_argument("--expected-reference-sha256",
+                        help="Optional lowercase SHA-256 contract for the same-order reference PLY.")
     args = parser.parse_args()
 
+    reference_sha256 = sha256_file(args.reference_ply)
+    expected_hash = args.expected_reference_sha256.lower() if args.expected_reference_sha256 else None
+    if expected_hash is not None and reference_sha256 != expected_hash:
+        raise ValueError("reference PLY SHA-256 differs from the expected ownership contract")
     vertex_count = int(PlyData.read(str(args.reference_ply))["vertex"].count)
     labels = np.load(args.labels)
     report: dict[str, Any] = {
         "schema": "official-superpoint-ownership-qa/v1",
         "reference_ply": str(args.reference_ply),
+        "reference_sha256": reference_sha256,
+        "expected_reference_sha256": expected_hash,
         "labels": str(args.labels),
         "ownership": ownership_report(labels, vertex_count, args.small_threshold),
     }
@@ -99,6 +116,7 @@ def main() -> None:
     report["passed"] = bool(
         report["ownership"]["labels_contiguous"]
         and report["ownership"]["unassigned_points"] == 0
+        and (expected_hash is None or reference_sha256 == expected_hash)
         and (not args.objects_jsonl or report["objects"]["exact"])
     )
     args.report.parent.mkdir(parents=True, exist_ok=True)

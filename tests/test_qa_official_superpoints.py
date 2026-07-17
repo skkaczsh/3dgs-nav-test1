@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from scripts.qa_official_superpoints import objects_agree, ownership_report
+from scripts.qa_official_superpoints import objects_agree, ownership_report, sha256_file
 
 
 def test_ownership_report_requires_same_order_and_contiguous_ids() -> None:
@@ -21,3 +21,9 @@ def test_object_rows_must_match_superpoint_counts() -> None:
     assert result["exact"] is False
     assert result["missing_object_rows"] == 1
     assert result["count_mismatches"] == 1
+
+
+def test_sha256_file_is_stable(tmp_path) -> None:
+    path = tmp_path / "source.ply"
+    path.write_bytes(b"dense point rows")
+    assert sha256_file(path) == "8bc25e70866811653f46a534939c58f168bac9dd08e3822f4a5570dde9975df9"
