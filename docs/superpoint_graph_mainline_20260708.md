@@ -156,9 +156,10 @@ mode remains for geometry-only viewer samples.
   stair` and `building_part -> railing`; plausible but non-final descriptions
   such as a drain cover as `equipment` demonstrate why VLM remains a unary
   term behind geometry/structure vetoes, never an automatic graph anchor.
-- Promote the source-aware evidence directory as the only input for the next
-  VLM batch. Do not compare its lower observation count to the old count as a
-  recall regression; they have different spatial-support contracts.
+- This source-aware materialization is retained only as a frame-exact
+  diagnostic. It is not valid input for global first-touch evidence, because
+  it may retain only a handful of raw-frame points from an otherwise large
+  global Superpoint.
 
 ## 2026-07-14 Stable-Geometry Propagation Split
 
@@ -331,3 +332,35 @@ Implementation hook:
   [Superpoint Graph implementation](https://github.com/loicland/superpoint_graph),
   [SAI3D paper](https://arxiv.org/abs/2312.11557), and
   [SAM-Graph implementation](https://github.com/zju3dv/SAM_Graph).
+
+## 2026-07-17 Dense Superpoint Sampling Contract
+
+- A global visibility pass and a source-aware sample have incompatible support
+  definitions. `source_aware` preserves only raw `.lx` points that contributed
+  to selected provenance frames; `global-visibility` projects the complete
+  world-space Superpoint through arbitrary valid camera poses.
+- The first full global run accidentally reused source-aware samples. It
+  produced evidence for `250/418` candidates (59.8%), and `72` objects had
+  fewer than the required 12 sample points. This was not a camera, skymask, or
+  first-touch failure. For example, Superpoint `52` has 601 dense voxels but
+  only one retained source-aware sample.
+- Global evidence must therefore materialize samples directly from the dense
+  reference PLY and the immutable official-superpoint label array, with a
+  deterministic per-object cap. The reference-uniform materialization at
+  `2500` points per candidate produced `614,196` samples and covered all 418
+  candidates before image projection.
+- With identical poses, full-cloud depth maps, sky/priority masks, and image
+  gates, the dense-sample rerun produced evidence for `391/418` candidates
+  (93.5%) and `1105` accepted observations. The `141` additional observable
+  candidates prove that sampling support, rather than relaxed geometry gates,
+  was the dominant coverage bottleneck.
+- The remaining 27 candidates are genuine current no-evidence cases: they are
+  outside the selected camera FOV, too small after perspective projection, or
+  occluded by the full-cloud first-touch surface. They remain `unobserved`, not
+  semantic `unknown`.
+
+Operational rule: use `sample_official_superpoints.py` without
+`--source-aware` whenever `build_object_image_evidence.py` uses
+`--global-visibility`; use `--source-aware` only together with the old
+frame-exact/source-provenance diagnostic path. This is a support-set invariant,
+not a tuning preference.
