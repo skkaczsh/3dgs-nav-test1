@@ -68,6 +68,18 @@ def progress(stage: str, **values: object) -> None:
     print(json.dumps({"stage": stage, **values}, ensure_ascii=False), flush=True)
 
 
+def configure_omp_threads(threads: int, allow_nondeterministic: bool) -> None:
+    """Keep Cut Pursuit ownership reproducible unless exploration opts out."""
+    if threads < 1:
+        raise ValueError("--omp-threads must be positive")
+    if threads != 1 and not allow_nondeterministic:
+        raise ValueError(
+            "multi-threaded Cut Pursuit is nondeterministic; pass "
+            "--allow-nondeterministic-omp only for non-production experiments"
+        )
+    os.environ["OMP_NUM_THREADS"] = str(threads)
+
+
 def write_random_color_ply(path: Path, xyz: np.ndarray, labels: np.ndarray) -> None:
     rng = random.Random(0)
     unique, inverse = np.unique(labels, return_inverse=True)
@@ -181,6 +193,10 @@ def main() -> int:
     parser.add_argument("--reg-strength", type=float, default=0.1)
     parser.add_argument("--lambda-edge-weight", type=float, default=1.0)
     parser.add_argument("--stride-preview", type=int, default=10)
+    parser.add_argument("--omp-threads", type=int, default=1,
+                        help="Cut Pursuit OpenMP threads; production default 1 is reproducible.")
+    parser.add_argument("--allow-nondeterministic-omp", action="store_true",
+                        help="Required with --omp-threads > 1 for exploratory speed experiments.")
     parser.add_argument("--region-input", type=Path, help="Optional same-order GPRG input for geometry-only object metadata.")
     parser.add_argument("--labels-input", type=Path, help="Reuse an existing same-order official_superpoints_labels.npy instead of rerunning Cut Pursuit.")
     parser.add_argument("--bbox-min", type=float, nargs=3, metavar=("X", "Y", "Z"),
@@ -195,6 +211,8 @@ def main() -> int:
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    configure_omp_threads(args.omp_threads, args.allow_nondeterministic_omp)
+    progress("runtime", omp_threads=args.omp_threads, deterministic=args.omp_threads == 1)
 
     if (args.bbox_min is None) != (args.bbox_max is None):
         raise ValueError("--bbox-min and --bbox-max must be provided together")
@@ -270,6 +288,8 @@ def main() -> int:
             "k_nn_geof": args.k_nn_geof,
             "reg_strength": args.reg_strength,
             "lambda_edge_weight": args.lambda_edge_weight,
+            "omp_threads": args.omp_threads,
+            "deterministic": args.omp_threads == 1,
             "region_input": str(args.region_input) if args.region_input else None,
             "labels_input": str(args.labels_input) if args.labels_input else None,
             "superpoint_graph_root": str(args.superpoint_graph_root),

@@ -995,6 +995,15 @@ single image mask from redefining a 3D boundary.  A future color-aware Cut
 Pursuit variant must be evaluated as a named ablation against this geometry-only
 baseline, not silently become the default.
 
+Determinism is an ownership invariant, not an optional convenience. The
+official extension uses `std::rand` inside OpenMP paths: two 156,479-point
+`reg_strength=0.05` runs with multi-thread OpenMP produced 609 and 570
+superpoints. With `OMP_NUM_THREADS=1`, two runs produced exactly the same 508
+labels. The runner therefore defaults to `--omp-threads 1` and rejects a
+larger value unless `--allow-nondeterministic-omp` is explicit. Multi-thread
+Cut Pursuit may be used for exploratory parameter sweeps, but never as a
+production ownership artifact or semantic-evidence key.
+
 The first usable route-level prior is a `30:1` cam0 sample of the parking
 scan, generated on the local Qwen VL server from `207` frames. It identifies
 entrance plaza, outdoor parking, landscape, indoor lobby, stairwell, and roof
