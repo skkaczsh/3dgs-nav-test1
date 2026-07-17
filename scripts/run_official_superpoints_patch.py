@@ -63,6 +63,11 @@ def crop_points(
     return np.ascontiguousarray(xyz[keep]), np.ascontiguousarray(rgb[keep])
 
 
+def progress(stage: str, **values: object) -> None:
+    """Emit durable stages; Cut Pursuit's carriage-return progress is not parseable."""
+    print(json.dumps({"stage": stage, **values}, ensure_ascii=False), flush=True)
+
+
 def write_random_color_ply(path: Path, xyz: np.ndarray, labels: np.ndarray) -> None:
     rng = random.Random(0)
     unique, inverse = np.unique(labels, return_inverse=True)
@@ -195,10 +200,13 @@ def main() -> int:
         raise ValueError("--bbox-min and --bbox-max must be provided together")
     if args.bbox_min is not None and (args.labels_input or args.region_input):
         raise ValueError("a spatial smoke crop cannot reuse global --labels-input or --region-input")
+    progress("load_input", input=str(args.input))
     xyz, rgb = read_ply_xyz_rgb(args.input)
     input_points = len(xyz)
     xyz, _rgb = crop_points(xyz, rgb, args.bbox_min, args.bbox_max)
+    progress("input_ready", input_points=int(input_points), active_points=int(len(xyz)))
     if args.labels_input:
+        progress("load_labels", labels_input=str(args.labels_input))
         labels = np.load(args.labels_input).astype(np.uint32, copy=False)
         if len(labels) != len(xyz):
             raise ValueError(f"labels count differs from PLY: {len(labels)} != {len(xyz)}")
@@ -214,14 +222,17 @@ def main() -> int:
                 "Run scripts/setup_official_superpoint_graph.sh and pass --superpoint-graph-root if needed."
             ) from exc
 
+        progress("build_knn", k_adj=args.k_nn_adj, k_geof=args.k_nn_geof)
         graph_nn, target_fea = compute_graph_nn_2(xyz, args.k_nn_adj, args.k_nn_geof)
+        progress("compute_geof")
         geof = libply_c.compute_geof(xyz, target_fea, args.k_nn_geof).astype("float32")
         geof[:, 3] = 2.0 * geof[:, 3]
         edge_weight = np.array(
             1.0 / (args.lambda_edge_weight + graph_nn["distances"] / np.mean(graph_nn["distances"])),
             dtype="float32",
         )
-        _components, in_component = libcp.cutpursuit(
+        progress("cut_pursuit", regularization=args.reg_strength, edges=int(len(graph_nn["source"])))
+        components, in_component = libcp.cutpursuit(
             geof,
             graph_nn["source"],
             graph_nn["target"],
@@ -229,11 +240,14 @@ def main() -> int:
             args.reg_strength,
         )
         labels = np.asarray(in_component, dtype=np.uint32)
+        progress("cut_pursuit_done", components=int(len(components)))
+    progress("summarize_geometry")
     geometry = geometry_by_object(xyz, labels, args.region_input)
 
     labels_path = args.output_dir / "official_superpoints_labels.npy"
     np.save(labels_path, labels)
 
+    progress("write_outputs")
     full_ply = args.output_dir / "official_superpoints_random_color.ply"
     write_random_color_ply(full_ply, xyz, labels)
 
@@ -272,7 +286,7 @@ def main() -> int:
         json.dumps(report, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+    progress("complete", superpoints=report["superpoints"], outputs=report["outputs"])
     return 0
 
 
