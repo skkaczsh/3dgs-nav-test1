@@ -29,7 +29,17 @@ def evenly_spaced_indices(size: int, count: int) -> list[int]:
     return [round(index * (size - 1) / (count - 1)) for index in range(count)] if count > 1 else [size // 2]
 
 
-def select_candidates(rows: list[dict[str, Any]], per_geometry: int, min_points: int) -> list[dict[str, Any]]:
+def select_candidates(
+    rows: list[dict[str, Any]], per_geometry: int, min_points: int, coverage_budget: int = 0,
+) -> list[dict[str, Any]]:
+    """Select diagnostic strata, then optionally add point-mass coverage anchors.
+
+    The strata answer "does the evidence chain work for every geometry and
+    scale?".  They are not a good proxy for scene coverage: a handful of
+    facade/ground Superpoints can contain most of the dense voxels.  The
+    optional second budget adds only the largest *unselected* cells, without
+    allowing that mass objective to erase the diagnostic strata.
+    """
     groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         if int(row.get("count") or 0) >= min_points:
@@ -49,6 +59,25 @@ def select_candidates(rows: list[dict[str, Any]], per_geometry: int, min_points:
                 "evidence_min_points": min_points,
             })
             selected.append(row)
+    selected_ids = {int(row["object_id"]) for row in selected}
+    eligible = [row for row in rows if int(row.get("count") or 0) >= min_points]
+    total_eligible_points = sum(int(row.get("count") or 0) for row in eligible)
+    for rank, source in enumerate(
+        sorted(
+            (row for row in eligible if int(row["object_id"]) not in selected_ids),
+            key=lambda row: (-int(row.get("count") or 0), int(row["object_id"])),
+        )[:max(coverage_budget, 0)],
+        1,
+    ):
+        row = dict(source)
+        point_count = int(row.get("count") or 0)
+        row.update({
+            "evidence_candidate_policy": "point_mass_coverage/v1",
+            "evidence_coverage_rank": rank,
+            "evidence_coverage_point_share": round(point_count / max(total_eligible_points, 1), 9),
+            "evidence_min_points": min_points,
+        })
+        selected.append(row)
     return sorted(selected, key=lambda row: int(row["object_id"]))
 
 
@@ -59,20 +88,29 @@ def main() -> None:
     parser.add_argument("--report", type=Path, default=None)
     parser.add_argument("--per-geometry", type=int, default=60)
     parser.add_argument("--min-points", type=int, default=100)
+    parser.add_argument("--coverage-budget", type=int, default=0,
+                        help="Add this many largest unselected Superpoints after geometry/scale strata.")
     args = parser.parse_args()
 
     rows = read_jsonl(args.objects_jsonl)
-    selected = select_candidates(rows, args.per_geometry, args.min_points)
+    selected = select_candidates(rows, args.per_geometry, args.min_points, args.coverage_budget)
     args.output_jsonl.parent.mkdir(parents=True, exist_ok=True)
     with args.output_jsonl.open("w", encoding="utf-8") as handle:
         for row in selected:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
     report = {
-        "schema": "official-superpoint-evidence-candidates/v1",
+        "schema": "official-superpoint-evidence-candidates/v2",
         "objects_jsonl": str(args.objects_jsonl),
         "candidate_count": len(selected),
         "geometry_counts": dict(Counter(str(row.get("geometry_type") or "unknown") for row in selected)),
-        "params": {"per_geometry": args.per_geometry, "min_points": args.min_points},
+        "policy_counts": dict(Counter(str(row.get("evidence_candidate_policy") or "unknown") for row in selected)),
+        "candidate_point_count": sum(int(row.get("count") or 0) for row in selected),
+        "eligible_point_count": sum(int(row.get("count") or 0) for row in rows if int(row.get("count") or 0) >= args.min_points),
+        "params": {
+            "per_geometry": args.per_geometry,
+            "min_points": args.min_points,
+            "coverage_budget": args.coverage_budget,
+        },
     }
     report_path = args.report or args.output_jsonl.with_suffix(".report.json")
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

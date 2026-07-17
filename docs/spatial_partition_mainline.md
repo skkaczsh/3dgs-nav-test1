@@ -1040,6 +1040,15 @@ patches only along contact edges that pass geometry compatibility; it must keep
 an unobserved patch `unknown` when no such evidence exists and must never use
 the old label-first point votes as a substitute.
 
+The 240-object canary is intentionally diagnostic, not a scene-mass sampling
+plan. It covers 2,308,116 dense voxels (15.94% of the full 14,482,557-point
+reference), while the 143 directly observed nodes cover 702,616 (4.85%). A
+separate `point_mass_coverage/v1` budget now supplements, rather than replaces,
+the 240 geometry/log-scale strata. The first 200 added largest unselected
+Superpoints yield a 440-node review queue covering 7,727,889 voxels (53.36%).
+This is a *candidate* coverage measurement only: those cells remain unlabeled
+until they independently pass first-touch, SKYMask, and VLM/manual review.
+
 `build_superpoint_contact_view_evidence.py` is the companion edge-only stage.
 It reprojects a direct 3D contact neighbor into the *same* accepted camera pose
 as an anchor, then applies the identical full-cloud first-touch depth gate and
