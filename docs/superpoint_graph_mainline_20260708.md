@@ -316,6 +316,14 @@ Implementation hook:
     empty-pool failure. The remaining failures are either too few sampled
     object points or genuinely fail projection/depth visibility.
   This is the required coverage gain before spending VLM budget.
+- CUDA projector validation on 4090D:
+  - the Torch z-buffer keeps the existing NumPy first-touch/edge postprocess;
+  - frame 0 across three cameras differs by only `4-18` valid pixels, with
+    99.9-percentile shared-pixel depth error at numerical precision and one
+    `0.031m` near-point tie, below the `0.12m` first-touch tolerance;
+  - 10 poses / 30 maps: NumPy `58.8s`, Torch CUDA `23.2s` (`2.54x`).
+  CUDA is therefore the production projector for the global cache; NumPy
+  remains the default compatibility backend and numerical reference.
 - This follows the useful part of modern 2D/3D graph approaches: geometry
   primitives own disjoint 3D support, multi-view masks/features are evidence
   on graph nodes/edges, and semantic decisions are posterior labels rather
