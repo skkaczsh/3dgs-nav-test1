@@ -1012,6 +1012,34 @@ to new official Superpoint ids: the maps may be reused because camera geometry
 and point-row world geometry are identical, while all old superpoint labels and
 semantic votes remain excluded.
 
+### Full-Scene Visibility Evidence Canary
+
+The first geometry-owned image-evidence canary uses 240 deterministic
+geometry-and-log-scale-stratified official Superpoints.  Its source is the
+same 3 cm dense PLY and its visibility maps are the full first-touch map set
+for frames `0..6180`.  SKYMask is generated only for the 281 missing poses per
+camera that actually occur in that first-touch set; this avoids inventing a
+second video-rate data product that no projection will consume.
+
+The authoritative run root is
+`/root/epfs/work_MT20260616-175807/official_spg_geometry_full_voxel003_reg005_deterministic_20260717/evidence_canary_sky_20260717`.
+`evidence_full` uses the six closest poses per object, then first-touch depth
+and SKYMask gating: 137/240 Superpoints obtained 242 valid observations.  A
+second `evidence_retry_projected` run considers all sampled poses and chooses
+the 12 with the most points actually in any calibrated camera image. It adds
+only 6 more Superpoints, for 143/240 directly observed Superpoints and 251
+valid observations in total.
+
+This is a useful negative result. The remaining 97/240 are rejected primarily
+because they are not in an image, are occluded by the first-touch surface, or
+are behind a depth discontinuity. SKYMask accounts for a small minority of
+rejections. Therefore direct label coverage must not be inflated by projecting
+through an observed surface or by assigning a label to an unobserved patch.
+The next graph stage may propagate a *soft* posterior from directly observed
+patches only along contact edges that pass geometry compatibility; it must keep
+an unobserved patch `unknown` when no such evidence exists and must never use
+the old label-first point votes as a substitute.
+
 ### GPU Partition Upgrade Gate
 
 The current deterministic Cut Pursuit partition is the production ownership
