@@ -381,3 +381,11 @@ not the current global-first-touch crops. The three broad historical review
 sets disagree on `132/262` common objects. Retain them for human disagreement
 analysis and prompt QA only; new VLM review must consume the final `400/418`
 global evidence ledger keyed by the immutable object ID.
+
+The current semantic ledger intentionally remains `400 observed_unlabeled +
+18 unobserved` until a generic image VLM is safely available. The active remote
+Qwen processes are robot-navigation gRPC services, not an interchangeable
+object-description endpoint. Do not replace the missing VLM with them or place
+an API key in a shell command. A configured VLM review writes one parsed row
+per immutable `object_id`; only then may `build_superpoint_soft_unaries.py`
+turn its confidence into alpha mass while retaining an explicit unknown mass.
