@@ -1012,6 +1012,27 @@ to new official Superpoint ids: the maps may be reused because camera geometry
 and point-row world geometry are identical, while all old superpoint labels and
 semantic votes remain excluded.
 
+### GPU Partition Upgrade Gate
+
+The current deterministic Cut Pursuit partition is the production ownership
+baseline. GPU partitioning is a future performance route, not a shortcut around
+the evidence problem. Superpoint Transformer and its newer EZ-SP partitioner
+still follow the same separation of concerns: first form superpoints, then
+reason over their graph. EZ-SP learns point embeddings from supervised semantic
+boundaries before GPU graph clustering. We do not have trustworthy dense 3D
+boundary labels yet, so applying its pretrained partition weights to this scan
+would replace a measured geometry prior with an uncalibrated domain prior.
+
+Promotion condition for a GPU partition experiment:
+
+1. Collect a reviewed set of multi-view-stable superpoint contact edges, with
+   explicit `same_object` and `boundary` decisions.
+2. Train or calibrate only an edge/embedding model on that held-out contract.
+3. Compare against this deterministic baseline using ownership continuity,
+   cross-structure merge rate, and evidence coverage, not only runtime.
+4. Promote only if the new partition is reproducible and improves the review
+   gate without reducing first-touch-valid image support.
+
 The first usable route-level prior is a `30:1` cam0 sample of the parking
 scan, generated on the local Qwen VL server from `207` frames. It identifies
 entrance plaza, outdoor parking, landscape, indoor lobby, stairwell, and roof
