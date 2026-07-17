@@ -1,11 +1,14 @@
 from pathlib import Path
 
 
-def test_edge_runner_uses_only_edge_ledger_for_sam_inputs() -> None:
+def test_runner_supports_exact_single_ledger_without_duplicate_evidence() -> None:
     script = (Path(__file__).parents[1] / "scripts" / "run_superpoint_sam2_edge_evidence.sh").read_text()
 
     assert 'make_sam2_input_links.py' in script
-    assert '--views-jsonl "$EDGE_EVIDENCE"' in script
+    assert '--evidence-jsonl' in script
+    assert '--views-jsonl "${EVIDENCE_JSONL:-$EDGE_EVIDENCE}"' in script
+    assert 'cp "$EVIDENCE_JSONL" "$COMBINED_EVIDENCE"' in script
+    assert 'mutually exclusive with --edge-evidence/--direct-evidence' in script
     assert '--output-mode compressed_rle' in script
     assert '--skip-visuals' in script
     assert 'for extension in jpg jpeg png' in script

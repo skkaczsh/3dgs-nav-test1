@@ -19,6 +19,12 @@ usage() {
   cat <<'EOF'
 Usage:
   run_superpoint_sam2_edge_evidence.sh \
+    --evidence-jsonl EVIDENCE.jsonl \
+    --contact-edges CONTACT.jsonl \
+    --output-dir OUTPUT_DIR
+
+Legacy two-ledger form:
+  run_superpoint_sam2_edge_evidence.sh \
     --edge-evidence EDGE_ONLY.jsonl \
     --direct-evidence DIRECT.jsonl \
     --contact-edges CONTACT.jsonl \
@@ -28,12 +34,14 @@ EOF
 
 EDGE_EVIDENCE=""
 DIRECT_EVIDENCE=""
+EVIDENCE_JSONL=""
 CONTACT_EDGES=""
 OUTPUT_DIR=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --edge-evidence) EDGE_EVIDENCE="$2"; shift 2 ;;
     --direct-evidence) DIRECT_EVIDENCE="$2"; shift 2 ;;
+    --evidence-jsonl) EVIDENCE_JSONL="$2"; shift 2 ;;
     --contact-edges) CONTACT_EDGES="$2"; shift 2 ;;
     --output-dir) OUTPUT_DIR="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
@@ -41,9 +49,17 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-for path in "$EDGE_EVIDENCE" "$DIRECT_EVIDENCE" "$CONTACT_EDGES"; do
-  [[ -n "$path" && -f "$path" ]] || { echo "Missing required input: $path" >&2; exit 2; }
-done
+if [[ -n "$EVIDENCE_JSONL" ]]; then
+  [[ -z "$EDGE_EVIDENCE" && -z "$DIRECT_EVIDENCE" ]] || {
+    echo "--evidence-jsonl is mutually exclusive with --edge-evidence/--direct-evidence" >&2; exit 2;
+  }
+  [[ -f "$EVIDENCE_JSONL" ]] || { echo "Missing required input: $EVIDENCE_JSONL" >&2; exit 2; }
+else
+  for path in "$EDGE_EVIDENCE" "$DIRECT_EVIDENCE"; do
+    [[ -n "$path" && -f "$path" ]] || { echo "Missing required input: $path" >&2; exit 2; }
+  done
+fi
+[[ -n "$CONTACT_EDGES" && -f "$CONTACT_EDGES" ]] || { echo "Missing required input: $CONTACT_EDGES" >&2; exit 2; }
 [[ -n "$OUTPUT_DIR" ]] || { echo "--output-dir is required" >&2; exit 2; }
 [[ -x "$RUNNER" ]] || { echo "TensorRT SAM2 runner is not executable: $RUNNER" >&2; exit 2; }
 
@@ -53,7 +69,7 @@ COMBINED_EVIDENCE="${OUTPUT_DIR}/evidence_with_shared_neighbors.jsonl"
 mkdir -p "$OUTPUT_DIR" "$MASK_DIR"
 
 PYTHONPATH="$ROOT" "$PYTHON_BIN" "$ROOT/scripts/make_sam2_input_links.py" \
-  --views-jsonl "$EDGE_EVIDENCE" \
+  --views-jsonl "${EVIDENCE_JSONL:-$EDGE_EVIDENCE}" \
   --output-dir "$INPUT_DIR" \
   --report "${OUTPUT_DIR}/sam2_input_report.json"
 
@@ -83,7 +99,11 @@ for extension in jpg jpeg png; do
     2>> "${OUTPUT_DIR}/sam2_runner.stderr.log"
 done
 
-cat "$DIRECT_EVIDENCE" "$EDGE_EVIDENCE" > "$COMBINED_EVIDENCE"
+if [[ -n "$EVIDENCE_JSONL" ]]; then
+  cp "$EVIDENCE_JSONL" "$COMBINED_EVIDENCE"
+else
+  cat "$DIRECT_EVIDENCE" "$EDGE_EVIDENCE" > "$COMBINED_EVIDENCE"
+fi
 PYTHONPATH="$ROOT" "$PYTHON_BIN" "$ROOT/scripts/build_superpoint_sam2_comask_edges.py" \
   --evidence-jsonl "$COMBINED_EVIDENCE" \
   --contact-edges "$CONTACT_EDGES" \
