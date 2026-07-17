@@ -374,3 +374,10 @@ Operational rule: use `sample_official_superpoints.py` without
 `--global-visibility`; use `--source-aware` only together with the old
 frame-exact/source-provenance diagnostic path. This is a support-set invariant,
 not a tuning preference.
+
+Historical Qwen/Mimo reviews use the same immutable object IDs but are not
+automatically reusable unaries: they consumed source-support image evidence,
+not the current global-first-touch crops. The three broad historical review
+sets disagree on `132/262` common objects. Retain them for human disagreement
+analysis and prompt QA only; new VLM review must consume the final `400/418`
+global evidence ledger keyed by the immutable object ID.
