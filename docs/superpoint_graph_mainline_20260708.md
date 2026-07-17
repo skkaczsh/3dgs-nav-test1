@@ -482,3 +482,12 @@ view `v`, record whether its first-touch-visible pixels belong to the same
 SAM2/DINO segment and aggregate a lower confidence bound over independent
 views. This supplies the co-mask term in the graph contract while preserving
 the fixed 3D Superpoint ownership.
+
+The first TensorRT SAM2 smoke used the ten highest-density shared views. Its
+compressed-RLE output was verified by exact decoded-area equality with the C++
+runner. Of `23` visible contact edges, only `8` had two independent views and
+only one had strong repeated separation (`sam2_affinity=0.624`). This is the
+desired calibration: `--sam2-comask-edges` can only multiply down an existing
+contact affinity after repeated evidence; mask absence, a single view, or a
+large ambiguous mask remains neutral (`1.0`). SAM2 therefore cannot silently
+redefine the 3D partition or create a label by itself.
