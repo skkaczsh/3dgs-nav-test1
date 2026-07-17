@@ -49,8 +49,11 @@ def build_row(object_row: dict[str, Any], observations: list[dict[str, Any]], re
         state = "observed_unlabeled"
     if parsed:
         state = "reviewed"
-        alpha[label] = round(support * confidence, 6)
-        alpha["unknown"] = round(support * (1.0 - confidence), 6)
+        # A reviewed `unknown` is not two competing unknown hypotheses.  Both
+        # the asserted unknown label and residual uncertainty belong to the
+        # same bucket, so preserve the total visibility support.
+        alpha[label] = round(alpha.get(label, 0.0) + support * confidence, 6)
+        alpha["unknown"] = round(alpha.get("unknown", 0.0) + support * (1.0 - confidence), 6)
     return {
         "object_id": object_id,
         "geometry_type": str(object_row.get("geometry_type") or "unknown"),

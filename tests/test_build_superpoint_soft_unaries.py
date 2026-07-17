@@ -13,3 +13,10 @@ def test_reviewed_evidence_keeps_unknown_probability_mass() -> None:
     row = build_row({"object_id": 7}, evidence, review)
     assert row["state"] == "reviewed"
     assert row["alpha"]["floor"] > row["alpha"]["unknown"] > 0
+
+
+def test_reviewed_unknown_preserves_total_visibility_support() -> None:
+    evidence = [{"frame_id": 10, "cam_id": 1, "rank": 1, "score": 2.0, "depth_visible_ratio": 1.0, "sky_filtered_ratio": 0.0}]
+    row = build_row({"object_id": 7}, evidence, {"parsed": {"controlled_label": "unknown", "confidence": 0.9}})
+
+    assert row["alpha"] == {"unknown": row["visibility_support"]}

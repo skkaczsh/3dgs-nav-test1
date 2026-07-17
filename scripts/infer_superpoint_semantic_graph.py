@@ -24,7 +24,7 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def normalize_alpha(alpha: Any) -> dict[str, float]:
+def positive_alpha(alpha: Any) -> dict[str, float]:
     if not isinstance(alpha, dict):
         return {}
     values: dict[str, float] = {}
@@ -35,8 +35,7 @@ def normalize_alpha(alpha: Any) -> dict[str, float]:
             continue
         if numeric:
             values[str(label)] = numeric
-    total = sum(values.values())
-    return {label: value / total for label, value in values.items()} if total else {}
+    return values
 
 
 def edge_affinity(row: dict[str, Any], min_faces: int, min_contact_ratio: float, color_sigma: float) -> float:
@@ -68,6 +67,12 @@ def sam2_affinity(row: dict[str, Any] | None) -> float:
         return 1.0 if value is None else min(max(float(value), 0.0), 1.0)
     except (TypeError, ValueError):
         return 1.0
+
+
+def attenuation_factor(evidence_affinity: float, weight: float) -> float:
+    """Apply optional image evidence as a bounded attenuation, never a boost."""
+    bounded_weight = min(max(float(weight), 0.0), 1.0)
+    return (1.0 - bounded_weight) + bounded_weight * evidence_affinity
 
 
 def geometry_allows(geometry_type: str, label: str) -> bool:
@@ -116,14 +121,14 @@ def infer(
             continue
         key = (min(a, b), max(a, b))
         photo = photometric_affinity(photo_by_edge.get(key))
-        affinity *= (1.0 - photometric_weight) + photometric_weight * photo
+        affinity *= attenuation_factor(photo, photometric_weight)
         if affinity <= 0:
             continue
         sam2 = sam2_affinity(sam2_by_edge.get(key))
         if key in sam2_by_edge:
             sam2_observed_viable_edges += 1
             sam2_strong_separation_viable_edges += int(sam2 < 0.8)
-        affinity *= (1.0 - sam2_weight) + sam2_weight * sam2
+        affinity *= attenuation_factor(sam2, sam2_weight)
         if affinity <= 0:
             continue
         graph[a].append((b, affinity))
@@ -133,16 +138,19 @@ def infer(
     # Only reviewed nodes carry VLM class evidence. Unobserved nodes neither
     # seed nor relay messages; observed-but-unlabeled nodes may receive a local
     # proposal but never become promoted by this stage.
-    base = {object_id: normalize_alpha(row.get("alpha")) for object_id, row in rows.items()}
+    # Keep the unary magnitude through message passing.  Normalizing here
+    # would make a weak one-view review exert the same force as a strongly
+    # supported multi-view review.  Only the final posterior is normalized.
+    raw_alpha = {object_id: positive_alpha(row.get("alpha")) for object_id, row in rows.items()}
     out: list[dict[str, Any]] = []
     proposals = 0
     for object_id, row in sorted(rows.items()):
-        scores = dict(base[object_id])
+        scores = dict(raw_alpha[object_id])
         for neighbor, affinity in graph.get(object_id, []):
             neighbor_row = rows[neighbor]
             if neighbor_row.get("state") != "reviewed":
                 continue
-            for label, value in base[neighbor].items():
+            for label, value in raw_alpha[neighbor].items():
                 if geometry_allows(str(row.get("geometry_type") or "unknown"), label):
                     scores[label] = scores.get(label, 0.0) + pairwise_weight * affinity * value
         ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)

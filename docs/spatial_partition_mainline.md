@@ -1068,6 +1068,24 @@ entry point: it materializes only those edge views, uses the repository-pinned
 TensorRT runner with compressed RLE and no unnecessary QA PNGs, computes the
 co-mask rows, and emits review sheets only for measured cuts.
 
+### Semantic Graph Invariants
+
+The graph posterior keeps the *raw* unary magnitude through one-hop message
+passing and normalizes only the final label distribution. For a reviewed node,
+visibility support and VLM confidence form `alpha`; a low-support crop must not
+exert the same influence as a multi-view high-support crop simply because both
+have the same label ratio. When the controlled label is `unknown`, asserted
+unknown and residual uncertainty are accumulated into the same unknown mass,
+not written twice with the latter overwriting the former. Nodes without a
+review still have no unary mass and cannot source or relay a label.
+
+Photometric and SAM2 terms are bounded attenuations of an existing geometric
+contact edge. Their configured mixing weights are clamped to `[0, 1]`; absent
+or insufficient evidence is neutral, while measured separation can only lower
+an affinity. This preserves the core rule that 2D segmentation may veto a bad
+3D association but may never manufacture an ownership merge or amplify a
+semantic path.
+
 ### GPU Partition Upgrade Gate
 
 The current deterministic Cut Pursuit partition is the production ownership

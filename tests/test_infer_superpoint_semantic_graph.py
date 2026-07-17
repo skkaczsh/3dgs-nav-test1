@@ -1,4 +1,4 @@
-from scripts.infer_superpoint_semantic_graph import edge_affinity, infer
+from scripts.infer_superpoint_semantic_graph import attenuation_factor, edge_affinity, infer
 
 
 def test_unobserved_nodes_are_neither_sources_nor_promoted() -> None:
@@ -72,3 +72,23 @@ def test_repeated_sam2_separation_can_disable_an_otherwise_valid_edge() -> None:
     assert report["sam2_comask_edges"] == 1
     assert report["sam2_observed_viable_edges"] == 1
     assert report["sam2_strong_separation_viable_edges"] == 1
+
+
+def test_unary_support_strength_is_preserved_before_final_normalization() -> None:
+    target = {"object_id": 1, "state": "reviewed", "geometry_type": "horizontal", "alpha": {"unknown": 1.0}}
+    edge = {"object_a": 1, "object_b": 2, "shared_voxel_faces": 100, "contact_ratio_min": 0.2, "contact_rgb_distance": 0.0}
+    weak_source = {"object_id": 2, "state": "reviewed", "geometry_type": "horizontal", "alpha": {"floor": 0.1}}
+    strong_source = {"object_id": 2, "state": "reviewed", "geometry_type": "horizontal", "alpha": {"floor": 0.9}}
+
+    weak, _ = infer([target, weak_source], [edge])
+    strong, _ = infer([target, strong_source], [edge])
+
+    weak_floor = {row["object_id"]: row for row in weak}[1]["semantic_posterior"]["floor"]
+    strong_floor = {row["object_id"]: row for row in strong}[1]["semantic_posterior"]["floor"]
+    assert strong_floor > weak_floor
+
+
+def test_image_evidence_weight_is_clamped_to_a_non_boosting_attenuation() -> None:
+    assert attenuation_factor(0.0, -1.0) == 1.0
+    assert attenuation_factor(0.0, 2.0) == 0.0
+    assert attenuation_factor(0.4, 0.5) == 0.7
