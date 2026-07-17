@@ -48,6 +48,7 @@ from build_object_image_evidence import (
     min_depth_neighborhood,
     priority_mask_path,
     project_points,
+    sky_mask_path,
 )
 
 
@@ -89,6 +90,21 @@ def sampled_payload(uv: np.ndarray, depth: np.ndarray, limit: int) -> tuple[list
     )
 
 
+def non_sky_pixels(mask: np.ndarray, uu: np.ndarray, vv: np.ndarray, source: str, sky_threshold: int) -> np.ndarray:
+    """Return a pixel-validity mask without leaking a semantic-label convention.
+
+    Historical priority masks encode sky as class 6.  SKYMask is a grayscale
+    probability-like image where brighter pixels are sky.  The caller chooses
+    one source explicitly so edge evidence follows the same sky semantics as
+    direct object evidence.
+    """
+    if source == "priority":
+        return mask[vv, uu] != 6
+    if source == "sky":
+        return mask[vv, uu] < sky_threshold
+    raise ValueError(f"Unsupported mask source: {source}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", type=Path, required=True)
@@ -96,8 +112,12 @@ def main() -> None:
     parser.add_argument("--contact-edges", type=Path, required=True)
     parser.add_argument("--object-ply", type=Path, required=True)
     parser.add_argument("--global-depth-map-dir", type=Path, required=True)
-    parser.add_argument("--priority-dir", type=Path, required=True)
+    parser.add_argument("--priority-dir", type=Path, default=None,
+                        help="Legacy refined-priority masks; class 6 is treated as sky.")
     parser.add_argument("--priority-suffix", default="_priority_refined")
+    parser.add_argument("--sky-mask-dir", type=Path, default=None,
+                        help="SKYMask directory; pixels >= --sky-threshold are rejected.")
+    parser.add_argument("--sky-threshold", type=int, default=128)
     parser.add_argument("--output-jsonl", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--max-points-per-object", type=int, default=2500)
@@ -111,6 +131,10 @@ def main() -> None:
     args = parser.parse_args()
     if args.data_dir is None:
         raise SystemExit("--data-dir is required")
+    if args.priority_dir is not None and args.sky_mask_dir is not None:
+        raise SystemExit("--priority-dir and --sky-mask-dir are mutually exclusive")
+    if args.priority_dir is None and args.sky_mask_dir is None:
+        raise SystemExit("One of --sky-mask-dir or --priority-dir is required")
 
     anchors = read_jsonl(args.anchor_evidence_jsonl)
     contact_edges = read_jsonl(args.contact_edges)
@@ -120,7 +144,7 @@ def main() -> None:
     samples = load_object_point_samples(args.object_ply, target_ids, args.max_points_per_object, args.seed)
     poses = {int(row["frame_id"]): row for row in config.load_img_pos(0, None)}
     depth_cache: OrderedDict[tuple[int, int], np.ndarray] = OrderedDict()
-    priority_cache: OrderedDict[tuple[int, int], np.ndarray] = OrderedDict()
+    sky_cache: OrderedDict[tuple[int, int], np.ndarray] = OrderedDict()
     rows: list[dict[str, Any]] = []
     failures: Counter[str] = Counter()
 
@@ -162,21 +186,29 @@ def main() -> None:
         if len(uv) < args.min_projected_points:
             failures["low_projected_after_depth_filter"] += 1
             continue
-        priority = priority_cache.get(cache_key)
-        if priority is None:
-            path = priority_mask_path(args.priority_dir, cam_id, frame_id, args.priority_suffix)
-            priority = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE) if path.exists() else None
-            if priority is None:
-                failures["missing_priority_mask"] += 1
+        sky = sky_cache.get(cache_key)
+        if sky is None:
+            if args.sky_mask_dir is not None:
+                path = sky_mask_path(args.sky_mask_dir, cam_id, frame_id)
+                source = "sky"
+                missing_reason = "missing_sky_mask"
+            else:
+                path = priority_mask_path(args.priority_dir, cam_id, frame_id, args.priority_suffix)
+                source = "priority"
+                missing_reason = "missing_priority_mask"
+            sky = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE) if path is not None and path.exists() else None
+            if sky is None:
+                failures[missing_reason] += 1
                 continue
-            if priority.shape[:2] != (height, width):
-                priority = cv2.resize(priority, (width, height), interpolation=cv2.INTER_NEAREST)
-            priority_cache[cache_key] = priority
-            if len(priority_cache) > args.max_depth_cache_entries:
-                priority_cache.popitem(last=False)
+            if sky.shape[:2] != (height, width):
+                sky = cv2.resize(sky, (width, height), interpolation=cv2.INTER_NEAREST)
+            sky_cache[cache_key] = sky
+            if len(sky_cache) > args.max_depth_cache_entries:
+                sky_cache.popitem(last=False)
         uu = np.clip(np.rint(uv[:, 0]).astype(np.int32), 0, width - 1)
         vv = np.clip(np.rint(uv[:, 1]).astype(np.int32), 0, height - 1)
-        non_sky = priority[vv, uu] != 6
+        source = "sky" if args.sky_mask_dir is not None else "priority"
+        non_sky = non_sky_pixels(sky, uu, vv, source, args.sky_threshold)
         uv, depth = uv[non_sky], depth[non_sky]
         if len(uv) < args.min_projected_points:
             failures["low_projected_after_sky_filter"] += 1
@@ -208,7 +240,13 @@ def main() -> None:
         "accepted_rows": len(rows),
         "accepted_targets": len({int(row["object_id"]) for row in rows}),
         "failure_counts": dict(failures),
-        "params": {"depth_tolerance": args.depth_tolerance, "min_projected_points": args.min_projected_points},
+        "params": {
+            "depth_tolerance": args.depth_tolerance,
+            "min_projected_points": args.min_projected_points,
+            "sky_mask_dir": str(args.sky_mask_dir) if args.sky_mask_dir else "",
+            "priority_dir": str(args.priority_dir) if args.priority_dir else "",
+            "sky_threshold": args.sky_threshold,
+        },
     }
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

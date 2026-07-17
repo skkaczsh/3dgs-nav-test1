@@ -1040,6 +1040,18 @@ patches only along contact edges that pass geometry compatibility; it must keep
 an unobserved patch `unknown` when no such evidence exists and must never use
 the old label-first point votes as a substitute.
 
+`build_superpoint_contact_view_evidence.py` is the companion edge-only stage.
+It reprojects a direct 3D contact neighbor into the *same* accepted camera pose
+as an anchor, then applies the identical full-cloud first-touch depth gate and
+SKYMask gate. It deliberately accepts either an explicit legacy priority mask
+or SKYMask, but the geometry-owned path uses SKYMask only; a priority class id
+must not leak into new evidence semantics. The first SKYMask-consistent run
+issued 21 direct-contact shared-view requests and accepted 15 observations for
+9 neighbors. That small count reflects sparse direct contact among the 143
+observed canary Superpoints, so these rows are boundary/compatibility evidence
+only. They are not a license to propagate a semantic label into the remaining
+unobserved Superpoints.
+
 ### GPU Partition Upgrade Gate
 
 The current deterministic Cut Pursuit partition is the production ownership

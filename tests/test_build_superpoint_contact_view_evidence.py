@@ -1,4 +1,6 @@
-from scripts.build_superpoint_contact_view_evidence import build_neighbor_requests
+import numpy as np
+
+from scripts.build_superpoint_contact_view_evidence import build_neighbor_requests, non_sky_pixels
 
 
 def test_requests_expand_only_direct_contact_neighbors_at_anchor_views() -> None:
@@ -19,3 +21,12 @@ def test_requests_expand_only_direct_contact_neighbors_at_anchor_views() -> None
     assert requests[(10, 120, 2)] == {11}
     assert requests[(13, 120, 2)] == {11}
     assert (13, 100, 1) not in requests
+
+
+def test_non_sky_pixels_keeps_sky_semantics_separate_from_priority_labels() -> None:
+    mask = np.array([[0, 6, 127, 128, 255]], dtype=np.uint8)
+    uu = np.arange(5, dtype=np.int32)
+    vv = np.zeros(5, dtype=np.int32)
+
+    assert non_sky_pixels(mask, uu, vv, "priority", 128).tolist() == [True, False, True, True, True]
+    assert non_sky_pixels(mask, uu, vv, "sky", 128).tolist() == [True, True, True, False, False]
