@@ -1,6 +1,6 @@
 import numpy as np
 
-from scripts.build_superpoint_sam2_comask_edges import mask_support, summarize_views
+from scripts.build_superpoint_sam2_comask_edges import mask_support, report_summary, summarize_views
 
 
 def test_compact_shared_mask_supports_same_edge() -> None:
@@ -28,3 +28,14 @@ def test_distinct_compact_masks_supply_separation_evidence() -> None:
 def test_single_view_is_neutral_and_repeated_separation_reduces_affinity() -> None:
     assert summarize_views([(0.0, 0.9)], min_views=2)["sam2_affinity"] == 1.0
     assert summarize_views([(0.0, 0.9), (0.0, 0.8)], min_views=2)["sam2_affinity"] < 0.3
+
+
+def test_report_summary_counts_only_repeated_strong_evidence() -> None:
+    report = report_summary([
+        {"view_count": 1, "sam2_affinity": 0.2, "same_mask_lcb": 0.0},
+        {"view_count": 2, "sam2_affinity": 0.6, "same_mask_lcb": 0.0},
+        {"view_count": 2, "sam2_affinity": 1.0, "same_mask_lcb": 0.7},
+    ], min_views=2)
+    assert report["multi_view_edges"] == 2
+    assert report["strong_separation_edges"] == 1
+    assert report["strong_same_mask_edges"] == 1

@@ -92,6 +92,22 @@ def choose_view_rows(rows: list[dict[str, Any]]) -> dict[tuple[int, int], dict[i
     return by_view
 
 
+def report_summary(rows: list[dict[str, Any]], min_views: int) -> dict[str, Any]:
+    affinities = sorted(float(row["sam2_affinity"]) for row in rows)
+    multi_view = [row for row in rows if int(row["view_count"]) >= min_views]
+    def quantile(fraction: float) -> float:
+        if not affinities:
+            return 1.0
+        return round(affinities[int(fraction * (len(affinities) - 1))], 6)
+    return {
+        "multi_view_edges": len(multi_view),
+        "neutral_edges": sum(float(row["sam2_affinity"]) == 1.0 for row in rows),
+        "strong_separation_edges": sum(float(row["sam2_affinity"]) < 0.8 for row in multi_view),
+        "strong_same_mask_edges": sum(float(row["same_mask_lcb"]) >= 0.5 for row in multi_view),
+        "sam2_affinity_quantiles": {"p10": quantile(0.10), "p50": quantile(0.50), "p90": quantile(0.90)},
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--evidence-jsonl", type=Path, required=True)
@@ -130,7 +146,7 @@ def main() -> None:
     args.output_jsonl.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     report = {
         "candidate_contact_edges": len(contact), "sam_mask_views_loaded": masks_loaded,
-        "shared_view_edges": len(rows), "multi_view_edges": sum(int(row["view_count"]) >= args.min_views for row in rows),
+        "shared_view_edges": len(rows), **report_summary(rows, args.min_views),
     }
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
